@@ -1,6 +1,6 @@
 # An election night result tracker for NZ
 
-My wife decided to host an election night party for the 2023 NZ General Election. She asked me to create a spreadsheet to track the winner of the 'guess the result' game. I didn't want to do manual data entry throuhgout or at the end of the night. And I ended up following that line of thinking too far and wrote this code which:
+My wife decided to host an election night party for the 2023 NZ General Election. She asked me to create a spreadsheet to track the winner of a 'guess the result' game. I didn't want to do manual data entry throughout or at the end of the night and ended up following that line of thinking too far and wrote this code which:
 
 * Scrapes the results from the [office Electoral Commission results website](https://electionresults.govt.nz/) (I am despearately hoping they don't change the layout of the site on election night).
 * Calls race winners (just like you see on the news coverage)
@@ -22,4 +22,4 @@ The Google sheet feeds an interactive public [Looker Studio report](https://look
 * The 'cut line' for list MPs
 * 'Flipped' electoral seats
 
-...but I still haven't done her spreadsheet which helps her 'guess the result' game.
+...but I still haven't done the spreadsheet which helps her 'guess the result' game.
