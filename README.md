@@ -1,6 +1,6 @@
 # An election night result tracker for NZ
 
-My wife decided to host an election night party for the 2023 NZ General Election. She asked me to create a spreadsheet to track the winner of a 'guess the result' game. I didn't want to do manual data entry throughout or at the end of the night and ended up following that line of thinking too far and wrote this code which:
+My wife decided to host an election night party for the 2023 NZ General Election. She asked me to create a spreadsheet to track the winner of a 'guess the result' game. I didn't want to do manual data entry throughout or at the end of the night and ended up following that line of thinking too far and wrote this code (subsequently reused for the 2026 election) which:
 
 * Scrapes the results from the [office Electoral Commission results website](https://electionresults.govt.nz/) (I am despearately hoping they don't change the layout of the site on election night).
 * Calls race winners (just like you see on the news coverage)
