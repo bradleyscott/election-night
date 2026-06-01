@@ -1,0 +1,30 @@
+{
+  "name": "@election-night/cli",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "serve:synthetic": "tsx src/serve-synthetic.ts"
+  },
+  "dependencies": {
+    "@election-night/core": "*",
+    "better-sqlite3": "^11.7.0",
+    "cheerio": "^1.0.0",
+    "csv-parse": "^5.5.0",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.45.2",
+    "jstat": "^1.9.6",
+    "puppeteer": "^24.2.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sainte-lague": "^3.0.0",
+    "socket.io-client": "^4.8.0",
+    "tslog": "^4.9.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.2"
+  }
+}

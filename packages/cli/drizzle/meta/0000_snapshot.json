@@ -1,0 +1,422 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "577dec33-30a1-456d-806a-0539dbf7534b",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "electorate_results": {
+      "name": "electorate_results",
+      "columns": {
+        "scrape_id": {
+          "name": "scrape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "electorate": {
+          "name": "electorate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "candidate": {
+          "name": "candidate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "party": {
+          "name": "party",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "votes": {
+          "name": "votes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_predicted": {
+          "name": "is_predicted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "electorate_results_scrape_id_scrape_snapshots_id_fk": {
+          "name": "electorate_results_scrape_id_scrape_snapshots_id_fk",
+          "tableFrom": "electorate_results",
+          "tableTo": "scrape_snapshots",
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "electorate_results_scrape_id_electorate_candidate_pk": {
+          "columns": ["scrape_id", "electorate", "candidate"],
+          "name": "electorate_results_scrape_id_electorate_candidate_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "electorate_summary": {
+      "name": "electorate_summary",
+      "columns": {
+        "scrape_id": {
+          "name": "scrape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "electorate": {
+          "name": "electorate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "votes_counted": {
+          "name": "votes_counted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estimated_total_votes": {
+          "name": "estimated_total_votes",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "vote_pct_counted": {
+          "name": "vote_pct_counted",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "leading_candidate": {
+          "name": "leading_candidate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "leading_party": {
+          "name": "leading_party",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "predicted_winner": {
+          "name": "predicted_winner",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "margin": {
+          "name": "margin",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "margin_pct": {
+          "name": "margin_pct",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "second_candidate": {
+          "name": "second_candidate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "second_party": {
+          "name": "second_party",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "margin_of_error": {
+          "name": "margin_of_error",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "electorate_summary_scrape_id_scrape_snapshots_id_fk": {
+          "name": "electorate_summary_scrape_id_scrape_snapshots_id_fk",
+          "tableFrom": "electorate_summary",
+          "tableTo": "scrape_snapshots",
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "electorate_summary_scrape_id_electorate_pk": {
+          "columns": ["scrape_id", "electorate"],
+          "name": "electorate_summary_scrape_id_electorate_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "party_lists": {
+      "name": "party_lists",
+      "columns": {
+        "scrape_id": {
+          "name": "scrape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "party": {
+          "name": "party",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "candidate": {
+          "name": "candidate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "list_rank": {
+          "name": "list_rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "adjusted_rank": {
+          "name": "adjusted_rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "distance_from_cut": {
+          "name": "distance_from_cut",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_lists_scrape_id_scrape_snapshots_id_fk": {
+          "name": "party_lists_scrape_id_scrape_snapshots_id_fk",
+          "tableFrom": "party_lists",
+          "tableTo": "scrape_snapshots",
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_lists_scrape_id_party_candidate_pk": {
+          "columns": ["scrape_id", "party", "candidate"],
+          "name": "party_lists_scrape_id_party_candidate_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "party_vote_results": {
+      "name": "party_vote_results",
+      "columns": {
+        "scrape_id": {
+          "name": "scrape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "electorate": {
+          "name": "electorate",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "party": {
+          "name": "party",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "votes": {
+          "name": "votes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_vote_results_scrape_id_scrape_snapshots_id_fk": {
+          "name": "party_vote_results_scrape_id_scrape_snapshots_id_fk",
+          "tableFrom": "party_vote_results",
+          "tableTo": "scrape_snapshots",
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_vote_results_scrape_id_electorate_party_pk": {
+          "columns": ["scrape_id", "electorate", "party"],
+          "name": "party_vote_results_scrape_id_electorate_party_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "party_vote_summary": {
+      "name": "party_vote_summary",
+      "columns": {
+        "scrape_id": {
+          "name": "scrape_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "party": {
+          "name": "party",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "votes": {
+          "name": "votes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seats": {
+          "name": "seats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "electorate_seats": {
+          "name": "electorate_seats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "list_seats": {
+          "name": "list_seats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_vote_summary_scrape_id_scrape_snapshots_id_fk": {
+          "name": "party_vote_summary_scrape_id_scrape_snapshots_id_fk",
+          "tableFrom": "party_vote_summary",
+          "tableTo": "scrape_snapshots",
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_vote_summary_scrape_id_party_pk": {
+          "columns": ["scrape_id", "party"],
+          "name": "party_vote_summary_scrape_id_party_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "scrape_snapshots": {
+      "name": "scrape_snapshots",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
