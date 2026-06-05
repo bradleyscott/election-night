@@ -1,0 +1,74 @@
+name: Deploy PR Preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+env:
+  FLY_REGION: nrt
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    concurrency:
+      group: preview-${{ github.event.number }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy preview
+        if: github.event.action != 'closed'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          APP_NAME="election-night-pr-${{ github.event.number }}"
+          flyctl apps create "$APP_NAME" --org personal 2>/dev/null || true
+          flyctl deploy \
+            --app "$APP_NAME" \
+            --image-label "pr-${{ github.event.number }}" \
+            --strategy immediate \
+            --region "$FLY_REGION" \
+            --ha=false
+          echo "deployed=true" >> $GITHUB_ENV
+          echo "url=https://$APP_NAME.fly.dev" >> $GITHUB_ENV
+
+      - name: Post preview URL
+        if: github.event.action != 'closed'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = process.env.url;
+            const body = `## 🪶 Preview Environment\n\n[Open preview →](${url})\n\nThis PR is deployed as an isolated preview. Changes are reflected after each push.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body?.includes('Preview Environment')
+            );
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Destroy preview
+        if: github.event.action == 'closed'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          APP_NAME="election-night-pr-${{ github.event.number }}"
+          flyctl apps destroy "$APP_NAME" -y || true
