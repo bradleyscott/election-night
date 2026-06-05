@@ -44,6 +44,7 @@ function getElectorateNames(): string[] {
 
 type VotePattern = {
   weight: Record<string, number>;
+  partyVoteWeight?: Record<string, number>;
   defaultWeight: number;
   independentsWeight: number;
 };
@@ -56,6 +57,15 @@ const PATTERN_SAFE_NATIONAL: VotePattern = {
     'ACT New Zealand': 8,
     'New Zealand First Party': 5,
     'Te Pāti Māori': 2,
+    'The Opportunities Party (TOP)': 1,
+  },
+  partyVoteWeight: {
+    'National Party': 52,
+    'Labour Party': 14,
+    'Green Party': 9,
+    'ACT New Zealand': 11,
+    'New Zealand First Party': 7,
+    'Te Pāti Māori': 0.5,
     'The Opportunities Party (TOP)': 1,
   },
   defaultWeight: 0.5,
@@ -72,6 +82,15 @@ const PATTERN_STRONG_NATIONAL: VotePattern = {
     'Te Pāti Māori': 2,
     'The Opportunities Party (TOP)': 1,
   },
+  partyVoteWeight: {
+    'National Party': 46,
+    'Labour Party': 18,
+    'Green Party': 9,
+    'ACT New Zealand': 10,
+    'New Zealand First Party': 7,
+    'Te Pāti Māori': 0.5,
+    'The Opportunities Party (TOP)': 1,
+  },
   defaultWeight: 0.7,
   independentsWeight: 0.5,
 };
@@ -84,6 +103,15 @@ const PATTERN_LEAN_NATIONAL: VotePattern = {
     'ACT New Zealand': 9,
     'New Zealand First Party': 6,
     'Te Pāti Māori': 2,
+    'The Opportunities Party (TOP)': 1,
+  },
+  partyVoteWeight: {
+    'National Party': 42,
+    'Labour Party': 22,
+    'Green Party': 10,
+    'ACT New Zealand': 8,
+    'New Zealand First Party': 7,
+    'Te Pāti Māori': 1,
     'The Opportunities Party (TOP)': 1,
   },
   defaultWeight: 0.7,
@@ -100,6 +128,15 @@ const PATTERN_LEAN_LABOUR: VotePattern = {
     'Te Pāti Māori': 3,
     'The Opportunities Party (TOP)': 1,
   },
+  partyVoteWeight: {
+    'National Party': 30,
+    'Labour Party': 33,
+    'Green Party': 11,
+    'ACT New Zealand': 6,
+    'New Zealand First Party': 6,
+    'Te Pāti Māori': 1,
+    'The Opportunities Party (TOP)': 1,
+  },
   defaultWeight: 0.7,
   independentsWeight: 0.5,
 };
@@ -112,6 +149,15 @@ const PATTERN_LABOUR_STRONGHOLD: VotePattern = {
     'ACT New Zealand': 4,
     'New Zealand First Party': 5,
     'Te Pāti Māori': 6,
+    'The Opportunities Party (TOP)': 1,
+  },
+  partyVoteWeight: {
+    'National Party': 20,
+    'Labour Party': 44,
+    'Green Party': 11,
+    'ACT New Zealand': 4,
+    'New Zealand First Party': 5,
+    'Te Pāti Māori': 2,
     'The Opportunities Party (TOP)': 1,
   },
   defaultWeight: 0.5,
@@ -128,6 +174,15 @@ const PATTERN_ACT_STRONGHOLD: VotePattern = {
     'Te Pāti Māori': 3,
     'The Opportunities Party (TOP)': 1,
   },
+  partyVoteWeight: {
+    'National Party': 30,
+    'Labour Party': 16,
+    'Green Party': 9,
+    'ACT New Zealand': 32,
+    'New Zealand First Party': 6,
+    'Te Pāti Māori': 0.5,
+    'The Opportunities Party (TOP)': 1,
+  },
   defaultWeight: 0.6,
   independentsWeight: 0.4,
 };
@@ -142,6 +197,15 @@ const PATTERN_MAORI_ELECTORATE: VotePattern = {
     'New Zealand First Party': 3,
     'The Opportunities Party (TOP)': 0.5,
   },
+  partyVoteWeight: {
+    'National Party': 18,
+    'Labour Party': 28,
+    'Green Party': 10,
+    'ACT New Zealand': 2,
+    'New Zealand First Party': 3,
+    'Te Pāti Māori': 28,
+    'The Opportunities Party (TOP)': 1,
+  },
   defaultWeight: 0.4,
   independentsWeight: 0.3,
 };
@@ -154,6 +218,15 @@ const PATTERN_MARGINAL: VotePattern = {
     'ACT New Zealand': 10,
     'New Zealand First Party': 6,
     'Te Pāti Māori': 2,
+    'The Opportunities Party (TOP)': 1,
+  },
+  partyVoteWeight: {
+    'National Party': 39,
+    'Labour Party': 26,
+    'Green Party': 11,
+    'ACT New Zealand': 9,
+    'New Zealand First Party': 6,
+    'Te Pāti Māori': 1,
     'The Opportunities Party (TOP)': 1,
   },
   defaultWeight: 0.8,
@@ -170,6 +243,15 @@ const PATTERN_VERY_CLOSE: VotePattern = {
     'Te Pāti Māori': 2,
     'The Opportunities Party (TOP)': 1,
   },
+  partyVoteWeight: {
+    'National Party': 37,
+    'Labour Party': 31,
+    'Green Party': 11,
+    'ACT New Zealand': 7,
+    'New Zealand First Party': 5,
+    'Te Pāti Māori': 1,
+    'The Opportunities Party (TOP)': 1,
+  },
   defaultWeight: 0.7,
   independentsWeight: 0.5,
 };
@@ -184,8 +266,40 @@ const PATTERN_PHOTO_FINISH: VotePattern = {
     'Te Pāti Māori': 2,
     'The Opportunities Party (TOP)': 1,
   },
+  partyVoteWeight: {
+    'National Party': 35,
+    'Labour Party': 34,
+    'Green Party': 10,
+    'ACT New Zealand': 7,
+    'New Zealand First Party': 5,
+    'Te Pāti Māori': 1,
+    'The Opportunities Party (TOP)': 1,
+  },
   defaultWeight: 0.7,
   independentsWeight: 0.5,
+};
+
+const PATTERN_GREEN_URBAN: VotePattern = {
+  weight: {
+    'Green Party': 40,
+    'Labour Party': 28,
+    'National Party': 22,
+    'ACT New Zealand': 5,
+    'New Zealand First Party': 3,
+    'Te Pāti Māori': 2,
+    'The Opportunities Party (TOP)': 1,
+  },
+  partyVoteWeight: {
+    'National Party': 18,
+    'Labour Party': 24,
+    'Green Party': 34,
+    'ACT New Zealand': 4,
+    'New Zealand First Party': 3,
+    'Te Pāti Māori': 1,
+    'The Opportunities Party (TOP)': 2,
+  },
+  defaultWeight: 0.5,
+  independentsWeight: 0.3,
 };
 
 type PatternEntry = {
@@ -204,9 +318,10 @@ const ALL_PATTERNS: Omit<PatternEntry, 'electorates'>[] = [
   { pattern: PATTERN_MARGINAL },
   { pattern: PATTERN_VERY_CLOSE },
   { pattern: PATTERN_PHOTO_FINISH },
+  { pattern: PATTERN_GREEN_URBAN },
 ];
 
-const TARGET_COUNTS = [7, 12, 14, 9, 5, 3, 7, 8, 4, 3];
+const TARGET_COUNTS = [7, 11, 12, 11, 6, 2, 6, 8, 4, 2, 3];
 
 function assignElectorates(names: string[]): PatternEntry[] {
   const shuffled = [...names];
@@ -250,10 +365,40 @@ function buildSyntheticElectorate(
     finalVotes: Math.round((w.weight / totalWeight) * TOTAL_VOTES),
   }));
 
+  // Party vote calculation — use partyVoteWeight when available
   const partyVoteMap = new Map<string, number>();
-  for (const c of candidateResults) {
-    const party = c.party ?? 'Independent';
-    partyVoteMap.set(party, (partyVoteMap.get(party) ?? 0) + c.finalVotes);
+
+  if (pattern.partyVoteWeight) {
+    const partyWeightMap = new Map(Object.entries(pattern.partyVoteWeight));
+    for (const c of candidates) {
+      if (c.party && !partyWeightMap.has(c.party)) {
+        partyWeightMap.set(
+          c.party,
+          pattern.weight[c.party] ?? pattern.defaultWeight
+        );
+      }
+    }
+
+    const partyWeights = [...partyWeightMap.entries()].map(
+      ([party, weight]) => ({ party, weight })
+    );
+
+    const partyTotalWeight = partyWeights.reduce(
+      (s, pw) => s + pw.weight,
+      0
+    );
+
+    for (const pw of partyWeights) {
+      partyVoteMap.set(
+        pw.party,
+        Math.round((pw.weight / partyTotalWeight) * TOTAL_VOTES)
+      );
+    }
+  } else {
+    for (const c of candidateResults) {
+      const party = c.party ?? 'Independent';
+      partyVoteMap.set(party, (partyVoteMap.get(party) ?? 0) + c.finalVotes);
+    }
   }
 
   const sortedParties = [...partyVoteMap.entries()].sort(
@@ -286,13 +431,13 @@ function generateAtPct(
   return results;
 }
 
-const earlyPct = () => [0.85, 0.75, 0.40, 0.20, 0.15, 0.35, 0.15, 0.40, 0.15, 0.10];
+const earlyPct = () => [0.85, 0.75, 0.40, 0.20, 0.15, 0.35, 0.15, 0.40, 0.15, 0.10, 0.25];
 
-const midPct = () => [0.95, 0.85, 0.65, 0.45, 0.40, 0.60, 0.40, 0.65, 0.40, 0.35];
+const midPct = () => [0.95, 0.85, 0.65, 0.45, 0.40, 0.60, 0.40, 0.65, 0.40, 0.35, 0.50];
 
-const latePct = () => [1.0, 0.95, 0.95, 0.80, 0.75, 0.90, 0.75, 0.90, 0.85, 0.80];
+const latePct = () => [1.0, 0.95, 0.95, 0.80, 0.75, 0.90, 0.75, 0.90, 0.85, 0.80, 0.85];
 
-const fullPct = () => [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+const fullPct = () => [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
 const electorates = getElectorateNames();
 const assignments = assignElectorates(electorates);
