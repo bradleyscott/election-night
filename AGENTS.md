@@ -23,10 +23,13 @@ npm run start:cli
 # Run the Socket.io server only
 npm run start:server
 
-# Synthetic data feed (publishes fake results to the web server)
-npm run start -w packages/cli serve:synthetic
-# or with flags from the cli directory:
-# npx tsx src/serve-synthetic.ts --fast --step early
+# Mock election results server (evolving HTML served to the scraper)
+npm run start:mock
+# Advance the stage manually:
+# curl -X POST http://localhost:3457/advance
+
+# Then scrape from the mock server:
+# BASE_RESULTS_URL=http://localhost:3457 POLL_INTERVAL_MS=15000 npm run start:cli
 
 # Verification
 npm run lint          # eslint packages/
@@ -39,7 +42,7 @@ npm run fmt           # prettier --write .
 
 - `packages/core/src/index.ts` — shared types, config, reducers, and source adapters.
 - `packages/cli/src/index.ts` — main scraper loop. Scrapes NZ Electoral Commission site with Puppeteer + stealth, calculates predictions, writes to SQLite, and publishes results via Socket.io client.
-- `packages/cli/src/serve-synthetic.ts` — synthetic data publisher; emits staged results to the same WS server.
+- `packages/cli/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches via Puppeteer. Replaces the old synthetic data approach.
 - `packages/cli/src/discover.ts` — `discover` subcommand loaded dynamically when `process.argv[2] === 'discover'`.
 - `packages/web/server/index.ts` — Socket.io server. Receives results from the CLI and broadcasts to web clients. Loads cached results from `.cache/electorate_results.json` on startup.
 - `packages/web/src/main.tsx` — React frontend entrypoint (Vite, Tailwind, Leaflet, react-router-dom).
@@ -51,7 +54,7 @@ npm run fmt           # prettier --write .
 - **SQLite + Drizzle ORM.** CLI uses `better-sqlite3` (native dependency). The DB path defaults to `./.cache/election_results.db`. Migrations live in `packages/cli/drizzle/` and auto-run on startup via `migrate()` in `db.ts`. Drizzle config is at `packages/cli/drizzle.config.ts`.
 - **Static CSV data.** `csv/candidates.csv`, `csv/electorates.csv`, and `csv/party_list.csv` are read at runtime by the CLI. They are not bundled.
 - **Environment loading.** CLI entrypoints import `dotenv/config`. Expected variables:
-  - Scraping: `BASE_RESULTS_URL`, `RESULTS_TABLE_SELECTOR`, `VOTE_PERCENT_COUNTED_SELECTOR`, `VOTES_COUNTED_SELECTOR`
+  - Scraping: `BASE_RESULTS_URL`, `RESULTS_TABLE_SELECTOR`, `CANDIDATE_TABLE_SELECTOR`, `PARTY_VOTE_TABLE_SELECTOR`, `VOTE_PERCENT_COUNTED_SELECTOR`, `VOTES_COUNTED_SELECTOR`
   - Webhooks: `NEW_PREDICTION_WEBHOOK_URL`, `UPDATED_RESULT_WEBHOOK_URL`, `LEADER_CHANGE_WEBHOOK_URL`
   - Runtime: `POLL_INTERVAL_MS` (default 120s), `WS_PORT`/`WS_URL`, `DB_PATH`, `ELECTION_SOURCE_PATH`
 - **Custom source adapters.** Set `ELECTION_SOURCE_PATH` to a JS/TS module exporting `default` or `NzElectionResultsSource`. Used to adapt to other election result sites.
@@ -72,4 +75,4 @@ npm run fmt           # prettier --write .
 - `better-sqlite3` is a native Node dependency. If installation fails, the environment likely needs build tools (Python, a C++ compiler).
 - Puppeteer downloads Chromium on install; the CLI uses `puppeteer-extra-plugin-stealth`.
 - The CLI creates `.cache/` automatically for the SQLite DB and JSON results cache.
-- Synthetic data server (`serve-synthetic.ts`) and the real scraper both connect as Socket.io clients to the same `WS_URL`. You can run the web dev server and then use synthetic data to drive the UI without scraping.
+- Mock server (`serve-mock.ts`) serves HTML matching the NZ Electoral Commission site structure. The real scraper fetches it via Puppeteer, parses it with Cheerio, and runs the full prediction pipeline — same as election night.

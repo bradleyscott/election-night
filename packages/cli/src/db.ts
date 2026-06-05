@@ -94,7 +94,11 @@ export function writeResults(
         })
         .run();
 
+      const seenPartyVotes = new Set<string>();
       for (const pv of r.partyVotes) {
+        const key = `${r.electorateName}:${pv.candidate}`;
+        if (seenPartyVotes.has(key)) continue;
+        seenPartyVotes.add(key);
         tx.insert(schema.partyVoteResults)
           .values({
             scrapeId,

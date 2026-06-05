@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { config } from '@election-night/core/config';
@@ -37,10 +40,16 @@ if (process.argv[2] === 'discover') {
   process.exit(0);
 }
 
-const CSV_CANDIDATES = readFileSync('csv/candidates.csv', 'utf-8');
+const CSV_CANDIDATES = readFileSync(
+  resolve(__dirname, '../../../csv/candidates.csv'),
+  'utf-8'
+);
 const candidateRecords = parse(CSV_CANDIDATES, { columns: true }) as Record<string, string>[];
 
-const CSV_PARTY_LIST = readFileSync('csv/party_list.csv', 'utf-8');
+const CSV_PARTY_LIST = readFileSync(
+  resolve(__dirname, '../../../csv/party_list.csv'),
+  'utf-8'
+);
 const partyListRecords: PartyList[] = parse(CSV_PARTY_LIST, { columns: true }).map(
   (x: Record<string, string>) => ({
     party: x.Party,
@@ -49,7 +58,10 @@ const partyListRecords: PartyList[] = parse(CSV_PARTY_LIST, { columns: true }).m
   })
 );
 
-const CSV_ELECTORATES = readFileSync('csv/electorates.csv', 'utf-8')
+const CSV_ELECTORATES = readFileSync(
+  resolve(__dirname, '../../../csv/electorates.csv'),
+  'utf-8'
+)
   .trim()
   .split('\n')
   .map((s) => s.trim())

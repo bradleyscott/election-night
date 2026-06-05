@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "serve:synthetic": "tsx src/serve-synthetic.ts"
+    "serve:mock": "tsx src/serve-mock.ts"
   },
   "dependencies": {
     "@election-night/core": "*",
