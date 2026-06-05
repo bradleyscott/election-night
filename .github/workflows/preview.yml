@@ -27,7 +27,9 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           APP_NAME="election-night-pr-${{ github.event.number }}"
-          flyctl apps create "$APP_NAME" --org personal 2>/dev/null || true
+          # Remove the app in case it was left orphaned from a previous failed run
+          flyctl apps destroy "$APP_NAME" -y 2>/dev/null || true
+          flyctl apps create "$APP_NAME" --org personal || exit 1
           flyctl deploy \
             --app "$APP_NAME" \
             --image-label "pr-${{ github.event.number }}" \
