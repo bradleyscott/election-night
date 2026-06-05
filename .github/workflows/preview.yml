@@ -32,7 +32,7 @@ jobs:
             --app "$APP_NAME" \
             --image-label "pr-${{ github.event.number }}" \
             --strategy immediate \
-            --region "$FLY_REGION" \
+            --regions "$FLY_REGION" \
             --ha=false
           echo "deployed=true" >> $GITHUB_ENV
           echo "url=https://$APP_NAME.fly.dev" >> $GITHUB_ENV
