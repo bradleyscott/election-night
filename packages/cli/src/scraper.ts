@@ -1,4 +1,4 @@
-import { Browser } from 'puppeteer';
+import { Browser } from 'puppeteer-core';
 import { ElectorateConfig } from '@election-night/core/types';
 import { log } from './logger.js';
 

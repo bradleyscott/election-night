@@ -1,13 +1,14 @@
 FROM node:22 AS builder
 WORKDIR /app
 
-ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+ENV CLOAKBROWSER_CACHE_DIR=/app/.cache/cloakbrowser
+ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/cli/package.json packages/cli/
 COPY packages/web/package.json packages/web/
-RUN npm ci
+RUN npm ci && npx cloakbrowser install
 
 COPY packages/core/ packages/core/
 COPY packages/cli/ packages/cli/
@@ -29,7 +30,8 @@ RUN npx esbuild packages/web/server/index.ts \
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+ENV CLOAKBROWSER_CACHE_DIR=/app/.cache/cloakbrowser
+ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 RUN apt-get update && apt-get install -y \
   wget \
