@@ -1,3 +1,8 @@
+import type {
+  ElectorateResults,
+  WithLeaders,
+} from '@election-night/core/types';
+
 export const electorateVotes = [
   {
     electorateName: 'Auckland Central',
@@ -137,7 +142,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 1068,
       marginPercent: 0.02933824135373458,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -263,7 +268,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 13156,
       marginPercent: 0.2633781105483374,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -399,7 +404,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3415,
       marginPercent: 0.07494294241573034,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -510,7 +515,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3999,
       marginPercent: 0.10558137078889006,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -646,7 +651,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 14098,
       marginPercent: 0.346090585491592,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -777,7 +782,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 17336,
       marginPercent: 0.42222168099564045,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -908,7 +913,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3505,
       marginPercent: 0.07364064207076225,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1034,7 +1039,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 15521,
       marginPercent: 0.3373910397148012,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1155,7 +1160,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 6331,
       marginPercent: 0.14802085525239064,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1276,7 +1281,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 8764,
       marginPercent: 0.22833025037125812,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1417,7 +1422,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 9224,
       marginPercent: 0.21945706740263138,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1558,7 +1563,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2973,
       marginPercent: 0.07442547439042707,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1684,7 +1689,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 6267,
       marginPercent: 0.15494350631690854,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1825,7 +1830,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3777,
       marginPercent: 0.0823234524847428,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -1946,7 +1951,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3463,
       marginPercent: 0.07934471302554703,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2082,7 +2087,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 224,
       marginPercent: 0.005553076503545045,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2228,7 +2233,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2295,
       marginPercent: 0.05311762255242328,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2359,7 +2364,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 4435,
       marginPercent: 0.09649695387293299,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2500,7 +2505,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 15660,
       marginPercent: 0.4386923270863098,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2641,7 +2646,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 16244,
       marginPercent: 0.37392385249297916,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2762,7 +2767,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 19396,
       marginPercent: 0.6130796219616272,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -2903,7 +2908,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 17179,
       marginPercent: 0.5638374688197453,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3014,7 +3019,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 635,
       marginPercent: 0.016917543625949116,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3130,7 +3135,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 21246,
       marginPercent: 0.5095330599323692,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3266,7 +3271,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 13853,
       marginPercent: 0.35997713275991994,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3387,7 +3392,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 5856,
       marginPercent: 0.13945845538329643,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3523,7 +3528,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 4525,
       marginPercent: 0.10137784250028005,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3664,7 +3669,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 13134,
       marginPercent: 0.3116753678215472,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3790,7 +3795,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2555,
       marginPercent: 0.05747384996063435,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -3921,7 +3926,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3734,
       marginPercent: 0.08786502576652469,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4042,7 +4047,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2534,
       marginPercent: 0.06290650911076907,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4188,7 +4193,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 163,
       marginPercent: 0.003556622299803622,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4324,7 +4329,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 11961,
       marginPercent: 0.27282058300260026,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4450,7 +4455,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2988,
       marginPercent: 0.0649466385550025,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4566,7 +4571,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 10050,
       marginPercent: 0.2676288879420537,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4687,7 +4692,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 12508,
       marginPercent: 0.3198731555123648,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4808,7 +4813,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 18626,
       marginPercent: 0.5891507195951289,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -4934,7 +4939,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 5583,
       marginPercent: 0.13874254473161035,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5075,7 +5080,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 4313,
       marginPercent: 0.10570560266653596,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5206,7 +5211,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 4408,
       marginPercent: 0.10282008817149121,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5327,7 +5332,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2961,
       marginPercent: 0.07053526763381691,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5453,7 +5458,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 20497,
       marginPercent: 0.4703843947217441,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5584,7 +5589,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 19207,
       marginPercent: 0.42075401432671033,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5710,7 +5715,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 825,
       marginPercent: 0.02143525254624818,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5831,7 +5836,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 4968,
       marginPercent: 0.11501863727918876,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -5957,7 +5962,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 5645,
       marginPercent: 0.14236715341353307,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6098,7 +6103,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 12398,
       marginPercent: 0.27455322541355714,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6219,7 +6224,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 7724,
       marginPercent: 0.21033139994009203,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6335,7 +6340,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 8068,
       marginPercent: 0.19276072153864532,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6446,7 +6451,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3134,
       marginPercent: 0.07653983295071558,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6572,7 +6577,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 5119,
       marginPercent: 0.11527721479079403,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6713,7 +6718,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 1856,
       marginPercent: 0.04204040953157561,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6834,7 +6839,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 10508,
       marginPercent: 0.27363158168845375,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -6965,7 +6970,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 1590,
       marginPercent: 0.03754516045243099,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7096,7 +7101,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 2392,
       marginPercent: 0.058829316281357596,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7202,7 +7207,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 5216,
       marginPercent: 0.12563528193270226,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7328,7 +7333,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 1507,
       marginPercent: 0.03218503726800931,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7454,7 +7459,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 6545,
       marginPercent: 0.144596147048427,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7585,7 +7590,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 3281,
       marginPercent: 0.0738348673402795,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7726,7 +7731,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 18878,
       marginPercent: 0.39255562487003537,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7872,7 +7877,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 6208,
       marginPercent: 0.14227111263893663,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -7993,7 +7998,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 8191,
       marginPercent: 0.1982908879635906,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8114,7 +8119,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 7823,
       marginPercent: 0.17126406585227025,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8255,7 +8260,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 431,
       marginPercent: 0.009666277922310935,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8391,7 +8396,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 14770,
       marginPercent: 0.3758843589352064,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8497,7 +8502,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 9660,
       marginPercent: 0.38544409863538426,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8613,7 +8618,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 6045,
       marginPercent: 0.23354195642095504,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8719,7 +8724,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 927,
       marginPercent: 0.034607630851937576,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8835,7 +8840,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 1053,
       marginPercent: 0.04010970174837161,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -8961,7 +8966,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 8164,
       marginPercent: 0.2937535981577432,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -9077,7 +9082,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 6855,
       marginPercent: 0.22940231577538317,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
   {
@@ -9193,7 +9198,7 @@ export const electorateVotes = [
       secondCandidateParty: undefined,
       margin: 836,
       marginPercent: 0.030181595003429727,
-      isPredictedWinner: true,
+        predictionStatus: 'projected',
     },
   },
-];
+] satisfies (ElectorateResults & WithLeaders)[];

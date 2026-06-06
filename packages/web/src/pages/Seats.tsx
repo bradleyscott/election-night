@@ -255,8 +255,7 @@ function SuccessfulCandidates({
 }
 
 export default function Seats() {
-  const { results, connected } = useResults();
-  const isLive = connected && results !== null;
+  const { results } = useResults();
 
   const partyVote = results?.partyVote;
   const sorted = partyVote?.sort((a, b) => b.seats - a.seats) ?? [];
@@ -282,34 +281,6 @@ export default function Seats() {
             Seats
           </h1>
           <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
-        </div>
-        <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              'relative inline-flex h-5 w-5 rounded-full',
-              isLive && 'animate-pulse-live'
-            )}
-          >
-            <span
-              className={cn(
-                'absolute inset-0 rounded-full',
-                isLive
-                  ? 'bg-green-500 animate-ping opacity-30'
-                  : 'bg-red-500'
-              )}
-            />
-            <span
-              className={cn(
-                'relative inline-flex rounded-full h-5 w-5',
-                isLive
-                  ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.7)]'
-                  : 'bg-red-500'
-              )}
-            />
-          </span>
-          <span className="text-sm text-muted-foreground font-semibold">
-            {isLive ? 'Live' : 'Disconnected'}
-          </span>
         </div>
       </div>
 
@@ -368,7 +339,7 @@ export default function Seats() {
         )}
       >
         <h2 className="text-base sm:text-lg font-extrabold mb-4 sm:mb-5 tracking-tight">
-          Successful Candidates
+          Likely Parliamentarians
         </h2>
         <SuccessfulCandidates
           electorateResults={results?.electorateResults ?? []}

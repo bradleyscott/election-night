@@ -69,8 +69,8 @@ export function hasNewPrediction(result: Results) {
     return false;
   }
   return (
-    matchingResult.leaders.isPredictedWinner !==
-    result.leaders.isPredictedWinner
+    matchingResult.leaders.predictionStatus !==
+    result.leaders.predictionStatus
   );
 }
 

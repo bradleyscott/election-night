@@ -68,7 +68,7 @@ export function writeResults(
             party: cv.party ?? '',
             votes: cv.votes,
             isPredicted:
-              r.leaders.isPredictedWinner &&
+              r.leaders.predictionStatus === 'projected' &&
               r.leaders.leadingCandidate === cv.candidate
                 ? 1
                 : 0,
@@ -85,7 +85,11 @@ export function writeResults(
           votePctCounted: r.votePercentageCounted,
           leadingCandidate: r.leaders.leadingCandidate,
           leadingParty: r.leaders.leadingCandidateParty,
-          predictedWinner: r.leaders.isPredictedWinner ? 1 : 0,
+          predictedWinner:
+            r.leaders.predictionStatus === 'projected' ? 3
+            : r.leaders.predictionStatus === 'likely' ? 2
+            : r.leaders.predictionStatus === 'leaning' ? 1
+            : 0,
           margin: r.leaders.margin,
           marginPct: r.leaders.marginPercent,
           secondCandidate: r.leaders.secondCandidate,

@@ -4,6 +4,7 @@ import Seats from './pages/Seats.js';
 import Electorates from './pages/Electorates.js';
 import Parties from './pages/Parties.js';
 import CloseCalls from './pages/CloseCalls.js';
+import Feed from './pages/Feed.js';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/electorates/:name" element={<Electorates />} />
         <Route path="/parties" element={<Parties />} />
         <Route path="/close-calls" element={<CloseCalls />} />
+        <Route path="/feed" element={<Feed />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
