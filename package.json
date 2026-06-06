@@ -11,7 +11,7 @@
     "build": "npm run build -w packages/web",
     "start:cli": "npm run start -w packages/cli",
     "start:server": "npm run start -w packages/web",
-    "start:mock": "npm run serve:mock -w packages/cli",
+    "start:mock": "tsx packages/cli/src/serve-mock.ts",
     "test": "vitest",
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",

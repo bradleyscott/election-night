@@ -31,6 +31,7 @@ export class NzElectionResultsSource implements ElectionSource {
   private partyVoteTableSelector: string;
   private votePercentCountedSelector: string;
   private votesCountedSelector: string;
+  private verbose: boolean;
 
   constructor(options: {
     baseUrl?: string;
@@ -40,6 +41,7 @@ export class NzElectionResultsSource implements ElectionSource {
     partyVoteTableSelector?: string;
     votePercentCountedSelector?: string;
     votesCountedSelector?: string;
+    verbose?: boolean;
   }) {
     this.baseUrl =
       options?.baseUrl ?? process.env.BASE_RESULTS_URL ?? DEFAULT_BASE_URL;
@@ -70,6 +72,8 @@ export class NzElectionResultsSource implements ElectionSource {
       options?.votesCountedSelector ??
       process.env.VOTES_COUNTED_SELECTOR ??
       DEFAULT_VOTES_COUNTED_SELECTOR;
+
+    this.verbose = options?.verbose ?? false;
   }
 
   getElectorateConfigs(): ElectorateConfig[] {
@@ -83,56 +87,95 @@ export class NzElectionResultsSource implements ElectionSource {
     html: string,
     config: ElectorateConfig
   ): RawElectorateResults {
+    this.debug(`parseRawResults for ${config.electorateName}, HTML length=${html.length}`);
+    this.debug(`HTML preview: ${html.slice(0, 500).replace(/\s+/g, ' ')}`);
+
+    const candidateVotes = this.parseCandidateVotes(html);
+    const partyVotes = this.parsePartyVotes(html);
+    const votesCounted = this.parseVotesCounted(html);
+    const votePercentageCounted = this.parseVotePercentCounted(html);
+
+    this.debug(
+      `parsed ${config.electorateName}: ${candidateVotes.length} candidates, ${partyVotes.length} party entries, votesCounted=${votesCounted}, pct=${votePercentageCounted}`
+    );
+
     return {
       electorateName: config.electorateName,
-      candidateVotes: this.parseCandidateVotes(html),
-      partyVotes: this.parsePartyVotes(html),
-      votesCounted: this.parseVotesCounted(html),
-      votePercentageCounted: this.parseVotePercentCounted(html),
+      candidateVotes,
+      partyVotes,
+      votesCounted,
+      votePercentageCounted,
     };
   }
 
+  private debug(...args: unknown[]) {
+    if (this.verbose) console.warn('[parse]', ...args);
+  }
+
   private parseTable(selector: string, html: string): VotingResults[] {
-    const tableHtml = load(html)(selector).html() ?? '';
-    const $ = load(tableHtml);
+    const $ = load(html);
+    const $table = $(selector);
+    this.debug(`parseTable: selector="${selector}" found=${$table.length}`);
+    if (!$table.length) {
+      this.debug('table not found — selector may not match');
+      return [];
+    }
 
     const data: VotingResults[] = [];
-    $('tr').each((_index, element) => {
+    $table.find('tr').each((_index, element) => {
       const $cell = $(element).find('td').first();
       const name = $cell.find('span:first-child').text();
       const votes = parseInt($cell.find('span:last-child').text(), 10);
 
       if (name && !Number.isNaN(votes)) {
         data.push({ candidate: name, votes });
+      } else {
+        this.debug(`skipped row: name="${name}" votes=${votes}`);
       }
     });
 
+    this.debug(`parsed ${data.length} rows from ${selector}`);
+    if (data.length > 0) {
+      this.debug('first row:', JSON.stringify(data[0]));
+      this.debug('last row:', JSON.stringify(data[data.length - 1]));
+    }
     return data;
   }
 
   private parseCandidateVotes(html: string): VotingResults[] {
     const $ = load(html);
-    if ($(this.candidateTableSelector).length > 0) {
+    const found = $(this.candidateTableSelector).length;
+    this.debug(`parseCandidateVotes: selector="${this.candidateTableSelector}" found=${found} elements`);
+    if (found > 0) {
       return this.parseTable(this.candidateTableSelector, html);
     }
+    this.debug('candidateTableSelector not found, falling back to parseColumn');
     return this.parseColumn(html, 0);
   }
 
   private parsePartyVotes(html: string): VotingResults[] {
     const $ = load(html);
-    if ($(this.partyVoteTableSelector).length > 0) {
+    const found = $(this.partyVoteTableSelector).length;
+    this.debug(`parsePartyVotes: selector="${this.partyVoteTableSelector}" found=${found} elements`);
+    if (found > 0) {
       return this.parseTable(this.partyVoteTableSelector, html);
     }
+    this.debug('partyVoteTableSelector not found, falling back to parseColumn');
     return this.parseColumn(html, 1);
   }
 
   /** @deprecated Use separate candidateTableSelector/partyVoteTableSelector instead */
   private parseColumn(html: string, columnIndex: number): VotingResults[] {
-    const resultsTableHtml = load(html)(this.resultsTableSelector).html() ?? '';
-    const $ = load(resultsTableHtml);
+    const $ = load(html);
+    const $container = $(this.resultsTableSelector);
+    this.debug(`parseColumn: column=${columnIndex}, container found=${$container.length}`);
+    if (!$container.length) {
+      this.debug('parseColumn: container not found');
+      return [];
+    }
 
     const data: VotingResults[] = [];
-    $('table tr').each((_index, element) => {
+    $container.find('table tr').each((_index, element) => {
       const $cells = $(element).find('td');
 
       if ($cells.length === 2) {
@@ -151,17 +194,36 @@ export class NzElectionResultsSource implements ElectionSource {
       }
     });
 
+    this.debug(`parseColumn: parsed ${data.length} rows`);
     return data;
   }
 
   private parseVotePercentCounted(html: string): number {
-    const element = load(html)(this.votePercentCountedSelector).text();
-    return Number.parseFloat(element.replace('%', '')) / 100;
+    const $ = load(html);
+    const el = $(this.votePercentCountedSelector);
+    this.debug(`parseVotePercentCounted: selector="${this.votePercentCountedSelector}" found=${el.length}`);
+    const text = el.text();
+    if (!text) {
+      this.debug('vote percent element empty or not found');
+      return 0;
+    }
+    const value = Number.parseFloat(text.replace('%', '')) / 100;
+    this.debug(`parseVotePercentCounted: raw="${text}" -> ${value}`);
+    return value;
   }
 
   private parseVotesCounted(html: string): number {
-    const element = load(html)(this.votesCountedSelector).text();
-    return Number.parseFloat(element.replace(',', ''));
+    const $ = load(html);
+    const el = $(this.votesCountedSelector);
+    this.debug(`parseVotesCounted: selector="${this.votesCountedSelector}" found=${el.length}`);
+    const text = el.text();
+    if (!text) {
+      this.debug('votes counted element empty or not found');
+      return 0;
+    }
+    const value = Number.parseFloat(text.replace(',', ''));
+    this.debug(`parseVotesCounted: raw="${text}" -> ${value}`);
+    return value;
   }
 
 }

@@ -36,12 +36,21 @@ function calculateLead(
   const sortedCandidates = results.candidateVotes.sort(
     (a, b) => b.votes - a.votes
   );
-  const leadingCandidate = sortedCandidates[0].candidate;
-  const leadingCandidateParty = partyMap[leadingCandidate];
-  const secondCandidate = sortedCandidates[1].candidate;
-  const secondCandidateParty = partyMap[secondCandidate];
-  const margin = sortedCandidates[0].votes - sortedCandidates[1].votes;
-  const marginPercent = margin / results.votesCounted;
+
+  const leadingCandidate = sortedCandidates[0]?.candidate ?? '';
+  const leadingCandidateParty = leadingCandidate
+    ? partyMap[leadingCandidate]
+    : undefined;
+  const secondCandidate = sortedCandidates[1]?.candidate ?? '';
+  const secondCandidateParty = secondCandidate
+    ? partyMap[secondCandidate]
+    : undefined;
+  const margin =
+    (sortedCandidates[0]?.votes ?? 0) -
+    (sortedCandidates[1]?.votes ?? 0);
+  const marginPercent = results.votesCounted
+    ? margin / results.votesCounted
+    : 0;
 
   return {
     ...results,
@@ -66,8 +75,8 @@ function predictWinner(
     WithMarginOfError;
   const votesCounted = results.votesCounted;
   const totalVotes = votesCounted / results.votePercentageCounted;
-  const leadingShare = results.candidateVotes[0].votes / votesCounted;
-  const secondShare = results.candidateVotes[1].votes / votesCounted;
+  const leadingShare = (results.candidateVotes[0]?.votes ?? 0) / votesCounted;
+  const secondShare = (results.candidateVotes[1]?.votes ?? 0) / votesCounted;
   const leadPercent = leadingShare - secondShare;
 
   const zScore = jstat.normal.inv(1 - (1 - confidence) / 2, 0, 1);
@@ -174,7 +183,10 @@ function calculatePartyVoteWithSeats(
     },
     {} as Record<string, number>
   );
-  const seats = sainteLague(resultsMap, 120, { draw: true });
+  const seats =
+    Object.keys(resultsMap).length > 0
+      ? sainteLague(resultsMap, 120, { draw: true })
+      : {};
 
   return partyVotes.map((x) => ({
     ...x,

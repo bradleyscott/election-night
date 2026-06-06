@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
+import pLimit from 'p-limit';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 import puppeteer from 'puppeteer-extra';
@@ -101,7 +102,8 @@ async function loadSource(): Promise<{
     }
   }
 
-  const source = new NzElectionResultsSource({ electorateNames: CSV_ELECTORATES });
+  const verbose = parseInt(process.env.LOG_LEVEL ?? '', 10) < 3;
+  const source = new NzElectionResultsSource({ electorateNames: CSV_ELECTORATES, verbose });
   const configs = source.getElectorateConfigs();
   return { source, configs };
 }
@@ -115,66 +117,121 @@ const run = async () => {
     puppeteer.use(StealthPlugin());
     const browser = await puppeteer.launch({ headless: true });
 
-    const settled = await Promise.allSettled(
-      electorateConfigs.map((x) =>
-        getElectoratePageHtml(browser, x).then((html) => ({ html, config: x }))
-      )
-    );
+    const CONCURRENCY = parseInt(process.env.CONCURRENCY || '10', 10);
+    const limit = pLimit(CONCURRENCY);
 
-    const results: ElectorateResults[] = [];
-    for (const s of settled) {
-      if (s.status === 'fulfilled') {
-        const raw = source.parseRawResults(s.value.html, s.value.config);
-        results.push({
-          electorateName: raw.electorateName,
-          partyVotes: raw.partyVotes,
-          candidateVotes: raw.candidateVotes.map((cv) => ({
-            ...cv,
-            party: candidateRecords.find((r) => r.Name === cv.candidate)?.Party,
-          })),
-          votesCounted: raw.votesCounted,
-          votePercentageCounted: raw.votePercentageCounted,
-        });
-      } else {
-        log.error(`Failed to scrape electorate`, s.reason);
+    try {
+      const settled = await Promise.allSettled(
+        electorateConfigs.map((x) =>
+          limit(() =>
+            getElectoratePageHtml(browser, x).then((html) => ({ html, config: x }))
+          )
+        )
+      );
+
+      const results: ElectorateResults[] = [];
+      for (const s of settled) {
+        if (s.status === 'fulfilled') {
+          const raw = source.parseRawResults(s.value.html, s.value.config);
+          const electorateResults = {
+            electorateName: raw.electorateName,
+            partyVotes: raw.partyVotes,
+            candidateVotes: raw.candidateVotes.map((cv) => ({
+              ...cv,
+              party: candidateRecords.find((r) => r.Name === cv.candidate)?.Party,
+            })),
+            votesCounted: raw.votesCounted,
+            votePercentageCounted: raw.votePercentageCounted,
+          };
+          log.debug(
+            `${electorateResults.electorateName}: ${electorateResults.candidateVotes.length} candidates, ${electorateResults.partyVotes.length} party entries, votesCounted=${electorateResults.votesCounted}, pct=${electorateResults.votePercentageCounted}`
+          );
+          if (electorateResults.candidateVotes.length > 0) {
+            log.trace(
+              `${electorateResults.electorateName} top candidate: ${electorateResults.candidateVotes[0].candidate} (${electorateResults.candidateVotes[0].votes} votes)`
+            );
+            if (electorateResults.partyVotes.length > 0) {
+              log.trace(
+                `${electorateResults.electorateName} top party: ${electorateResults.partyVotes[0].candidate} (${electorateResults.partyVotes[0].votes} votes)`
+              );
+            }
+          }
+          results.push(electorateResults);
+        } else {
+          log.error(`Failed to scrape electorate`, s.reason);
+        }
       }
-    }
 
-    browser.close();
+      const totalVotes = results.reduce((s, r) => s + (r.votesCounted || 0), 0);
+      log.info(
+        `Finished scraping ${results.length}/${electorateConfigs.length} electorates (total votes counted: ${totalVotes.toLocaleString()})`
+      );
+      if (results.length > 0) {
+        const zeroVoteElectorates = results.filter((r) => (r.votesCounted || 0) === 0).length;
+        if (zeroVoteElectorates > 0) {
+          log.warn(`${zeroVoteElectorates} electorates have 0 votes counted`);
+        }
+      }
 
-    log.info(
-      `Finished scraping ${results.length}/${electorateConfigs.length} electorates`
-    );
+      const withPredictions = results
+        .map((x) => calculateLead(x, partyMap))
+        .map((x) => predictWinner(x, config.predictionConfidence));
 
-    const withPredictions = results
-      .map((x) => calculateLead(x, partyMap))
-      .map((x) => predictWinner(x, config.predictionConfidence));
+      const partyVote = calculatePartyVoteWithSeats(
+        calculatePartyVoteWithPercentages(
+          withPredictions,
+          config.predictionConfidence
+        ),
+        withPredictions
+      );
 
-    const partyVote = calculatePartyVoteWithSeats(
-      calculatePartyVoteWithPercentages(
+      const partyLists = calculatePartyList(
         withPredictions,
-        config.predictionConfidence
-      ),
-      withPredictions
-    );
+        partyVote,
+        partyListRecords
+      );
 
-    const partyLists = calculatePartyList(withPredictions, partyVote, partyListRecords);
+      const totalSeats = partyVote.reduce((s, p) => s + p.seats, 0);
+      const partiesWithSeats = partyVote.filter((p) => p.seats > 0).length;
+      log.info(
+        `Party votes: ${partyVote.length} parties, ${totalSeats} total seats, ${partiesWithSeats} parties in parliament`
+      );
+      if (partyVote.length > 0) {
+        log.debug(
+          `Top 3 parties: ${partyVote
+            .sort((a, b) => b.seats - a.seats)
+            .slice(0, 3)
+            .map((p) => `${p.candidate} (${p.seats} seats)`)
+            .join(', ')}`
+        );
+      }
+      if (totalSeats === 0) {
+        log.warn('Total seats is 0 — party vote calculation produced no seats');
+      }
 
-    await Promise.all(
-      withPredictions.filter(hasLeaderChanged).map(processLeaderChange)
-    );
+      const totalListCandidates = partyLists.filter((pl) => pl.distanceFromCut >= 0).length;
+      log.debug(`${totalListCandidates} list candidates above the cut`);
 
-    await Promise.all(
-      withPredictions.filter(hasNewPrediction).map(processNewPrediction)
-    );
+      await Promise.all(
+        withPredictions.filter(hasLeaderChanged).map(processLeaderChange)
+      );
 
-    cacheResults(withPredictions);
-    writeResults(withPredictions, partyVote, partyLists);
-    publishResults({
-      electorateResults: withPredictions,
-      partyVote,
-      partyLists,
-    });
+      await Promise.all(
+        withPredictions.filter(hasNewPrediction).map(processNewPrediction)
+      );
+
+      cacheResults(withPredictions);
+      writeResults(withPredictions, partyVote, partyLists);
+      publishResults({
+        electorateResults: withPredictions,
+        partyVote,
+        partyLists,
+      });
+    } finally {
+      await browser.close().catch((err) =>
+        log.error('Error closing browser', err)
+      );
+    }
 
     log.info('Processing of results completed!');
   } catch (err) {
@@ -182,16 +239,27 @@ const run = async () => {
   }
 };
 
-const loopRun = () => {
-  run();
+const loopRun = async () => {
+  await run();
   setTimeout(loopRun, POLL_INTERVAL_MS);
 };
+
+process.on('unhandledRejection', (reason) => {
+  if (
+    reason instanceof Error &&
+    (reason.message.includes('TargetCloseError') ||
+      reason.message.includes('Protocol error'))
+  ) {
+    return;
+  }
+  log.error('Unhandled rejection', reason);
+});
 
 const dbPath = process.env.DB_PATH || '.cache/election_results.db';
 
 openDb(dbPath);
 connectWs(WS_URL);
-loopRun();
+loopRun().catch((err) => log.error('Fatal error in loop', err));
 
 process.on('SIGINT', () => {
   disconnectWs();
