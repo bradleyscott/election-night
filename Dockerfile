@@ -8,7 +8,8 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/cli/package.json packages/cli/
 COPY packages/web/package.json packages/web/
-RUN npm ci && npx cloakbrowser install
+RUN npm ci
+RUN node packages/cli/node_modules/cloakbrowser/dist/cli.js install
 
 COPY packages/core/ packages/core/
 COPY packages/cli/ packages/cli/
