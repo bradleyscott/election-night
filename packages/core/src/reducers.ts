@@ -193,16 +193,31 @@ function calculatePartyVoteWithSeats(
     },
     {} as Record<string, number>
   );
-  const seats =
+  const entitlement =
     Object.keys(resultsMap).length > 0
       ? sainteLague(resultsMap, 120, { draw: true })
       : {};
 
+  const finalSeats: Record<string, number> = {};
+  for (const party of Object.keys(entitlement)) {
+    finalSeats[party] = Math.max(
+      entitlement[party] || 0,
+      electorateSeats[party] || 0
+    );
+  }
+  // Parties with electorate wins but no party-vote entitlement keep those seats (overhang)
+  for (const party of Object.keys(electorateSeats)) {
+    if (!(party in finalSeats)) {
+      finalSeats[party] = electorateSeats[party];
+    }
+  }
+
   return partyVotes.map((x) => ({
     ...x,
-    seats: seats[x.candidate] || 0,
+    seats: finalSeats[x.candidate] || 0,
     electorateSeats: electorateSeats[x.candidate] || 0,
-    listSeats: (seats[x.candidate] || 0) - (electorateSeats[x.candidate] || 0),
+    listSeats:
+      (finalSeats[x.candidate] || 0) - (electorateSeats[x.candidate] || 0),
   }));
 }
 

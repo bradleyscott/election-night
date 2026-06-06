@@ -67,9 +67,14 @@ const CSV_ELECTORATES = readFileSync(
   .map((s) => s.trim())
   .filter(Boolean);
 
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 const partyMap: Record<string, string | undefined> = {};
 for (const row of candidateRecords) {
   partyMap[row.Name] = row.Party;
+  partyMap[normalizeName(row.Name)] = row.Party;
 }
 
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '120000', 10);
@@ -138,13 +143,20 @@ const run = async () => {
       for (const s of settled) {
         if (s.status === 'fulfilled') {
           const raw = source.parseRawResults(s.value.html, s.value.config);
+          const candidateVotes = raw.candidateVotes.map((cv) => {
+            const party =
+              partyMap[cv.candidate] ?? partyMap[normalizeName(cv.candidate)];
+            if (!party) {
+              log.debug(
+                `No party match for candidate "${cv.candidate}" in ${raw.electorateName}`
+              );
+            }
+            return { ...cv, party };
+          });
           const electorateResults = {
             electorateName: raw.electorateName,
             partyVotes: raw.partyVotes,
-            candidateVotes: raw.candidateVotes.map((cv) => ({
-              ...cv,
-              party: candidateRecords.find((r) => r.Name === cv.candidate)?.Party,
-            })),
+            candidateVotes,
             votesCounted: raw.votesCounted,
             votePercentageCounted: raw.votePercentageCounted,
           };
