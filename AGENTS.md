@@ -59,7 +59,9 @@ npm run fmt           # prettier --write .
 - **Environment loading.** CLI entrypoints import `dotenv/config`. Expected variables:
   - Scraping: `BASE_RESULTS_URL`, `RESULTS_TABLE_SELECTOR`, `CANDIDATE_TABLE_SELECTOR`, `PARTY_VOTE_TABLE_SELECTOR`, `VOTE_PERCENT_COUNTED_SELECTOR`, `VOTES_COUNTED_SELECTOR`
   - Webhooks: `NEW_PREDICTION_WEBHOOK_URL`, `UPDATED_RESULT_WEBHOOK_URL`, `LEADER_CHANGE_WEBHOOK_URL`
-  - Runtime: `POLL_INTERVAL_MS` (default 120s), `CONCURRENCY` (default 10), `NAVIGATION_TIMEOUT_MS` (default 60s), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `WS_PORT`/`WS_URL`, `DB_PATH`, `ELECTION_SOURCE_PATH`
+  - Runtime: `POLL_INTERVAL_MS` (default 120s), `CONCURRENCY` (default 10), `NAVIGATION_TIMEOUT_MS` (default 60s), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `WS_PORT`/`WS_URL`, `WS_RECONNECT_DELAY_MS` (default 2s), `DB_PATH`, `ELECTION_SOURCE_PATH`
+  - Discover subcommand: `OPENAI_API_KEY`, `OPENAI_BASE_URL` (default `https://api.openai.com/v1`), `LLM_MODEL` (default `gpt-4o`)
+  - Web server: `DIST_DIR` (default `./dist`)
 - **Custom source adapters.** Set `ELECTION_SOURCE_PATH` to a JS/TS module exporting `default` or `NzElectionResultsSource`. Used to adapt to other election result sites.
 
 ## Toolchain and style quirks
