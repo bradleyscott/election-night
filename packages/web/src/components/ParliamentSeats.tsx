@@ -421,6 +421,7 @@ export default function ParliamentSeats({
   const [dropTargetParty, setDropTargetParty] = useState<string | null>(null);
   const [hoveredParty, setHoveredParty] = useState<string | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
+  const [showAllParties, setShowAllParties] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -705,19 +706,79 @@ export default function ParliamentSeats({
               </tr>
             </thead>
             <tbody>
-              {order
-                .map((name) => partyVote.find((p) => p.candidate === name))
-                .filter((p): p is PartyEntry => !!p && p.seats > 0)
-                .map((party, index) => (
-                  <SortableRow
-                    key={party.candidate}
-                    party={party}
-                    totalPartyVotes={totalPartyVotes}
-                    index={index}
-                    hoveredParty={hoveredParty}
-                    onHoveredPartyChange={(p) => setHoveredParty(p)}
-                  />
-                ))}
+              {(() => {
+                const partiesWithSeats = order
+                  .map((name) => partyVote.find((p) => p.candidate === name))
+                  .filter((p): p is PartyEntry => !!p && p.seats > 0);
+
+                const displayParties = showAllParties
+                  ? [
+                      ...partiesWithSeats,
+                      ...partyVote
+                        .filter((p) => p.seats === 0)
+                        .sort((a, b) => b.votes - a.votes),
+                    ]
+                  : partiesWithSeats;
+
+                return displayParties.map((party) => {
+                  if (party.seats === 0) {
+                    return (
+                      <tr
+                        key={party.candidate}
+                        className="border-b last:border-0 opacity-60"
+                      >
+                        <td className="py-2 sm:py-3 pr-4 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0 ring-1 ring-black/10"
+                              style={{
+                                backgroundColor:
+                                  partyColors[party.candidate] || '#666',
+                              }}
+                            />
+                            <span className="font-bold truncate min-w-0">
+                              {party.candidate}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="text-right px-2 tabular-nums font-semibold whitespace-nowrap">
+                          <span className="hidden sm:inline">
+                            {party.votes.toLocaleString()}{' '}
+                          </span>
+                          <span className="text-muted-foreground text-xs font-normal sm:ml-1.5">
+                            {(
+                              (party.votes / totalPartyVotes) *
+                              100
+                            ).toFixed(1)}
+                            %
+                          </span>
+                        </td>
+                        <td className="text-right px-2 tabular-nums font-semibold hidden sm:table-cell">
+                          0
+                        </td>
+                        <td className="text-right px-2 tabular-nums font-semibold hidden sm:table-cell">
+                          0
+                        </td>
+                        <td className="text-right pl-2 font-extrabold tabular-nums">
+                          0
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  const sortableIndex = partiesWithSeats.indexOf(party);
+                  return (
+                    <SortableRow
+                      key={party.candidate}
+                      party={party}
+                      totalPartyVotes={totalPartyVotes}
+                      index={sortableIndex}
+                      hoveredParty={hoveredParty}
+                      onHoveredPartyChange={(p) => setHoveredParty(p)}
+                    />
+                  );
+                });
+              })()}
             </tbody>
             {coalitionInfo.parties.length > 0 && (
               <tfoot>
@@ -751,6 +812,25 @@ export default function ParliamentSeats({
               </tfoot>
             )}
           </table>
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowAllParties(!showAllParties)}
+            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-bold tracking-wide uppercase transition-colors bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+            type="button"
+          >
+            <span
+              className={cn(
+                'inline-block transition-transform duration-200 text-[10px]',
+                showAllParties && 'rotate-180'
+              )}
+            >
+              ▼
+            </span>
+            {showAllParties
+              ? 'Show only parties with seats'
+              : 'Show all parties with votes'}
+          </button>
         </div>
       </DragDropProvider>
 
