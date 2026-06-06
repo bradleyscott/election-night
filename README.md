@@ -1,3 +1,5 @@
+![Election Night Logo](./packages/web/public/favicon.svg)
+
 # Election Night — NZ General Election Result Tracker
 
 This started as a project for a 2023 election night party — the goal was to avoid manual data entry for a "guess the result" game. It's since grown into a full real-time election night results platform that scrapes the NZ Electoral Commission site, calculates seat projections, and serves an interactive dashboard.
