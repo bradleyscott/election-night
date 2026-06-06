@@ -18,14 +18,19 @@
     "fmt": "prettier --write .",
     "typecheck": "tsc -b"
   },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  },
   "devDependencies": {
-    "eslint": "^9.18.0",
     "@eslint/js": "^9.18.0",
-    "typescript-eslint": "^8.20.0",
+    "@types/node": "^22.12.0",
+    "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "prettier": "^3.4.2",
     "typescript": "^5.7.3",
-    "vitest": "^3.0.4",
-    "@types/node": "^22.12.0"
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^4.1.8"
   }
 }
