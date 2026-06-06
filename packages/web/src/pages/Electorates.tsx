@@ -279,10 +279,17 @@ export default function Electorates() {
                       <span
                         className={cn(
                           'text-xl sm:text-2xl font-extrabold tracking-tight',
-                          selectedElectorate.leaders.isPredictedWinner ? 'text-green-500' : 'text-amber-500'
+                          selectedElectorate.leaders.predictionStatus === 'projected' && 'text-green-500',
+                          selectedElectorate.leaders.predictionStatus === 'likely' && 'text-lime-500',
+                          selectedElectorate.leaders.predictionStatus === 'leaning' && 'text-orange-500',
+                          selectedElectorate.leaders.predictionStatus === 'too-close' && 'text-amber-500',
+                          !selectedElectorate.leaders.predictionStatus && 'text-amber-500'
                         )}
                       >
-                        {selectedElectorate.leaders.isPredictedWinner ? 'Projected winner' : 'Too close to call'}
+                        {(selectedElectorate.leaders.predictionStatus === 'projected' || selectedElectorate.leaders.predictionStatus === 'likely') && 'Likely winner'}
+                        {selectedElectorate.leaders.predictionStatus === 'leaning' && 'Leaning'}
+                        {selectedElectorate.leaders.predictionStatus === 'too-close' && 'Too close to call'}
+                        {!selectedElectorate.leaders.predictionStatus && 'Too close to call'}
                       </span>
                     </div>
                   </div>

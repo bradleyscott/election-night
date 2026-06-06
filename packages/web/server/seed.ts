@@ -1,3 +1,4 @@
+import { predictionStatusFromRatio } from '@election-night/core/reducers';
 import type {
   ResultsPayload,
   ElectorateResults,
@@ -244,7 +245,7 @@ function calculateLeadElectorate(
       secondCandidateParty,
       margin,
       marginPercent,
-      isPredictedWinner: false,
+      predictionStatus: 'too-close',
     },
   };
 }
@@ -272,12 +273,18 @@ function predictElectorateWinner(
   const marginOfError =
     zScore * Math.sqrt(diffVariance) * finitePopulationCorrection;
 
+  const ratio = marginOfError > 0
+    ? leadPercent / marginOfError
+    : leadPercent > 0
+      ? Infinity
+      : 0;
+
   return {
     ...results,
     marginOfError,
     leaders: {
       ...results.leaders,
-      isPredictedWinner: leadPercent > marginOfError,
+      predictionStatus: predictionStatusFromRatio(ratio),
     },
   };
 }

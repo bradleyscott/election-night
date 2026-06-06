@@ -78,7 +78,9 @@ describe('synthetic data', () => {
           const r = fixtures[+pct as unknown as keyof typeof fixtures];
           const withLead = calculateLead(r, buildPartyMap(r));
           const prediction = predictWinner(withLead, 0.95);
-          expect(prediction.leaders.isPredictedWinner).toBe(exp);
+          expect(
+            prediction.leaders.predictionStatus !== 'too-close'
+          ).toBe(exp);
         });
       }
     }
@@ -193,7 +195,7 @@ describe('synthetic data', () => {
         const r = tiedFixtures[pct];
         const withLead = calculateLead(r, buildPartyMap(r));
         const result = predictWinner(withLead, 0.95);
-        expect(result.leaders.isPredictedWinner).toBe(false);
+        expect(result.leaders.predictionStatus).toBe('too-close');
       });
     }
   });

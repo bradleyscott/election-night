@@ -22,6 +22,7 @@ import type {
   WithMarginOfError,
   PartyList,
   WithAdjustedRank,
+  PredictionStatus,
 } from '@election-night/core/types';
 
 type PartyEntry = VotingResults & WithSeats;
@@ -70,7 +71,7 @@ type SeatInfo = {
   margin?: number;
   marginPercent?: number;
   marginOfError?: number;
-  isPredictedWinner?: boolean;
+  predictionStatus?: PredictionStatus;
   listRank?: number;
   adjustedRank?: number;
   distanceFromCut?: number;
@@ -139,7 +140,7 @@ function buildSeats(
         margin: e.leaders.margin,
         marginPercent: e.leaders.marginPercent,
         marginOfError: e.marginOfError,
-        isPredictedWinner: e.leaders.isPredictedWinner,
+        predictionStatus: e.leaders.predictionStatus,
       });
     }
 
@@ -300,14 +301,17 @@ function SeatDetailContent({
             <span
               className={cn(
                 'px-1.5 py-0.5 rounded text-[10px] font-bold',
-                info.isPredictedWinner
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-amber-500/20 text-amber-400'
+                info.predictionStatus === 'projected' && 'bg-green-500/20 text-green-400',
+                info.predictionStatus === 'likely' && 'bg-lime-500/20 text-lime-400',
+                info.predictionStatus === 'leaning' && 'bg-orange-500/20 text-orange-400',
+                info.predictionStatus === 'too-close' && 'bg-amber-500/20 text-amber-400',
+                !info.predictionStatus && 'bg-amber-500/20 text-amber-400'
               )}
             >
-              {info.isPredictedWinner
-                ? 'Projected winner'
-                : 'Too close to call'}
+              {(info.predictionStatus === 'projected' || info.predictionStatus === 'likely') && 'Likely winner'}
+              {info.predictionStatus === 'leaning' && 'Leaning'}
+              {info.predictionStatus === 'too-close' && 'Too close to call'}
+              {!info.predictionStatus && 'Too close to call'}
             </span>
           )}
         </div>

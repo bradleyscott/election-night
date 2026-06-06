@@ -3,6 +3,7 @@ import jstat from 'jstat';
 import {
   ElectorateResults,
   PartyList,
+  PredictionStatus,
   VotingResults,
   WithLeaders,
   WithMarginOfError,
@@ -27,6 +28,13 @@ function calculateMarginOfError(
     finitePopulationCorrection;
 
   return marginOfError;
+}
+
+function predictionStatusFromRatio(ratio: number): PredictionStatus {
+  if (ratio > 2) return 'projected';
+  if (ratio > 1.5) return 'likely';
+  if (ratio > 1) return 'leaning';
+  return 'too-close';
 }
 
 function calculateLead(
@@ -61,7 +69,7 @@ function calculateLead(
       secondCandidateParty,
       margin,
       marginPercent,
-      isPredictedWinner: false,
+      predictionStatus: 'too-close',
     },
   };
 }
@@ -89,11 +97,13 @@ function predictWinner(
   resultsWithWinner.marginOfError =
     zScore * Math.sqrt(diffVariance) * finitePopulationCorrection;
 
-  if (leadPercent <= resultsWithWinner.marginOfError) {
-    return resultsWithWinner;
-  }
+  const ratio = resultsWithWinner.marginOfError > 0
+    ? leadPercent / resultsWithWinner.marginOfError
+    : leadPercent > 0
+      ? Infinity
+      : 0;
 
-  resultsWithWinner.leaders.isPredictedWinner = true;
+  resultsWithWinner.leaders.predictionStatus = predictionStatusFromRatio(ratio);
   return resultsWithWinner;
 }
 
@@ -252,6 +262,7 @@ function calculatePartyList(
 export {
   calculateLead,
   predictWinner,
+  predictionStatusFromRatio,
   calculatePartyVoteWithPercentages,
   calculatePartyVoteWithSeats,
   calculatePartyList,

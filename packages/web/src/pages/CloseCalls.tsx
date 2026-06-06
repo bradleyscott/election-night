@@ -114,7 +114,7 @@ function ElectorateRacesView({
               <th className="text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
                 Lead %
               </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
                 MoE
               </th>
             </tr>
@@ -163,7 +163,7 @@ function ElectorateRacesView({
                   <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
                     {(l.marginPercent * 100).toFixed(2)}%
                   </td>
-                  <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold text-muted-foreground">
+                  <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right tabular-nums font-bold text-muted-foreground">
                     ±{(er.marginOfError * 100).toFixed(1)}%
                   </td>
                 </tr>

@@ -43,6 +43,8 @@ export type WithSeats = {
   listSeats: number;
 };
 
+export type PredictionStatus = 'too-close' | 'leaning' | 'likely' | 'projected';
+
 export type WithLeaders = {
   leaders: {
     leadingCandidate: string;
@@ -51,7 +53,7 @@ export type WithLeaders = {
     secondCandidateParty: string | undefined;
     margin: number;
     marginPercent: number;
-    isPredictedWinner: boolean;
+    predictionStatus: PredictionStatus;
   };
 };
 
@@ -95,3 +97,37 @@ export interface ElectionSource {
   getElectorateConfigs(): ElectorateConfig[];
   parseRawResults(html: string, config: ElectorateConfig): RawElectorateResults;
 }
+
+// ---- Feed / Commentary ----
+
+export type FeedEventType = 'result_updated' | 'prediction_called' | 'leader_change' | 'count_completed';
+
+export type ElectorateDiff = {
+  electorateName: string;
+  previousVotesCounted: number | null;
+  currentVotesCounted: number;
+  previousPercentageCounted: number | null;
+  currentPercentageCounted: number;
+  previousMargin: number | null;
+  currentMargin: number;
+  previousMarginPercent: number | null;
+  currentMarginPercent: number;
+  leaderChanged: boolean;
+  previousLeaderName: string | null;
+  previousLeaderParty: string | null;
+  predictionStatusChanged: boolean;
+  previousPredictionStatus: PredictionStatus | null;
+  currentPredictionStatus: PredictionStatus;
+};
+
+export type FeedEvent = {
+  id: string;
+  timestamp: number;
+  type: FeedEventType;
+  electorateName: string;
+  predictionStatus: PredictionStatus;
+  marginOfError: number;
+  summary: string;
+  commentary: string;
+  diff: ElectorateDiff;
+};

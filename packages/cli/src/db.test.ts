@@ -37,7 +37,7 @@ function makeResult(overrides: Partial<Results> = {}): Results {
       secondCandidateParty: 'Labour Party',
       margin: 400,
       marginPercent: 0.04,
-      isPredictedWinner: false,
+      predictionStatus: 'too-close',
     },
     marginOfError: 0.02,
     ...overrides,
@@ -164,7 +164,7 @@ describe('db', () => {
         secondCandidateParty: 'Labour Party',
         margin: 400,
         marginPercent: 0.04,
-        isPredictedWinner: true,
+        predictionStatus: 'projected',
       },
     });
     writeResults([result], [], []);
