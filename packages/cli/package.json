@@ -17,9 +17,8 @@
     "drizzle-orm": "^0.45.2",
     "jstat": "^1.9.6",
     "p-limit": "^7.3.0",
-    "puppeteer": "^24.2.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "cloakbrowser": "^0.3.31",
+    "puppeteer-core": "^24.2.0",
     "sainte-lague": "^3.0.0",
     "socket.io-client": "^4.8.0",
     "tslog": "^4.9.2"

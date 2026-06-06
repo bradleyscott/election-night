@@ -1,6 +1,5 @@
-import type { Browser } from 'puppeteer';
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import type { Browser } from 'puppeteer-core';
+import { launch } from 'cloakbrowser/puppeteer';
 import { load } from 'cheerio';
 import { writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -52,8 +51,7 @@ export async function runDiscover(argv: string[]) {
   log.info(`Discovering election source from: ${url}`);
   log.info('Launching browser...');
 
-  puppeteer.use(StealthPlugin());
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await launch({ headless: true });
 
   try {
     log.info('Fetching page HTML...');

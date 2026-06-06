@@ -6,8 +6,7 @@ import { parse } from 'csv-parse/sync';
 import pLimit from 'p-limit';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { launch } from 'cloakbrowser/puppeteer';
 import { config } from '@election-night/core/config';
 import { NzElectionResultsSource } from '@election-night/core/sources/nz-election-results';
 import type {
@@ -114,14 +113,12 @@ const run = async () => {
   try {
     log.info('Starting election results scraping...');
 
-    puppeteer.use(StealthPlugin());
-    const browser = await puppeteer.launch({
+    const browser = await launch({
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
       ],
     });
 
