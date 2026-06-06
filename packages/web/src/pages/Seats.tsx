@@ -60,8 +60,8 @@ function SuccessfulCandidates({
   partyLists: (PartyList & WithAdjustedRank)[];
 }) {
   type SortKey = 'name' | 'party' | 'certainty';
-  const [sortKey, setSortKey] = useState<SortKey>('certainty');
-  const [sortDesc, setSortDesc] = useState(true);
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDesc, setSortDesc] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -242,7 +242,7 @@ function SuccessfulCandidates({
                       </span>
                     </span>
                   ) : (
-                    <span className="text-green-600 dark:text-green-400">+{Math.round(c.certainty)}</span>
+                    <span className="text-green-600 dark:text-green-400">+{Math.round(c.certainty)} from cut</span>
                   )}
                 </td>
               </tr>
