@@ -104,9 +104,12 @@ export default function FeedSidebar({
   return (
     <aside className="w-64 lg:w-72 h-full bg-background border-l border-border shadow-xl flex flex-col">
       <div className="sticky top-0 bg-background z-10 px-4 pt-4 pb-2">
-        <h2 className="text-sm font-extrabold tracking-tight uppercase text-muted-foreground">
+        <Link
+          to="/feed"
+          className="text-sm font-extrabold tracking-tight uppercase text-muted-foreground hover:text-foreground transition-colors"
+        >
           Live Feed
-        </h2>
+        </Link>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">

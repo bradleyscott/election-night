@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { partyColors } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
@@ -70,6 +70,7 @@ function ElectorateRacesView({
 }: {
   electorates: ElectorateResult[];
 }) {
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
 
   const sorted = useMemo(
@@ -125,19 +126,17 @@ function ElectorateRacesView({
               return (
                 <tr
                   key={er.electorateName}
+                  onClick={() => navigate(`/electorates/${encodeURIComponent(er.electorateName)}`)}
                   className={cn(
-                    'border-b last:border-0 transition-colors hover:bg-muted/20',
+                    'border-b last:border-0 transition-colors hover:bg-muted/20 cursor-pointer',
                     'opacity-0 animate-fade-in-up'
                   )}
                   style={{ animationDelay: `${i * 0.03}s` }}
                 >
                   <td className="py-2 sm:py-3 px-3 font-semibold">
-                    <Link
-                      to={`/electorates/${encodeURIComponent(er.electorateName)}`}
-                      className="hover:underline transition-colors"
-                    >
+                    <span className="hover:underline transition-colors">
                       {er.electorateName}
-                    </Link>
+                    </span>
                   </td>
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">

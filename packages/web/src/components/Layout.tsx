@@ -10,7 +10,7 @@ const navItems = [
   { to: '/electorates', label: 'Electorates' },
   { to: '/close-calls', label: 'Close Calls' },
   { to: '/feed', label: 'Feed' },
-  { to: '/parties', label: 'Party List' },
+  { to: '/parties', label: 'Party lists' },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -30,7 +30,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-gradient-brand shadow-lg shadow-orange-500/10 overflow-visible">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <Link to="/" className="flex items-center gap-2.5 group">
               <Logo className="w-16 h-16 sm:w-18 sm:h-18 drop-shadow" />
@@ -92,7 +92,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
         {menuOpen && (
           <div className="sm:hidden bg-gradient-brand shadow-lg border-t border-white/10 animate-fade-in">
-            <nav className="max-w-7xl mx-auto px-4 py-2 space-y-1">
+            <nav className="max-w-screen-2xl mx-auto px-4 py-2 space-y-1">
               {navItems.map((item) => (
                 <Link
                   key={item.to}
@@ -113,11 +113,11 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
       </header>
 
-      <main className={cn('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8', showSidebar && 'xl:pr-80')}>
+      <main className={cn('max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8', showSidebar && 'lg:pr-80')}>
         {children}
       </main>
       {showSidebar && (
-        <div className="hidden xl:block fixed right-0 top-16 h-[calc(100vh-4rem)] z-40">
+        <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-4rem)] z-40">
           <FeedSidebar electorateName={sidebarElectorateName} />
         </div>
       )}
