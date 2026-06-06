@@ -7,6 +7,7 @@ const navItems = [
   { to: '/', label: 'Seats' },
   { to: '/electorates', label: 'Electorates' },
   { to: '/parties', label: 'Party List' },
+  { to: '/close-calls', label: 'Close Calls' },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
