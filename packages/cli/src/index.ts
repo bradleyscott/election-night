@@ -115,7 +115,15 @@ const run = async () => {
     log.info('Starting election results scraping...');
 
     puppeteer.use(StealthPlugin());
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ],
+    });
 
     const CONCURRENCY = parseInt(process.env.CONCURRENCY || '10', 10);
     const limit = pLimit(CONCURRENCY);

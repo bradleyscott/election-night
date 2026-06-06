@@ -1,15 +1,27 @@
 app = "election-night"
 primary_region = "nrt"
 
+[build]
+  dockerfile = "Dockerfile"
+
 [http_service]
   internal_port = 3456
   force_https = true
   auto_stop_machines = false
   auto_start_machines = true
-  min_machines_running = 0
-
-[build]
-  dockerfile = "Dockerfile"
+  min_machines_running = 1
 
 [env]
   NODE_ENV = "production"
+  DIST_DIR = "/app/packages/web/dist"
+  BASE_RESULTS_URL = "https://www.electionresults.govt.nz/electionresults_2023"
+  WS_URL = "ws://localhost:3456"
+  POLL_INTERVAL_MS = "120000"
+  CONCURRENCY = "1"
+  LOG_LEVEL = "3"
+  DB_PATH = "/tmp/.cache/election_results.db"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
