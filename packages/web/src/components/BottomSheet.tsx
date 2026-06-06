@@ -40,14 +40,6 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
         <div className="flex justify-center pt-2 pb-1 sticky top-0 bg-card rounded-t-xl">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          type="button"
-          aria-label="Close"
-        >
-          ✕
-        </button>
         <div className="p-4 pt-2">
           {children}
         </div>
