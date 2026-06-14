@@ -187,6 +187,17 @@
   100% { background-position: -200% 0; }
 }
 
+@keyframes waitDot {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translateY(0px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
 .leaflet-tooltip.electorate-label {
   background: none;
   border: none;

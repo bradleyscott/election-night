@@ -12,7 +12,6 @@ import type {
   FeedEventType,
   ElectorateDiff,
 } from '@election-night/core/types';
-import { generateSeedData } from './seed.js';
 
 const PORT = parseInt(process.env.WS_PORT || '3456', 10);
 const CACHE_PATH = '.cache/electorate_results.json';
@@ -54,9 +53,7 @@ function loadCachedResults() {
       console.error('Failed to load cached results:', err);
     }
   }
-  console.log('No cached results found, generating seed data...');
-  latestResults = generateSeedData();
-  console.log(`Seed data generated with ${latestResults.electorateResults.length} electorates`);
+  console.log('No cached results found, waiting for first scrape...');
 }
 
 function loadFeedEvents() {

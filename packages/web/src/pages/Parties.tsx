@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { cn } from '../lib/utils.js';
 import { partyColors } from '../lib/constants.js';
+import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
 
 const MAJOR_PARTY_ORDER = [
@@ -13,7 +14,7 @@ const MAJOR_PARTY_ORDER = [
   'New Zealand First Party',
 ] as const;
 
-const MAJOR_PARTIES = new Set(MAJOR_PARTY_ORDER);
+const MAJOR_PARTIES = new Set<string>(MAJOR_PARTY_ORDER);
 
 type PartyListEntry = PartyList & WithAdjustedRank;
 
@@ -66,8 +67,9 @@ export default function Parties() {
   if (!partyLists.length) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Party List Rankings</h1>
-        <p className="text-muted-foreground animate-pulse-soft font-semibold">Waiting for data…</p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Party List Rankings</h1>
+        <div className="h-1 w-16 bg-gradient-brand rounded-full mb-2" />
+        <WaitingState context="parties" />
       </div>
     );
   }

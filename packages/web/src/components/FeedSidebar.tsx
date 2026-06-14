@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useFeed } from '../hooks/useFeed.js';
 import { cn } from '../lib/utils.js';
+import { WaitingState } from './WaitingState.js';
 import type { FeedEvent } from '@election-night/core/types';
 
 function relativeTime(timestamp: number): string {
@@ -114,11 +115,9 @@ export default function FeedSidebar({
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {filteredEvents.length === 0 ? (
-          <p className="text-xs text-muted-foreground font-semibold py-4 text-center animate-pulse-soft">
-            {feedEvents.length === 0
-              ? 'Waiting for results…'
-              : 'No matching events yet.'}
-          </p>
+          feedEvents.length === 0
+            ? <WaitingState variant="inline" context="sidebar" />
+            : <p className="text-xs text-muted-foreground font-semibold py-4 text-center">No matching events yet.</p>
         ) : (
           <div className="space-y-0">
             {filteredEvents.map((event) => (

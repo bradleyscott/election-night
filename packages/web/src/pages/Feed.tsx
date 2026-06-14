@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useFeed } from '../hooks/useFeed.js';
 import { cn } from '../lib/utils.js';
 import { TimelineItem, TimelineGroupHeader } from '../components/Timeline.js';
+import { WaitingState } from '../components/WaitingState.js';
 import type { FeedEvent } from '@election-night/core/types';
 
 function formatClockTime(timestamp: number): string {
@@ -193,13 +194,9 @@ export default function Feed() {
   if (feedEvents.length === 0) {
     return (
       <div className="animate-fade-in">
-        <div className="mb-6">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Feed</h1>
-          <div className="h-1 w-12 bg-gradient-brand rounded-full mt-1.5" />
-        </div>
-        <p className="text-muted-foreground animate-pulse-soft font-semibold py-12 text-center">
-          Waiting for results updates…
-        </p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Feed</h1>
+        <div className="h-1 w-12 bg-gradient-brand rounded-full mb-2" />
+        <WaitingState context="feed" />
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { WaitingState } from './WaitingState.js';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable, isSortable } from '@dnd-kit/react/sortable';
 import { PointerSensor, PointerActivationConstraints } from '@dnd-kit/dom';
@@ -522,7 +523,8 @@ export default function ParliamentSeats({
 
   function handleTableDragEnd(event: { canceled?: boolean; operation: { source: unknown } }) {
     if ('canceled' in event && event.canceled) return;
-    const source = event.operation.source;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const source = event.operation.source as any;
     if (isSortable(source)) {
       const { initialIndex, index } = source;
       if (initialIndex != null && index != null && initialIndex !== index) {
@@ -543,11 +545,7 @@ export default function ParliamentSeats({
   const empty = partyVote.filter((p) => p.seats > 0).length === 0;
 
   if (empty) {
-    return (
-      <div className="text-sm text-muted-foreground animate-pulse-soft font-semibold">
-        Waiting for data…
-      </div>
-    );
+    return <WaitingState variant="compact" context="parliament" />;
   }
 
   const selectedSeatInfo = selectedSeat !== null ? seats[selectedSeat] : null;

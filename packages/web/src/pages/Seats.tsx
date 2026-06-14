@@ -5,6 +5,7 @@ import { partyColors } from '../lib/constants.js';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
+import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
 
 function AnimatedStat({
@@ -132,11 +133,7 @@ function SuccessfulCandidates({
   }
 
   if (!electorateResults.length && !partyLists.length) {
-    return (
-      <p className="text-sm text-muted-foreground animate-pulse-soft font-semibold py-4 text-center">
-        Waiting for data…
-      </p>
-    );
+    return <WaitingState variant="compact" context="candidates" />;
   }
 
   return (
@@ -284,68 +281,74 @@ export default function Seats() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
-        <AnimatedStat
-          label="Total Seats"
-          value={totalSeats}
-          delay={1}
-        />
-        <AnimatedStat
-          label="Parties in Parliament"
-          value={partiesInParliament}
-          delay={2}
-        />
-        <AnimatedStat
-          label="Votes cast"
-          value={Math.round(totalVotesEstimate)}
-          format={shortNumber}
-          delay={3}
-        />
-        <div
-          className={cn(
-            'rounded-xl border bg-card p-2 sm:p-2.5 opacity-0 animate-fade-in-up stagger-4',
-            'shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300'
-          )}
-        >
-          <div className="text-xs sm:text-xs text-muted-foreground font-semibold mb-0 tracking-wide uppercase">
-            Votes Counted
+      {!results ? (
+        <WaitingState variant="full" context="default" />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+            <AnimatedStat
+              label="Total Seats"
+              value={totalSeats}
+              delay={1}
+            />
+            <AnimatedStat
+              label="Parties in Parliament"
+              value={partiesInParliament}
+              delay={2}
+            />
+            <AnimatedStat
+              label="Votes cast"
+              value={Math.round(totalVotesEstimate)}
+              format={shortNumber}
+              delay={3}
+            />
+            <div
+              className={cn(
+                'rounded-xl border bg-card p-2 sm:p-2.5 opacity-0 animate-fade-in-up stagger-4',
+                'shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300'
+              )}
+            >
+              <div className="text-xs sm:text-xs text-muted-foreground font-semibold mb-0 tracking-wide uppercase">
+                Votes Counted
+              </div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight">
+                {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
+              </div>
+              <div className="text-xs sm:text-xs text-muted-foreground font-semibold mt-0">
+                {totalVotesCounted > 0 ? shortNumber(totalVotesCounted) + ' votes' : ''}
+              </div>
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight">
-            {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
-          </div>
-          <div className="text-xs sm:text-xs text-muted-foreground font-semibold mt-0">
-            {totalVotesCounted > 0 ? shortNumber(totalVotesCounted) + ' votes' : ''}
-          </div>
-        </div>
-      </div>
 
-      <div
-        className={cn(
-          'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-5',
-          'shadow-sm'
-        )}
-      >
-        <ParliamentSeats
-          partyVote={partyVote ?? []}
-          electorateResults={results?.electorateResults ?? []}
-          partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
-        />
-      </div>
+          <div
+            className={cn(
+              'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-5',
+              'shadow-sm'
+            )}
+          >
+            <ParliamentSeats
+              partyVote={partyVote ?? []}
+              electorateResults={results?.electorateResults ?? []}
+              partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
+            />
+          </div>
 
-      <div
-        className={cn(
-          'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-6',
-          'shadow-sm'
-        )}
-      >
-        <h2 className="text-base sm:text-lg font-extrabold mb-4 sm:mb-5 tracking-tight">
-          Likely Parliamentarians
-        </h2>
-        <SuccessfulCandidates
-          electorateResults={results?.electorateResults ?? []}
-          partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
-        />
-      </div>
+          <div
+            className={cn(
+              'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-6',
+              'shadow-sm'
+            )}
+          >
+            <h2 className="text-base sm:text-lg font-extrabold mb-4 sm:mb-5 tracking-tight">
+              Likely Parliamentarians
+            </h2>
+            <SuccessfulCandidates
+              electorateResults={results?.electorateResults ?? []}
+              partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

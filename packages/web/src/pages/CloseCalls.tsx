@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { partyColors } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
+import { WaitingState } from '../components/WaitingState.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -87,11 +88,7 @@ function ElectorateRacesView({
   }, [totalPages, page]);
 
   if (!sorted.length) {
-    return (
-      <p className="text-sm text-muted-foreground animate-pulse-soft font-semibold py-4 text-center">
-        Waiting for data…
-      </p>
-    );
+    return <WaitingState variant="compact" context="closecalls" />;
   }
 
   return (
@@ -264,11 +261,7 @@ function ListCutLinesView({
   );
 
   if (!partyLists.length) {
-    return (
-      <p className="text-sm text-muted-foreground animate-pulse-soft font-semibold py-4 text-center">
-        Waiting for data…
-      </p>
-    );
+    return <WaitingState variant="compact" context="parties" />;
   }
 
   return (
@@ -466,8 +459,9 @@ export default function CloseCalls() {
   if (isEmpty) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Close Calls</h1>
-        <p className="text-muted-foreground animate-pulse-soft font-semibold">Waiting for data…</p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Close Calls</h1>
+        <div className="h-1 w-16 bg-gradient-brand rounded-full mb-2" />
+        <WaitingState context="closecalls" />
       </div>
     );
   }

@@ -6,6 +6,7 @@ import { cn } from '../lib/utils.js';
 import ElectorateMap, {
   MAORI_ELECTORATES,
 } from '../components/ElectorateMap.js';
+import { WaitingState } from '../components/WaitingState.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -129,8 +130,9 @@ export default function Electorates() {
   if (!electorates.length) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Electorates</h1>
-        <p className="text-muted-foreground animate-pulse-soft font-semibold">Waiting for data…</p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Electorates</h1>
+        <div className="h-1 w-16 bg-gradient-brand rounded-full mb-2" />
+        <WaitingState context="electorates" />
       </div>
     );
   }
