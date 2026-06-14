@@ -25,10 +25,7 @@ import {
 import { getElectoratePageHtml } from './scraper.js';
 import {
   cacheResults,
-  hasLeaderChanged,
-  hasNewPrediction,
-  processLeaderChange,
-  processNewPrediction,
+  processResults,
 } from './results.js';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
@@ -217,13 +214,7 @@ const run = async () => {
       const totalListCandidates = partyLists.filter((pl) => pl.distanceFromCut >= 0).length;
       log.debug(`${totalListCandidates} list candidates above the cut`);
 
-      await Promise.all(
-        withPredictions.filter(hasLeaderChanged).map(processLeaderChange)
-      );
-
-      await Promise.all(
-        withPredictions.filter(hasNewPrediction).map(processNewPrediction)
-      );
+      await processResults(withPredictions);
 
       cacheResults(withPredictions);
       writeResults(withPredictions, partyVote, partyLists);

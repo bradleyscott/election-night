@@ -8,11 +8,7 @@ export type Config = {
   cachePaths: {
     electoralResults: string;
   };
-  webhooks: {
-    newPredictionWebhookUrl: string | undefined;
-    updatedResultWebhookUrl: string | undefined;
-    leaderChangeWebhookUrl: string | undefined;
-  };
+  webhookUrl: string | undefined;
 };
 
 export type ElectorateResults = {
@@ -97,6 +93,22 @@ export interface ElectionSource {
   getElectorateConfigs(): ElectorateConfig[];
   parseRawResults(html: string, config: ElectorateConfig): RawElectorateResults;
 }
+
+// ---- Webhook Event Types ----
+
+export type WebhookEventType =
+  | 'result_updated'
+  | 'prediction_changed'
+  | 'leader_change'
+  | 'count_completed';
+
+export type WebhookPayload = {
+  event: WebhookEventType;
+  timestamp: number;
+  electorateName: string;
+  result: ElectorateResults & WithLeaders & WithMarginOfError;
+  diff: ElectorateDiff;
+};
 
 // ---- Feed / Commentary ----
 

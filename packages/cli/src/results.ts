@@ -4,6 +4,9 @@ import {
   ElectorateResults,
   WithLeaders,
   WithMarginOfError,
+  ElectorateDiff,
+  WebhookEventType,
+  WebhookPayload,
 } from '@election-night/core/types';
 import { config } from '@election-night/core/config';
 
@@ -35,62 +38,127 @@ function readResults(): Results[] {
   }
 }
 
-export function isResultUpdated(result: Results): boolean {
-  const results = readResults();
-  const matchingResult = results.find(
-    (x) => x.electorateName === result.electorateName
-  );
-  if (!matchingResult) {
-    return false;
-  }
-  return matchingResult.votePercentageCounted !== result.votePercentageCounted;
+export function computeDiff(
+  previous: Results | null,
+  current: Results
+): ElectorateDiff {
+  return {
+    electorateName: current.electorateName,
+    previousVotesCounted: previous?.votesCounted ?? null,
+    currentVotesCounted: current.votesCounted,
+    previousPercentageCounted: previous?.votePercentageCounted ?? null,
+    currentPercentageCounted: current.votePercentageCounted,
+    previousMargin: previous?.leaders.margin ?? null,
+    currentMargin: current.leaders.margin,
+    previousMarginPercent: previous?.leaders.marginPercent ?? null,
+    currentMarginPercent: current.leaders.marginPercent,
+    leaderChanged:
+      previous !== null &&
+      previous.leaders.leadingCandidateParty !==
+        current.leaders.leadingCandidateParty,
+    previousLeaderName: previous?.leaders.leadingCandidate ?? null,
+    previousLeaderParty: previous?.leaders.leadingCandidateParty ?? null,
+    predictionStatusChanged:
+      previous !== null &&
+      previous.leaders.predictionStatus !== current.leaders.predictionStatus,
+    previousPredictionStatus: previous?.leaders.predictionStatus ?? null,
+    currentPredictionStatus: current.leaders.predictionStatus,
+  };
 }
 
-export function hasLeaderChanged(result: Results) {
-  const results = readResults();
-  const matchingResult = results.find(
-    (x) => x.electorateName === result.electorateName
-  );
-  if (!matchingResult) {
-    return false;
+export function determineEvents(diff: ElectorateDiff): WebhookEventType[] {
+  // Only fire events when there was a previous result (first scrape just
+  // establishes the baseline — no webhooks are sent).
+  if (diff.previousVotesCounted === null) {
+    return [];
   }
-  return (
-    matchingResult.leaders.leadingCandidateParty !==
-    result.leaders.leadingCandidateParty
-  );
+
+  const events: WebhookEventType[] = [];
+
+  const votesChanged =
+    diff.previousVotesCounted !== diff.currentVotesCounted ||
+    diff.previousPercentageCounted !== diff.currentPercentageCounted;
+
+  if (votesChanged) {
+    events.push('result_updated');
+  }
+
+  if (diff.predictionStatusChanged) {
+    events.push('prediction_changed');
+  }
+
+  if (diff.leaderChanged) {
+    events.push('leader_change');
+  }
+
+  if (
+    (diff.previousPercentageCounted ?? 0) < 1 &&
+    diff.currentPercentageCounted >= 1
+  ) {
+    events.push('count_completed');
+  }
+
+  return events;
 }
 
-export function hasNewPrediction(result: Results) {
-  const results = readResults();
-  const matchingResult = results.find(
-    (x) => x.electorateName === result.electorateName
-  );
-  if (!matchingResult) {
-    return false;
-  }
-  return (
-    matchingResult.leaders.predictionStatus !==
-    result.leaders.predictionStatus
-  );
-}
-
-export const processLeaderChange = (result: Results) =>
-  post(config.webhooks.leaderChangeWebhookUrl ?? '', { ...result });
-
-export const processNewPrediction = async (result: Results) =>
-  post(config.webhooks.newPredictionWebhookUrl ?? '', { ...result });
-
-async function post(url: string, body: unknown) {
+export async function sendWebhook(
+  event: WebhookEventType,
+  result: Results,
+  diff: ElectorateDiff
+): Promise<void> {
+  const url = config.webhookUrl;
   if (!url) return;
+
+  const payload: WebhookPayload = {
+    event,
+    timestamp: Date.now(),
+    electorateName: result.electorateName,
+    result,
+    diff,
+  };
+
   try {
     await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
       headers: {
         'Content-Type': 'application/json',
       },
     });
   } catch (e) {
-    console.error(e);
+    console.error(
+      `Webhook POST failed for ${event} on ${result.electorateName}:`,
+      e
+    );
   }
+}
+
+/**
+ * Compare current results against the cached previous results and fire a
+ * webhook for each event type that triggered per electorate.
+ *
+ * Call this *before* calling `cacheResults()` so the cached snapshot still
+ * represents the previous cycle for comparison.
+ */
+export async function processResults(
+  currentResults: Results[]
+): Promise<void> {
+  const cachedResults = readResults();
+  const cacheMap = new Map(
+    cachedResults.map((r) => [r.electorateName, r])
+  );
+
+  const promises: Promise<void>[] = [];
+
+  for (const result of currentResults) {
+    const previous = cacheMap.get(result.electorateName) ?? null;
+    const diff = computeDiff(previous, result);
+    const events = determineEvents(diff);
+
+    for (const event of events) {
+      promises.push(sendWebhook(event, result, diff));
+    }
+  }
+
+  await Promise.all(promises);
 }

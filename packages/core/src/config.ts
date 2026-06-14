@@ -21,11 +21,7 @@ export const config: Config = {
   cachePaths: {
     electoralResults: '.cache/electorate_results.json',
   },
-  webhooks: {
-    newPredictionWebhookUrl: process.env.NEW_PREDICTION_WEBHOOK_URL,
-    updatedResultWebhookUrl: process.env.UPDATED_RESULT_WEBHOOK_URL,
-    leaderChangeWebhookUrl: process.env.LEADER_CHANGE_WEBHOOK_URL,
-  },
+  webhookUrl: process.env.WEBHOOK_URL,
 };
 
 export {

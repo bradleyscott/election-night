@@ -109,9 +109,7 @@ Other flags: `--port 3457`, `--help`.
 | `WS_URL` | — | Socket.io server URL (for CLI) |
 | `DB_PATH` | `./.cache/election_results.db` | SQLite database path |
 | `ELECTION_SOURCE_PATH` | — | Path to a custom source adapter module |
-| `NEW_PREDICTION_WEBHOOK_URL` | — | Webhook for new predictions |
-| `UPDATED_RESULT_WEBHOOK_URL` | — | Webhook for updated results |
-| `LEADER_CHANGE_WEBHOOK_URL` | — | Webhook for leader changes |
+| `WEBHOOK_URL` | — | Single webhook URL for all events. Payload includes an `event` field (`result_updated`, `prediction_changed`, `leader_change`, or `count_completed`) plus the full electorate result and a `diff` describing what changed. |
 | `LOG_LEVEL` | `3` | Log verbosity (0=silly, 1=trace, 2=debug, 3=info) |
 | `RESULTS_TABLE_SELECTOR` | — | Cheerio selector for results table |
 | `CANDIDATE_TABLE_SELECTOR` | — | Cheerio selector for candidate table |
