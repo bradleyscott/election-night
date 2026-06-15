@@ -315,13 +315,6 @@ function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean 
 }
 
 const server = createServer((req, res) => {
-  // Let socket.io handle its own upgrade path
-  if (req.url && req.url.startsWith('/socket.io')) {
-    res.writeHead(426);
-    res.end('Upgrade required');
-    return;
-  }
-
   // POST /api/clear — reset feed state and notify all connected clients
   if (req.method === 'POST' && req.url === '/api/clear') {
     latestResults = null;
