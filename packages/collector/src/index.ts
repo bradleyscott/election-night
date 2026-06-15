@@ -113,7 +113,7 @@ async function loadSource(): Promise<{
 const { source, configs: electorateConfigs } = await loadSource();
 
 log.info('=== Scraper Configuration ===');
-log.info(`DB_PATH:          ${process.env.DB_PATH || '.cache/election_results.db'}`);
+log.info(`DB_PATH:          ${process.env.DB_PATH || '.data/election_results.db'}`);
 log.info(`BASE_RESULTS_URL: ${process.env.BASE_RESULTS_URL || 'https://electionresults.govt.nz/electionresults_2023'}`);
 log.info(`WS_URL:           ${process.env.WS_URL || `ws://localhost:3456`}`);
 log.info(`POLL_INTERVAL_MS: ${process.env.POLL_INTERVAL_MS || '120000'}`);
@@ -270,7 +270,7 @@ process.on('unhandledRejection', (reason) => {
   log.error('Unhandled rejection', reason);
 });
 
-const dbPath = process.env.DB_PATH || '.cache/election_results.db';
+const dbPath = process.env.DB_PATH || '.data/election_results.db';
 
 openDb(dbPath);
 connectWs(WS_URL);

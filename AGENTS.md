@@ -18,7 +18,7 @@ Run these from the repo root unless noted.
 npm run dev
 
 # Run the scraper CLI
-npm run start:cli
+npm run start:collector
 
 # Run the Socket.io server only
 npm run start:server
@@ -32,7 +32,7 @@ npm run start:mock
 # Other flags: --port 3457, --stage early|mid|late|full, --help
 
 # Then scrape from the mock server:
-# BASE_RESULTS_URL=http://localhost:3457 POLL_INTERVAL_MS=15000 npm run start:cli
+# BASE_RESULTS_URL=http://localhost:3457 POLL_INTERVAL_MS=15000 npm run start:collector
 
 # Verification
 npm run lint          # eslint packages/
@@ -47,16 +47,16 @@ npm run fmt           # prettier --write .
 - `packages/collector/src/index.ts` — main scraper loop. Scrapes NZ Electoral Commission site with Puppeteer + stealth, calculates predictions, writes to SQLite, and publishes results via Socket.io client.
 - `packages/collector/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches via Puppeteer. Replaces the old synthetic data approach.
 - `packages/collector/src/discover.ts` — `discover` subcommand loaded dynamically when `process.argv[2] === 'discover'`.
-- `packages/web/server/index.ts` — Socket.io server. Receives results from the CLI and broadcasts to web clients. Loads cached results from `.cache/electorate_results.json` on startup.
+- `packages/dashboard/server/index.ts` — Socket.io server. Receives results from the collector and broadcasts to web clients. Loads cached results from `.data/electorate_results.json` on startup.
 - `packages/dashboard/src/main.tsx` — React frontend entrypoint (Vite, Tailwind, Leaflet, react-router-dom).
 
 ## Architecture notes that aren't obvious from filenames
 
-- **Socket.io is the backbone.** The CLI is a Socket.io *client*; the web package runs the *server*. The server listens on `WS_PORT` (default `3456`). Web `index.html` hardcodes a `preconnect` to `http://localhost:3456`.
-- **Web is NOT part of root `tsc -b`.** Root `tsconfig.json` only references `core` and `cli`. `web` typechecks via its own `tsc -b` inside `npm run build`.
-- **SQLite + Drizzle ORM.** CLI uses `better-sqlite3` (native dependency). The DB path defaults to `./.cache/election_results.db`. Migrations live in `packages/cli/drizzle/` and auto-run on startup via `migrate()` in `db.ts`. Drizzle config is at `packages/cli/drizzle.config.ts`.
-- **Static CSV data.** `csv/candidates.csv`, `csv/electorates.csv`, and `csv/party_list.csv` are read at runtime by the CLI. They are not bundled.
-- **Environment loading.** CLI entrypoints import `dotenv/config`. Expected variables:
+- **Socket.io is the backbone.** The collector is a Socket.io *client*; the dashboard package runs the *server*. The server listens on `WS_PORT` (default `3456`). Dashboard `index.html` hardcodes a `preconnect` to `http://localhost:3456`.
+- **Dashboard is NOT part of root `tsc -b`.** Root `tsconfig.json` only references `core` and `collector`. `dashboard` typechecks via its own `tsc -b` inside `npm run build`.
+- **SQLite + Drizzle ORM.** Collector uses `better-sqlite3` (native dependency). The DB path defaults to `./.data/election_results.db`. Migrations live in `packages/collector/drizzle/` and auto-run on startup via `migrate()` in `db.ts`. Drizzle config is at `packages/collector/drizzle.config.ts`.
+- **Static CSV data.** `csv/candidates.csv`, `csv/electorates.csv`, and `csv/party_list.csv` are read at runtime by the collector. They are not bundled.
+- **Environment loading.** Collector entrypoints import `dotenv/config`. Expected variables:
   - Scraping: `BASE_RESULTS_URL`, `RESULTS_TABLE_SELECTOR`, `CANDIDATE_TABLE_SELECTOR`, `PARTY_VOTE_TABLE_SELECTOR`, `VOTE_PERCENT_COUNTED_SELECTOR`, `VOTES_COUNTED_SELECTOR`
   - Webhooks: `WEBHOOK_URL` (single URL; payload includes an `event` field to discriminate type)
   - Runtime: `POLL_INTERVAL_MS` (default 120s), `CONCURRENCY` (default 10), `NAVIGATION_TIMEOUT_MS` (default 60s), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `WS_PORT`/`WS_URL`, `WS_RECONNECT_DELAY_MS` (default 2s), `DB_PATH`, `ELECTION_SOURCE_PATH`
@@ -78,6 +78,6 @@ npm run fmt           # prettier --write .
 ## Gotchas
 
 - `better-sqlite3` is a native Node dependency. If installation fails, the environment likely needs build tools (Python, a C++ compiler).
-- Puppeteer downloads Chromium on install; the CLI uses `puppeteer-extra-plugin-stealth`.
-- The CLI creates `.cache/` automatically for the SQLite DB and JSON results cache.
+- Puppeteer downloads Chromium on install; the collector uses `puppeteer-extra-plugin-stealth`.
+- The collector creates `.data/` automatically for the SQLite DB and JSON results cache.
 - Mock server (`serve-mock.ts`) serves HTML matching the NZ Electoral Commission site structure. The real scraper fetches it via Puppeteer, parses it with Cheerio, and runs the full prediction pipeline — same as election night.

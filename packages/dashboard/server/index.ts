@@ -22,7 +22,7 @@ import {
 } from './db-reader.js';
 
 const PORT = parseInt(process.env.WS_PORT || '3456', 10);
-const CACHE_PATH = '.cache/electorate_results.json';
+const CACHE_PATH = '.data/electorate_results.json';
 const DIST_DIR = process.env.DIST_DIR || resolve(process.cwd(), 'dist');
 const MAX_FEED_EVENTS = 200;
 
@@ -280,7 +280,7 @@ function serveStatic(req: IncomingMessage, res: ServerResponse) {
   res.end('Not found');
 }
 
-const DB_PATH = process.env.DB_PATH || '.cache/election_results.db';
+const DB_PATH = process.env.DB_PATH || '.data/election_results.db';
 
 function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
   const pathname = url.pathname;

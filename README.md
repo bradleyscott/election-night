@@ -27,10 +27,10 @@ This started as a project for a 2023 election night party — the goal was to av
 election-night/
 ├── packages/
 │   ├── core/          # Shared types, config, reducers, source adapters (raw .ts)
-│   ├── cli/           # Scraper CLI + mock server (Puppeteer, Cheerio, SQLite)
-│   └── web/           # Vite React app + Socket.io server (Leaflet, Tailwind)
+│   ├── collector/     # Scraper CLI + mock server (Puppeteer, Cheerio, SQLite)
+│   └── dashboard/     # Vite React app + Socket.io server (Leaflet, Tailwind)
 ├── csv/               # Electorate, candidate, and party list data
-└── .cache/            # SQLite DB + cached JSON (auto-created at runtime)
+└── .data/             # SQLite DB + cached JSON (auto-created at runtime)
 ```
 
 **Socket.io is the backbone.** The CLI acts as a Socket.io *client*; the web package runs the Socket.io *server*. The server also serves the built Vite app and caches results to disk, so the dashboard works even if the scraper restarts.
@@ -75,7 +75,7 @@ npm run dev
 | Command | Description |
 |---|---|
 | `npm run dev` | Start web server + Vite dev server concurrently |
-| `npm run start:cli` | Run the scraper CLI |
+| `npm run start:collector` | Run the scraper CLI |
 | `npm run start:server` | Start Socket.io server only |
 | `npm run start:mock` | Start mock election results server |
 | `npm test` | Run Vitest test suite |
@@ -107,7 +107,7 @@ Other flags: `--port 3457`, `--help`.
 | `NAVIGATION_TIMEOUT_MS` | `60000` | Puppeteer navigation timeout |
 | `WS_PORT` | `3456` | Socket.io server port |
 | `WS_URL` | — | Socket.io server URL (for CLI) |
-| `DB_PATH` | `./.cache/election_results.db` | SQLite database path |
+| `DB_PATH` | `./.data/election_results.db` | SQLite database path |
 | `ELECTION_SOURCE_PATH` | — | Path to a custom source adapter module |
 | `WEBHOOK_URL` | — | Single webhook URL for all events. Payload includes an `event` field (`result_updated`, `prediction_changed`, `leader_change`, or `count_completed`) plus the full electorate result and a `diff` describing what changed. |
 | `LOG_LEVEL` | `3` | Log verbosity (0=silly, 1=trace, 2=debug, 3=info) |

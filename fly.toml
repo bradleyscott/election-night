@@ -19,14 +19,14 @@ primary_region = "nrt"
   POLL_INTERVAL_MS = "120000"
   CONCURRENCY = "1"
   LOG_LEVEL = "3"
-  DB_PATH = "/app/.cache/election_results.db"
+  DB_PATH = "/app/.data/election_results.db"
 
 # Shared persistent storage for SQLite DB and JSON cache.
 # Create the volume first: fly volumes create election_data --region nrt --size 1
 # Then uncomment the mount below:
 # [[mounts]]
 #   source = "election_data"
-#   destination = "/app/.cache"
+#   destination = "/app/.data"
 
 [[vm]]
   memory = "1gb"

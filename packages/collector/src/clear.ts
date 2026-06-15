@@ -15,11 +15,11 @@ const TABLES_IN_ORDER = [
 ];
 
 const CACHE_FILES = [
-  resolve(process.cwd(), '.cache/electorate_results.json'),
+  resolve(process.cwd(), '.data/electorate_results.json'),
 ];
 
 export async function runClear(): Promise<void> {
-  const dbPath = process.env.DB_PATH || resolve(process.cwd(), '.cache/election_results.db');
+  const dbPath = process.env.DB_PATH || resolve(process.cwd(), '.data/election_results.db');
 
   log.info('=== Clear: starting ===');
 

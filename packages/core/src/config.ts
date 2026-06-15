@@ -19,7 +19,7 @@ const VOTES_COUNTED_SELECTOR =
 export const config: Config = {
   predictionConfidence: 0.95,
   cachePaths: {
-    electoralResults: '.cache/electorate_results.json',
+    electoralResults: '.data/electorate_results.json',
   },
   webhookUrl: process.env.WEBHOOK_URL,
 };

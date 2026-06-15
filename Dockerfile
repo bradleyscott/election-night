@@ -1,7 +1,7 @@
 FROM node:22 AS builder
 WORKDIR /app
 
-ENV CLOAKBROWSER_CACHE_DIR=/app/.cache/cloakbrowser
+ENV CLOAKBROWSER_CACHE_DIR=/app/.data/cloakbrowser
 ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 COPY package.json package-lock.json ./
@@ -31,7 +31,7 @@ RUN npx esbuild packages/dashboard/server/index.ts \
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CLOAKBROWSER_CACHE_DIR=/app/.cache/cloakbrowser
+ENV CLOAKBROWSER_CACHE_DIR=/app/.data/cloakbrowser
 ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 RUN apt-get update && apt-get install -y \
