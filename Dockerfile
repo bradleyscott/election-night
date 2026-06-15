@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/collector/package.json packages/collector/
 COPY packages/dashboard/package.json packages/dashboard/
-RUN npm ci && npx cloakbrowser install
+RUN npm ci && cd packages/collector && npx cloakbrowser install && cd /app
 
 COPY packages/core/ packages/core/
 COPY packages/collector/ packages/collector/
