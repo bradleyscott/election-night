@@ -6,26 +6,27 @@ ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
-COPY packages/cli/package.json packages/cli/
-COPY packages/web/package.json packages/web/
+COPY packages/collector/package.json packages/collector/
+COPY packages/dashboard/package.json packages/dashboard/
 RUN npm ci && npx cloakbrowser install
 
 COPY packages/core/ packages/core/
-COPY packages/cli/ packages/cli/
-COPY packages/web/ packages/web/
+COPY packages/collector/ packages/collector/
+COPY packages/dashboard/ packages/dashboard/
 COPY csv/ csv/
 
-WORKDIR /app/packages/web
+WORKDIR /app/packages/dashboard
 RUN npx vite build
 WORKDIR /app
 
-RUN npx esbuild packages/web/server/index.ts \
+RUN npx esbuild packages/dashboard/server/index.ts \
   --bundle \
   --platform=node \
   --format=cjs \
   --outfile=/app/server.cjs \
   --external:bufferutil \
-  --external:utf-8-validate
+  --external:utf-8-validate \
+  --external:better-sqlite3
 
 FROM node:22-slim
 WORKDIR /app

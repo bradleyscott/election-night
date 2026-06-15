@@ -13,13 +13,20 @@ primary_region = "nrt"
 
 [env]
   NODE_ENV = "production"
-  DIST_DIR = "/app/packages/web/dist"
+  DIST_DIR = "/app/packages/dashboard/dist"
   BASE_RESULTS_URL = "https://www.electionresults.govt.nz/electionresults_2023"
   WS_URL = "ws://localhost:3456"
   POLL_INTERVAL_MS = "120000"
   CONCURRENCY = "1"
   LOG_LEVEL = "3"
-  DB_PATH = "/tmp/.cache/election_results.db"
+  DB_PATH = "/app/.cache/election_results.db"
+
+# Shared persistent storage for SQLite DB and JSON cache.
+# Create the volume first: fly volumes create election_data --region nrt --size 1
+# Then uncomment the mount below:
+# [[mounts]]
+#   source = "election_data"
+#   destination = "/app/.cache"
 
 [[vm]]
   memory = "1gb"

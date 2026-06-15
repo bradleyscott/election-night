@@ -15,6 +15,7 @@ import type {
 import {
   openDbReader,
   closeDbReader,
+  hasDbReader,
   getElectorateHistory,
   getPartyVoteHistory,
   getSnapshotMetas,
@@ -390,6 +391,13 @@ server.listen(PORT, () => {
   openDbReader(DB_PATH);
   loadCachedResults();
 });
+
+// Poll for the DB to appear (collector creates it on first scrape)
+setInterval(() => {
+  if (!hasDbReader() && existsSync(DB_PATH)) {
+    openDbReader(DB_PATH);
+  }
+}, 5000);
 
 process.on('SIGINT', () => {
   console.log('Shutting down...');

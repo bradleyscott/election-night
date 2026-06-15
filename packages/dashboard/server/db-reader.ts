@@ -57,6 +57,7 @@ export type SnapshotMeta = {
 let db: Database.Database | null = null;
 
 export function openDbReader(dbPath: string): void {
+  if (db) return;
   if (!existsSync(dbPath)) {
     console.log(`DB not found at ${dbPath}, history API will return empty results`);
     return;
@@ -64,6 +65,10 @@ export function openDbReader(dbPath: string): void {
   db = new Database(dbPath, { readonly: true });
   db.pragma('journal_mode = WAL');
   console.log(`Opened history DB (read-only) at ${dbPath}`);
+}
+
+export function hasDbReader(): boolean {
+  return db !== null;
 }
 
 export function closeDbReader(): void {
