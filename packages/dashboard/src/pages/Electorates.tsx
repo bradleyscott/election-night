@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
+import { useElectorateHistory } from '../hooks/useVoteHistory.js';
+import VoteHistoryChart from '../components/VoteHistoryChart.js';
 import { partyColors } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import ElectorateMap, {
@@ -126,6 +128,8 @@ export default function Electorates() {
   const leadingPartyVote = selectedElectorate
     ? [...selectedElectorate.partyVotes].sort((a, b) => b.votes - a.votes)[0]
     : null;
+
+  const { data: historyData } = useElectorateHistory(selectedName);
 
   if (!electorates.length) {
     return (
@@ -424,6 +428,14 @@ export default function Electorates() {
                 </table>
               </div>
             </div>
+
+            {historyData && historyData.length > 1 && (
+              <VoteHistoryChart
+                history={historyData}
+                mode="votes"
+                showParty={showPartyVote}
+              />
+            )}
           </div>
         )}
       </div>

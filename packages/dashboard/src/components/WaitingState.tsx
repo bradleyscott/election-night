@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   parties:     'Party list standings will update as votes are tallied nationwide.',
   parliament:  "Parliament's composition will take shape as votes are counted.",
   candidates:  'Likely parliamentarians will be listed here once results begin arriving.',
+  trends:      'Vote trends will appear once more votes are counted.',
   sidebar:     'Updates will appear as results come in.',
 };
 
@@ -20,6 +21,7 @@ interface WaitingStateProps {
   variant?: WaitingVariant;
   context?: WaitingContext;
   className?: string;
+  title?: string;
 }
 
 const STROKE_DELAY = 380;
@@ -141,6 +143,7 @@ export function WaitingState({
   variant = 'full',
   context = 'default',
   className,
+  title,
 }: WaitingStateProps) {
   const message = MESSAGES[context] ?? MESSAGES.default;
 
@@ -201,7 +204,7 @@ export function WaitingState({
 
       <div className="mt-10 space-y-3 max-w-[300px]">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-none">
-          Awaiting First Results
+          {title ?? 'Awaiting First Results'}
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
 

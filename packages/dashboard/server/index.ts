@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from 'fs';
-import { resolve, dirname, extname } from 'path';
+import { readFileSync, existsSync, statSync } from 'fs';
+import { resolve, extname } from 'path';
 import { Server } from 'socket.io';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import type {
@@ -12,10 +12,16 @@ import type {
   FeedEventType,
   ElectorateDiff,
 } from '@election-night/core/types';
+import {
+  openDbReader,
+  closeDbReader,
+  getElectorateHistory,
+  getPartyVoteHistory,
+  getSnapshotMetas,
+} from './db-reader.js';
 
 const PORT = parseInt(process.env.WS_PORT || '3456', 10);
 const CACHE_PATH = '.cache/electorate_results.json';
-const FEED_CACHE_PATH = '.cache/feed_events.json';
 const DIST_DIR = process.env.DIST_DIR || resolve(process.cwd(), 'dist');
 const MAX_FEED_EVENTS = 200;
 
@@ -57,41 +63,11 @@ function loadCachedResults() {
   console.log('No cached results found, waiting for first scrape...');
 }
 
-function loadFeedEvents() {
-  if (existsSync(FEED_CACHE_PATH)) {
-    try {
-      feedEvents = JSON.parse(readFileSync(FEED_CACHE_PATH, 'utf-8'));
-      feedEvents = feedEvents.map((e: FeedEvent) => {
-        if (typeof e.diff.currentMarginPercent !== 'number') {
-          e.diff.currentMarginPercent = e.diff.currentVotesCounted > 0
-            ? e.diff.currentMargin / e.diff.currentVotesCounted
-            : 0;
-        }
-        return e;
-      });
-      console.log(`Loaded ${feedEvents.length} feed events from ${FEED_CACHE_PATH}`);
-    } catch (err) {
-      console.error('Failed to load feed events:', err);
-      feedEvents = [];
-    }
-  }
-}
-
-function saveFeedEvents() {
-  try {
-    mkdirSync(dirname(FEED_CACHE_PATH), { recursive: true });
-    writeFileSync(FEED_CACHE_PATH, JSON.stringify(feedEvents.slice(-MAX_FEED_EVENTS), null, 2));
-  } catch (err) {
-    console.error('Failed to save feed events:', err);
-  }
-}
-
 function addFeedEvents(events: FeedEvent[]) {
   const existingIds = new Set(feedEvents.map((e) => e.id));
   const newEvents = events.filter((e) => !existingIds.has(e.id));
   if (newEvents.length === 0) return newEvents;
   feedEvents = [...feedEvents, ...newEvents].slice(-MAX_FEED_EVENTS);
-  saveFeedEvents();
   return newEvents;
 }
 
@@ -303,6 +279,40 @@ function serveStatic(req: IncomingMessage, res: ServerResponse) {
   res.end('Not found');
 }
 
+const DB_PATH = process.env.DB_PATH || '.cache/election_results.db';
+
+function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
+  const pathname = url.pathname;
+
+  // GET /api/history/snapshots — return all snapshot timestamps
+  if (pathname === '/api/history/snapshots') {
+    const metas = getSnapshotMetas();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(metas));
+    return true;
+  }
+
+  // GET /api/history/electorate/:name — return history for one electorate
+  const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
+  if (electorateMatch) {
+    const name = decodeURIComponent(electorateMatch[1]);
+    const history = getElectorateHistory(name);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(history));
+    return true;
+  }
+
+  // GET /api/history/party-votes — return party vote totals over time
+  if (pathname === '/api/history/party-votes') {
+    const history = getPartyVoteHistory();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(history));
+    return true;
+  }
+
+  return false;
+}
+
 const server = createServer((req, res) => {
   // Let socket.io handle its own upgrade path
   if (req.url && req.url.startsWith('/socket.io')) {
@@ -310,6 +320,23 @@ const server = createServer((req, res) => {
     res.end('Upgrade required');
     return;
   }
+
+  // POST /api/clear — reset feed state and notify all connected clients
+  if (req.method === 'POST' && req.url === '/api/clear') {
+    latestResults = null;
+    feedEvents = [];
+    io.emit('clear');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
+    return;
+  }
+
+  // API routes
+  if (req.url) {
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    if (serveApi(req, res, url)) return;
+  }
+
   serveStatic(req, res);
 });
 
@@ -351,7 +378,27 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
+  console.log('=== Dashboard Server Configuration ===');
+  console.log(`WS_PORT:         ${PORT}`);
+  console.log(`DB_PATH:         ${resolve(DB_PATH)}`);
+  console.log(`DIST_DIR:        ${DIST_DIR}`);
+  console.log(`CACHE_PATH:      ${resolve(CACHE_PATH)}`);
+  console.log(`MAX_FEED_EVENTS: ${MAX_FEED_EVENTS}`);
+  console.log(`CWD:             ${process.cwd()}`);
+  console.log('======================================');
   console.log(`Socket.io server running on http://localhost:${PORT}`);
+  openDbReader(DB_PATH);
   loadCachedResults();
-  loadFeedEvents();
+});
+
+process.on('SIGINT', () => {
+  console.log('Shutting down...');
+  closeDbReader();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Shutting down...');
+  closeDbReader();
+  process.exit(0);
 });

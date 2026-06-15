@@ -1,4 +1,4 @@
-![Election Night Logo](./packages/web/public/favicon.svg)
+![Election Night Logo](./packages/dashboard/public/favicon.svg)
 
 # Election Night — NZ General Election Result Tracker
 

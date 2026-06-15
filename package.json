@@ -7,11 +7,13 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w packages/web",
-    "build": "npm run build -w packages/web",
-    "start:cli": "npm run start -w packages/cli",
-    "start:server": "npm run start -w packages/web",
-    "start:mock": "tsx packages/cli/src/serve-mock.ts",
+    "dev": "npm run dev -w packages/dashboard",
+    "build": "npm run build -w packages/dashboard",
+    "start:collector": "npm run start -w packages/collector",
+    "start:server": "npm run start -w packages/dashboard",
+    "clear": "tsx packages/collector/src/clear.ts",
+    "start:mock": "tsx packages/collector/src/serve-mock.ts",
+    "log:webhooks": "tsx packages/collector/src/log-webhooks.ts",
     "test": "vitest",
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",

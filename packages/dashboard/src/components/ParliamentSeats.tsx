@@ -30,8 +30,6 @@ type PartyEntry = VotingResults & WithSeats;
 type ElectorateEntry = ElectorateResults & WithLeaders & WithMarginOfError;
 type PartyListEntry = PartyList & WithAdjustedRank;
 
-const TOTAL_SEATS = 120;
-const MAJORITY = 61;
 const ROWS = 3;
 
 function defaultOrder(partyVote: PartyEntry[]): string[] {
@@ -82,7 +80,8 @@ function buildSeats(
   order: string[],
   partyVote: PartyEntry[],
   electorates: ElectorateEntry[],
-  partyLists: PartyListEntry[]
+  partyLists: PartyListEntry[],
+  totalSeats: number
 ): SeatInfo[] {
   const out: SeatInfo[] = [];
 
@@ -183,11 +182,11 @@ function buildSeats(
     out.push(...partySeats);
   }
 
-  while (out.length < TOTAL_SEATS) {
+  while (out.length < totalSeats) {
     out.push({ party: 'Vacant', color: '#444', opacity: 0.3, type: 'list', name: 'Vacant' });
   }
 
-  return out.slice(0, TOTAL_SEATS);
+  return out;
 }
 
 const touchSensor = PointerSensor.configure({
@@ -483,9 +482,16 @@ export default function ParliamentSeats({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedSeat, isMobile]);
 
+  const totalSeats = useMemo(
+    () => partyVote.reduce((s, p) => s + p.seats, 0),
+    [partyVote]
+  );
+
+  const majority = useMemo(() => Math.floor(totalSeats / 2) + 1, [totalSeats]);
+
   const seats = useMemo(
-    () => buildSeats(order, partyVote, electorateResults, partyLists),
-    [order, partyVote, electorateResults, partyLists]
+    () => buildSeats(order, partyVote, electorateResults, partyLists, totalSeats),
+    [order, partyVote, electorateResults, partyLists, totalSeats]
   );
 
   const totalPartyVotes = useMemo(
@@ -499,12 +505,12 @@ export default function ParliamentSeats({
     for (const name of order) {
       const party = partyVote.find((p) => p.candidate === name);
       if (!party || party.seats <= 0) continue;
-      if (cumulative >= MAJORITY) break;
+      if (cumulative >= majority) break;
       parties.push(party);
       cumulative += party.seats;
     }
     return { parties, cumulative };
-  }, [order, partyVote]);
+  }, [order, partyVote, majority]);
 
   const handleReorder = (dragged: string, target: string) => {
     if (dragged === target) return;
@@ -661,7 +667,7 @@ export default function ParliamentSeats({
           <div className="absolute inset-y-0 w-3 -translate-x-1/2 bg-yellow-400/20" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap">
             <div className="bg-yellow-400 text-black text-xs font-extrabold px-2 py-0.5 rounded shadow-lg shadow-yellow-400/30">
-              {MAJORITY} seats required to govern
+              {majority} seats required to govern
             </div>
           </div>
         </div>

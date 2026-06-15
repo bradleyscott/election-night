@@ -37,6 +37,12 @@ if (process.argv[2] === 'discover') {
   process.exit(0);
 }
 
+if (process.argv[2] === 'clear') {
+  const { runClear } = await import('./clear.js');
+  await runClear();
+  process.exit(0);
+}
+
 const CSV_CANDIDATES = readFileSync(
   resolve(__dirname, '../../../csv/candidates.csv'),
   'utf-8'
@@ -105,6 +111,19 @@ async function loadSource(): Promise<{
 }
 
 const { source, configs: electorateConfigs } = await loadSource();
+
+log.info('=== Scraper Configuration ===');
+log.info(`DB_PATH:          ${process.env.DB_PATH || '.cache/election_results.db'}`);
+log.info(`BASE_RESULTS_URL: ${process.env.BASE_RESULTS_URL || 'https://electionresults.govt.nz/electionresults_2023'}`);
+log.info(`WS_URL:           ${process.env.WS_URL || `ws://localhost:3456`}`);
+log.info(`POLL_INTERVAL_MS: ${process.env.POLL_INTERVAL_MS || '120000'}`);
+log.info(`CONCURRENCY:      ${process.env.CONCURRENCY || '10'}`);
+log.info(`NAV_TIMEOUT_MS:   ${process.env.NAVIGATION_TIMEOUT_MS || '60000'}`);
+log.info(`LOG_LEVEL:        ${process.env.LOG_LEVEL || '3 (info)'}`);
+if (process.env.WEBHOOK_URL) log.info(`WEBHOOK_URL:      ${process.env.WEBHOOK_URL}`);
+if (process.env.ELECTION_SOURCE_PATH) log.info(`ELECTION_SOURCE:   ${process.env.ELECTION_SOURCE_PATH}`);
+log.info(`Electorates:      ${electorateConfigs.length}`);
+log.info('=============================');
 
 const run = async () => {
   try {

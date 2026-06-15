@@ -4,10 +4,10 @@ Compact instructions for working in this repo. When in doubt, trust executable c
 
 ## Repo shape
 
-- npm-workspace monorepo: `packages/core`, `packages/cli`, `packages/web`.
+- npm-workspace monorepo: `packages/core`, `packages/collector`, `packages/dashboard`.
 - All packages are ESM (`"type": "module"`).
 - CLI and server run TypeScript directly via `tsx`; there is no compiled `dist` for `core` or `cli` at runtime. `core` is consumed as raw `.ts` source (its `package.json` points `main` at `./src/index.ts`).
-- `packages/web` is a Vite React app with its own Node Socket.io server (`server/index.ts`).
+- `packages/dashboard` is a Vite React app with its own Node Socket.io server (`server/index.ts`).
 
 ## Quick commands
 
@@ -44,11 +44,11 @@ npm run fmt           # prettier --write .
 ## Package entrypoints and boundaries
 
 - `packages/core/src/index.ts` — shared types, config, reducers, and source adapters.
-- `packages/cli/src/index.ts` — main scraper loop. Scrapes NZ Electoral Commission site with Puppeteer + stealth, calculates predictions, writes to SQLite, and publishes results via Socket.io client.
-- `packages/cli/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches via Puppeteer. Replaces the old synthetic data approach.
-- `packages/cli/src/discover.ts` — `discover` subcommand loaded dynamically when `process.argv[2] === 'discover'`.
+- `packages/collector/src/index.ts` — main scraper loop. Scrapes NZ Electoral Commission site with Puppeteer + stealth, calculates predictions, writes to SQLite, and publishes results via Socket.io client.
+- `packages/collector/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches via Puppeteer. Replaces the old synthetic data approach.
+- `packages/collector/src/discover.ts` — `discover` subcommand loaded dynamically when `process.argv[2] === 'discover'`.
 - `packages/web/server/index.ts` — Socket.io server. Receives results from the CLI and broadcasts to web clients. Loads cached results from `.cache/electorate_results.json` on startup.
-- `packages/web/src/main.tsx` — React frontend entrypoint (Vite, Tailwind, Leaflet, react-router-dom).
+- `packages/dashboard/src/main.tsx` — React frontend entrypoint (Vite, Tailwind, Leaflet, react-router-dom).
 
 ## Architecture notes that aren't obvious from filenames
 
