@@ -33,22 +33,22 @@ election-night/
 └── .data/             # SQLite DB + cached JSON (auto-created at runtime)
 ```
 
-**Socket.io is the backbone.** The CLI acts as a Socket.io *client*; the web package runs the Socket.io *server*. The server also serves the built Vite app and caches results to disk, so the dashboard works even if the scraper restarts.
+**Socket.io is the backbone.** The collector acts as a Socket.io *client*; the dashboard package runs the Socket.io *server*. The server also serves the built Vite app and caches results to disk, so the dashboard works even if the scraper restarts.
 
 ```
-┌─────────────┐     Socket.io     ┌──────────────────┐
-│  CLI (scraper) │ ──────────────> │  Web server       │
-│  Puppeteer     │   results +     │  Socket.io server  │
-│  SQLite        │   feed events   │  + static files    │
-└─────────────┘                  └──────────────────┘
-                                            │
-                                    broadcast to
-                                            │
-                                            ▼
-                                  ┌──────────────────┐
-                                  │  Browser clients   │
-                                  │  React + Leaflet   │
-                                  └──────────────────┘
+┌─────────────────┐  Socket.io  ┌────────────────────┐
+│   Collector     │ ──────────> │  Dashboard server  │
+│   Puppeteer     │  results +  │  Socket.io server  │
+│   SQLite        │  feed events│  + static files    │
+└─────────────────┘             └────────────────────┘
+                                         │
+                                 broadcast to
+                                         │
+                                         ▼
+                               ┌────────────────────┐
+                               │   Browser clients   │
+                               │   React + Leaflet   │
+                               └────────────────────┘
 ```
 
 ## Quick Start
@@ -63,7 +63,7 @@ npm run start:mock
 # In another terminal, run the scraper pointed at the mock server
 BASE_RESULTS_URL=http://localhost:3457 \
 POLL_INTERVAL_MS=15000 \
-npm run start:cli
+npm run start:collector
 
 # In a third terminal, start the web dashboard
 npm run dev
@@ -106,7 +106,7 @@ Other flags: `--port 3457`, `--help`.
 | `CONCURRENCY` | `10` | Parallel page scrapes |
 | `NAVIGATION_TIMEOUT_MS` | `60000` | Puppeteer navigation timeout |
 | `WS_PORT` | `3456` | Socket.io server port |
-| `WS_URL` | — | Socket.io server URL (for CLI) |
+| `WS_URL` | — | Socket.io server URL (for collector) |
 | `DB_PATH` | `./.data/election_results.db` | SQLite database path |
 | `ELECTION_SOURCE_PATH` | — | Path to a custom source adapter module |
 | `WEBHOOK_URL` | — | Single webhook URL for all events. Payload includes an `event` field (`result_updated`, `prediction_changed`, `leader_change`, or `count_completed`) plus the full electorate result and a `diff` describing what changed. |

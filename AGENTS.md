@@ -6,7 +6,7 @@ Compact instructions for working in this repo. When in doubt, trust executable c
 
 - npm-workspace monorepo: `packages/core`, `packages/collector`, `packages/dashboard`.
 - All packages are ESM (`"type": "module"`).
-- CLI and server run TypeScript directly via `tsx`; there is no compiled `dist` for `core` or `cli` at runtime. `core` is consumed as raw `.ts` source (its `package.json` points `main` at `./src/index.ts`).
+- Collector and server run TypeScript directly via `tsx`; there is no compiled `dist` for `core` or `collector` at runtime. `core` is consumed as raw `.ts` source (its `package.json` points `main` at `./src/index.ts`).
 - `packages/dashboard` is a Vite React app with its own Node Socket.io server (`server/index.ts`).
 
 ## Quick commands
@@ -36,7 +36,7 @@ npm run start:mock
 
 # Verification
 npm run lint          # eslint packages/
-npm run typecheck     # tsc -b (only core + cli; web is NOT in root tsconfig references)
+npm run typecheck     # tsc -b (only core + collector; dashboard is NOT in root tsconfig references)
 npm test              # vitest
 npm run fmt           # prettier --write .
 ```
