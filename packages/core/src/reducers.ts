@@ -62,6 +62,7 @@ function calculateLead(
 
   return {
     ...results,
+    candidateVotes: sortedCandidates,
     leaders: {
       leadingCandidate,
       leadingCandidateParty,

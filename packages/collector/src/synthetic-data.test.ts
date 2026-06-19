@@ -33,6 +33,22 @@ function buildPartyMap(
 
 describe('synthetic data', () => {
   describe('electorate predictions', () => {
+    test('predicts a landslide correctly even when candidateVotes are not in vote order', () => {
+      const r = landslideFixtures[1.0];
+      const shuffled = {
+        ...r,
+        candidateVotes: [...r.candidateVotes].reverse(),
+      };
+      const withLead = calculateLead(shuffled, buildPartyMap(shuffled));
+      const prediction = predictWinner(withLead, 0.95);
+
+      expect(prediction.leaders.leadingCandidate).toBe('Smith, John');
+      expect(prediction.leaders.predictionStatus).toBe('projected');
+      expect(prediction.candidateVotes[0].votes).toBeGreaterThan(
+        prediction.candidateVotes[1].votes
+      );
+    });
+
     const cases = [
       {
         fixtures: landslideFixtures,
