@@ -15,6 +15,8 @@ COPY packages/collector/ packages/collector/
 COPY packages/dashboard/ packages/dashboard/
 COPY csv/ csv/
 
+RUN npm run build:core
+
 WORKDIR /app/packages/dashboard
 RUN npx vite build
 WORKDIR /app
