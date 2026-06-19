@@ -1,11 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import type { ResultsPayload } from '@election-night/core/types';
 import { log } from './logger.js';
-
-const WS_RECONNECT_DELAY_MS = parseInt(
-  process.env.WS_RECONNECT_DELAY_MS || '2000',
-  10
-);
+import { collectorConfig } from './config.js';
 
 let socket: Socket | null = null;
 
@@ -13,7 +9,7 @@ export function connectWs(url: string) {
   socket = io(url, {
     transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionDelay: WS_RECONNECT_DELAY_MS,
+    reconnectionDelay: collectorConfig.wsReconnectDelayMs,
     reconnectionDelayMax: 30_000,
   });
 

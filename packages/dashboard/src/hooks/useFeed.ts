@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { FeedEvent } from '@election-night/core/types';
+import { dashboardClientConfig } from '../config.js';
 
-const WS_URL = import.meta.env.VITE_WS_URL || `${window.location.protocol}//${window.location.host}`;
+const WS_URL = dashboardClientConfig.wsUrl;
 
 export function useFeed() {
   const [feedEvents, setFeedEvents] = useState<FeedEvent[]>([]);

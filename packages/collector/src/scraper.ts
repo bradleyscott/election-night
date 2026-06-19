@@ -1,11 +1,7 @@
 import { Browser } from 'puppeteer-core';
 import { ElectorateConfig } from '@election-night/core/types';
 import { log } from './logger.js';
-
-export const NAVIGATION_TIMEOUT_MS = parseInt(
-  process.env.NAVIGATION_TIMEOUT_MS || '60000',
-  10
-);
+import { collectorConfig } from './config.js';
 
 export async function getElectoratePageHtml(
   browser: Browser,
@@ -14,8 +10,12 @@ export async function getElectoratePageHtml(
   log.debug(`Fetching ${config.electorateName} results`);
   const page = await browser.newPage();
   try {
-    await page.goto(config.url, { timeout: NAVIGATION_TIMEOUT_MS });
-    await page.waitForNetworkIdle({ timeout: NAVIGATION_TIMEOUT_MS });
+    await page.goto(config.url, {
+      timeout: collectorConfig.navigationTimeoutMs,
+    });
+    await page.waitForNetworkIdle({
+      timeout: collectorConfig.navigationTimeoutMs,
+    });
     log.debug(`${config.electorateName} results successfully fetched`);
     const content = await page.content();
     log.trace(

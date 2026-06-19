@@ -20,11 +20,14 @@ import {
   getPartyVoteHistory,
   getSnapshotMetas,
 } from './db-reader.js';
+import { dashboardServerConfig } from './config.js';
 
-const PORT = parseInt(process.env.WS_PORT || '3456', 10);
-const CACHE_PATH = '.data/electorate_results.json';
-const DIST_DIR = process.env.DIST_DIR || resolve(process.cwd(), 'dist');
-const MAX_FEED_EVENTS = 200;
+const {
+  wsPort: PORT,
+  cachePath: CACHE_PATH,
+  distDir: DIST_DIR,
+  maxFeedEvents: MAX_FEED_EVENTS,
+} = dashboardServerConfig;
 
 type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
@@ -280,8 +283,6 @@ function serveStatic(req: IncomingMessage, res: ServerResponse) {
   res.end('Not found');
 }
 
-const DB_PATH = process.env.DB_PATH || '.data/election_results.db';
-
 function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
   const pathname = url.pathname;
 
@@ -374,21 +375,21 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => {
   console.log('=== Dashboard Server Configuration ===');
   console.log(`WS_PORT:         ${PORT}`);
-  console.log(`DB_PATH:         ${resolve(DB_PATH)}`);
+  console.log(`DB_PATH:         ${resolve(dashboardServerConfig.dbPath)}`);
   console.log(`DIST_DIR:        ${DIST_DIR}`);
   console.log(`CACHE_PATH:      ${resolve(CACHE_PATH)}`);
   console.log(`MAX_FEED_EVENTS: ${MAX_FEED_EVENTS}`);
   console.log(`CWD:             ${process.cwd()}`);
   console.log('======================================');
   console.log(`Socket.io server running on http://localhost:${PORT}`);
-  openDbReader(DB_PATH);
+  openDbReader(dashboardServerConfig.dbPath);
   loadCachedResults();
 });
 
 // Poll for the DB to appear (collector creates it on first scrape)
 setInterval(() => {
-  if (!hasDbReader() && existsSync(DB_PATH)) {
-    openDbReader(DB_PATH);
+  if (!hasDbReader() && existsSync(dashboardServerConfig.dbPath)) {
+    openDbReader(dashboardServerConfig.dbPath);
   }
 }, 5000);
 
