@@ -74,7 +74,7 @@ export const partyVotes = [
     marginOfError: 0,
   },
   {
-    candidate: 'Māori Party',
+    candidate: 'Te Pāti Māori',
     votes: 33630,
     percentage: 0.011565476485250664,
     marginOfError: 0,

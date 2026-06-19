@@ -112,12 +112,11 @@ function calculatePartyVote(results: ElectorateResults[]): VotingResults[] {
   const partyVoteMap = new Map<string, number>();
   const allPartyVotes = results.flatMap((x) => x.partyVotes);
   allPartyVotes.forEach((x) => {
-    const normalized = normalizePartyName(x.candidate) ?? x.candidate;
-    const partyVotes = partyVoteMap.get(normalized);
+    const partyVotes = partyVoteMap.get(x.candidate);
     if (partyVotes) {
-      partyVoteMap.set(normalized, partyVotes + x.votes);
+      partyVoteMap.set(x.candidate, partyVotes + x.votes);
     } else {
-      partyVoteMap.set(normalized, x.votes);
+      partyVoteMap.set(x.candidate, x.votes);
     }
   });
   return Array.from(partyVoteMap.entries()).map(([candidate, votes]) => ({
@@ -155,18 +154,12 @@ function calculatePartyVoteWithPercentages(
   }));
 }
 
-function normalizePartyName(party: string | null | undefined): string | null | undefined {
-  if (!party) return party;
-  if (party === 'Māori Party') return 'Te Pāti Māori';
-  return party;
-}
-
 function calculateElectorateWinSeats(
   electorateVotes: (ElectorateResults & WithLeaders)[]
 ): Record<string, number> {
   return electorateVotes.reduce(
     (acc, r) => {
-      const party = normalizePartyName(r.leaders.leadingCandidateParty);
+      const party = r.leaders.leadingCandidateParty;
       if (!party) return acc;
       if (!acc[party]) {
         acc[party] = 1;
@@ -184,20 +177,19 @@ function calculatePartyVoteWithSeats(
   electorateVotes: (ElectorateResults & WithLeaders)[]
 ): (VotingResults & WithSeats)[] {
   const partiesWithElectorateWins = Array.from(
-    new Set(electorateVotes.map((x) => normalizePartyName(x.leaders.leadingCandidateParty)))
+    new Set(electorateVotes.map((x) => x.leaders.leadingCandidateParty))
   ).filter((p): p is string => !!p);
   const electorateSeats = calculateElectorateWinSeats(electorateVotes);
 
   const eligibleResults = partyVotes.filter(
     (x) =>
-      x.percentage >= 0.05 || partiesWithElectorateWins.includes(normalizePartyName(x.candidate) ?? '')
+      x.percentage >= 0.05 || partiesWithElectorateWins.includes(x.candidate)
   );
 
   const resultsMap = eligibleResults.reduce(
     (map, { candidate, votes }) => {
       const updated = { ...map };
-      const normalized = normalizePartyName(candidate) ?? candidate;
-      updated[normalized] = votes;
+      updated[candidate] = votes;
       return updated;
     },
     {} as Record<string, number>
@@ -208,16 +200,14 @@ function calculatePartyVoteWithSeats(
       : {};
 
   return partyVotes.map((x) => {
-    const normalized = normalizePartyName(x.candidate) ?? x.candidate;
-    const electorates = electorateSeats[normalized] || 0;
-    const allocated = entitlement[normalized] || 0;
+    const electorates = electorateSeats[x.candidate] || 0;
+    const allocated = entitlement[x.candidate] || 0;
     // Overhang: if a party wins more electorates than its proportional entitlement,
     // it keeps all electorates and the parliament grows (no compensatory seats).
     const totalSeats = Math.max(allocated, electorates);
     const listSeats = totalSeats - electorates;
     return {
       ...x,
-      candidate: normalized,
       seats: totalSeats,
       electorateSeats: electorates,
       listSeats,
@@ -230,7 +220,7 @@ function getElectorateWinners(
 ): Record<string, string[]> {
   return electoralVotes.reduce(
     (acc, r) => {
-      const party = normalizePartyName(r.leaders.leadingCandidateParty);
+      const party = r.leaders.leadingCandidateParty;
       if (!party) return acc;
       if (!acc[party]) {
         acc[party] = [r.leaders.leadingCandidate];
@@ -271,7 +261,7 @@ function calculatePartyList(
   const withCutDistance = withAdjustedRank.map((x) => ({
     ...x,
     distanceFromCut:
-      (seats.find((y) => (normalizePartyName(y.candidate) ?? y.candidate) === x.party)?.listSeats || 0) -
+      (seats.find((y) => (y.candidate) === x.party)?.listSeats || 0) -
       x.adjustedRank,
   }));
 
@@ -285,5 +275,4 @@ export {
   calculatePartyVoteWithPercentages,
   calculatePartyVoteWithSeats,
   calculatePartyList,
-  normalizePartyName,
 };

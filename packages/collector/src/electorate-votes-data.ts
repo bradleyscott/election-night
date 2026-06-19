@@ -56,7 +56,7 @@ export const electorateVotes = [
         votes: 1,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 111,
       },
       {
@@ -189,7 +189,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 144,
       },
       {
@@ -319,7 +319,7 @@ export const electorateVotes = [
         votes: 12,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 195,
       },
       {
@@ -447,7 +447,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 70,
       },
       {
@@ -562,7 +562,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 142,
       },
       {
@@ -698,7 +698,7 @@ export const electorateVotes = [
         votes: 8,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 141,
       },
       {
@@ -829,7 +829,7 @@ export const electorateVotes = [
         votes: 14,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 116,
       },
       {
@@ -964,7 +964,7 @@ export const electorateVotes = [
         votes: 0,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 151,
       },
       {
@@ -1082,7 +1082,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 320,
       },
       {
@@ -1207,7 +1207,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 65,
       },
       {
@@ -1336,7 +1336,7 @@ export const electorateVotes = [
         votes: 6,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 108,
       },
       {
@@ -1473,7 +1473,7 @@ export const electorateVotes = [
         votes: 7,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 193,
       },
       {
@@ -1614,7 +1614,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 212,
       },
       {
@@ -1748,7 +1748,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 201,
       },
       {
@@ -1873,7 +1873,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 108,
       },
       {
@@ -2002,7 +2002,7 @@ export const electorateVotes = [
         votes: 8,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 76,
       },
       {
@@ -2142,7 +2142,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 70,
       },
       {
@@ -2284,7 +2284,7 @@ export const electorateVotes = [
         votes: 7,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 126,
       },
       {
@@ -2415,7 +2415,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 185,
       },
       {
@@ -2548,7 +2548,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 242,
       },
       {
@@ -2689,7 +2689,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 280,
       },
       {
@@ -2822,7 +2822,7 @@ export const electorateVotes = [
         votes: 8,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 245,
       },
       {
@@ -2947,7 +2947,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 159,
       },
       {
@@ -3062,7 +3062,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 205,
       },
       {
@@ -3186,7 +3186,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 142,
       },
       {
@@ -3310,7 +3310,7 @@ export const electorateVotes = [
         votes: 8,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 118,
       },
       {
@@ -3443,7 +3443,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 90,
       },
       {
@@ -3583,7 +3583,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 191,
       },
       {
@@ -3716,7 +3716,7 @@ export const electorateVotes = [
         votes: 10,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 212,
       },
       {
@@ -3846,7 +3846,7 @@ export const electorateVotes = [
         votes: 1,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 104,
       },
       {
@@ -3973,7 +3973,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 93,
       },
       {
@@ -4102,7 +4102,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 181,
       },
       {
@@ -4244,7 +4244,7 @@ export const electorateVotes = [
         votes: 1,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 153,
       },
       {
@@ -4376,7 +4376,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 141,
       },
       {
@@ -4498,7 +4498,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 73,
       },
       {
@@ -4614,7 +4614,7 @@ export const electorateVotes = [
         votes: 6,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 177,
       },
       {
@@ -4735,7 +4735,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 202,
       },
       {
@@ -4860,7 +4860,7 @@ export const electorateVotes = [
         votes: 25,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 127,
       },
       {
@@ -4986,7 +4986,7 @@ export const electorateVotes = [
         votes: 147,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 130,
       },
       {
@@ -5127,7 +5127,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 55,
       },
       {
@@ -5254,7 +5254,7 @@ export const electorateVotes = [
         votes: 7,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 179,
       },
       {
@@ -5379,7 +5379,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 171,
       },
       {
@@ -5505,7 +5505,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 201,
       },
       {
@@ -5636,7 +5636,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 347,
       },
       {
@@ -5754,7 +5754,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 59,
       },
       {
@@ -5887,7 +5887,7 @@ export const electorateVotes = [
         votes: 8,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 60,
       },
       {
@@ -6013,7 +6013,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 55,
       },
       {
@@ -6150,7 +6150,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 162,
       },
       {
@@ -6263,7 +6263,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 127,
       },
       {
@@ -6383,7 +6383,7 @@ export const electorateVotes = [
         votes: 8,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 187,
       },
       {
@@ -6498,7 +6498,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 164,
       },
       {
@@ -6628,7 +6628,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 155,
       },
       {
@@ -6765,7 +6765,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 256,
       },
       {
@@ -6882,7 +6882,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 162,
       },
       {
@@ -7021,7 +7021,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 144,
       },
       {
@@ -7140,7 +7140,7 @@ export const electorateVotes = [
         votes: 16,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 145,
       },
       {
@@ -7254,7 +7254,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 74,
       },
       {
@@ -7376,7 +7376,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 125,
       },
       {
@@ -7506,7 +7506,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 54,
       },
       {
@@ -7641,7 +7641,7 @@ export const electorateVotes = [
         votes: 1,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 255,
       },
       {
@@ -7782,7 +7782,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 88,
       },
       {
@@ -7920,7 +7920,7 @@ export const electorateVotes = [
         votes: 2,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 222,
       },
       {
@@ -8045,7 +8045,7 @@ export const electorateVotes = [
         votes: 3,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 91,
       },
       {
@@ -8174,7 +8174,7 @@ export const electorateVotes = [
         votes: 4,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 149,
       },
       {
@@ -8307,7 +8307,7 @@ export const electorateVotes = [
         votes: 5,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 124,
       },
       {
@@ -8415,7 +8415,7 @@ export const electorateVotes = [
         votes: 15884,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 3008,
       },
       {
@@ -8521,7 +8521,7 @@ export const electorateVotes = [
         votes: 638,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 3089,
       },
       {
@@ -8637,7 +8637,7 @@ export const electorateVotes = [
         votes: 16066,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 3401,
       },
       {
@@ -8747,7 +8747,7 @@ export const electorateVotes = [
         votes: 85,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 4055,
       },
       {
@@ -8859,7 +8859,7 @@ export const electorateVotes = [
         votes: 791,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 2828,
       },
       {
@@ -8973,7 +8973,7 @@ export const electorateVotes = [
     electorateName: 'Te Tai Tonga',
     partyVotes: [
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 2596,
       },
       {
@@ -9105,7 +9105,7 @@ export const electorateVotes = [
         votes: 67,
       },
       {
-        candidate: 'Māori Party',
+        candidate: 'Te Pāti Māori',
         votes: 4843,
       },
       {
@@ -9161,7 +9161,7 @@ export const electorateVotes = [
       {
         candidate: 'WAITITI, Rawiri',
         votes: 12389,
-        party: 'Māori Party',
+        party: 'Te Pāti Māori',
       },
       {
         candidate: 'COFFEY, Tamati Gerald',
@@ -9193,7 +9193,7 @@ export const electorateVotes = [
     votePercentageCounted: 1,
     leaders: {
       leadingCandidate: 'WAITITI, Rawiri',
-      leadingCandidateParty: 'Māori Party',
+      leadingCandidateParty: 'Te Pāti Māori',
       secondCandidate: 'COFFEY, Tamati Gerald',
       secondCandidateParty: undefined,
       margin: 836,

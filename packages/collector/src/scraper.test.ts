@@ -46,7 +46,7 @@ describe('NzElectionResultsSource', () => {
       { candidate: 'Advance NZ', votes: 198 },
       { candidate: 'Aotearoa Legalise Cannabis Party', votes: 99 },
       { candidate: 'HeartlandNZ', votes: 1 },
-      { candidate: 'Māori Party', votes: 111 },
+      { candidate: 'Te Pāti Māori', votes: 111 },
       { candidate: 'NZ Outdoors Party', votes: 15 },
       { candidate: 'ONE Party', votes: 20 },
       { candidate: 'Social Credit', votes: 7 },

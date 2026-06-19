@@ -1,12 +1,6 @@
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
 
-function normalizePartyName(party: string | null | undefined): string | null | undefined {
-  if (!party) return party;
-  if (party === 'Māori Party') return 'Te Pāti Māori';
-  return party;
-}
-
 export type CandidateSnapshot = {
   candidate: string;
   party: string | null;
@@ -146,7 +140,7 @@ export function getElectorateHistory(name: string): ElectorateHistoryPoint[] {
       votesCounted: row.votes_counted as number,
       votePctCounted: row.vote_pct_counted as number,
       leadingCandidate: (row.leading_candidate as string) ?? null,
-      leadingParty: normalizePartyName(row.leading_party as string | null) ?? null,
+      leadingParty: (row.leading_party as string) ?? null,
       predictedWinner: row.predicted_winner as number,
       margin: (row.margin as number) ?? null,
       marginPct: (row.margin_pct as number) ?? null,
@@ -158,7 +152,7 @@ export function getElectorateHistory(name: string): ElectorateHistoryPoint[] {
         isPredicted: (c.is_predicted as number) === 1,
       })),
       partyVotes: partyVoteRows.map((p) => ({
-        party: normalizePartyName(p.party as string) ?? (p.party as string),
+        party: p.party as string,
         votes: p.votes as number,
       })),
     });
@@ -196,7 +190,7 @@ export function getPartyVoteHistory(): PartyVoteHistoryPoint[] {
       startedAt: snap.started_at as string,
       completedAt: (snap.completed_at as string) ?? null,
       parties: parties.map((p) => ({
-        party: normalizePartyName(p.party as string) ?? (p.party as string),
+        party: p.party as string,
         votes: p.votes as number,
         seats: p.seats as number,
         electorateSeats: p.electorate_seats as number,
