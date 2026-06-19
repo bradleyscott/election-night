@@ -8,7 +8,9 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/collector/package.json packages/collector/
 COPY packages/dashboard/package.json packages/dashboard/
-RUN npm ci --ignore-scripts && cd packages/collector && npx cloakbrowser install && cd /app
+RUN npm ci --ignore-scripts && \
+    npm rebuild better-sqlite3 && \
+    cd packages/collector && npx cloakbrowser install && cd /app
 
 COPY tsconfig.base.json tsconfig.json ./
 COPY packages/core/ packages/core/
