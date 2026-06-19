@@ -10,6 +10,7 @@ const dashboardServerConfigSchema = z.object({
     .default('./dist')
     .transform((v) => resolve(v)),
   cachePath: z.string().default('.data/electorate_results.json'),
+  feedCachePath: z.string().default('.data/feed_events.json'),
   maxFeedEvents: z.coerce.number().int().min(1).default(200),
 });
 
@@ -23,6 +24,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     dbPath: process.env.DB_PATH,
     distDir: process.env.DIST_DIR,
     cachePath: process.env.CACHE_PATH,
+    feedCachePath: process.env.FEED_CACHE_PATH,
     maxFeedEvents: process.env.MAX_FEED_EVENTS,
   });
 

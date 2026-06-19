@@ -1,6 +1,12 @@
 import 'dotenv/config';
-import { readFileSync, existsSync, statSync } from 'fs';
-import { resolve, extname } from 'path';
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  statSync,
+} from 'fs';
+import { resolve, extname, dirname } from 'path';
 import { Server } from 'socket.io';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import type {
@@ -25,6 +31,7 @@ import { dashboardServerConfig } from './config.js';
 const {
   wsPort: PORT,
   cachePath: CACHE_PATH,
+  feedCachePath: FEED_CACHE_PATH,
   distDir: DIST_DIR,
   maxFeedEvents: MAX_FEED_EVENTS,
 } = dashboardServerConfig;
@@ -67,11 +74,32 @@ function loadCachedResults() {
   console.log('No cached results found, waiting for first scrape...');
 }
 
+function loadFeedEvents(): FeedEvent[] {
+  if (!existsSync(FEED_CACHE_PATH)) return [];
+  try {
+    const data = JSON.parse(readFileSync(FEED_CACHE_PATH, 'utf-8'));
+    if (Array.isArray(data)) return data as FeedEvent[];
+  } catch (err) {
+    console.error('Failed to load cached feed events:', err);
+  }
+  return [];
+}
+
+function saveFeedEvents(events: FeedEvent[]) {
+  try {
+    mkdirSync(dirname(FEED_CACHE_PATH), { recursive: true });
+    writeFileSync(FEED_CACHE_PATH, JSON.stringify(events, null, 2));
+  } catch (err) {
+    console.error('Failed to save feed events:', err);
+  }
+}
+
 function addFeedEvents(events: FeedEvent[]) {
   const existingIds = new Set(feedEvents.map((e) => e.id));
   const newEvents = events.filter((e) => !existingIds.has(e.id));
   if (newEvents.length === 0) return newEvents;
   feedEvents = [...feedEvents, ...newEvents].slice(-MAX_FEED_EVENTS);
+  saveFeedEvents(feedEvents);
   return newEvents;
 }
 
@@ -384,6 +412,7 @@ server.listen(PORT, () => {
   console.log(`Socket.io server running on http://localhost:${PORT}`);
   openDbReader(dashboardServerConfig.dbPath);
   loadCachedResults();
+  feedEvents = loadFeedEvents();
 });
 
 // Poll for the DB to appear (collector creates it on first scrape)
