@@ -243,7 +243,9 @@ function buildFeedEvents(
     if (!changed && !diff.predictionStatusChanged && !diff.leaderChanged && !countCompleted) continue;
 
     events.push({
-      id: `${result.electorateName}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `${result.electorateName}-${diff.currentVotesCounted}-${Math.round(
+        (diff.currentMargin ?? 0) * 100
+      )}-${diff.currentPredictionStatus ?? 'none'}`,
       timestamp: Date.now(),
       type,
       electorateName: result.electorateName,
