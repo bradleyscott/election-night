@@ -278,6 +278,36 @@ function serveStatic(req: IncomingMessage, res: ServerResponse) {
     return;
   }
 
+  if (pathname === '/ready') {
+    const checks: Record<string, string | boolean | number> = {};
+    let ready = true;
+
+    try {
+      if (hasDbReader()) {
+        getSnapshotMetas();
+        checks.db = 'ok';
+      } else {
+        checks.db = 'no database';
+        ready = false;
+      }
+    } catch {
+      checks.db = 'error';
+      ready = false;
+    }
+
+    const lastEvent = feedEvents[feedEvents.length - 1];
+    if (lastEvent) {
+      checks.lastScrape = lastEvent.timestamp;
+    } else {
+      checks.lastScrape = 'none';
+      ready = false;
+    }
+
+    res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ready, checks }));
+    return;
+  }
+
   const normalizedPath = pathname === '/' ? '/index.html' : pathname;
   const resolvedPath = resolve(DIST_DIR, normalizedPath.slice(1));
 
