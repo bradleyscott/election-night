@@ -387,7 +387,7 @@ server.listen(PORT, () => {
 });
 
 // Poll for the DB to appear (collector creates it on first scrape)
-setInterval(() => {
+const dbPollTimer = setInterval(() => {
   if (!hasDbReader() && existsSync(dashboardServerConfig.dbPath)) {
     openDbReader(dashboardServerConfig.dbPath);
   }
@@ -404,3 +404,12 @@ process.on('SIGTERM', () => {
   closeDbReader();
   process.exit(0);
 });
+
+export function stopDashboardServer(): void {
+  clearInterval(dbPollTimer);
+  closeDbReader();
+  io.close();
+  server.close();
+}
+
+export { server, io };

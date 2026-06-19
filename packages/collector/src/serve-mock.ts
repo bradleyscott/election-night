@@ -219,14 +219,17 @@ ${links}
 </html>`;
 }
 
-const parsed = arg({
-  '--port': Number,
-  '--stage': String,
-  '--auto-step': Number,
-  '--help': Boolean,
-  '-p': '--port',
-  '-h': '--help',
-});
+const parsed = arg(
+  {
+    '--port': Number,
+    '--stage': String,
+    '--auto-step': Number,
+    '--help': Boolean,
+    '-p': '--port',
+    '-h': '--help',
+  },
+  { permissive: true }
+);
 
 if (parsed['--help']) {
   console.log(`
@@ -241,7 +244,7 @@ Options:
   process.exit(0);
 }
 
-const PORT = parsed['--port'] || 3457;
+const PORT = parsed['--port'] || Number(process.env.MOCK_PORT) || 3457;
 
 const stageArg = parsed['--stage'];
 if (stageArg) {
@@ -343,3 +346,10 @@ function shutdown() {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+export function stopMockServer(): void {
+  if (autoStepTimer) clearInterval(autoStepTimer);
+  server.close();
+}
+
+export { server };
