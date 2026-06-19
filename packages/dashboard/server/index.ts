@@ -27,6 +27,14 @@ import {
   getSnapshotMetas,
 } from './db-reader.js';
 import { dashboardServerConfig } from './config.js';
+import {
+  register,
+  applyMetricEvents,
+  websocketClients,
+  feedEventsTotal,
+  lastScrapeTimestampSeconds,
+  metricsResponse,
+} from './metrics.js';
 
 const {
   wsPort: PORT,
@@ -99,6 +107,7 @@ function addFeedEvents(events: FeedEvent[]) {
   const newEvents = events.filter((e) => !existingIds.has(e.id));
   if (newEvents.length === 0) return newEvents;
   feedEvents = [...feedEvents, ...newEvents].slice(-MAX_FEED_EVENTS);
+  newEvents.forEach((event) => feedEventsTotal.inc({ type: event.type }));
   saveFeedEvents(feedEvents);
   return newEvents;
 }
@@ -268,9 +277,16 @@ function generateFeedCommentaries(events: FeedEvent[], results: Map<string, Elec
   });
 }
 
-function serveStatic(req: IncomingMessage, res: ServerResponse) {
+async function serveStatic(req: IncomingMessage, res: ServerResponse) {
   const url = new URL(req.url!, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+
+  if (pathname === '/metrics') {
+    const metrics = await metricsResponse();
+    res.writeHead(200, { 'Content-Type': register.contentType });
+    res.end(metrics);
+    return;
+  }
 
   if (pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -401,6 +417,7 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+  websocketClients.set(io.engine.clientsCount);
 
   if (latestResults) {
     socket.emit('results_update', latestResults);
@@ -412,6 +429,7 @@ io.on('connection', (socket) => {
   socket.on('results_update', (payload: ResultsPayload) => {
     const previousResults = latestResults?.electorateResults ?? [];
     latestResults = payload;
+    lastScrapeTimestampSeconds.set(Date.now() / 1000);
     console.log('Received results update, broadcasting...');
     socket.broadcast.emit('results_update', payload);
 
@@ -429,6 +447,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+    websocketClients.set(io.engine.clientsCount);
+  });
+
+  socket.on('metrics', (events: MetricEvent | MetricEvent[]) => {
+    applyMetricEvents(events);
   });
 });
 

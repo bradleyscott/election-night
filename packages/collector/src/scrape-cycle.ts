@@ -17,6 +17,8 @@ import {
 } from '@election-night/core/reducers';
 import { log } from './logger.js';
 import { getElectoratePageHtml } from './scraper.js';
+import { publishMetrics } from './ws-client.js';
+import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
 
 export type ScrapeCycleOptions = {
   browser: Browser;
@@ -43,6 +45,7 @@ export async function scrapeCycle(
   const limit = pLimit(concurrency);
 
   log.info('Starting election results scraping...');
+  const start = performance.now();
 
   const settled = await Promise.allSettled(
     configs.map((cfg) =>
@@ -143,6 +146,19 @@ export async function scrapeCycle(
     (pl) => pl.distanceFromCut >= 0
   ).length;
   log.debug(`${totalListCandidates} list candidates above the cut`);
+
+  const duration = (performance.now() - start) / 1000;
+  const status: 'success' | 'partial' | 'error' =
+    results.length === configs.length
+      ? 'success'
+      : results.length > 0
+        ? 'partial'
+        : 'error';
+  const events = [emitScrapeDuration(duration, status)];
+  for (const s of settled) {
+    events.push(emitScrapeElectorate(s.status === 'fulfilled' ? 'success' : 'error'));
+  }
+  publishMetrics(events);
 
   return {
     electorateResults: withPredictions,

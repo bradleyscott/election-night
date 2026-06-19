@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
-import type { ResultsPayload } from '@election-night/core/types';
+import type { MetricEvent, ResultsPayload } from '@election-night/core/types';
 import { log } from './logger.js';
 import { collectorConfig } from './config.js';
+import { emitCollectorSocketConnected } from './metrics.js';
 
 let socket: Socket | null = null;
 const pendingResults: ResultsPayload[] = [];
@@ -16,6 +17,11 @@ function flushPending() {
   }
 }
 
+export function publishMetrics(events: MetricEvent | MetricEvent[]) {
+  if (!socket?.connected) return;
+  socket.emit('metrics', events);
+}
+
 export function connectWs(url: string) {
   socket = io(url, {
     transports: ['websocket', 'polling'],
@@ -26,6 +32,7 @@ export function connectWs(url: string) {
 
   socket.on('connect', () => {
     log.info(`Connected to socket.io server at ${url}`);
+    publishMetrics(emitCollectorSocketConnected(true));
     flushPending();
   });
 

@@ -10,6 +10,8 @@ import {
 } from '@election-night/core/types';
 import { config } from '@election-night/core/config';
 import { fetchWithRetry } from './retry.js';
+import { publishMetrics } from './ws-client.js';
+import { emitWebhookPublish } from './metrics.js';
 
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
@@ -130,7 +132,9 @@ export async function sendWebhook(
       },
       { maxAttempts: 3, baseDelayMs: 500 }
     );
+    publishMetrics(emitWebhookPublish('success'));
   } catch (e) {
+    publishMetrics(emitWebhookPublish('error'));
     console.error(
       `Webhook POST failed for ${event} on ${result.electorateName} after retries:`,
       e

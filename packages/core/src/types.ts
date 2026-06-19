@@ -143,3 +143,15 @@ export type FeedEvent = {
   commentary: string;
   diff: ElectorateDiff;
 };
+
+// ---- Metrics ----
+
+export type MetricEvent =
+  | {
+      metric: 'scrapeDurationSeconds';
+      seconds: number;
+      status: 'success' | 'partial' | 'error';
+    }
+  | { metric: 'scrapeElectoratesTotal'; status: 'success' | 'error' }
+  | { metric: 'collectorSocketConnected'; connected: boolean }
+  | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' };

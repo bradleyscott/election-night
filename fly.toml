@@ -19,6 +19,10 @@ primary_region = "nrt"
     path = "/health"
     protocol = "http"
 
+[metrics]
+  port = 3456
+  path = "/metrics"
+
 [env]
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
