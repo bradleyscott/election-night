@@ -17,7 +17,7 @@ type SocketContextValue = {
   feedEvents: FeedEvent[];
 };
 
-const SocketContext = createContext<SocketContextValue>({
+export const SocketContext = createContext<SocketContextValue>({
   socket: null,
   connected: false,
   results: null,
