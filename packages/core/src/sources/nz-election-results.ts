@@ -1,4 +1,4 @@
-import { load } from 'cheerio';
+import { load, type CheerioAPI } from 'cheerio';
 import {
   type ElectorateConfig,
   type ElectionSource,
@@ -90,10 +90,12 @@ export class NzElectionResultsSource implements ElectionSource {
     this.debug(`parseRawResults for ${config.electorateName}, HTML length=${html.length}`);
     this.debug(`HTML preview: ${html.slice(0, 500).replace(/\s+/g, ' ')}`);
 
-    const candidateVotes = this.parseCandidateVotes(html);
-    const partyVotes = this.parsePartyVotes(html);
-    const votesCounted = this.parseVotesCounted(html);
-    const votePercentageCounted = this.parseVotePercentCounted(html);
+    const $ = load(html);
+
+    const candidateVotes = this.parseCandidateVotes($);
+    const partyVotes = this.parsePartyVotes($);
+    const votesCounted = this.parseVotesCounted($);
+    const votePercentageCounted = this.parseVotePercentCounted($);
 
     this.debug(
       `parsed ${config.electorateName}: ${candidateVotes.length} candidates, ${partyVotes.length} party entries, votesCounted=${votesCounted}, pct=${votePercentageCounted}`
@@ -112,8 +114,7 @@ export class NzElectionResultsSource implements ElectionSource {
     if (this.verbose) console.warn('[parse]', ...args);
   }
 
-  private parseTable(selector: string, html: string): VotingResults[] {
-    const $ = load(html);
+  private parseTable($: CheerioAPI, selector: string): VotingResults[] {
     const $table = $(selector);
     this.debug(`parseTable: selector="${selector}" found=${$table.length}`);
     if (!$table.length) {
@@ -142,31 +143,28 @@ export class NzElectionResultsSource implements ElectionSource {
     return data;
   }
 
-  private parseCandidateVotes(html: string): VotingResults[] {
-    const $ = load(html);
+  private parseCandidateVotes($: CheerioAPI): VotingResults[] {
     const found = $(this.candidateTableSelector).length;
     this.debug(`parseCandidateVotes: selector="${this.candidateTableSelector}" found=${found} elements`);
     if (found > 0) {
-      return this.parseTable(this.candidateTableSelector, html);
+      return this.parseTable($, this.candidateTableSelector);
     }
     this.debug('candidateTableSelector not found, falling back to parseColumn');
-    return this.parseColumn(html, 0);
+    return this.parseColumn($, 0);
   }
 
-  private parsePartyVotes(html: string): VotingResults[] {
-    const $ = load(html);
+  private parsePartyVotes($: CheerioAPI): VotingResults[] {
     const found = $(this.partyVoteTableSelector).length;
     this.debug(`parsePartyVotes: selector="${this.partyVoteTableSelector}" found=${found} elements`);
     if (found > 0) {
-      return this.parseTable(this.partyVoteTableSelector, html);
+      return this.parseTable($, this.partyVoteTableSelector);
     }
     this.debug('partyVoteTableSelector not found, falling back to parseColumn');
-    return this.parseColumn(html, 1);
+    return this.parseColumn($, 1);
   }
 
   /** @deprecated Use separate candidateTableSelector/partyVoteTableSelector instead */
-  private parseColumn(html: string, columnIndex: number): VotingResults[] {
-    const $ = load(html);
+  private parseColumn($: CheerioAPI, columnIndex: number): VotingResults[] {
     const $container = $(this.resultsTableSelector);
     this.debug(`parseColumn: column=${columnIndex}, container found=${$container.length}`);
     if (!$container.length) {
@@ -198,8 +196,7 @@ export class NzElectionResultsSource implements ElectionSource {
     return data;
   }
 
-  private parseVotePercentCounted(html: string): number {
-    const $ = load(html);
+  private parseVotePercentCounted($: CheerioAPI): number {
     const el = $(this.votePercentCountedSelector);
     this.debug(`parseVotePercentCounted: selector="${this.votePercentCountedSelector}" found=${el.length}`);
     const text = el.text();
@@ -212,8 +209,7 @@ export class NzElectionResultsSource implements ElectionSource {
     return value;
   }
 
-  private parseVotesCounted(html: string): number {
-    const $ = load(html);
+  private parseVotesCounted($: CheerioAPI): number {
     const el = $(this.votesCountedSelector);
     this.debug(`parseVotesCounted: selector="${this.votesCountedSelector}" found=${el.length}`);
     const text = el.text();
