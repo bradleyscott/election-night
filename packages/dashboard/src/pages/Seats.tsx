@@ -255,7 +255,7 @@ export default function Seats() {
   const { results } = useResults();
 
   const partyVote = results?.partyVote;
-  const sorted = partyVote?.sort((a, b) => b.seats - a.seats) ?? [];
+  const sorted = partyVote ? [...partyVote].sort((a, b) => b.seats - a.seats) : [];
   const totalSeats = sorted.reduce((s, p) => s + p.seats, 0);
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 

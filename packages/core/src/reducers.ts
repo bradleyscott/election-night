@@ -41,7 +41,7 @@ function calculateLead(
   results: ElectorateResults,
   partyMap: Record<string, string | undefined>
 ): ElectorateResults & WithLeaders {
-  const sortedCandidates = results.candidateVotes.sort(
+  const sortedCandidates = [...results.candidateVotes].sort(
     (a, b) => b.votes - a.votes
   );
 
