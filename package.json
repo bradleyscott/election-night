@@ -18,7 +18,7 @@
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",
     "fmt": "prettier --write .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && tsc -b packages/dashboard"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
