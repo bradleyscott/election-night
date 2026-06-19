@@ -8,8 +8,9 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/collector/package.json packages/collector/
 COPY packages/dashboard/package.json packages/dashboard/
-RUN npm ci && cd packages/collector && npx cloakbrowser install && cd /app
+RUN npm ci --ignore-scripts && cd packages/collector && npx cloakbrowser install && cd /app
 
+COPY tsconfig.base.json tsconfig.json ./
 COPY packages/core/ packages/core/
 COPY packages/collector/ packages/collector/
 COPY packages/dashboard/ packages/dashboard/
