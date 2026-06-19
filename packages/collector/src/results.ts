@@ -9,6 +9,7 @@ import {
   WebhookPayload,
 } from '@election-night/core/types';
 import { config } from '@election-night/core/config';
+import { fetchWithRetry } from './retry.js';
 
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
@@ -118,16 +119,20 @@ export async function sendWebhook(
   };
 
   try {
-    await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers: {
-        'Content-Type': 'application/json',
+    await fetchWithRetry(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       },
-    });
+      { maxAttempts: 3, baseDelayMs: 500 }
+    );
   } catch (e) {
     console.error(
-      `Webhook POST failed for ${event} on ${result.electorateName}:`,
+      `Webhook POST failed for ${event} on ${result.electorateName} after retries:`,
       e
     );
   }

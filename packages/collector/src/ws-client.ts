@@ -4,6 +4,17 @@ import { log } from './logger.js';
 import { collectorConfig } from './config.js';
 
 let socket: Socket | null = null;
+const pendingResults: ResultsPayload[] = [];
+
+function flushPending() {
+  if (!socket?.connected) return;
+  while (pendingResults.length > 0) {
+    const payload = pendingResults.shift();
+    if (payload) {
+      socket.emit('results_update', payload);
+    }
+  }
+}
 
 export function connectWs(url: string) {
   socket = io(url, {
@@ -15,6 +26,7 @@ export function connectWs(url: string) {
 
   socket.on('connect', () => {
     log.info(`Connected to socket.io server at ${url}`);
+    flushPending();
   });
 
   socket.on('connect_error', (err) => {
@@ -28,7 +40,8 @@ export function connectWs(url: string) {
 
 export function publishResults(payload: ResultsPayload) {
   if (!socket?.connected) {
-    log.debug('Socket.io not connected, skipping publish');
+    log.debug('Socket.io not connected, queueing results for retry');
+    pendingResults.push(payload);
     return;
   }
 
