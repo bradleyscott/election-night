@@ -7,13 +7,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import type { ElectorateHistoryPoint } from '../lib/history-types.js';
 import { partyColors } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 
-type ChartMode = 'votes' | 'percentage' | 'candidateVotes';
+type ChartMode = 'votes' | 'percentage' | 'candidateVotes' | 'counted';
 
 type ChartProps = {
   history: ElectorateHistoryPoint[];
@@ -66,7 +65,13 @@ function VoteChartTooltip({
   mode,
 }: {
   active?: boolean;
-  payload?: { name: string; value: number; color: string; dataKey: string }[];
+  payload?: {
+    name: string;
+    value: number;
+    color: string;
+    dataKey: string;
+    payload?: Record<string, unknown>;
+  }[];
   label?: string;
   mode: ChartMode;
 }) {
@@ -82,18 +87,31 @@ function VoteChartTooltip({
       {payload.map((entry) => {
         const dark = isDarkColor(entry.color);
         return (
-          <div key={entry.dataKey} className="flex items-center justify-between gap-3 py-0.5">
+          <div
+            key={entry.dataKey}
+            className="flex items-center justify-between gap-3 py-0.5"
+          >
             <div className="flex items-center gap-1.5 min-w-0">
               <div
-                className={cn('w-2 h-2 rounded-full shrink-0 ring-1', dark ? 'ring-white/50' : 'ring-black/10')}
+                className={cn(
+                  'w-2 h-2 rounded-full shrink-0 ring-1',
+                  dark ? 'ring-white/50' : 'ring-black/10'
+                )}
                 style={{ backgroundColor: entry.color }}
               />
               <span className="font-semibold truncate">{entry.name}</span>
             </div>
             <span className="tabular-nums font-bold text-right shrink-0">
-              {mode === 'percentage'
+              {mode === 'percentage' || mode === 'counted'
                 ? `${(entry.value * 100).toFixed(1)}%`
                 : entry.value.toLocaleString()}
+              {mode === 'counted' &&
+                entry.payload &&
+                (entry.payload.votesCounted as number) > 0 && (
+                  <span className="ml-1 text-muted-foreground font-semibold">
+                    ({(entry.payload.votesCounted as number).toLocaleString()})
+                  </span>
+                )}
             </span>
           </div>
         );
@@ -102,26 +120,58 @@ function VoteChartTooltip({
   );
 }
 
-function VoteChartLegend({ payload }: { payload?: Array<{ value: string; color: string }> }) {
-  if (!payload || payload.length === 0) return null;
+function VoteChartLegend({
+  entities,
+  maxVisible = 5,
+}: {
+  entities: Array<{ name: string; party: string | null; color?: string }>;
+  maxVisible?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (entities.length === 0) return null;
+
+  const visible = expanded ? entities : entities.slice(0, maxVisible);
+  const hiddenCount = entities.length - visible.length;
+
   return (
-    <div className="flex flex-wrap gap-3 justify-center mt-2">
-      {payload.map((entry) => {
-        const dark = isDarkColor(entry.color);
-        return (
-          <div key={entry.value} className="flex items-center gap-1.5">
-            <div
-              className={cn('w-2.5 h-2.5 rounded-full shrink-0 ring-1', dark ? 'ring-white/50' : 'ring-black/10')}
-              style={{ backgroundColor: entry.color }}
-            />
-            <span
-              className={cn('text-xs font-bold', dark ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' : 'text-foreground')}
-            >
-              {entry.value}
-            </span>
-          </div>
-        );
-      })}
+    <div className="mt-2">
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center">
+        {visible.map((entry) => {
+          const color = entry.color ?? getEntityColor(entry.party);
+          const dark = isDarkColor(color);
+          return (
+            <div key={entry.name} className="flex items-center gap-1.5">
+              <div
+                className={cn(
+                  'w-2.5 h-2.5 rounded-full shrink-0 ring-1',
+                  dark ? 'ring-white/50' : 'ring-black/10'
+                )}
+                style={{ backgroundColor: color }}
+              />
+              <span
+                className={cn(
+                  'text-xs font-bold',
+                  dark
+                    ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]'
+                    : 'text-foreground'
+                )}
+                title={entry.name}
+              >
+                {entry.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-2 mx-auto block text-xs font-bold text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-full border border-border bg-muted/50 transition-colors"
+        >
+          {expanded ? 'Show less ▲' : `+ ${hiddenCount} more ▼`}
+        </button>
+      )}
     </div>
   );
 }
@@ -194,13 +244,15 @@ export default function VoteHistoryChart({
     return ticks;
   }, [history]);
 
-  // Determine which entities to show lines for (candidates or parties with votes > 0)
+  // Determine which entities to show lines for (candidates or parties with votes > 0),
+  // sorted by current vote count so the most relevant series appear first in the legend.
   const entities = useMemo(() => {
     if (history.length === 0) return [];
     const latest = history[history.length - 1];
     if (showParty) {
       return latest.partyVotes
         .filter((p) => p.votes > 0)
+        .sort((a, b) => b.votes - a.votes)
         .map((p) => ({
           name: p.party,
           party: p.party,
@@ -208,6 +260,7 @@ export default function VoteHistoryChart({
     }
     return latest.candidates
       .filter((c) => c.votes > 0)
+      .sort((a, b) => b.votes - a.votes)
       .map((c) => ({
         name: c.candidate,
         party: c.party,
@@ -215,19 +268,25 @@ export default function VoteHistoryChart({
   }, [history, showParty]);
 
   const prefix = showParty ? 'party:' : 'candidate:';
-  const chartTitle = 'Vote share trend';
+  const chartTitle =
+    chartMode === 'counted' ? 'Count progress' : 'Vote share trend';
 
   if (history.length === 0) {
     return null;
   }
 
   return (
-    <div className={cn('rounded-xl border bg-card p-3 sm:p-4 shadow-sm', className)}>
+    <div
+      className={cn(
+        'rounded-xl border bg-card p-3 sm:p-4 shadow-sm',
+        className
+      )}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs sm:text-sm text-muted-foreground font-bold uppercase tracking-wide">
           {chartTitle}
         </div>
-        <div className="flex rounded-full border border-border p-0.5 bg-muted/50">
+        <div className="flex flex-wrap rounded-full border border-border p-0.5 bg-muted/50">
           <button
             onClick={() => setChartMode('votes')}
             className={cn(
@@ -249,6 +308,17 @@ export default function VoteHistoryChart({
             )}
           >
             % of Vote
+          </button>
+          <button
+            onClick={() => setChartMode('counted')}
+            className={cn(
+              'rounded-full px-3 py-1 text-xs sm:text-sm font-bold tracking-wide transition-colors',
+              chartMode === 'counted'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Counted
           </button>
         </div>
       </div>
@@ -276,33 +346,60 @@ export default function VoteHistoryChart({
             tick={{ fontSize: 11 }}
             stroke="hsl(var(--muted-foreground))"
             tickLine={false}
+            domain={chartMode === 'counted' ? [0, 1] : ['auto', 'auto']}
             tickFormatter={
-              chartMode === 'percentage'
-                ? (v: number) => `${(v * 100).toFixed(1)}%`
-                : (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toLocaleString()
+              chartMode === 'percentage' || chartMode === 'counted'
+                ? (v: number) => `${(v * 100).toFixed(0)}%`
+                : (v: number) =>
+                    v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toLocaleString()
             }
           />
           <Tooltip content={<VoteChartTooltip mode={chartMode} />} />
-          <Legend content={<VoteChartLegend />} />
-          {entities.map((e) => {
-            const color = getEntityColor(e.party);
-            const dark = isDarkColor(color);
-            return (
-              <Line
-                key={e.name}
-                type="monotone"
-                dataKey={`${prefix}${e.name}`}
-                name={e.name}
-                stroke={color}
-                strokeWidth={dark ? 3 : 2}
-                dot={false}
-                activeDot={{ r: 4 }}
-                style={dark ? { filter: 'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))' } : undefined}
-              />
-            );
-          })}
+          {chartMode === 'counted' ? (
+            <Line
+              type="monotone"
+              dataKey="pctCounted"
+              name="Counted"
+              stroke="#22c55e"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          ) : (
+            entities.map((e) => {
+              const color = getEntityColor(e.party);
+              const dark = isDarkColor(color);
+              return (
+                <Line
+                  key={e.name}
+                  type="monotone"
+                  dataKey={`${prefix}${e.name}`}
+                  name={e.name}
+                  stroke={color}
+                  strokeWidth={dark ? 3 : 2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  style={
+                    dark
+                      ? {
+                          filter:
+                            'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
+                        }
+                      : undefined
+                  }
+                />
+              );
+            })
+          )}
         </LineChart>
       </ResponsiveContainer>
+      {chartMode === 'counted' ? (
+        <VoteChartLegend
+          entities={[{ name: 'Counted', party: null, color: '#22c55e' }]}
+        />
+      ) : (
+        <VoteChartLegend entities={entities} />
+      )}
     </div>
   );
 }

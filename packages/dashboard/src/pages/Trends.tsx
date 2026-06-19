@@ -14,7 +14,7 @@ import { partyColors } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from '../components/WaitingState.js';
 
-type Mode = 'votes' | 'percent' | 'seats';
+type Mode = 'votes' | 'percent' | 'seats' | 'counted';
 
 const ALL_PARTIES = Object.keys(partyColors);
 
@@ -38,11 +38,16 @@ function roundTo5Min(timestamp: number, direction: 'floor' | 'ceil'): number {
   const day = d.getDate();
   const hour = d.getHours();
   const min = d.getMinutes();
-  const roundedMin = direction === 'floor' ? Math.floor(min / 5) * 5 : Math.ceil(min / 5) * 5;
+  const roundedMin =
+    direction === 'floor' ? Math.floor(min / 5) * 5 : Math.ceil(min / 5) * 5;
   return new Date(year, month, day, hour, roundedMin).getTime();
 }
 
-function PartyLegend({ payload }: { payload?: Array<{ value: string; color: string }> }) {
+function PartyLegend({
+  payload,
+}: {
+  payload?: Array<{ value: string; color: string }>;
+}) {
   if (!payload || payload.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-3 justify-center mt-2">
@@ -51,11 +56,19 @@ function PartyLegend({ payload }: { payload?: Array<{ value: string; color: stri
         return (
           <div key={entry.value} className="flex items-center gap-1.5">
             <div
-              className={cn('w-2.5 h-2.5 rounded-full shrink-0 ring-1', dark ? 'ring-white/50' : 'ring-black/10')}
+              className={cn(
+                'w-2.5 h-2.5 rounded-full shrink-0 ring-1',
+                dark ? 'ring-white/50' : 'ring-black/10'
+              )}
               style={{ backgroundColor: entry.color }}
             />
             <span
-              className={cn('text-xs font-bold', dark ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]' : 'text-foreground')}
+              className={cn(
+                'text-xs font-bold',
+                dark
+                  ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]'
+                  : 'text-foreground'
+              )}
             >
               {entry.value}
             </span>
@@ -89,7 +102,12 @@ function PartyTooltip({
   mode,
 }: {
   active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
+  payload?: {
+    name: string;
+    value: number;
+    color: string;
+    payload?: Record<string, unknown>;
+  }[];
   label?: string | number;
   mode: Mode;
 }) {
@@ -103,7 +121,10 @@ function PartyTooltip({
         {labelText}
       </p>
       {sorted.map((entry) => (
-        <div key={entry.name} className="flex items-center justify-between gap-3 py-0.5">
+        <div
+          key={entry.name}
+          className="flex items-center justify-between gap-3 py-0.5"
+        >
           <div className="flex items-center gap-1.5 min-w-0">
             <div
               className="w-2 h-2 rounded-full shrink-0 ring-1 ring-black/10"
@@ -112,11 +133,18 @@ function PartyTooltip({
             <span className="font-semibold truncate">{entry.name}</span>
           </div>
           <span className="tabular-nums font-bold text-right shrink-0">
-            {mode === 'percent'
+            {mode === 'percent' || mode === 'counted'
               ? `${entry.value.toFixed(1)}%`
               : mode === 'seats'
                 ? `${entry.value.toFixed(0)} seat${entry.value === 1 ? '' : 's'}`
                 : entry.value.toLocaleString()}
+            {mode === 'counted' &&
+              entry.payload &&
+              (entry.payload.countedVotes as number) > 0 && (
+                <span className="ml-1 text-muted-foreground font-semibold">
+                  ({(entry.payload.countedVotes as number).toLocaleString()})
+                </span>
+              )}
           </span>
         </div>
       ))}
@@ -154,6 +182,8 @@ export default function Trends() {
       const row: Record<string, number | string> = {
         time: formatDate(point.startedAt),
         timestamp: parseTimestamp(point.startedAt),
+        countedVotes: point.votesCounted,
+        pctCounted: point.votePctCounted * 100,
       };
       for (const p of point.parties) {
         row[`party:Votes:${p.party}`] = p.votes;
@@ -165,7 +195,11 @@ export default function Trends() {
   }, [data]);
 
   const { ticks, domain } = useMemo(() => {
-    if (chartData.length === 0) return { ticks: [], domain: ['auto', 'auto'] as [number | string, number | string] };
+    if (chartData.length === 0)
+      return {
+        ticks: [],
+        domain: ['auto', 'auto'] as [number | string, number | string],
+      };
     const timestamps = chartData.map((d) => d.timestamp as number);
     const min = Math.min(...timestamps);
     const max = Math.max(...timestamps);
@@ -176,7 +210,8 @@ export default function Trends() {
     for (let t = start; t <= end; t += interval) {
       tickList.push(t);
     }
-    const domainValue: [number, number] = min === max ? [min - interval, max + interval] : [min, max];
+    const domainValue: [number, number] =
+      min === max ? [min - interval, max + interval] : [min, max];
     return { ticks: tickList, domain: domainValue };
   }, [chartData]);
 
@@ -195,12 +230,15 @@ export default function Trends() {
   const hasData =
     data &&
     data.length >= 2 &&
-    data.some((point) => point.parties.length > 0);
+    (data.some((point) => point.parties.length > 0) ||
+      data.some((point) => point.votesCounted > 0));
 
   if (!hasData) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Trends</h1>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
+          Trends
+        </h1>
         <div className="h-1 w-12 bg-gradient-brand rounded-full mb-2" />
         <WaitingState context="trends" title="Waiting for more results" />
       </div>
@@ -208,21 +246,29 @@ export default function Trends() {
   }
 
   const dataKeyPrefix =
-    mode === 'votes' ? 'party:Votes:' : mode === 'seats' ? 'party:Seats:' : 'party:Pct:';
+    mode === 'votes'
+      ? 'party:Votes:'
+      : mode === 'seats'
+        ? 'party:Seats:'
+        : 'party:Pct:';
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Trends</h1>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+          Trends
+        </h1>
         <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground font-semibold">
-          Party {mode === 'seats' ? 'seat totals' : 'vote totals'} over time.
+          {mode === 'counted'
+            ? 'Vote count progress over time.'
+            : `Party ${mode === 'seats' ? 'seat totals' : mode === 'percent' ? 'vote share' : 'vote totals'} over time.`}
         </p>
 
-        <div className="flex rounded-full border border-border p-0.5 bg-muted/50">
+        <div className="flex flex-wrap rounded-full border border-border p-0.5 bg-muted/50">
           <button
             onClick={() => setMode('votes')}
             className={cn(
@@ -256,30 +302,43 @@ export default function Trends() {
           >
             # Seats
           </button>
+          <button
+            onClick={() => setMode('counted')}
+            className={cn(
+              'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors',
+              mode === 'counted'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Counted
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {ALL_PARTIES.map((party) => (
-          <button
-            key={party}
-            onClick={() => toggleParty(party)}
-            className={cn(
-              'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors border',
-              selectedParties.has(party)
-                ? 'text-white border-transparent shadow-sm ring-1 ring-white/40'
-                : 'bg-background text-muted-foreground hover:text-foreground border-border'
-            )}
-            style={
-              selectedParties.has(party)
-                ? { backgroundColor: partyColors[party] || '#666' }
-                : undefined
-            }
-          >
-            {party}
-          </button>
-        ))}
-      </div>
+      {mode !== 'counted' && (
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_PARTIES.map((party) => (
+            <button
+              key={party}
+              onClick={() => toggleParty(party)}
+              className={cn(
+                'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors border',
+                selectedParties.has(party)
+                  ? 'text-white border-transparent shadow-sm ring-1 ring-white/40'
+                  : 'bg-background text-muted-foreground hover:text-foreground border-border'
+              )}
+              style={
+                selectedParties.has(party)
+                  ? { backgroundColor: partyColors[party] || '#666' }
+                  : undefined
+              }
+            >
+              {party}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-xl border bg-card p-3 sm:p-4 shadow-sm">
         <ResponsiveContainer width="100%" height={400}>
@@ -302,6 +361,7 @@ export default function Trends() {
               tick={{ fontSize: 11 }}
               stroke="hsl(var(--muted-foreground))"
               tickLine={false}
+              domain={mode === 'counted' ? [0, 100] : ['auto', 'auto']}
               tickFormatter={
                 mode === 'votes'
                   ? (v: number) =>
@@ -312,33 +372,52 @@ export default function Trends() {
                           : v.toLocaleString()
                   : mode === 'seats'
                     ? (v: number) => v.toLocaleString()
-                    : (v: number) => `${v.toFixed(1)}%`
+                    : mode === 'counted'
+                      ? (v: number) => `${v.toFixed(0)}%`
+                      : (v: number) => `${v.toFixed(1)}%`
               }
             />
             <Tooltip content={<PartyTooltip mode={mode} />} />
             <Legend content={<PartyLegend />} />
-            {ALL_PARTIES.filter((p) => selectedParties.has(p)).map((party) => {
-              const color = partyColors[party] || '#8884d8';
-              const dark = isDarkColor(color);
-              return (
-                <Line
-                  key={party}
-                  type="monotone"
-                  dataKey={`${dataKeyPrefix}${party}`}
-                  name={party}
-                  stroke={color}
-                  strokeWidth={dark ? 3 : 2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                  style={dark ? { filter: 'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))' } : undefined}
-                />
-              );
-            })}
+            {mode === 'counted' ? (
+              <Line
+                type="monotone"
+                dataKey="pctCounted"
+                name="Counted"
+                stroke="#22c55e"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            ) : (
+              ALL_PARTIES.filter((p) => selectedParties.has(p)).map((party) => {
+                const color = partyColors[party] || '#8884d8';
+                const dark = isDarkColor(color);
+                return (
+                  <Line
+                    key={party}
+                    type="monotone"
+                    dataKey={`${dataKeyPrefix}${party}`}
+                    name={party}
+                    stroke={color}
+                    strokeWidth={dark ? 3 : 2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    style={
+                      dark
+                        ? {
+                            filter:
+                              'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
-
-
     </div>
   );
 }

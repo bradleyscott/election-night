@@ -33,6 +33,8 @@ export type PartyVoteHistoryPoint = {
   snapshotId: number;
   startedAt: string;
   completedAt: string | null;
+  votesCounted: number;
+  votePctCounted: number;
   parties: {
     party: string;
     votes: number;
@@ -53,7 +55,9 @@ let db: Database.Database | null = null;
 export function openDbReader(dbPath: string): void {
   if (db) return;
   if (!existsSync(dbPath)) {
-    console.log(`DB not found at ${dbPath}, history API will return empty results`);
+    console.log(
+      `DB not found at ${dbPath}, history API will return empty results`
+    );
     return;
   }
   db = new Database(dbPath, { readonly: true });
@@ -185,10 +189,25 @@ export function getPartyVoteHistory(): PartyVoteHistoryPoint[] {
       )
       .all(sid) as Record<string, unknown>[];
 
+    const counted = db
+      .prepare(
+        `SELECT COALESCE(SUM(votes_counted), 0) AS votes_counted,
+                COALESCE(SUM(estimated_total_votes), 0) AS estimated_total_votes
+         FROM electorate_summary
+         WHERE scrape_id = ?`
+      )
+      .get(sid) as Record<string, number>;
+    const votesCounted = counted.votes_counted;
+    const estimatedTotal = counted.estimated_total_votes;
+    const votePctCounted =
+      estimatedTotal > 0 ? votesCounted / estimatedTotal : 0;
+
     history.push({
       snapshotId: sid,
       startedAt: snap.started_at as string,
       completedAt: (snap.completed_at as string) ?? null,
+      votesCounted,
+      votePctCounted,
       parties: parties.map((p) => ({
         party: p.party as string,
         votes: p.votes as number,

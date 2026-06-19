@@ -43,6 +43,8 @@ export type PartyVoteHistoryPoint = {
   snapshotId: number;
   startedAt: string;
   completedAt: string | null;
+  votesCounted: number;
+  votePctCounted: number;
   parties: PartyVoteEntry[];
 };
 
