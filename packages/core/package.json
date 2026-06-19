@@ -3,15 +3,37 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types.ts",
-    "./config": "./src/config.ts",
-    "./reducers": "./src/reducers.ts",
-    "./sources": "./src/sources/index.ts",
-    "./sources/nz-election-results": "./src/sources/nz-election-results.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./reducers": {
+      "types": "./dist/reducers.d.ts",
+      "default": "./dist/reducers.js"
+    },
+    "./sources": {
+      "types": "./dist/sources/index.d.ts",
+      "default": "./dist/sources/index.js"
+    },
+    "./sources/nz-election-results": {
+      "types": "./dist/sources/nz-election-results.d.ts",
+      "default": "./dist/sources/nz-election-results.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

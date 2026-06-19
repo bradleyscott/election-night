@@ -7,18 +7,20 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w packages/dashboard",
-    "build": "npm run build -w packages/dashboard",
-    "start:collector": "npm run start -w packages/collector",
-    "start:server": "npm run start -w packages/dashboard",
+    "build:core": "npm run build -w packages/core",
+    "dev": "npm run build:core && npm run dev -w packages/dashboard",
+    "build": "npm run build:core && npm run build -w packages/dashboard",
+    "start:collector": "npm run build:core && npm run start -w packages/collector",
+    "start:server": "npm run build:core && npm run start -w packages/dashboard",
     "clear": "tsx packages/collector/src/clear.ts",
-    "start:mock": "tsx packages/collector/src/serve-mock.ts",
+    "start:mock": "npm run build:core && tsx packages/collector/src/serve-mock.ts",
     "log:webhooks": "tsx packages/collector/src/log-webhooks.ts",
     "test": "vitest",
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",
     "fmt": "prettier --write .",
-    "typecheck": "tsc -b && tsc -b packages/dashboard"
+    "typecheck": "npm run build:core && tsc -b && tsc -b packages/dashboard",
+    "prepare": "npm run build:core"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
