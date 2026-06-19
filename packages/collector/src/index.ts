@@ -1,35 +1,17 @@
 import 'dotenv/config';
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { parse } from 'csv-parse/sync';
-import pLimit from 'p-limit';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 import { launch } from 'cloakbrowser/puppeteer';
-import { config } from '@election-night/core/config';
-import { NzElectionResultsSource } from '@election-night/core/sources/nz-election-results';
-import type {
-  ElectorateConfig,
-  ElectorateResults,
-  ElectionSource,
-  PartyList,
-} from '@election-night/core/types';
-import {
-  calculateLead,
-  calculatePartyVoteWithPercentages,
-  calculatePartyVoteWithSeats,
-  predictWinner,
-  calculatePartyList,
-} from '@election-night/core/reducers';
-import { getElectoratePageHtml } from './scraper.js';
-import {
-  cacheResults,
-  processResults,
-} from './results.js';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
-import { connectWs, publishResults, disconnectWs } from './ws-client.js';
+import {
+  connectWs,
+  publishResults,
+  disconnectWs,
+} from './ws-client.js';
+import { cacheResults, processResults } from './results.js';
+import { loadCsvData } from './csv-data.js';
+import { loadSource } from './source-loader.js';
+import { scrapeCycle } from './scrape-cycle.js';
+import { collectorConfig } from './config.js';
 
 if (process.argv[2] === 'discover') {
   const { runDiscover } = await import('./discover.js');
@@ -43,221 +25,83 @@ if (process.argv[2] === 'clear') {
   process.exit(0);
 }
 
-const CSV_CANDIDATES = readFileSync(
-  resolve(__dirname, '../../../csv/candidates.csv'),
-  'utf-8'
+const {
+  pollIntervalMs: POLL_INTERVAL_MS,
+  wsUrl: WS_URL,
+  concurrency: CONCURRENCY,
+  dbPath,
+} = collectorConfig;
+
+const { candidateRecords, partyListRecords, electorateNames, partyMap } =
+  loadCsvData();
+
+const { source, configs: electorateConfigs } = await loadSource(
+  electorateNames
 );
-const candidateRecords = parse(CSV_CANDIDATES, { columns: true }) as Record<string, string>[];
-
-const CSV_PARTY_LIST = readFileSync(
-  resolve(__dirname, '../../../csv/party_list.csv'),
-  'utf-8'
-);
-const partyListRecords: PartyList[] = parse(CSV_PARTY_LIST, { columns: true }).map(
-  (x: Record<string, string>) => ({
-    party: x.Party,
-    candidate: `${x['Ballot Last Name']}, ${x['Ballot First Name']}`,
-    listRank: Number(x['List No.']),
-  })
-);
-
-const CSV_ELECTORATES = readFileSync(
-  resolve(__dirname, '../../../csv/electorates.csv'),
-  'utf-8'
-)
-  .trim()
-  .split('\n')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const partyMap: Record<string, string | undefined> = {};
-for (const row of candidateRecords) {
-  partyMap[row.Name] = row.Party;
-}
-
-const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '120000', 10);
-
-const WS_PORT = parseInt(process.env.WS_PORT || '3456', 10);
-const WS_URL = process.env.WS_URL || `ws://localhost:${WS_PORT}`;
-
-async function loadSource(): Promise<{
-  source: ElectionSource;
-  configs: ElectorateConfig[];
-}> {
-  const sourcePath = process.env.ELECTION_SOURCE_PATH;
-
-  if (sourcePath) {
-    const resolvedPath = resolve(process.cwd(), sourcePath);
-    log.info(`Loading custom election source from: ${resolvedPath}`);
-    try {
-      const mod = await import(resolvedPath);
-      const SourceClass = mod.default ?? mod.NzElectionResultsSource;
-      const source = new SourceClass() as ElectionSource;
-      const configs = source.getElectorateConfigs();
-      log.info(`Loaded source with ${configs.length} electorates`);
-      return { source, configs };
-    } catch (err) {
-      log.error(
-        `Failed to load source from ${resolvedPath}, falling back to default`,
-        err
-      );
-    }
-  }
-
-  const verbose = parseInt(process.env.LOG_LEVEL ?? '', 10) < 3;
-  const source = new NzElectionResultsSource({ electorateNames: CSV_ELECTORATES, verbose });
-  const configs = source.getElectorateConfigs();
-  return { source, configs };
-}
-
-const { source, configs: electorateConfigs } = await loadSource();
 
 log.info('=== Scraper Configuration ===');
-log.info(`DB_PATH:          ${process.env.DB_PATH || '.data/election_results.db'}`);
-log.info(`BASE_RESULTS_URL: ${process.env.BASE_RESULTS_URL || 'https://electionresults.govt.nz/electionresults_2023'}`);
-log.info(`WS_URL:           ${process.env.WS_URL || `ws://localhost:3456`}`);
-log.info(`POLL_INTERVAL_MS: ${process.env.POLL_INTERVAL_MS || '120000'}`);
-log.info(`CONCURRENCY:      ${process.env.CONCURRENCY || '10'}`);
-log.info(`NAV_TIMEOUT_MS:   ${process.env.NAVIGATION_TIMEOUT_MS || '60000'}`);
-log.info(`LOG_LEVEL:        ${process.env.LOG_LEVEL || '3 (info)'}`);
-if (process.env.WEBHOOK_URL) log.info(`WEBHOOK_URL:      ${process.env.WEBHOOK_URL}`);
-if (process.env.ELECTION_SOURCE_PATH) log.info(`ELECTION_SOURCE:   ${process.env.ELECTION_SOURCE_PATH}`);
+log.info(`DB_PATH:          ${collectorConfig.dbPath}`);
+log.info(
+  `BASE_RESULTS_URL: ${collectorConfig.baseResultsUrl || 'https://electionresults.govt.nz/electionresults_2023'}`
+);
+log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
+log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
+log.info(`CONCURRENCY:      ${collectorConfig.concurrency}`);
+log.info(`NAV_TIMEOUT_MS:   ${collectorConfig.navigationTimeoutMs}`);
+log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
+if (collectorConfig.webhookUrl)
+  log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
+if (collectorConfig.electionSourcePath)
+  log.info(`ELECTION_SOURCE:   ${collectorConfig.electionSourcePath}`);
 log.info(`Electorates:      ${electorateConfigs.length}`);
 log.info('=============================');
 
-const run = async () => {
-  try {
-    log.info('Starting election results scraping...');
+async function runOnce(): Promise<void> {
+  const browser = await launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+    ],
+  });
 
-    const browser = await launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
+  try {
+    const payload = await scrapeCycle({
+      browser,
+      source,
+      configs: electorateConfigs,
+      candidateRecords,
+      partyMap,
+      partyListRecords,
+      concurrency: CONCURRENCY,
     });
 
-    const CONCURRENCY = parseInt(process.env.CONCURRENCY || '10', 10);
-    const limit = pLimit(CONCURRENCY);
+    await processResults(payload.electorateResults);
+    cacheResults(payload.electorateResults);
+    writeResults(
+      payload.electorateResults,
+      payload.partyVote,
+      payload.partyLists
+    );
+    publishResults(payload);
+  } finally {
+    await browser.close().catch((err) =>
+      log.error('Error closing browser', err)
+    );
+  }
 
-    try {
-      const settled = await Promise.allSettled(
-        electorateConfigs.map((x) =>
-          limit(() =>
-            getElectoratePageHtml(browser, x).then((html) => ({ html, config: x }))
-          )
-        )
-      );
+  log.info('Processing of results completed!');
+}
 
-      const results: ElectorateResults[] = [];
-      for (const s of settled) {
-        if (s.status === 'fulfilled') {
-          const raw = source.parseRawResults(s.value.html, s.value.config);
-          const electorateResults = {
-            electorateName: raw.electorateName,
-            partyVotes: raw.partyVotes,
-            candidateVotes: raw.candidateVotes.map((cv) => ({
-              ...cv,
-              party: candidateRecords.find((r) => r.Name === cv.candidate)?.Party,
-            })),
-            votesCounted: raw.votesCounted,
-            votePercentageCounted: raw.votePercentageCounted,
-          };
-          log.debug(
-            `${electorateResults.electorateName}: ${electorateResults.candidateVotes.length} candidates, ${electorateResults.partyVotes.length} party entries, votesCounted=${electorateResults.votesCounted}, pct=${electorateResults.votePercentageCounted}`
-          );
-          if (electorateResults.candidateVotes.length > 0) {
-            log.trace(
-              `${electorateResults.electorateName} top candidate: ${electorateResults.candidateVotes[0].candidate} (${electorateResults.candidateVotes[0].votes} votes)`
-            );
-            if (electorateResults.partyVotes.length > 0) {
-              log.trace(
-                `${electorateResults.electorateName} top party: ${electorateResults.partyVotes[0].candidate} (${electorateResults.partyVotes[0].votes} votes)`
-              );
-            }
-          }
-          results.push(electorateResults);
-        } else {
-          log.error(`Failed to scrape electorate`, s.reason);
-        }
-      }
-
-      const totalVotes = results.reduce((s, r) => s + (r.votesCounted || 0), 0);
-      log.info(
-        `Finished scraping ${results.length}/${electorateConfigs.length} electorates (total votes counted: ${totalVotes.toLocaleString()})`
-      );
-      if (results.length > 0) {
-        const zeroVoteElectorates = results.filter((r) => (r.votesCounted || 0) === 0).length;
-        if (zeroVoteElectorates > 0) {
-          log.warn(`${zeroVoteElectorates} electorates have 0 votes counted`);
-        }
-      }
-
-      const withPredictions = results
-        .map((x) => calculateLead(x, partyMap))
-        .map((x) => predictWinner(x, config.predictionConfidence));
-
-      const partyVote = calculatePartyVoteWithSeats(
-        calculatePartyVoteWithPercentages(
-          withPredictions,
-          config.predictionConfidence
-        ),
-        withPredictions
-      );
-
-      const partyLists = calculatePartyList(
-        withPredictions,
-        partyVote,
-        partyListRecords
-      );
-
-      const totalSeats = partyVote.reduce((s, p) => s + p.seats, 0);
-      const partiesWithSeats = partyVote.filter((p) => p.seats > 0).length;
-      log.info(
-        `Party votes: ${partyVote.length} parties, ${totalSeats} total seats, ${partiesWithSeats} parties in parliament`
-      );
-      if (partyVote.length > 0) {
-        log.debug(
-          `Top 3 parties: ${partyVote
-            .sort((a, b) => b.seats - a.seats)
-            .slice(0, 3)
-            .map((p) => `${p.candidate} (${p.seats} seats)`)
-            .join(', ')}`
-        );
-      }
-      if (totalSeats === 0) {
-        log.warn('Total seats is 0 — party vote calculation produced no seats');
-      }
-
-      const totalListCandidates = partyLists.filter((pl) => pl.distanceFromCut >= 0).length;
-      log.debug(`${totalListCandidates} list candidates above the cut`);
-
-      await processResults(withPredictions);
-
-      cacheResults(withPredictions);
-      writeResults(withPredictions, partyVote, partyLists);
-      publishResults({
-        electorateResults: withPredictions,
-        partyVote,
-        partyLists,
-      });
-    } finally {
-      await browser.close().catch((err) =>
-        log.error('Error closing browser', err)
-      );
-    }
-
-    log.info('Processing of results completed!');
+async function loopRun(): Promise<void> {
+  try {
+    await runOnce();
   } catch (err) {
     log.error('Election night cycle failed', err);
   }
-};
-
-const loopRun = async () => {
-  await run();
   setTimeout(loopRun, POLL_INTERVAL_MS);
-};
+}
 
 process.on('unhandledRejection', (reason) => {
   if (
@@ -269,8 +113,6 @@ process.on('unhandledRejection', (reason) => {
   }
   log.error('Unhandled rejection', reason);
 });
-
-const dbPath = process.env.DB_PATH || '.data/election_results.db';
 
 openDb(dbPath);
 connectWs(WS_URL);
