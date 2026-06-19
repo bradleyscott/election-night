@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { WaitingState } from './WaitingState.js';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable, isSortable } from '@dnd-kit/react/sortable';
-import { PointerSensor, PointerActivationConstraints } from '@dnd-kit/dom';
+import {
+  PointerSensor,
+  PointerActivationConstraints,
+  type DragEndEvent,
+} from '@dnd-kit/dom';
 import {
   useFloating,
   autoUpdate,
@@ -527,10 +531,9 @@ export default function ParliamentSeats({
     setDropTargetParty(null);
   };
 
-  function handleTableDragEnd(event: { canceled?: boolean; operation: { source: unknown } }) {
+  function handleTableDragEnd(event: DragEndEvent) {
     if ('canceled' in event && event.canceled) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const source = event.operation.source as any;
+    const source = event.operation.source;
     if (isSortable(source)) {
       const { initialIndex, index } = source;
       if (initialIndex != null && index != null && initialIndex !== index) {

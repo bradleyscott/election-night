@@ -125,7 +125,7 @@ function PartyTooltip({
 }
 
 export default function Trends() {
-  const { data, loading } = usePartyVoteHistory();
+  const { data } = usePartyVoteHistory();
   const [selectedParties, setSelectedParties] = useState<Set<string>>(
     new Set()
   );

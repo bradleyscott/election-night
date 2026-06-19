@@ -5,7 +5,8 @@ import L from 'leaflet';
 import { partyColors } from '../lib/constants.js';
 import 'leaflet/dist/leaflet.css';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+const defaultIconPrototype = L.Icon.Default.prototype as unknown as Record<string, unknown>;
+delete defaultIconPrototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -42,19 +43,24 @@ const MAORI_ELECTORATES = new Set([
   'Waiariki',
 ]);
 
+type GeoFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Geometry,
+  { name: string }
+>;
+
 function MapUpdater({
   selectedName,
   geoData,
 }: {
   selectedName?: string;
-  geoData: any;
+  geoData: GeoFeatureCollection | null;
 }) {
   const map = useMap();
 
   useEffect(() => {
     if (selectedName && geoData) {
       const feature = geoData.features.find(
-        (f: any) => f.properties.name === selectedName
+        (f) => f.properties?.name === selectedName
       );
       if (feature) {
         const layer = L.geoJSON(feature);
@@ -80,7 +86,7 @@ export default function ElectorateMap({
   showMaori,
   showPartyVote,
 }: ElectorateMapProps) {
-  const [geoData, setGeoData] = useState<any>(null);
+  const [geoData, setGeoData] = useState<GeoFeatureCollection | null>(null);
   const navigate = useNavigate();
 
   const geoKey = showMaori ? 'maori' : 'general';
@@ -92,7 +98,7 @@ export default function ElectorateMap({
     setGeoData(null);
     fetch(GEO_FILES[geoKey])
       .then((res) => res.json())
-      .then(setGeoData);
+      .then((data) => setGeoData(data as GeoFeatureCollection));
   }, [geoKey]);
 
   const resultMap = new Map(electorates.map((e) => [e.electorateName, e]));
