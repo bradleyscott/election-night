@@ -1,75 +1,36 @@
 import 'dotenv/config';
-import {
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  existsSync,
-  statSync,
-} from 'fs';
-import { resolve, extname, dirname } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
+import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { log } from './logger.js';
-import type {
-  ResultsPayload,
-  ElectorateResults,
-  WithLeaders,
-  WithMarginOfError,
-  FeedEvent,
-  FeedEventType,
-  ElectorateDiff,
-} from '@election-night/core/types';
-import {
-  openDbReader,
-  closeDbReader,
-  hasDbReader,
-  getElectorateHistory,
-  getPartyVoteHistory,
-  getSnapshotMetas,
-} from './db-reader.js';
+import type { ResultsPayload } from '@election-night/core/types';
 import { dashboardServerConfig } from './config.js';
+import { log } from './logger.js';
+import { openDbReader, closeDbReader } from './db-reader.js';
 import {
-  register,
-  applyMetricEvents,
-  websocketClients,
-  feedEventsTotal,
-  lastScrapeTimestampSeconds,
-  metricsResponse,
-} from './metrics.js';
+  loadFeedEventsFromDisk,
+  setFeedEvents,
+  getFeedEvents,
+  clearFeedEvents,
+  addFeedEvents,
+  buildFeedEvents,
+} from './feed-engine.js';
+import { createHttpRequestHandler } from './http-router.js';
+import { attachSocketHandlers } from './socket-handlers.js';
 
 const {
   wsPort: PORT,
   cachePath: CACHE_PATH,
-  feedCachePath: FEED_CACHE_PATH,
-  distDir: DIST_DIR,
-  maxFeedEvents: MAX_FEED_EVENTS,
+  dbPath,
 } = dashboardServerConfig;
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
-
-const MIME_TYPES: Record<string, string> = {
-  '.html': 'text/html',
-  '.js': 'application/javascript',
-  '.mjs': 'application/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.ico': 'image/x-icon',
-  '.webmanifest': 'application/manifest+json',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.map': 'application/json',
-};
-
-let latestResults: ResultsPayload | null = null;
-let feedEvents: FeedEvent[] = [];
+const latestResults: { current: ResultsPayload | null } = { current: null };
 
 function loadCachedResults() {
   if (existsSync(CACHE_PATH)) {
     try {
       const data = JSON.parse(readFileSync(CACHE_PATH, 'utf-8'));
-      latestResults = {
+      latestResults.current = {
         electorateResults: data,
         partyVote: [],
         partyLists: [],
@@ -83,418 +44,81 @@ function loadCachedResults() {
   log.info('No cached results found, waiting for first scrape...');
 }
 
-function loadFeedEvents(): FeedEvent[] {
-  if (!existsSync(FEED_CACHE_PATH)) return [];
-  try {
-    const data = JSON.parse(readFileSync(FEED_CACHE_PATH, 'utf-8'));
-    if (Array.isArray(data)) return data as FeedEvent[];
-  } catch (err) {
-    log.error('Failed to load cached feed events', err);
-  }
-  return [];
-}
-
-function saveFeedEvents(events: FeedEvent[]) {
-  try {
-    mkdirSync(dirname(FEED_CACHE_PATH), { recursive: true });
-    writeFileSync(FEED_CACHE_PATH, JSON.stringify(events, null, 2));
-  } catch (err) {
-    log.error('Failed to save feed events', err);
-  }
-}
-
-function addFeedEvents(events: FeedEvent[]) {
-  const existingIds = new Set(feedEvents.map((e) => e.id));
-  const newEvents = events.filter((e) => !existingIds.has(e.id));
-  if (newEvents.length === 0) return newEvents;
-  feedEvents = [...feedEvents, ...newEvents].slice(-MAX_FEED_EVENTS);
-  newEvents.forEach((event) => feedEventsTotal.inc({ type: event.type }));
-  saveFeedEvents(feedEvents);
-  return newEvents;
-}
-
-function computeDiff(
-  prev: ElectorateResult | undefined,
-  current: ElectorateResult
-): ElectorateDiff {
-  const diff: ElectorateDiff = {
-    electorateName: current.electorateName,
-    previousVotesCounted: prev?.votesCounted ?? null,
-    currentVotesCounted: current.votesCounted,
-    previousPercentageCounted: prev?.votePercentageCounted ?? null,
-    currentPercentageCounted: current.votePercentageCounted,
-    previousMargin: prev?.leaders.margin ?? null,
-    currentMargin: current.leaders.margin,
-    previousMarginPercent: prev?.leaders.marginPercent ?? null,
-    currentMarginPercent: current.leaders.marginPercent ?? 0,
-    leaderChanged: prev
-      ? prev.leaders.leadingCandidateParty !== current.leaders.leadingCandidateParty
-      : false,
-    previousLeaderName: prev && prev.leaders.leadingCandidateParty !== current.leaders.leadingCandidateParty
-      ? prev.leaders.leadingCandidate
-      : null,
-    previousLeaderParty: prev && prev.leaders.leadingCandidateParty !== current.leaders.leadingCandidateParty
-      ? prev.leaders.leadingCandidateParty
-      : null,
-    predictionStatusChanged: prev
-      ? prev.leaders.predictionStatus !== current.leaders.predictionStatus
-      : false,
-    previousPredictionStatus: prev?.leaders.predictionStatus ?? null,
-    currentPredictionStatus: current.leaders.predictionStatus,
-  };
-  return diff;
-}
-
-function determineFeedType(diff: ElectorateDiff): FeedEventType {
-  if (diff.leaderChanged) return 'leader_change';
-  if (
-    diff.previousPercentageCounted !== null &&
-    diff.previousPercentageCounted < 1 &&
-    diff.currentPercentageCounted >= 1
-  ) {
-    return 'count_completed';
-  }
-  if (
-    diff.predictionStatusChanged &&
-    (diff.currentPredictionStatus === 'likely' || diff.currentPredictionStatus === 'projected')
-  ) {
-    return 'prediction_called';
-  }
-  return 'result_updated';
-}
-
-function templateSummary(diff: ElectorateDiff, result: ElectorateResult): string {
-  const l = result.leaders;
-  const pct = (result.votePercentageCounted * 100).toFixed(0);
-  const marginPct = (l.marginPercent * 100).toFixed(2);
-  const party = (p: string | undefined) => p ?? 'Independent';
-  const moePct = (result.marginOfError * 100).toFixed(1);
-
-  if (diff.leaderChanged) {
-    return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) took the lead from ${diff.previousLeaderName} (${party(diff.previousLeaderParty)}) — leads by ${marginPct}%.`;
-  }
-  if (diff.previousPercentageCounted !== null && diff.previousPercentageCounted < 1 && diff.currentPercentageCounted >= 1) {
-    return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner — ${marginPct}% lead at 100% counted.`;
-  }
-  if (diff.predictionStatusChanged && (l.predictionStatus === 'likely' || l.predictionStatus === 'projected')) {
-    return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner — ${marginPct}% lead exceeds ±${moePct}% MoE, making this a confident prediction at ${pct}% counted.`;
-  }
-  if (diff.predictionStatusChanged && l.predictionStatus === 'leaning') {
-    return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is ahead by ${marginPct}% — but the ±${moePct}% MoE means the race is still too close to call at ${pct}% counted.`;
-  }
-  if (diff.previousMargin !== null && diff.previousMarginPercent !== null) {
-    const marginPercentDelta = l.marginPercent - diff.previousMarginPercent;
-    if (Math.abs(marginPercentDelta) > 0.00005) {
-      if (marginPercentDelta > 0) {
-        const widenedPct = (marginPercentDelta * 100).toFixed(2);
-        return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% at ${pct}% counted.`;
-      }
-      const narrowedPct = (-marginPercentDelta * 100).toFixed(2);
-      return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`;
-    }
-  }
-  return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads ${l.secondCandidate} (${party(l.secondCandidateParty)}) by ${marginPct}% at ${pct}% counted.`;
-}
-
-function templateCommentary(diff: ElectorateDiff, result: ElectorateResult): string {
-  const l = result.leaders;
-  const pct = (result.votePercentageCounted * 100).toFixed(0);
-  const marginPct = (l.marginPercent * 100).toFixed(2);
-  const party = (p: string | undefined) => p ?? 'Independent';
-  const moePct = (result.marginOfError * 100).toFixed(1);
-
-  if (diff.leaderChanged) {
-    return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) has taken the lead from ${diff.previousLeaderName} (${party(diff.previousLeaderParty)}) in ${result.electorateName}. The lead is ${marginPct}% with ${pct}% of votes counted.`;
-  }
-  if (diff.previousPercentageCounted !== null && diff.previousPercentageCounted < 1 && diff.currentPercentageCounted >= 1) {
-    return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner in ${result.electorateName} with all ordinary votes counted.`;
-  }
-  if (diff.predictionStatusChanged && (l.predictionStatus === 'likely' || l.predictionStatus === 'projected')) {
-    return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner in ${result.electorateName}. The ${marginPct}% lead exceeds the ±${moePct}% margin of error, making this a confident prediction at ${pct}% counted.`;
-  }
-  if (diff.predictionStatusChanged && l.predictionStatus === 'leaning') {
-    return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is ahead in ${result.electorateName} with ${marginPct}% of the vote. But a ±${moePct}% margin of error means the race is still too close to call at ${pct}% counted.`;
-  }
-  if (diff.previousMargin !== null && diff.previousMarginPercent !== null) {
-    const marginPercentDelta = l.marginPercent - diff.previousMarginPercent;
-    if (Math.abs(marginPercentDelta) > 0.00005) {
-      if (marginPercentDelta > 0) {
-        const widenedPct = (marginPercentDelta * 100).toFixed(2);
-        return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% in ${result.electorateName} at ${pct}% counted.`;
-      }
-      const narrowedPct = (-marginPercentDelta * 100).toFixed(2);
-      return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads in ${result.electorateName} by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`;
-    }
-  }
-  return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads ${l.secondCandidate} (${party(l.secondCandidateParty)}) by ${marginPct}% in ${result.electorateName} at ${pct}% counted.`;
-}
-
-function buildFeedEvents(
-  previous: ElectorateResult[],
-  current: ElectorateResult[]
-): FeedEvent[] {
-  const events: FeedEvent[] = [];
-  const prevMap = new Map(previous.map((r) => [r.electorateName, r]));
-
-  for (const result of current) {
-    const prev = prevMap.get(result.electorateName);
-    const diff = computeDiff(prev, result);
-    const type = determineFeedType(diff);
-
-    const changed =
-      diff.previousVotesCounted === null ||
-      diff.currentVotesCounted !== diff.previousVotesCounted;
-
-    const countCompleted =
-      diff.previousPercentageCounted !== null &&
-      diff.previousPercentageCounted < 1 &&
-      diff.currentPercentageCounted >= 1;
-
-    if (!changed && !diff.predictionStatusChanged && !diff.leaderChanged && !countCompleted) continue;
-
-    events.push({
-      id: `${result.electorateName}-${diff.currentVotesCounted}-${Math.round(
-        (diff.currentMargin ?? 0) * 100
-      )}-${diff.currentPredictionStatus ?? 'none'}`,
-      timestamp: Date.now(),
-      type,
-      electorateName: result.electorateName,
-      predictionStatus: result.leaders.predictionStatus,
-      marginOfError: result.marginOfError,
-      summary: templateSummary(diff, result),
-      commentary: '',
-      diff,
-    });
-  }
-
-  return events;
-}
-
-function generateFeedCommentaries(events: FeedEvent[], results: Map<string, ElectorateResult>): FeedEvent[] {
-  return events.map((event) => {
-    const result = results.get(event.electorateName);
-    if (!result) return event;
-    return { ...event, commentary: templateCommentary(event.diff, result) };
-  });
-}
-
-async function serveStatic(req: IncomingMessage, res: ServerResponse) {
-  const url = new URL(req.url!, `http://${req.headers.host || 'localhost'}`);
-  const pathname = url.pathname;
-
-  if (pathname === '/metrics') {
-    const metrics = await metricsResponse();
-    res.writeHead(200, { 'Content-Type': register.contentType });
-    res.end(metrics);
-    return;
-  }
-
-  if (pathname === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok' }));
-    return;
-  }
-
-  if (pathname === '/ready') {
-    const checks: Record<string, string | boolean | number> = {};
-    let ready = true;
-
-    try {
-      if (hasDbReader()) {
-        getSnapshotMetas();
-        checks.db = 'ok';
-      } else {
-        checks.db = 'no database';
-        ready = false;
-      }
-    } catch {
-      checks.db = 'error';
-      ready = false;
-    }
-
-    const lastEvent = feedEvents[feedEvents.length - 1];
-    if (lastEvent) {
-      checks.lastScrape = lastEvent.timestamp;
-    } else {
-      checks.lastScrape = 'none';
-      ready = false;
-    }
-
-    res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ready, checks }));
-    return;
-  }
-
-  const normalizedPath = pathname === '/' ? '/index.html' : pathname;
-  const resolvedPath = resolve(DIST_DIR, normalizedPath.slice(1));
-
-  if (!resolvedPath.startsWith(DIST_DIR)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
-
-  if (existsSync(resolvedPath) && statSync(resolvedPath).isFile()) {
-    const ext = extname(resolvedPath);
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    try {
-      const content = readFileSync(resolvedPath);
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content);
-      return;
-    } catch {
-      // fall through to SPA fallback
-    }
-  }
-
-  // SPA fallback — serve index.html for client-side routes
-  const indexPath = resolve(DIST_DIR, 'index.html');
-  if (existsSync(indexPath) && statSync(indexPath).isFile()) {
-    const content = readFileSync(indexPath);
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(content);
-    return;
-  }
-
-  res.writeHead(404);
-  res.end('Not found');
-}
-
-function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
-  const pathname = url.pathname;
-
-  // GET /api/history/snapshots — return all snapshot timestamps
-  if (pathname === '/api/history/snapshots') {
-    const metas = getSnapshotMetas();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(metas));
-    return true;
-  }
-
-  // GET /api/history/electorate/:name — return history for one electorate
-  const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
-  if (electorateMatch) {
-    const name = decodeURIComponent(electorateMatch[1]);
-    const history = getElectorateHistory(name);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(history));
-    return true;
-  }
-
-  // GET /api/history/party-votes — return party vote totals over time
-  if (pathname === '/api/history/party-votes') {
-    const history = getPartyVoteHistory();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(history));
-    return true;
-  }
-
-  return false;
-}
-
-const server = createServer((req, res) => {
-  // POST /api/clear — reset feed state and notify all connected clients
-  if (req.method === 'POST' && req.url === '/api/clear') {
-    latestResults = null;
-    feedEvents = [];
-    io.emit('clear');
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
-    return;
-  }
-
-  // API routes
-  if (req.url) {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (serveApi(req, res, url)) return;
-  }
-
-  serveStatic(req, res);
-});
-
-const io = new Server(server, {
+const io = new Server({
   cors: { origin: '*' },
 });
 
-io.on('connection', (socket) => {
-  log.info(`Client connected: ${socket.id}`);
-  websocketClients.set(io.engine.clientsCount);
+const server = createServer(
+  createHttpRequestHandler({
+    latestResults,
+    getFeedEvents,
+    io,
+    clearState: () => {
+      clearFeedEvents();
+    },
+  })
+);
 
-  if (latestResults) {
-    socket.emit('results_update', latestResults);
-  }
-  if (feedEvents.length > 0) {
-    socket.emit('feed_history', feedEvents);
-  }
+io.attach(server);
 
-  socket.on('results_update', (payload: ResultsPayload) => {
-    const previousResults = latestResults?.electorateResults ?? [];
-    latestResults = payload;
-    lastScrapeTimestampSeconds.set(Date.now() / 1000);
-    log.info('Received results update, broadcasting...');
-    socket.broadcast.emit('results_update', payload);
-
-    const rawEvents = buildFeedEvents(previousResults, payload.electorateResults);
-    if (rawEvents.length === 0) return;
-
-    const resultMap = new Map(payload.electorateResults.map((r) => [r.electorateName, r]));
-    const eventsWithCommentary = generateFeedCommentaries(rawEvents, resultMap);
-    const newEvents = addFeedEvents(eventsWithCommentary);
-    if (newEvents.length > 0) {
-      log.info(`Generated ${newEvents.length} feed events`);
-      io.emit('feed_update', newEvents);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    log.info(`Client disconnected: ${socket.id}`);
-    websocketClients.set(io.engine.clientsCount);
-  });
-
-  socket.on('metrics', (events: MetricEvent | MetricEvent[]) => {
-    applyMetricEvents(events);
-  });
+attachSocketHandlers(io, {
+  latestResults,
+  getFeedEvents,
+  buildFeedEvents,
+  addFeedEvents,
 });
+
+let dbPollTimer: ReturnType<typeof setInterval> | null = null;
 
 server.listen(PORT, () => {
   log.info('=== Dashboard Server Configuration ===');
   log.info(`WS_PORT:         ${PORT}`);
-  log.info(`DB_PATH:         ${resolve(dashboardServerConfig.dbPath)}`);
-  log.info(`DIST_DIR:        ${DIST_DIR}`);
+  log.info(`DB_PATH:         ${resolve(dbPath)}`);
+  log.info(`DIST_DIR:        ${resolve(dashboardServerConfig.distDir)}`);
   log.info(`CACHE_PATH:      ${resolve(CACHE_PATH)}`);
-  log.info(`MAX_FEED_EVENTS: ${MAX_FEED_EVENTS}`);
+  log.info(`FEED_CACHE_PATH: ${resolve(dashboardServerConfig.feedCachePath)}`);
+  log.info(`MAX_FEED_EVENTS: ${dashboardServerConfig.maxFeedEvents}`);
   log.info(`CWD:             ${process.cwd()}`);
   log.info('======================================');
   log.info(`Socket.io server running on http://localhost:${PORT}`);
-  openDbReader(dashboardServerConfig.dbPath);
+  openDbReader(dbPath);
   loadCachedResults();
-  feedEvents = loadFeedEvents();
+  setFeedEvents(loadFeedEventsFromDisk());
 });
 
 // Poll for the DB to appear (collector creates it on first scrape)
-const dbPollTimer = setInterval(() => {
-  if (!hasDbReader() && existsSync(dashboardServerConfig.dbPath)) {
-    openDbReader(dashboardServerConfig.dbPath);
-  }
+dbPollTimer = setInterval(() => {
+  import('./db-reader.js').then(({ hasDbReader, openDbReader }) => {
+    if (!hasDbReader() && existsSync(dbPath)) {
+      openDbReader(dbPath);
+    }
+  });
 }, 5000);
+
+function shutdown(): void {
+  if (dbPollTimer) {
+    clearInterval(dbPollTimer);
+    dbPollTimer = null;
+  }
+  closeDbReader();
+  io.close();
+  server.close();
+}
 
 process.on('SIGINT', () => {
   log.info('Shutting down...');
-  closeDbReader();
+  shutdown();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   log.info('Shutting down...');
-  closeDbReader();
+  shutdown();
   process.exit(0);
 });
 
 export function stopDashboardServer(): void {
-  clearInterval(dbPollTimer);
-  closeDbReader();
-  io.close();
-  server.close();
+  shutdown();
 }
 
 export { server, io };
