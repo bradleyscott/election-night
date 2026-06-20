@@ -14,8 +14,11 @@ const TABLES_IN_ORDER = [
   'scrape_snapshots',
 ];
 
+const FEED_CACHE_PATH = process.env.FEED_CACHE_PATH || '.data/feed_events.json';
+
 const CACHE_FILES = [
   resolve(process.cwd(), '.data/electorate_results.json'),
+  resolve(process.cwd(), FEED_CACHE_PATH),
 ];
 
 export async function runClear(): Promise<void> {
