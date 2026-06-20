@@ -33,8 +33,8 @@ The remaining risks are **testability, operational packaging, and surface-area c
 | A2 | **High** | ✅ Implemented — Stop `packages/core/src/config.ts` and `NzElectionResultsSource` from reading `process.env` directly; pass configuration into the source adapter. | `core` now exposes pure defaults. Selector/base-URL configuration lives in the validated `collectorConfig` and is passed into `NzElectionResultsSource`. `results.ts` now reads `cachePath` and `webhookUrl` from `collectorConfig` instead of `@election-night/core/config`. |
 | A3 | **High** | ✅ Implemented — Make the custom source loader in `packages/collector/src/source-loader.ts` fail fast when `ELECTION_SOURCE_PATH` is set but cannot be loaded. | The loader now re-throws a descriptive error instead of silently falling back to the default NZ source. |
 | A4 | **Medium** | ✅ Implemented — Decompose `packages/dashboard/server/index.ts` into focused modules (HTTP router, Socket.io handlers, feed engine, static file handler). | Split into `feed-engine.ts`, `http-router.ts`, `socket-handlers.ts`, and a thin `index.ts` orchestrator. Behavior is preserved; the server is now ~180 lines. |
-| A5 | **Medium** | Add pagination / upper bounds to `/api/history/*` endpoints. | The snapshot tables grow every poll cycle; returning unbounded JSON arrays will eventually cause memory and latency problems. |
-| A6 | **Medium** | Bundle the collector into the production Docker image instead of running `npx tsx` at runtime, and prune `devDependencies`. | The final image currently ships tsx, Vite, and all dev dependencies, inflating size and attack surface. |
+| A5 | **Medium** | ✅ Implemented — Add pagination / upper bounds to `/api/history/*` endpoints. | All history endpoints now accept `limit` and `offset` query params, default to 100 rows, and cap `limit` at 1000. `db-reader.ts` applies `LIMIT`/`OFFSET` in SQL. |
+| A6 | **Medium** | ✅ Implemented — Bundle the collector into the production Docker image instead of running `npx tsx` at runtime, and prune `devDependencies`. | The Dockerfile now bundles the collector to `/app/packages/collector/dist/index.mjs` with esbuild, `entrypoint.sh` runs the bundle, and the final stage runs `npm prune --omit=dev --ignore-scripts`. |
 | A7 | **Low** | Consider unifying the diff/event-generation logic used for webhooks (collector) and feed events (dashboard server). | Two similar but separate `computeDiff`/`determineEvents` implementations risk diverging semantics. |
 | A8 | **Low** | Restrict Socket.io CORS `origin` in production or document that admin-style endpoints (`/api/clear`) are intentionally public. | Current `origin: '*'` is acceptable for a public dashboard but worth reviewing if authenticated endpoints are added. |
 
@@ -103,7 +103,6 @@ The remaining risks are **testability, operational packaging, and surface-area c
 ## Suggested Implementation Order
 
 1. **T1 / T2 / T3** — Backfill dashboard server and config tests.
-2. **A5** — Add limits to history APIs.
 4. **T4 / T5** — Expand frontend test coverage.
 5. **Q1 / Q3 / Q4** — Harden scraper diagnostics and optimize frontend hot paths.
 6. **O1 / O2 / O3** — Production packaging and retention improvements.
