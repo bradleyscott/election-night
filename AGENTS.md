@@ -35,6 +35,8 @@ npm run start:mock
 # curl -X POST http://localhost:3457/reset
 # Or auto-step every N ms:
 # npm run start:mock -- --auto-step 15000
+# By default the mock stops at the final (full) stage. To loop back to early:
+# npm run start:mock -- --loop
 # Other flags: --port 3457 (or MOCK_PORT), --stage early|mid|late|full, --help
 
 # Then scrape from the mock server:

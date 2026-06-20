@@ -224,6 +224,7 @@ const parsed = arg(
     '--port': Number,
     '--stage': String,
     '--auto-step': Number,
+    '--loop': Boolean,
     '--help': Boolean,
     '-p': '--port',
     '-h': '--help',
@@ -239,6 +240,7 @@ Options:
   --port, -p <number>    Listen port (default: 3457)
   --stage <name>         Start stage: early, mid, late, full (default: early)
   --auto-step <ms>       Auto-advance stage every N milliseconds
+  --loop                 Wrap from full back to early (default: stop at full)
   --help, -h             Show this message
 `);
   process.exit(0);
@@ -254,17 +256,28 @@ if (stageArg) {
 }
 
 const autoStepMs = parsed['--auto-step'];
+const loopStages = parsed['--loop'] ?? false;
 let autoStepTimer: ReturnType<typeof setInterval> | null = null;
+
+function advanceStage(): void {
+  if (currentStage < STAGES.length - 1) {
+    currentStage++;
+  } else if (loopStages) {
+    currentStage = 0;
+  }
+}
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
   const path = url.pathname;
 
   if (req.method === 'POST' && path === '/advance') {
-    currentStage = (currentStage + 1) % STAGES.length;
+    const previousStage = currentStage;
+    advanceStage();
     const stage = STAGE_NAMES[currentStage];
+    const wrapped = loopStages && currentStage === 0 && previousStage === STAGES.length - 1;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ stage, index: currentStage }));
+    res.end(JSON.stringify({ stage, index: currentStage, wrapped }));
     return;
   }
 
@@ -331,7 +344,13 @@ server.listen(PORT, () => {
 
   if (autoStepMs && autoStepMs > 0) {
     autoStepTimer = setInterval(() => {
-      currentStage = (currentStage + 1) % STAGES.length;
+      if (currentStage >= STAGES.length - 1 && !loopStages) {
+        if (autoStepTimer) clearInterval(autoStepTimer);
+        autoStepTimer = null;
+        console.log(`Auto-step stopped at final stage: ${STAGE_NAMES[currentStage]} (${currentStage + 1}/${STAGES.length})`);
+        return;
+      }
+      advanceStage();
       console.log(`Auto-advanced to stage: ${STAGE_NAMES[currentStage]} (${currentStage + 1}/${STAGES.length})`);
     }, autoStepMs);
     console.log(`Auto-step enabled: advancing every ${autoStepMs}ms`);
