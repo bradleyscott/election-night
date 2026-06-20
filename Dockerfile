@@ -33,6 +33,17 @@ RUN npx esbuild packages/dashboard/server/index.ts \
   --external:utf-8-validate \
   --external:better-sqlite3
 
+RUN npx esbuild packages/collector/src/index.ts \
+  --bundle \
+  --platform=node \
+  --format=esm \
+  --outfile=/app/packages/collector/dist/index.mjs \
+  --external:better-sqlite3 \
+  --external:bufferutil \
+  --external:utf-8-validate \
+  --external:puppeteer-core \
+  --external:cloakbrowser
+
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
@@ -73,6 +84,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app /app
+RUN npm prune --omit=dev --ignore-scripts
 COPY deploy/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 

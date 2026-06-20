@@ -51,6 +51,11 @@ export type SnapshotMeta = {
   completedAt: string | null;
 };
 
+export type PaginationOptions = {
+  limit?: number;
+  offset?: number;
+};
+
 let db: Database.Database | null = null;
 
 export function openDbReader(dbPath: string): void {
@@ -77,15 +82,21 @@ export function closeDbReader(): void {
   }
 }
 
-export function getSnapshotMetas(): SnapshotMeta[] {
+export function getSnapshotMetas(options?: PaginationOptions): SnapshotMeta[] {
   if (!db) return [];
-  const rows = db
-    .prepare(
-      `SELECT id AS snapshot_id, started_at, completed_at
+  let sql = `SELECT id AS snapshot_id, started_at, completed_at
        FROM scrape_snapshots
-       ORDER BY started_at ASC`
-    )
-    .all() as Record<string, unknown>[];
+       ORDER BY started_at ASC`;
+  const params: number[] = [];
+  if (options?.limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+    if (options.offset !== undefined) {
+      sql += ' OFFSET ?';
+      params.push(options.offset);
+    }
+  }
+  const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];
   return rows.map((r) => ({
     snapshotId: r.snapshot_id as number,
     startedAt: r.started_at as string,
@@ -93,12 +104,13 @@ export function getSnapshotMetas(): SnapshotMeta[] {
   }));
 }
 
-export function getElectorateHistory(name: string): ElectorateHistoryPoint[] {
+export function getElectorateHistory(
+  name: string,
+  options?: PaginationOptions
+): ElectorateHistoryPoint[] {
   if (!db) return [];
 
-  const summaries = db
-    .prepare(
-      `SELECT
+  let sql = `SELECT
          ss.id AS snapshot_id,
          ss.started_at,
          ss.completed_at,
@@ -113,9 +125,18 @@ export function getElectorateHistory(name: string): ElectorateHistoryPoint[] {
        FROM scrape_snapshots ss
        JOIN electorate_summary es ON es.scrape_id = ss.id
        WHERE es.electorate = ?
-       ORDER BY ss.started_at ASC`
-    )
-    .all(name) as Record<string, unknown>[];
+       ORDER BY ss.started_at ASC`;
+  const params: (string | number)[] = [name];
+  if (options?.limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+    if (options.offset !== undefined) {
+      sql += ' OFFSET ?';
+      params.push(options.offset);
+    }
+  }
+
+  const summaries = db.prepare(sql).all(...params) as Record<string, unknown>[];
 
   const history: ElectorateHistoryPoint[] = [];
 
@@ -166,16 +187,25 @@ export function getElectorateHistory(name: string): ElectorateHistoryPoint[] {
   return history;
 }
 
-export function getPartyVoteHistory(): PartyVoteHistoryPoint[] {
+export function getPartyVoteHistory(
+  options?: PaginationOptions
+): PartyVoteHistoryPoint[] {
   if (!db) return [];
 
-  const snapshots = db
-    .prepare(
-      `SELECT id AS snapshot_id, started_at, completed_at
+  let sql = `SELECT id AS snapshot_id, started_at, completed_at
        FROM scrape_snapshots
-       ORDER BY started_at ASC`
-    )
-    .all() as Record<string, unknown>[];
+       ORDER BY started_at ASC`;
+  const params: number[] = [];
+  if (options?.limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+    if (options.offset !== undefined) {
+      sql += ' OFFSET ?';
+      params.push(options.offset);
+    }
+  }
+
+  const snapshots = db.prepare(sql).all(...params) as Record<string, unknown>[];
 
   const history: PartyVoteHistoryPoint[] = [];
 

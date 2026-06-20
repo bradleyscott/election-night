@@ -18,4 +18,4 @@ for i in $(seq 1 30); do
 done
 
 echo "Starting scraper..."
-exec npx tsx /app/packages/collector/src/index.ts
+exec node /app/packages/collector/dist/index.mjs

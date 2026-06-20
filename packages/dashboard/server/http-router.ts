@@ -15,6 +15,7 @@ import {
   getSnapshotMetas,
   getElectorateHistory,
   getPartyVoteHistory,
+  type PaginationOptions,
 } from './db-reader.js';
 
 const { distDir: DIST_DIR } = dashboardServerConfig;
@@ -41,6 +42,26 @@ export type HttpRouterDeps = {
   clearState: () => void;
 };
 
+const DEFAULT_HISTORY_LIMIT = 100;
+const MAX_HISTORY_LIMIT = 1000;
+
+function parsePagination(url: URL): Required<PaginationOptions> {
+  const rawLimit = url.searchParams.get('limit');
+  const rawOffset = url.searchParams.get('offset');
+  let limit = parseInt(rawLimit ?? String(DEFAULT_HISTORY_LIMIT), 10);
+  if (Number.isNaN(limit) || limit < 1) {
+    limit = DEFAULT_HISTORY_LIMIT;
+  }
+  if (limit > MAX_HISTORY_LIMIT) {
+    limit = MAX_HISTORY_LIMIT;
+  }
+  let offset = parseInt(rawOffset ?? '0', 10);
+  if (Number.isNaN(offset) || offset < 0) {
+    offset = 0;
+  }
+  return { limit, offset };
+}
+
 export function createHttpRequestHandler(deps: HttpRouterDeps) {
   const { latestResults, getFeedEvents, io, clearState } = deps;
 
@@ -50,9 +71,10 @@ export function createHttpRequestHandler(deps: HttpRouterDeps) {
     url: URL
   ): boolean {
     const pathname = url.pathname;
+    const pagination = parsePagination(url);
 
     if (pathname === '/api/history/snapshots') {
-      const metas = getSnapshotMetas();
+      const metas = getSnapshotMetas(pagination);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(metas));
       return true;
@@ -61,14 +83,14 @@ export function createHttpRequestHandler(deps: HttpRouterDeps) {
     const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
     if (electorateMatch) {
       const name = decodeURIComponent(electorateMatch[1]);
-      const history = getElectorateHistory(name);
+      const history = getElectorateHistory(name, pagination);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(history));
       return true;
     }
 
     if (pathname === '/api/history/party-votes') {
-      const history = getPartyVoteHistory();
+      const history = getPartyVoteHistory(pagination);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(history));
       return true;
