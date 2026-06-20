@@ -1,5 +1,6 @@
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
+import { log } from './logger.js';
 
 export type CandidateSnapshot = {
   candidate: string;
@@ -55,14 +56,14 @@ let db: Database.Database | null = null;
 export function openDbReader(dbPath: string): void {
   if (db) return;
   if (!existsSync(dbPath)) {
-    console.log(
+    log.info(
       `DB not found at ${dbPath}, history API will return empty results`
     );
     return;
   }
   db = new Database(dbPath, { readonly: true });
   db.pragma('journal_mode = WAL');
-  console.log(`Opened history DB (read-only) at ${dbPath}`);
+  log.info(`Opened history DB (read-only) at ${dbPath}`);
 }
 
 export function hasDbReader(): boolean {

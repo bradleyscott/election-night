@@ -5,6 +5,7 @@ import { z } from 'zod';
 const dashboardServerConfigSchema = z.object({
   wsPort: z.coerce.number().int().min(1).max(65535).default(3456),
   dbPath: z.string().default('.data/election_results.db'),
+  logLevel: z.coerce.number().int().min(0).max(3).default(3),
   distDir: z
     .string()
     .default('./dist')
@@ -22,6 +23,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
   const parsed = dashboardServerConfigSchema.safeParse({
     wsPort: process.env.WS_PORT,
     dbPath: process.env.DB_PATH,
+    logLevel: process.env.LOG_LEVEL,
     distDir: process.env.DIST_DIR,
     cachePath: process.env.CACHE_PATH,
     feedCachePath: process.env.FEED_CACHE_PATH,

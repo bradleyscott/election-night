@@ -9,6 +9,7 @@ import {
 import { resolve, extname, dirname } from 'path';
 import { Server } from 'socket.io';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { log } from './logger.js';
 import type {
   ResultsPayload,
   ElectorateResults,
@@ -73,13 +74,13 @@ function loadCachedResults() {
         partyVote: [],
         partyLists: [],
       };
-      console.log(`Loaded cached results from ${CACHE_PATH}`);
+      log.info(`Loaded cached results from ${CACHE_PATH}`);
       return;
     } catch (err) {
-      console.error('Failed to load cached results:', err);
+      log.error('Failed to load cached results', err);
     }
   }
-  console.log('No cached results found, waiting for first scrape...');
+  log.info('No cached results found, waiting for first scrape...');
 }
 
 function loadFeedEvents(): FeedEvent[] {
@@ -88,7 +89,7 @@ function loadFeedEvents(): FeedEvent[] {
     const data = JSON.parse(readFileSync(FEED_CACHE_PATH, 'utf-8'));
     if (Array.isArray(data)) return data as FeedEvent[];
   } catch (err) {
-    console.error('Failed to load cached feed events:', err);
+    log.error('Failed to load cached feed events', err);
   }
   return [];
 }
@@ -98,7 +99,7 @@ function saveFeedEvents(events: FeedEvent[]) {
     mkdirSync(dirname(FEED_CACHE_PATH), { recursive: true });
     writeFileSync(FEED_CACHE_PATH, JSON.stringify(events, null, 2));
   } catch (err) {
-    console.error('Failed to save feed events:', err);
+    log.error('Failed to save feed events', err);
   }
 }
 
@@ -181,14 +182,14 @@ function templateSummary(diff: ElectorateDiff, result: ElectorateResult): string
   if (diff.predictionStatusChanged && l.predictionStatus === 'leaning') {
     return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is ahead by ${marginPct}% — but the ±${moePct}% MoE means the race is still too close to call at ${pct}% counted.`;
   }
-  if (diff.previousMargin !== null) {
-    const marginDelta = l.margin - diff.previousMargin;
-    if (marginDelta > 0) {
-      const widenedPct = ((l.marginPercent - diff.previousMarginPercent) * 100).toFixed(2);
-      return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% at ${pct}% counted.`;
-    }
-    if (marginDelta < 0) {
-      const narrowedPct = ((diff.previousMarginPercent - l.marginPercent) * 100).toFixed(2);
+  if (diff.previousMargin !== null && diff.previousMarginPercent !== null) {
+    const marginPercentDelta = l.marginPercent - diff.previousMarginPercent;
+    if (Math.abs(marginPercentDelta) > 0.00005) {
+      if (marginPercentDelta > 0) {
+        const widenedPct = (marginPercentDelta * 100).toFixed(2);
+        return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% at ${pct}% counted.`;
+      }
+      const narrowedPct = (-marginPercentDelta * 100).toFixed(2);
       return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`;
     }
   }
@@ -214,14 +215,14 @@ function templateCommentary(diff: ElectorateDiff, result: ElectorateResult): str
   if (diff.predictionStatusChanged && l.predictionStatus === 'leaning') {
     return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is ahead in ${result.electorateName} with ${marginPct}% of the vote. But a ±${moePct}% margin of error means the race is still too close to call at ${pct}% counted.`;
   }
-  if (diff.previousMargin !== null) {
-    const marginDelta = l.margin - diff.previousMargin;
-    if (marginDelta > 0) {
-      const widenedPct = ((l.marginPercent - diff.previousMarginPercent) * 100).toFixed(2);
-      return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% in ${result.electorateName} at ${pct}% counted.`;
-    }
-    if (marginDelta < 0) {
-      const narrowedPct = ((diff.previousMarginPercent - l.marginPercent) * 100).toFixed(2);
+  if (diff.previousMargin !== null && diff.previousMarginPercent !== null) {
+    const marginPercentDelta = l.marginPercent - diff.previousMarginPercent;
+    if (Math.abs(marginPercentDelta) > 0.00005) {
+      if (marginPercentDelta > 0) {
+        const widenedPct = (marginPercentDelta * 100).toFixed(2);
+        return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% in ${result.electorateName} at ${pct}% counted.`;
+      }
+      const narrowedPct = (-marginPercentDelta * 100).toFixed(2);
       return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads in ${result.electorateName} by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`;
     }
   }
@@ -416,7 +417,7 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  log.info(`Client connected: ${socket.id}`);
   websocketClients.set(io.engine.clientsCount);
 
   if (latestResults) {
@@ -430,7 +431,7 @@ io.on('connection', (socket) => {
     const previousResults = latestResults?.electorateResults ?? [];
     latestResults = payload;
     lastScrapeTimestampSeconds.set(Date.now() / 1000);
-    console.log('Received results update, broadcasting...');
+    log.info('Received results update, broadcasting...');
     socket.broadcast.emit('results_update', payload);
 
     const rawEvents = buildFeedEvents(previousResults, payload.electorateResults);
@@ -440,13 +441,13 @@ io.on('connection', (socket) => {
     const eventsWithCommentary = generateFeedCommentaries(rawEvents, resultMap);
     const newEvents = addFeedEvents(eventsWithCommentary);
     if (newEvents.length > 0) {
-      console.log(`Generated ${newEvents.length} feed events`);
+      log.info(`Generated ${newEvents.length} feed events`);
       io.emit('feed_update', newEvents);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    log.info(`Client disconnected: ${socket.id}`);
     websocketClients.set(io.engine.clientsCount);
   });
 
@@ -456,15 +457,15 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log('=== Dashboard Server Configuration ===');
-  console.log(`WS_PORT:         ${PORT}`);
-  console.log(`DB_PATH:         ${resolve(dashboardServerConfig.dbPath)}`);
-  console.log(`DIST_DIR:        ${DIST_DIR}`);
-  console.log(`CACHE_PATH:      ${resolve(CACHE_PATH)}`);
-  console.log(`MAX_FEED_EVENTS: ${MAX_FEED_EVENTS}`);
-  console.log(`CWD:             ${process.cwd()}`);
-  console.log('======================================');
-  console.log(`Socket.io server running on http://localhost:${PORT}`);
+  log.info('=== Dashboard Server Configuration ===');
+  log.info(`WS_PORT:         ${PORT}`);
+  log.info(`DB_PATH:         ${resolve(dashboardServerConfig.dbPath)}`);
+  log.info(`DIST_DIR:        ${DIST_DIR}`);
+  log.info(`CACHE_PATH:      ${resolve(CACHE_PATH)}`);
+  log.info(`MAX_FEED_EVENTS: ${MAX_FEED_EVENTS}`);
+  log.info(`CWD:             ${process.cwd()}`);
+  log.info('======================================');
+  log.info(`Socket.io server running on http://localhost:${PORT}`);
   openDbReader(dashboardServerConfig.dbPath);
   loadCachedResults();
   feedEvents = loadFeedEvents();
@@ -478,13 +479,13 @@ const dbPollTimer = setInterval(() => {
 }, 5000);
 
 process.on('SIGINT', () => {
-  console.log('Shutting down...');
+  log.info('Shutting down...');
   closeDbReader();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('Shutting down...');
+  log.info('Shutting down...');
   closeDbReader();
   process.exit(0);
 });
