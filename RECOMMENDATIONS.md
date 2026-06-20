@@ -32,7 +32,7 @@ The remaining risks are **testability, operational packaging, and surface-area c
 | A1 | **High** | ✅ Implemented — Move the remaining top-level side effects out of `packages/collector/src/index.ts` into an explicit `main()` function. | `openDb()`, `connectWs()`, and `loopRun()` now run only when `main()` is invoked, so importing the module no longer starts the scraper. The file auto-calls `main()` only when it is the entrypoint. |
 | A2 | **High** | ✅ Implemented — Stop `packages/core/src/config.ts` and `NzElectionResultsSource` from reading `process.env` directly; pass configuration into the source adapter. | `core` now exposes pure defaults. Selector/base-URL configuration lives in the validated `collectorConfig` and is passed into `NzElectionResultsSource`. `results.ts` now reads `cachePath` and `webhookUrl` from `collectorConfig` instead of `@election-night/core/config`. |
 | A3 | **High** | ✅ Implemented — Make the custom source loader in `packages/collector/src/source-loader.ts` fail fast when `ELECTION_SOURCE_PATH` is set but cannot be loaded. | The loader now re-throws a descriptive error instead of silently falling back to the default NZ source. |
-| A4 | **Medium** | Decompose `packages/dashboard/server/index.ts` into focused modules (HTTP router, Socket.io handlers, feed engine, static file handler). | At ~500 lines it mixes many concerns and is hard to unit test in isolation. |
+| A4 | **Medium** | ✅ Implemented — Decompose `packages/dashboard/server/index.ts` into focused modules (HTTP router, Socket.io handlers, feed engine, static file handler). | Split into `feed-engine.ts`, `http-router.ts`, `socket-handlers.ts`, and a thin `index.ts` orchestrator. Behavior is preserved; the server is now ~180 lines. |
 | A5 | **Medium** | Add pagination / upper bounds to `/api/history/*` endpoints. | The snapshot tables grow every poll cycle; returning unbounded JSON arrays will eventually cause memory and latency problems. |
 | A6 | **Medium** | Bundle the collector into the production Docker image instead of running `npx tsx` at runtime, and prune `devDependencies`. | The final image currently ships tsx, Vite, and all dev dependencies, inflating size and attack surface. |
 | A7 | **Low** | Consider unifying the diff/event-generation logic used for webhooks (collector) and feed events (dashboard server). | Two similar but separate `computeDiff`/`determineEvents` implementations risk diverging semantics. |
@@ -102,9 +102,8 @@ The remaining risks are **testability, operational packaging, and surface-area c
 
 ## Suggested Implementation Order
 
-1. **T1 / T2 / T3** — Backfill dashboard server and config tests before further server changes.
-2. **A4** — Decompose the dashboard server (now that tests exist to guide the refactor).
-3. **A5** — Add limits to history APIs.
+1. **T1 / T2 / T3** — Backfill dashboard server and config tests.
+2. **A5** — Add limits to history APIs.
 4. **T4 / T5** — Expand frontend test coverage.
 5. **Q1 / Q3 / Q4** — Harden scraper diagnostics and optimize frontend hot paths.
 6. **O1 / O2 / O3** — Production packaging and retention improvements.
