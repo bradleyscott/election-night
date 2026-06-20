@@ -23,6 +23,17 @@ const DEFAULT_VOTE_PERCENT_COUNTED_SELECTOR =
 const DEFAULT_VOTES_COUNTED_SELECTOR =
   '#electorate_details_table > tbody > tr:nth-child(1) > td:nth-child(2) > div';
 
+export type NzElectionResultsSourceOptions = {
+  baseUrl?: string;
+  electorateNames: string[];
+  resultsTableSelector?: string;
+  candidateTableSelector?: string;
+  partyVoteTableSelector?: string;
+  votePercentCountedSelector?: string;
+  votesCountedSelector?: string;
+  verbose?: boolean;
+};
+
 export class NzElectionResultsSource implements ElectionSource {
   private baseUrl: string;
   private electorateNames: string[];
@@ -33,47 +44,20 @@ export class NzElectionResultsSource implements ElectionSource {
   private votesCountedSelector: string;
   private verbose: boolean;
 
-  constructor(options: {
-    baseUrl?: string;
-    electorateNames: string[];
-    resultsTableSelector?: string;
-    candidateTableSelector?: string;
-    partyVoteTableSelector?: string;
-    votePercentCountedSelector?: string;
-    votesCountedSelector?: string;
-    verbose?: boolean;
-  }) {
-    this.baseUrl =
-      options?.baseUrl ?? process.env.BASE_RESULTS_URL ?? DEFAULT_BASE_URL;
-
+  constructor(options: NzElectionResultsSourceOptions) {
+    this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.electorateNames = options.electorateNames;
-
     this.resultsTableSelector =
-      options?.resultsTableSelector ??
-      process.env.RESULTS_TABLE_SELECTOR ??
-      DEFAULT_RESULTS_TABLE_SELECTOR;
-
+      options.resultsTableSelector ?? DEFAULT_RESULTS_TABLE_SELECTOR;
     this.candidateTableSelector =
-      options?.candidateTableSelector ??
-      process.env.CANDIDATE_TABLE_SELECTOR ??
-      DEFAULT_CANDIDATE_TABLE_SELECTOR;
-
+      options.candidateTableSelector ?? DEFAULT_CANDIDATE_TABLE_SELECTOR;
     this.partyVoteTableSelector =
-      options?.partyVoteTableSelector ??
-      process.env.PARTY_VOTE_TABLE_SELECTOR ??
-      DEFAULT_PARTY_VOTE_TABLE_SELECTOR;
-
+      options.partyVoteTableSelector ?? DEFAULT_PARTY_VOTE_TABLE_SELECTOR;
     this.votePercentCountedSelector =
-      options?.votePercentCountedSelector ??
-      process.env.VOTE_PERCENT_COUNTED_SELECTOR ??
-      DEFAULT_VOTE_PERCENT_COUNTED_SELECTOR;
-
+      options.votePercentCountedSelector ?? DEFAULT_VOTE_PERCENT_COUNTED_SELECTOR;
     this.votesCountedSelector =
-      options?.votesCountedSelector ??
-      process.env.VOTES_COUNTED_SELECTOR ??
-      DEFAULT_VOTES_COUNTED_SELECTOR;
-
-    this.verbose = options?.verbose ?? false;
+      options.votesCountedSelector ?? DEFAULT_VOTES_COUNTED_SELECTOR;
+    this.verbose = options.verbose ?? false;
   }
 
   getElectorateConfigs(): ElectorateConfig[] {
@@ -101,13 +85,68 @@ export class NzElectionResultsSource implements ElectionSource {
       `parsed ${config.electorateName}: ${candidateVotes.length} candidates, ${partyVotes.length} party entries, votesCounted=${votesCounted}, pct=${votePercentageCounted}`
     );
 
-    return {
+    const raw: RawElectorateResults = {
       electorateName: config.electorateName,
       candidateVotes,
       partyVotes,
       votesCounted,
       votePercentageCounted,
     };
+
+    const diagnostics = this.diagnose($, raw);
+    if (diagnostics.length > 0) {
+      const preview = html.slice(0, 500).replace(/\s+/g, ' ');
+      throw new Error(
+        `Failed to parse results for ${config.electorateName}:\n${diagnostics
+          .map((d) => `  - ${d}`)
+          .join('\n')}\nHTML preview: ${preview}`
+      );
+    }
+
+    return raw;
+  }
+
+  private diagnose(
+    $: CheerioAPI,
+    results: RawElectorateResults
+  ): string[] {
+    const issues: string[] = [];
+
+    if (results.candidateVotes.length === 0) {
+      const matches = $(this.candidateTableSelector).length;
+      issues.push(
+        `candidateVotes is empty (selector "${this.candidateTableSelector}" matched ${matches} element(s))`
+      );
+    }
+
+    if (results.partyVotes.length === 0) {
+      const matches = $(this.partyVoteTableSelector).length;
+      issues.push(
+        `partyVotes is empty (selector "${this.partyVoteTableSelector}" matched ${matches} element(s))`
+      );
+    }
+
+    if (results.votesCounted === 0) {
+      const matches = $(this.votesCountedSelector).length;
+      const text = $(this.votesCountedSelector).text();
+      if (matches === 0 || !text.trim()) {
+        issues.push(
+          `votesCounted is 0 and selector "${this.votesCountedSelector}" matched ${matches} element(s) with text "${text}"`
+        );
+      }
+    }
+
+    if (results.votePercentageCounted === 0) {
+      const matches = $(this.votePercentCountedSelector).length;
+      const text = $(this.votePercentCountedSelector).text();
+      if (matches === 0 || !text.trim()) {
+        issues.push(
+          `votePercentageCounted is 0 and selector "${this.votePercentCountedSelector}" matched ${matches} element(s) with text "${text}"`
+        );
+      }
+    }
+
+    return issues;
   }
 
   private debug(...args: unknown[]) {
@@ -221,5 +260,4 @@ export class NzElectionResultsSource implements ElectionSource {
     this.debug(`parseVotesCounted: raw="${text}" -> ${value}`);
     return value;
   }
-
 }

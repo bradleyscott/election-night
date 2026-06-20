@@ -8,10 +8,10 @@ import {
   WebhookEventType,
   WebhookPayload,
 } from '@election-night/core/types';
-import { config } from '@election-night/core/config';
 import { fetchWithRetry } from './retry.js';
 import { publishMetrics } from './ws-client.js';
 import { emitWebhookPublish } from './metrics.js';
+import { collectorConfig } from './config.js';
 
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
@@ -19,9 +19,9 @@ let electorateResults: Results[];
 
 export function cacheResults(toCache: Results[]) {
   electorateResults = toCache;
-  mkdirSync(dirname(config.cachePaths.electoralResults), { recursive: true });
+  mkdirSync(dirname(collectorConfig.cachePath), { recursive: true });
   writeFileSync(
-    config.cachePaths.electoralResults,
+    collectorConfig.cachePath,
     JSON.stringify(toCache, null, 2)
   );
 }
@@ -31,10 +31,7 @@ function readResults(): Results[] {
     return electorateResults;
   }
   try {
-    const resultsString = readFileSync(
-      config.cachePaths.electoralResults,
-      'utf8'
-    );
+    const resultsString = readFileSync(collectorConfig.cachePath, 'utf8');
     return JSON.parse(resultsString);
   } catch {
     return [];
@@ -109,7 +106,7 @@ export async function sendWebhook(
   result: Results,
   diff: ElectorateDiff
 ): Promise<void> {
-  const url = config.webhookUrl;
+  const url = collectorConfig.webhookUrl;
   if (!url) return;
 
   const payload: WebhookPayload = {

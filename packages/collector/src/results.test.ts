@@ -12,15 +12,15 @@ import type {
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
 const mockConfig: {
-  cachePaths: { electoralResults: string };
+  cachePath: string;
   webhookUrl: string | undefined;
 } = {
-  cachePaths: { electoralResults: '' },
+  cachePath: '',
   webhookUrl: undefined,
 };
 
-vi.mock('@election-night/core/config', () => ({
-  config: mockConfig,
+vi.mock('./config.js', () => ({
+  collectorConfig: mockConfig,
 }));
 
 function makeResult(overrides: Partial<Results> = {}): Results {
@@ -49,7 +49,7 @@ describe('cacheResults', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.cachePaths.electoralResults = join(tmpDir, 'results.json');
+    mockConfig.cachePath = join(tmpDir, 'results.json');
   });
 
   afterEach(() => {
@@ -64,9 +64,9 @@ describe('cacheResults', () => {
 
     cacheResults([result]);
 
-    expect(existsSync(mockConfig.cachePaths.electoralResults)).toBe(true);
+    expect(existsSync(mockConfig.cachePath)).toBe(true);
     const written = JSON.parse(
-      readFileSync(mockConfig.cachePaths.electoralResults, 'utf-8')
+      readFileSync(mockConfig.cachePath, 'utf-8')
     );
     expect(written).toHaveLength(1);
     expect(written[0].electorateName).toBe('Test');
@@ -78,7 +78,7 @@ describe('cacheResults', () => {
     cacheResults([makeResult({ electorateName: 'Second' })]);
 
     const written = JSON.parse(
-      readFileSync(mockConfig.cachePaths.electoralResults, 'utf-8')
+      readFileSync(mockConfig.cachePath, 'utf-8')
     );
     expect(written).toHaveLength(1);
     expect(written[0].electorateName).toBe('Second');
@@ -247,7 +247,7 @@ describe('sendWebhook', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.cachePaths.electoralResults = join(tmpDir, 'results.json');
+    mockConfig.cachePath = join(tmpDir, 'results.json');
     mockConfig.webhookUrl = undefined;
   });
 
@@ -336,7 +336,7 @@ describe('processResults', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.cachePaths.electoralResults = join(tmpDir, 'results.json');
+    mockConfig.cachePath = join(tmpDir, 'results.json');
   });
 
   afterEach(() => {
