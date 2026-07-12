@@ -38,6 +38,7 @@ RUN npx esbuild packages/collector/src/index.ts \
   --platform=node \
   --format=esm \
   --outfile=/app/packages/collector/dist/index.mjs \
+  --external:@election-night/core \
   --external:better-sqlite3 \
   --external:bufferutil \
   --external:utf-8-validate \
