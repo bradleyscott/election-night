@@ -18,7 +18,10 @@ COPY packages/collector/ packages/collector/
 COPY packages/dashboard/ packages/dashboard/
 COPY csv/ csv/
 
-RUN npm run build:core
+# Remove stale TypeScript build info so tsc -b always rebuilds core.
+# Without this, a committed .tsbuildinfo can make tsc think the project is
+# up-to-date and skip emitting dist/, leaving @election-night/core unresolvable.
+RUN find packages -name '*.tsbuildinfo' -delete && npm run build:core
 
 WORKDIR /app/packages/dashboard
 RUN npx vite build
@@ -86,21 +89,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app /app
-
-# npm prune of a workspace root can break workspace symlinks in node_modules.
-# Replace the symlink with a real copy of the built core package so that
-# runtime imports like @election-night/core/reducers resolve reliably.
-RUN rm -rf /app/node_modules/@election-night/core \
-  && cp -rL /app/packages/core /app/node_modules/@election-night/core
-
 RUN npm prune --omit=dev --ignore-scripts 2>/dev/null || true
-
-# If npm prune recreated the symlink, replace it again.
-RUN if [ -L /app/node_modules/@election-night/core ]; then \
-      rm -rf /app/node_modules/@election-night/core \
-      && cp -rL /app/packages/core /app/node_modules/@election-night/core; \
-    fi
-
 COPY deploy/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
