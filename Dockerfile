@@ -31,23 +31,15 @@ RUN npx esbuild packages/dashboard/server/index.ts \
   --bundle \
   --platform=node \
   --format=cjs \
-  --outfile=/app/server.cjs \
-  --external:bufferutil \
-  --external:utf-8-validate \
-  --external:better-sqlite3 \
-  --external:@election-night/core
+  --packages=external \
+  --outfile=/app/server.cjs
 
 RUN npx esbuild packages/collector/src/index.ts \
   --bundle \
   --platform=node \
   --format=esm \
-  --outfile=/app/packages/collector/dist/index.mjs \
-  --external:@election-night/core \
-  --external:better-sqlite3 \
-  --external:bufferutil \
-  --external:utf-8-validate \
-  --external:puppeteer-core \
-  --external:cloakbrowser
+  --packages=external \
+  --outfile=/app/packages/collector/dist/index.mjs
 
 FROM node:22-slim
 WORKDIR /app
