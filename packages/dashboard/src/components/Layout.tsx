@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils.js';
 import Logo from './Logo.js';
 import LiveIndicator from './LiveIndicator.js';
+import ThemeToggle from './ThemeToggle.js';
 import FeedSidebar from './FeedSidebar.js';
 
 const navItems = [
@@ -85,6 +86,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 ))}
               </nav>
               <LiveIndicator />
+              <ThemeToggle />
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="md:hidden relative w-9 h-9 flex items-center justify-center hover:bg-muted transition-colors"
