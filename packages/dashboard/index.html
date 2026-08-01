@@ -3,7 +3,6 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f7f4eb" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#16130e" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Real-time NZ general election results tracker with live seat projections, electorate maps, and party vote breakdowns." />
@@ -26,10 +25,17 @@
     />
 
     <script>
-      // Default colour mode follows the OS; toggle with the html class="dark".
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      }
+      // Light is the default. A manually saved choice wins; we deliberately do
+      // NOT follow the OS preference or time of day. Toggle the dark class.
+      (function () {
+        try {
+          if (localStorage.getItem('election-night:theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          /* storage unavailable — stay with the light default */
+        }
+      })();
     </script>
 
     <!-- Open Graph / Social -->
