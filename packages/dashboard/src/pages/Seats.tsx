@@ -24,15 +24,12 @@ function AnimatedStat({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card p-2 sm:p-2.5 opacity-0 animate-fade-in-up',
-        'shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300',
+        'p-2.5 sm:p-3 opacity-0 animate-fade-in-up',
         `stagger-${delay}`
       )}
     >
-      <div className="text-xs sm:text-xs text-muted-foreground font-semibold mb-0 tracking-wide uppercase">
-        {label}
-      </div>
-      <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight">
+      <div className="kicker mb-1">{label}</div>
+      <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
         {value !== null ? (format ? format(animated) : Math.round(animated).toLocaleString()) : '—'}
       </div>
     </div>
@@ -145,30 +142,30 @@ function SuccessfulCandidates({
           placeholder="Search candidate or electorate…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 sm:py-1.5 border rounded-lg bg-background text-sm font-semibold outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
+          className="w-full px-3 py-2 sm:py-1.5 border bg-background text-sm font-label outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
         />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b">
+            <tr className="border-b border-border">
               <th
-                className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('name')}
               >
                 Candidate<SortIndicator column="name" />
               </th>
               <th
-                className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('party')}
               >
                 Party<SortIndicator column="party" />
               </th>
-              <th className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Seat
               </th>
               <th
-                className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('certainty')}
               >
                 Certainty<SortIndicator column="certainty" />
@@ -180,15 +177,15 @@ function SuccessfulCandidates({
               <tr
                 key={c.name}
                 className={cn(
-                  'border-b last:border-0 transition-colors hover:bg-muted/20',
+                  'border-b border-border last:border-0 transition-colors hover:bg-muted/30',
                   'opacity-0 animate-fade-in-up'
                 )}
                 style={{ animationDelay: `${i * 0.02}s` }}
               >
-                <td className="py-2 sm:py-3 px-3 font-semibold">
+                <td className="py-2 sm:py-3 px-3 font-medium">
                   <div className="flex items-center gap-1.5">
                     <div
-                      className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10 sm:hidden"
+                      className="w-2 h-2 flex-shrink-0 sm:hidden"
                       style={{ backgroundColor: partyColors[c.party] || '#666' }}
                     />
                     {c.name}
@@ -197,7 +194,7 @@ function SuccessfulCandidates({
                 <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
                   <div className="flex items-center gap-1.5">
                     <div
-                      className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10"
+                      className="w-2 h-2 flex-shrink-0"
                       style={{ backgroundColor: partyColors[c.party] || '#666' }}
                     />
                     <span>{c.party || 'Independent'}</span>
@@ -206,7 +203,7 @@ function SuccessfulCandidates({
                 <td className="py-2 sm:py-3 px-3">
                   {c.isElectorate ? (
                     <span className="flex items-center gap-1.5">
-                      <span className="hidden sm:inline rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase leading-none">
+                      <span className="hidden sm:inline chip-print chip-print--ink">
                         Electorate
                       </span>
                       <Link
@@ -220,26 +217,26 @@ function SuccessfulCandidates({
                     <span className="flex items-center gap-1.5">
                       <Link
                         to={`/parties?party=${encodeURIComponent(c.party)}`}
-                        className="rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase leading-none hover:bg-purple-200 dark:hover:bg-purple-800/60 transition-colors"
+                        className="chip-print chip-print--red hover:bg-muted/40 transition-colors"
                       >
                         List
                       </Link>
-                      <span className="sm:hidden text-green-600 dark:text-green-400 text-xs font-bold tabular-nums">
+                      <span className="sm:hidden font-mono text-xs font-semibold text-foreground tabular-nums">
                         +{Math.round(c.certainty)}
                       </span>
                     </span>
                   )}
                 </td>
-                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
+                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums font-semibold">
                   {c.isElectorate ? (
                     <span>
                       {(c.certainty * 100).toFixed(1)}%{' '}
-                      <span className="text-muted-foreground font-semibold whitespace-nowrap">
+                      <span className="text-muted-foreground font-medium whitespace-nowrap">
                         ± {(c.marginOfError! * 100).toFixed(1)}%
                       </span>
                     </span>
                   ) : (
-                    <span className="text-green-600 dark:text-green-400">+{Math.round(c.certainty)} from cut</span>
+                    <span className="text-foreground">+{Math.round(c.certainty)} from cut</span>
                   )}
                 </td>
               </tr>
@@ -272,20 +269,15 @@ export default function Seats() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Seats
-          </h1>
-          <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
-        </div>
+      <div className="pagehead">
+        <h1>Seats</h1>
       </div>
 
       {!results ? (
         <WaitingState variant="full" context="default" />
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 stat-grid">
             <AnimatedStat
               label="Total Seats"
               value={totalSeats}
@@ -304,17 +296,14 @@ export default function Seats() {
             />
             <div
               className={cn(
-                'rounded-xl border bg-card p-2 sm:p-2.5 opacity-0 animate-fade-in-up stagger-4',
-                'shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300'
+                'p-2.5 sm:p-3 opacity-0 animate-fade-in-up stagger-4'
               )}
             >
-              <div className="text-xs sm:text-xs text-muted-foreground font-semibold mb-0 tracking-wide uppercase">
-                Votes Counted
-              </div>
-              <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight">
+              <div className="kicker mb-1">Votes Counted</div>
+              <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
                 {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
               </div>
-              <div className="text-xs sm:text-xs text-muted-foreground font-semibold mt-0">
+              <div className="text-xs sm:text-xs text-muted-foreground mt-1">
                 {totalVotesCounted > 0 ? shortNumber(totalVotesCounted) + ' votes' : ''}
               </div>
             </div>
@@ -322,8 +311,7 @@ export default function Seats() {
 
           <div
             className={cn(
-              'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-5',
-              'shadow-sm'
+              'border border-border p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-5'
             )}
           >
             <ParliamentSeats
@@ -335,11 +323,10 @@ export default function Seats() {
 
           <div
             className={cn(
-              'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-6',
-              'shadow-sm'
+              'border border-border p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-6'
             )}
           >
-            <h2 className="text-base sm:text-lg font-extrabold mb-4 sm:mb-5 tracking-tight">
+            <h2 className="font-display text-lg sm:text-xl font-bold mb-4 sm:mb-5 tracking-tight">
               Likely Parliamentarians
             </h2>
             <SuccessfulCandidates

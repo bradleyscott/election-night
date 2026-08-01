@@ -6,33 +6,20 @@ export default function LiveIndicator() {
   const isLive = connected && results !== null;
 
   return (
-    <div className="flex items-center gap-1.5">
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 font-label font-bold uppercase tracking-[0.09em] text-[10px]',
+        isLive ? 'text-brand' : 'text-muted-foreground'
+      )}
+    >
       <span
         className={cn(
-          'relative inline-flex h-4 w-4 rounded-full',
-          isLive && 'animate-pulse-live'
+          'inline-block h-1.5 w-1.5 rounded-full',
+          isLive ? 'bg-brand animate-pulse-live' : 'bg-muted-foreground'
         )}
-      >
-        <span
-          className={cn(
-            'absolute inset-0 rounded-full',
-            isLive
-              ? 'bg-green-500 animate-ping opacity-30'
-              : 'bg-red-500'
-          )}
-        />
-        <span
-          className={cn(
-            'relative inline-flex rounded-full h-4 w-4',
-            isLive
-              ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.7)]'
-              : 'bg-red-500'
-          )}
-        />
-      </span>
-      <span className="hidden sm:inline text-sm text-white/70 font-semibold">
-        {isLive ? 'Live' : 'Disconnected'}
-      </span>
-    </div>
+        aria-hidden="true"
+      />
+      {isLive ? 'Live' : 'Disconnected'}
+    </span>
   );
 }

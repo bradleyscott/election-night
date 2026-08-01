@@ -24,10 +24,10 @@ export function ElectorateSearch({ names }: { names: string[] }) {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
-        className="w-full sm:w-56 px-3 py-2 sm:py-1.5 border rounded-lg bg-background text-sm font-semibold outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
+        className="w-full sm:w-56 px-3 py-2 sm:py-1.5 border bg-background font-label text-sm outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
       />
       {open && filtered.length > 0 && (
-        <ul className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg max-h-64 overflow-y-auto z-50 animate-fade-in">
+        <ul className="absolute top-full left-0 right-0 mt-1 bg-popover border max-h-64 overflow-y-auto z-50 animate-fade-in">
           {filtered.map((name) => (
             <li
               key={name}
@@ -36,7 +36,7 @@ export function ElectorateSearch({ names }: { names: string[] }) {
                 setOpen(false);
                 setQuery('');
               }}
-              className="px-3 py-2 sm:py-1.5 cursor-pointer hover:bg-accent border-b last:border-0 transition-colors font-semibold"
+              className="px-3 py-2 sm:py-1.5 cursor-pointer hover:bg-muted/40 border-b last:border-0 transition-colors font-label text-sm"
             >
               {name}
             </li>
@@ -44,8 +44,8 @@ export function ElectorateSearch({ names }: { names: string[] }) {
         </ul>
       )}
       {open && query && filtered.length === 0 && (
-        <ul className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 animate-fade-in">
-          <li className="px-3 py-2 sm:py-1.5 text-muted-foreground font-semibold">
+        <ul className="absolute top-full left-0 right-0 mt-1 bg-popover border z-50 animate-fade-in">
+          <li className="px-3 py-2 sm:py-1.5 text-muted-foreground font-label text-sm">
             No matches
           </li>
         </ul>

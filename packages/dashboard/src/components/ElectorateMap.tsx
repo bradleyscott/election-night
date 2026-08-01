@@ -132,7 +132,7 @@ export default function ElectorateMap({
 
   if (!geoData) {
     return (
-      <div className="flex items-center justify-center h-[300px] sm:h-[600px] border rounded-lg bg-muted/20">
+      <div className="flex items-center justify-center h-[300px] sm:h-[600px] border bg-muted/20">
         <p className="text-muted-foreground animate-pulse-soft">Loading map…</p>
       </div>
     );
@@ -143,7 +143,7 @@ export default function ElectorateMap({
       center={[-41.5, 173.5]}
       zoom={5.5}
       zoomSnap={0.5}
-      className="h-[300px] sm:h-[600px] w-full rounded-lg"
+      className="h-[300px] sm:h-[600px] w-full"
       scrollWheelZoom={true}
       zoomControl={true}
     >

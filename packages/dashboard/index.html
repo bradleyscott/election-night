@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en" dir="ltr" class="dark">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0a0f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f4eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16130e" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Real-time NZ general election results tracker with live seat projections, electorate maps, and party vote breakdowns." />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="index, follow" />
@@ -20,7 +20,17 @@
     <link rel="preconnect" href="http://localhost:3456" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <script>
+      // Default colour mode follows the OS; toggle with the html class="dark".
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
 
     <!-- Open Graph / Social -->
     <meta property="og:title" content="Election Night — NZ General Election Result Tracker" />

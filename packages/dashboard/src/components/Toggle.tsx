@@ -15,15 +15,15 @@ export function Toggle<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex rounded-lg border overflow-hidden text-sm font-bold flex-shrink-0">
+    <div className="flex border overflow-hidden text-sm font-bold flex-shrink-0 font-label">
       {options.map((opt) => (
         <button
           key={opt.value}
           className={cn(
             'px-3 py-2 sm:py-1.5 transition-colors min-h-[44px] font-bold',
             value === opt.value
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'bg-background text-muted-foreground hover:text-foreground'
+              ? 'bg-foreground text-background'
+              : 'bg-background text-muted-foreground hover:text-foreground hover:bg-muted'
           )}
           onClick={() => onChange(opt.value)}
         >

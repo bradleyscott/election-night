@@ -35,22 +35,22 @@ const TYPE_CONFIG: Record<string, { label: string; dotColor: 'blue' | 'green' | 
   result_updated: {
     label: 'Updated',
     dotColor: 'blue',
-    textColor: 'text-blue-400',
+    textColor: 'text-blue-700 dark:text-blue-400',
   },
   prediction_called: {
     label: 'Prediction',
     dotColor: 'green',
-    textColor: 'text-green-400',
+    textColor: 'text-green-700 dark:text-green-400',
   },
   leader_change: {
     label: 'Leader Change',
     dotColor: 'amber',
-    textColor: 'text-amber-400',
+    textColor: 'text-amber-700 dark:text-amber-400',
   },
   count_completed: {
     label: 'Count Complete',
     dotColor: 'green',
-    textColor: 'text-green-400',
+    textColor: 'text-green-700 dark:text-green-400',
   },
 };
 
@@ -87,7 +87,7 @@ function EventContent({ event }: { event: FeedEvent }) {
 
       <Link
         to={`/electorates/${encodeURIComponent(event.electorateName)}`}
-        className="font-extrabold text-base hover:underline transition-colors"
+        className="font-display font-bold text-base hover:underline transition-colors"
       >
         {event.electorateName}
       </Link>
@@ -102,7 +102,7 @@ function EventContent({ event }: { event: FeedEvent }) {
         <span>
           {(d.currentPercentageCounted * 100).toFixed(0)}% votes counted
           {d.previousPercentageCounted !== null && d.currentPercentageCounted !== d.previousPercentageCounted && (
-            <span className="text-blue-400 ml-0.5">
+            <span className="text-blue-700 dark:text-blue-400 ml-0.5">
               (+{((d.currentPercentageCounted - d.previousPercentageCounted) * 100).toFixed(1)}%)
             </span>
           )}
@@ -145,16 +145,16 @@ function FilterBar({
             onClick={() => onFilterChange(f.value)}
             disabled={disabled}
             className={cn(
-              'rounded-full px-3.5 py-1.5 text-sm font-bold tracking-wide uppercase transition-colors',
+              'chip-print transition-colors',
               disabled && 'hidden',
               activeFilter === f.value
-                ? 'bg-foreground text-background'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                ? 'bg-foreground text-background border-foreground'
+                : 'hover:bg-muted/40'
             )}
           >
             {f.label}
             {count > 0 && (
-              <span className="ml-1.5 opacity-60">{count}</span>
+              <span className="ml-1.5 opacity-60 font-mono">{count}</span>
             )}
           </button>
         );
@@ -194,8 +194,9 @@ export default function Feed() {
   if (feedEvents.length === 0) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Feed</h1>
-        <div className="h-1 w-12 bg-gradient-brand rounded-full mb-2" />
+        <div className="pagehead">
+          <h1>Feed</h1>
+        </div>
         <WaitingState context="feed" />
       </div>
     );
@@ -203,11 +204,8 @@ export default function Feed() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Feed</h1>
-          <div className="h-0.5 w-10 bg-gradient-brand rounded-full mt-1" />
-        </div>
+      <div className="pagehead">
+        <h1>Feed</h1>
       </div>
 
       <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} counts={counts} />

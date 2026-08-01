@@ -46,22 +46,22 @@ export function ElectorateRacesView({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Electorate
               </th>
-              <th className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Leading
               </th>
-              <th className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Second
               </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Lead (votes)
               </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Lead %
               </th>
-              <th className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 MoE
               </th>
             </tr>
@@ -91,7 +91,7 @@ export function ElectorateRacesView({
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
                       <div
-                        className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10"
+                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
                           backgroundColor:
                             partyColors[l.leadingCandidateParty ?? ''] || '#666',
@@ -103,7 +103,7 @@ export function ElectorateRacesView({
                   <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
                       <div
-                        className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10"
+                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
                           backgroundColor:
                             partyColors[l.secondCandidateParty ?? ''] || '#666',
@@ -136,10 +136,10 @@ export function ElectorateRacesView({
             onClick={() => setPage(Math.max(0, page - 1))}
             disabled={page === 0}
             className={cn(
-              'px-3 py-1 text-sm font-bold rounded-lg transition-colors',
+              'px-3 py-1 text-sm font-label font-semibold transition-colors border',
               page === 0
-                ? 'text-muted-foreground/40 cursor-default'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                ? 'text-muted-foreground/40 border-muted/50 cursor-default'
+                : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/40'
             )}
           >
             Prev
@@ -149,10 +149,10 @@ export function ElectorateRacesView({
               key={i}
               onClick={() => setPage(i)}
               className={cn(
-                'w-8 h-8 text-sm font-bold rounded-lg transition-colors',
+                'w-8 h-8 text-sm font-label font-semibold transition-colors border',
                 i === page
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/40'
               )}
             >
               {i + 1}
@@ -162,10 +162,10 @@ export function ElectorateRacesView({
             onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
             disabled={page === totalPages - 1}
             className={cn(
-              'px-3 py-1 text-sm font-bold rounded-lg transition-colors',
+              'px-3 py-1 text-sm font-label font-semibold transition-colors border',
               page === totalPages - 1
-                ? 'text-muted-foreground/40 cursor-default'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                ? 'text-muted-foreground/40 border-muted/50 cursor-default'
+                : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/40'
             )}
           >
             Next

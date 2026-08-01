@@ -67,8 +67,9 @@ export default function Parties() {
   if (!partyLists.length) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">Party List Rankings</h1>
-        <div className="h-1 w-16 bg-gradient-brand rounded-full mb-2" />
+        <div className="pagehead">
+          <h1>Party List Rankings</h1>
+        </div>
         <WaitingState context="parties" />
       </div>
     );
@@ -76,9 +77,8 @@ export default function Parties() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Party List Rankings</h1>
-        <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
+      <div className="pagehead">
+        <h1>Party List Rankings</h1>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -87,14 +87,14 @@ export default function Parties() {
             key={party}
             onClick={() => setSelectedParty(selectedParty === party ? '' : party)}
             className={cn(
-              'rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase transition-colors',
+              'chip-print transition-colors',
               party === selectedParty || (!selectedParty && party === majorParties[0])
-                ? 'bg-foreground text-background'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                ? 'bg-foreground text-background border-foreground'
+                : 'hover:bg-muted/40'
             )}
           >
             <span
-              className="inline-block w-2 h-2 rounded-full mr-1.5 ring-1 ring-black/10 shrink-0"
+              className="inline-block w-2 h-2 ring-1 ring-foreground/20 mr-0.5 shrink-0"
               style={{ backgroundColor: partyColors[party] || '#666' }}
             />
             {party}
@@ -105,7 +105,7 @@ export default function Parties() {
           <select
             value={selectedParty && !MAJOR_PARTIES.has(selectedParty) ? selectedParty : ''}
             onChange={(e) => setSelectedParty(e.target.value)}
-            className="rounded-full bg-muted px-3 py-1 text-xs font-bold tracking-wide uppercase text-muted-foreground transition-colors hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-brand"
+            className="chip-print bg-background hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <option value="">More…</option>
             {otherParties.map((p) => (
@@ -139,14 +139,14 @@ export default function Parties() {
           <div
             key={party}
             className={cn(
-              'rounded-xl border bg-card overflow-hidden shadow-sm',
+              'border overflow-hidden',
               'opacity-0 animate-fade-in-up'
             )}
             style={{ animationDelay: `${pIdx * 0.1}s` }}
           >
-            <div className="px-3 sm:px-4 py-2 sm:py-3 border-b bg-muted/30 font-extrabold text-sm sm:text-base sticky top-0 bg-background/95 backdrop-blur tracking-tight flex items-center gap-2">
+            <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-border font-display font-bold text-sm sm:text-base flex items-center gap-2">
               <span
-                className="inline-block w-2.5 h-2.5 rounded-sm ring-1 ring-black/10 shrink-0"
+                className="inline-block w-2.5 h-2.5 ring-1 ring-foreground/20 shrink-0"
                 style={{ backgroundColor: partyColors[party] || '#666' }}
               />
               {party}
@@ -155,10 +155,10 @@ export default function Parties() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">List</th>
-                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">Rank</th>
-                    <th className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">Candidate</th>
-                    <th className="text-right py-2 sm:py-3 px-3 w-24 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">From Cut</th>
+                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">List</th>
+                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">Rank</th>
+                    <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">Candidate</th>
+                    <th className="text-right py-2 sm:py-3 px-3 w-24 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">From Cut</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -180,10 +180,10 @@ export default function Parties() {
                             <td colSpan={4} className="px-0 py-0">
                               <div className="relative flex items-center py-1">
                                 <div className="absolute inset-0 flex items-center">
-                                  <div className="w-full border-t-2 border-red-500" />
+                                  <div className="w-full border-t-2 border-brand" />
                                 </div>
                                 <div className="relative flex justify-center">
-                                  <span className="bg-card px-3 text-[10px] font-extrabold tracking-widest uppercase text-red-500">
+                                  <span className="bg-background px-3 font-label text-[10px] font-bold tracking-widest uppercase text-brand">
                                     Cut
                                   </span>
                                 </div>
@@ -197,7 +197,7 @@ export default function Parties() {
                           key={member.candidate}
                           className={cn(
                             'border-b last:border-0 transition-colors hover:bg-muted/20',
-                            isElected ? 'bg-green-50 dark:bg-green-950/20' : '',
+                            isElected ? 'bg-green-700/5 dark:bg-green-950/20' : '',
                             'opacity-0 animate-fade-in-up'
                           )}
                           style={{ animationDelay: `${pIdx * 0.1 + 0.1 + mIdx * 0.03}s` }}
@@ -214,7 +214,7 @@ export default function Parties() {
                               {electorate && (
                                 <Link
                                   to={`/electorates/${encodeURIComponent(electorate)}`}
-                                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase text-muted-foreground hover:bg-muted/80 transition-colors"
+                                  className="chip-print hover:bg-muted/40 transition-colors"
                                 >
                                   {electorate}
                                 </Link>
@@ -223,7 +223,7 @@ export default function Parties() {
                           </td>
                           <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
                             {electorate ? null : isElected ? (
-                              <span className="text-green-600 dark:text-green-400">
+                              <span className="text-green-700 dark:text-green-400">
                                 +{Math.round(member.distanceFromCut)}
                               </span>
                             ) : (

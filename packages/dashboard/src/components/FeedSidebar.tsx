@@ -24,23 +24,23 @@ const TYPE_CONFIG: Record<
 > = {
   result_updated: {
     label: 'Updated',
-    dotClass: 'bg-blue-500',
-    ringClass: 'ring-blue-500/20',
+    dotClass: 'bg-blue-700 dark:bg-blue-400',
+    ringClass: 'ring-blue-700/20 dark:ring-blue-400/25',
   },
   prediction_called: {
     label: 'Prediction',
-    dotClass: 'bg-green-500',
-    ringClass: 'ring-green-500/20',
+    dotClass: 'bg-green-700 dark:bg-green-400',
+    ringClass: 'ring-green-700/20 dark:ring-green-400/25',
   },
   leader_change: {
     label: 'Leader Change',
-    dotClass: 'bg-amber-500',
-    ringClass: 'ring-amber-500/20',
+    dotClass: 'bg-amber-600 dark:bg-amber-400',
+    ringClass: 'ring-amber-600/25 dark:ring-amber-400/30',
   },
   count_completed: {
     label: 'Complete',
-    dotClass: 'bg-green-500',
-    ringClass: 'ring-green-500/20',
+    dotClass: 'bg-green-700 dark:bg-green-400',
+    ringClass: 'ring-green-700/20 dark:ring-green-400/25',
   },
 };
 
@@ -49,7 +49,7 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
   const d = event.diff;
 
   return (
-    <div className="flex gap-2 py-1.5">
+      <div className="flex gap-2 py-1.5">
       <div
         className={cn(
           'w-2 h-2 rounded-full ring-[2px] mt-1.5 shrink-0',
@@ -58,14 +58,14 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
         )}
       />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <Link
             to={`/electorates/${encodeURIComponent(event.electorateName)}`}
-            className="text-sm font-extrabold hover:underline truncate"
+            className="font-display text-[15px] font-bold hover:underline truncate"
           >
             {event.electorateName}
           </Link>
-          <span className="text-[10px] font-bold uppercase text-muted-foreground/60 px-1 py-0.5 rounded bg-muted leading-none whitespace-nowrap">
+          <span className="chip-print chip-print--ink leading-none">
             {config.label}
           </span>
         </div>
@@ -74,7 +74,7 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
             {event.commentary}
           </p>
         )}
-        <div className="text-[11px] text-muted-foreground/50 mt-0.5">
+        <div className="font-mono text-[11px] text-muted-foreground/70 mt-0.5">
           {(d.currentPercentageCounted * 100).toFixed(0)}% counted ·{' '}
           {d.currentMargin.toLocaleString()} vote lead ·{' '}
           {relativeTime(event.timestamp)}
@@ -103,11 +103,11 @@ export default function FeedSidebar({
   }, [feedEvents, electorateName]);
 
   return (
-    <aside className="w-64 lg:w-72 h-full bg-background border-l border-border shadow-xl flex flex-col">
-      <div className="sticky top-0 bg-background z-10 px-4 pt-4 pb-2">
+    <aside className="w-64 lg:w-72 h-full bg-background border-l border-border flex flex-col">
+      <div className="sticky top-0 bg-background z-10 px-4 pt-4 pb-2 border-b border-border">
         <Link
           to="/feed"
-          className="text-sm font-extrabold tracking-tight uppercase text-muted-foreground hover:text-foreground transition-colors"
+          className="font-label text-[11px] font-bold tracking-[0.09em] uppercase text-foreground hover:text-brand transition-colors"
         >
           Live Feed
         </Link>

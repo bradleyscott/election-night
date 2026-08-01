@@ -136,7 +136,7 @@ export default function ParliamentSeats({
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 className="text-base sm:text-lg font-extrabold tracking-tight">
+          <h2 className="font-display text-base sm:text-lg font-bold tracking-tight">
             Parliament
           </h2>
         </div>
@@ -180,10 +180,9 @@ export default function ParliamentSeats({
           className="absolute pointer-events-none inset-y-0 z-10"
           style={{ left: '50%', width: 0 }}
         >
-          <div className="absolute inset-y-0 w-1 -translate-x-1/2 bg-yellow-400 rounded-full" />
-          <div className="absolute inset-y-0 w-3 -translate-x-1/2 bg-yellow-400/20" />
+          <div className="absolute inset-y-0 w-px -translate-x-1/2 bg-brand" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap">
-            <div className="bg-yellow-400 text-black text-xs font-extrabold px-2 py-0.5 rounded shadow-lg shadow-yellow-400/30">
+            <div className="bg-brand text-background font-label text-[10px] font-bold uppercase tracking-[0.08em] px-2 py-0.5">
               {majority} seats required to govern
             </div>
           </div>
@@ -194,7 +193,7 @@ export default function ParliamentSeats({
         <div
           ref={setFloatingRef}
           style={{ ...floatingStyles, zIndex: 50 }}
-          className="bg-card border rounded-lg shadow-xl p-3 w-56 animate-fade-in-up text-sm pointer-events-auto"
+          className="bg-popover border border-border p-3 w-60 animate-fade-in-up text-sm pointer-events-auto"
         >
           <SeatDetailContent
             info={selectedSeatInfo}

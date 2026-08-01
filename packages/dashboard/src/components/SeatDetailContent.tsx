@@ -34,23 +34,22 @@ export function SeatDetailContent({
       <div className="space-y-1.5 text-xs">
         <div className="flex items-center gap-1.5">
           {info.type === 'list' && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/20 text-orange-400">
-              List
-            </span>
+            <span className="chip-print chip-print--red">List</span>
           )}
           {info.type === 'electorate' && (
             <span
               className={cn(
-                'px-1.5 py-0.5 rounded text-[10px] font-bold',
+                'chip-print',
                 info.predictionStatus === 'projected' &&
-                  'bg-green-500/20 text-green-400',
+                  'border-green-700/40 bg-green-700/10 text-green-800 dark:bg-green-500/15 dark:text-green-300',
                 info.predictionStatus === 'likely' &&
-                  'bg-lime-500/20 text-lime-400',
+                  'border-green-700/40 bg-green-700/10 text-green-800 dark:bg-green-500/15 dark:text-green-300',
                 info.predictionStatus === 'leaning' &&
-                  'bg-orange-500/20 text-orange-400',
+                  'border-orange-600/40 bg-orange-600/10 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300',
                 info.predictionStatus === 'too-close' &&
-                  'bg-amber-500/20 text-amber-400',
-                !info.predictionStatus && 'bg-amber-500/20 text-amber-400'
+                  'border-amber-600/40 bg-amber-600/10 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+                !info.predictionStatus &&
+                  'border-amber-600/40 bg-amber-600/10 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
               )}
             >
               {(info.predictionStatus === 'projected' ||
@@ -136,7 +135,7 @@ export function SeatDetailContent({
                   className={cn(
                     'font-semibold tabular-nums',
                     info.distanceFromCut >= 0
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-green-700 dark:text-green-400'
                       : 'text-muted-foreground'
                   )}
                 >

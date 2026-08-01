@@ -48,10 +48,9 @@ export default function Electorates() {
   if (!electorates.length) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
-          Electorates
-        </h1>
-        <div className="h-1 w-16 bg-gradient-brand rounded-full mb-2" />
+        <div className="pagehead">
+          <h1>Electorates</h1>
+        </div>
         <WaitingState context="electorates" />
       </div>
     );
@@ -60,11 +59,8 @@ export default function Electorates() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Electorates
-          </h1>
-          <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
+        <div className="pagehead mb-0">
+          <h1>Electorates</h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <ElectorateSearch names={electorateNames} />
@@ -106,7 +102,7 @@ export default function Electorates() {
         <div
           className={cn(
             selectedElectorate ? '' : 'lg:col-span-2',
-            'rounded-xl overflow-hidden border shadow-sm opacity-0 animate-fade-in-up'
+            'border overflow-hidden opacity-0 animate-fade-in-up'
           )}
           style={{ animationDelay: '0.1s' }}
         >

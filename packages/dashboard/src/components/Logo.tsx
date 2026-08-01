@@ -9,8 +9,8 @@ export default function Logo({ className }: { className?: string }) {
     >
       <defs>
         <linearGradient id="ogBody" x1="0" y1="0" x2="120" y2="140" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FF8C00" />
-          <stop offset="100%" stopColor="#E06000" />
+          <stop offset="0%" stopColor="#C8503E" />
+          <stop offset="100%" stopColor="#9E2B1C" />
         </linearGradient>
         <linearGradient id="ogHighlight" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
@@ -19,7 +19,7 @@ export default function Logo({ className }: { className?: string }) {
       </defs>
 
       <g>
-        <circle cx="60" cy="70" r="74" fill="white" className="drop-shadow" />
+        <circle cx="60" cy="70" r="74" fill="white" />
 
         <ellipse cx="60" cy="130" rx="36" ry="6" fill="rgba(0,0,0,0.08)" />
 
@@ -96,8 +96,8 @@ export default function Logo({ className }: { className?: string }) {
         <path d="M 20 72 Q 14 68 8 76" fill="none" stroke="url(#ogBody)" strokeWidth="10" strokeLinecap="round" />
         <path d="M 100 72 Q 106 68 112 76" fill="none" stroke="url(#ogBody)" strokeWidth="10" strokeLinecap="round" />
 
-        <circle cx="8" cy="76" r="5" fill="#E06000" />
-        <circle cx="112" cy="76" r="5" fill="#E06000" />
+        <circle cx="8" cy="76" r="5" fill="#9E2B1C" />
+        <circle cx="112" cy="76" r="5" fill="#9E2B1C" />
 
         <line x1="8" y1="76" x2="-2" y2="14" stroke="#8B4513" strokeWidth="3" strokeLinecap="round" />
         <line x1="112" y1="76" x2="122" y2="14" stroke="#8B4513" strokeWidth="3" strokeLinecap="round" />

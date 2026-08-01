@@ -56,23 +56,23 @@ export function ParliamentTable({
 
   return (
     <DragDropProvider onDragEnd={onDragEnd} sensors={[touchSensor]}>
-      <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm sm:text-base">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 sm:py-3 pr-4 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-left py-2 sm:py-3 pr-4 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Party
               </th>
-              <th className="text-right px-2 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Party votes
               </th>
-              <th className="text-right px-2 font-extrabold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
+              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
                 Electorate seats
               </th>
-              <th className="text-right px-2 font-extrabold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
+              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
                 List seats
               </th>
-              <th className="text-right pl-2 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-right pl-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Total seats
               </th>
             </tr>
@@ -88,7 +88,7 @@ export function ParliamentTable({
                     <td className="py-2 sm:py-3 pr-4 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0 ring-1 ring-black/10"
+                          className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0 ring-1 ring-foreground/15"
                           style={{
                             backgroundColor:
                               partyColors[party.candidate] || '#666',
@@ -135,12 +135,10 @@ export function ParliamentTable({
           </tbody>
           {coalitionInfo.parties.length > 0 && (
             <tfoot>
-              <tr className="border-t-2 border-muted-foreground/20 bg-muted/20">
+              <tr className="border-t-2 border-border bg-muted/40">
                 <td colSpan={5} className="py-3 text-sm">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-muted-foreground font-semibold uppercase tracking-wide text-xs">
-                      Coalition
-                    </span>
+                    <span className="kicker">Coalition</span>
                     <div className="flex items-center gap-1">
                       {coalitionInfo.parties.map((p, i) => (
                         <span
@@ -153,7 +151,7 @@ export function ParliamentTable({
                             </span>
                           )}
                           <span
-                            className="w-2.5 h-2.5 rounded-sm ring-1 ring-black/10 flex-shrink-0"
+                            className="w-2.5 h-2.5 ring-1 ring-foreground/15 flex-shrink-0"
                             style={{
                               backgroundColor:
                                 partyColors[p.candidate] || '#666',
@@ -180,12 +178,12 @@ export function ParliamentTable({
       <div className="flex justify-center">
         <button
           onClick={onToggleShowAll}
-          className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-bold tracking-wide uppercase transition-colors bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+          className="chip-print chip-print--ink hover:bg-muted/40 transition-colors"
           type="button"
         >
           <span
             className={cn(
-              'inline-block transition-transform duration-200 text-[10px]',
+              'inline-block transition-transform duration-200 text-[9px]',
               showAllParties && 'rotate-180'
             )}
           >

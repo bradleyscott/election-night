@@ -83,16 +83,16 @@ export function ParliamentSeatGrid({
                 }
               }}
               className={cn(
-                'aspect-square rounded-[2px] transition-all duration-100',
-                isDragging && 'opacity-50 ring-2 ring-white/60',
-                isDropTarget && 'ring-2 ring-yellow-400',
-                isHovered && 'ring-2 ring-white/50 z-10',
-                isSelected && 'ring-2 ring-white z-20',
+                'aspect-square transition-opacity duration-100',
+                isDragging && 'opacity-50 ring-2 ring-foreground/60',
+                isDropTarget && 'ring-2 ring-brand',
+                isHovered && 'ring-2 ring-foreground/50 z-10',
+                isSelected && 'ring-2 ring-foreground z-20',
                 !isDragging &&
                   !isDropTarget &&
                   !isHovered &&
                   !isSelected &&
-                  'ring-1 ring-white/10',
+                  'ring-1 ring-foreground/15',
                 s.type === 'electorate' ? 'cursor-pointer' : 'cursor-move'
               )}
               style={{

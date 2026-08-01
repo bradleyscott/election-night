@@ -14,6 +14,31 @@ const navItems = [
   { to: '/parties', label: 'Party lists' },
 ];
 
+function Dateline() {
+  return (
+    <div className="hidden sm:flex items-center justify-between gap-4 text-[11px] uppercase tracking-[0.09em] text-muted-foreground border-b border-border py-1.5 font-label">
+      <span className="flex items-center gap-3">
+        <span>NZ General Election</span>
+        <span className="hidden md:inline text-border">·</span>
+        <LiveIndicator />
+      </span>
+      <span className="tabular-nums tracking-normal">
+        {new Date().toLocaleDateString('en-NZ', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        })}{' '}
+        ·{' '}
+        {new Date().toLocaleTimeString('en-NZ', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        })}
+      </span>
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,80 +55,80 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-gradient-brand shadow-lg shadow-orange-500/10 overflow-visible">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b-2 border-foreground">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <Logo className="w-16 h-16 sm:w-18 sm:h-18 drop-shadow" />
-              <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-white drop-shadow-sm">
+          <Dateline />
+
+          <div className="flex items-center justify-between gap-4 h-14 sm:h-16">
+            <Link to="/" className="flex items-center gap-2.5 group min-w-0">
+              <Logo className="w-9 h-9 sm:w-10 sm:h-10 shrink-0" />
+              <span className="font-display text-xl sm:text-2xl font-bold tracking-tight truncate">
                 election-night.live
               </span>
             </Link>
 
-            <div className="flex items-center gap-2">
-              <nav className="hidden sm:flex items-center gap-1">
+            <div className="flex items-center gap-1 sm:gap-3">
+              <nav className="hidden md:flex items-center gap-0.5">
                 {navItems.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}
                     className={cn(
-                      'relative px-3 py-2 text-sm font-semibold rounded-lg transition-all',
+                      'px-3 py-2 text-[11px] font-label font-semibold uppercase tracking-[0.07em] transition-colors',
                       isActive(item.to)
-                        ? 'text-white bg-white/20 shadow-sm'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                        ? 'text-brand'
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     {item.label}
-                    {isActive(item.to) && (
-                      <span className="absolute inset-x-2 -bottom-px h-0.5 bg-white/60 rounded-full" />
-                    )}
                   </Link>
                 ))}
               </nav>
               <LiveIndicator />
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="sm:hidden relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors -mr-1"
+                className="md:hidden relative w-9 h-9 flex items-center justify-center hover:bg-muted transition-colors"
                 aria-label="Toggle navigation menu"
+                aria-expanded={menuOpen}
               >
-              <div className="w-5 flex flex-col gap-1.5">
-                <span
-                  className={cn(
-                    'block h-0.5 bg-white rounded-full transition-all duration-300',
-                    menuOpen ? 'rotate-45 translate-y-1' : ''
-                  )}
-                />
-                <span
-                  className={cn(
-                    'block h-0.5 bg-white rounded-full transition-all duration-300',
-                    menuOpen ? 'opacity-0' : ''
-                  )}
-                />
-                <span
-                  className={cn(
-                    'block h-0.5 bg-white rounded-full transition-all duration-300',
-                    menuOpen ? '-rotate-45 -translate-y-1' : ''
-                  )}
-                />
-              </div>
-            </button>
+                <div className="w-5 flex flex-col gap-1.5">
+                  <span
+                    className={cn(
+                      'block h-0.5 bg-foreground transition-[transform,opacity] duration-300',
+                      menuOpen ? 'rotate-45 translate-y-1' : ''
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'block h-0.5 bg-foreground transition-[transform,opacity] duration-300',
+                      menuOpen ? 'opacity-0' : ''
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'block h-0.5 bg-foreground transition-[transform,opacity] duration-300',
+                      menuOpen ? '-rotate-45 -translate-y-1' : ''
+                    )}
+                  />
+                </div>
+              </button>
             </div>
           </div>
         </div>
 
         {menuOpen && (
-          <div className="sm:hidden bg-gradient-brand shadow-lg border-t border-white/10 animate-fade-in">
-            <nav className="max-w-screen-2xl mx-auto px-4 py-2 space-y-1">
+          <div className="md:hidden border-t border-border bg-background animate-fade-in">
+            <nav className="max-w-screen-2xl mx-auto px-4 py-2">
               {navItems.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   onClick={() => setMenuOpen(false)}
                   className={cn(
-                    'block px-3 py-2.5 text-sm font-semibold rounded-lg transition-all',
+                    'block px-3 py-2.5 text-sm font-label font-semibold uppercase tracking-[0.07em] transition-colors border-b border-border last:border-0',
                     isActive(item.to)
-                      ? 'text-white bg-white/20'
-                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                      ? 'text-brand'
+                      : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
                   {item.label}
@@ -118,7 +143,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
       {showSidebar && (
-        <div className="hidden lg:block fixed right-0 top-16 h-[calc(100vh-4rem)] z-40">
+        <div className="hidden lg:block fixed right-0 top-24 h-[calc(100vh-6rem)] z-40">
           <FeedSidebar electorateName={sidebarElectorateName} />
         </div>
       )}
