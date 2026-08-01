@@ -17,11 +17,7 @@ const navItems = [
 function Dateline() {
   return (
     <div className="hidden sm:flex items-center justify-between gap-4 text-[11px] uppercase tracking-[0.09em] text-muted-foreground border-b border-border py-1.5 font-label">
-      <span className="flex items-center gap-3">
-        <span>NZ General Election</span>
-        <span className="hidden md:inline text-border">·</span>
-        <LiveIndicator />
-      </span>
+      <span>NZ General Election</span>
       <span className="tabular-nums tracking-normal">
         {new Date().toLocaleDateString('en-NZ', {
           weekday: 'short',
