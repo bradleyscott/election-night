@@ -29,15 +29,15 @@ export function SortableRow({
       onMouseLeave={() => onHoveredPartyChange(null)}
       className={cn(
         'border-b last:border-0 transition-colors',
-        isHovered && !isDragging ? 'bg-white/5' : 'hover:bg-muted/30',
+        isHovered && !isDragging ? 'bg-muted/40' : 'hover:bg-muted/30',
         isDragging && 'opacity-50',
-        isDropTarget && !isDragging && 'border-t-2 border-yellow-400'
+        isDropTarget && !isDragging && 'border-t-2 border-brand'
       )}
     >
       <td className="py-2 sm:py-3 pr-4 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <div
-            className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0 ring-1 ring-black/10"
+            className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0 ring-1 ring-foreground/15"
             style={{
               backgroundColor: partyColors[party.candidate] || '#666',
             }}

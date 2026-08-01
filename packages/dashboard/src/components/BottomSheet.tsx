@@ -33,12 +33,12 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
         onClick={onClose}
       />
       <div
-        className="absolute bottom-0 left-0 right-0 bg-card border rounded-t-xl shadow-xl max-h-[70dvh] overflow-y-auto animate-slide-up overscroll-y-contain"
+        className="absolute bottom-0 left-0 right-0 bg-background border-t border-border max-h-[70dvh] overflow-y-auto animate-slide-up overscroll-y-contain"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-2 pb-1 sticky top-0 bg-card rounded-t-xl">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        <div className="flex justify-center pt-2.5 pb-1 sticky top-0 bg-background">
+          <div className="w-10 border-t-2 border-foreground/40" />
         </div>
         <div className="p-4 pt-2">
           {children}

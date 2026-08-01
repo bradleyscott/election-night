@@ -33,15 +33,15 @@ export function ElectorateDetail({
       style={{ animationDelay: '0.2s' }}
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+        <h2 className="font-display font-bold text-2xl sm:text-3xl tracking-tight">
           {result.electorateName}
         </h2>
-        <div className="flex rounded-lg border overflow-hidden text-sm font-bold flex-shrink-0">
+        <div className="flex border overflow-hidden font-label text-sm font-semibold flex-shrink-0">
           <button
             className={cn(
-              'px-3 py-1.5 transition-colors',
+              'px-3 py-1.5 transition-colors border-r border-border last:border-r-0',
               !showPartyVote
-                ? 'bg-primary text-primary-foreground shadow-sm'
+                ? 'bg-foreground text-background'
                 : 'bg-background text-muted-foreground hover:text-foreground'
             )}
             onClick={() => onTogglePartyVote(false)}
@@ -50,9 +50,9 @@ export function ElectorateDetail({
           </button>
           <button
             className={cn(
-              'px-3 py-1.5 transition-colors',
+              'px-3 py-1.5 transition-colors border-r border-border last:border-r-0',
               showPartyVote
-                ? 'bg-primary text-primary-foreground shadow-sm'
+                ? 'bg-foreground text-background'
               : 'bg-background text-muted-foreground hover:text-foreground'
             )}
             onClick={() => onTogglePartyVote(true)}

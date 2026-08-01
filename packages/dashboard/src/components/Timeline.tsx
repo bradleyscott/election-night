@@ -2,10 +2,11 @@ import { type ReactNode } from 'react';
 import { cn } from '../lib/utils.js';
 
 const dotVariants = {
-  blue: 'bg-blue-500',
-  green: 'bg-green-500',
-  amber: 'bg-amber-500',
-  yellow: 'bg-yellow-500 ring-yellow-500/20 shadow-[0_0_6px_2px_rgba(234,179,8,0.3)]',
+  blue: 'bg-blue-700 dark:bg-blue-400',
+  green: 'bg-green-700 dark:bg-green-400',
+  amber: 'bg-amber-600 dark:bg-amber-400',
+  yellow:
+    'bg-amber-500 ring-amber-500/40',
 } as const;
 
 export type TimelineDotColor = keyof typeof dotVariants;

@@ -94,10 +94,9 @@ export default function CloseCalls() {
   if (isEmpty) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
-          Close Calls
-        </h1>
-        <div className="h-1 w-16 bg-gradient-brand rounded-full mb-2" />
+        <div className="pagehead">
+          <h1>Close Calls</h1>
+        </div>
         <WaitingState context="closecalls" />
       </div>
     );
@@ -106,11 +105,8 @@ export default function CloseCalls() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Close Calls
-          </h1>
-          <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
+        <div className="pagehead mb-0">
+          <h1>Close Calls</h1>
         </div>
         <div className="flex items-center gap-3">
           {view === 'list' && majorParties.length > 0 && (
@@ -118,10 +114,10 @@ export default function CloseCalls() {
               <span className="text-muted-foreground">Next in</span>
               <span
                 className={cn(
-                  'w-7 h-7 flex items-center justify-center rounded-lg',
+                  'w-7 h-7 flex items-center justify-center border font-mono',
                   autoRotate
-                    ? 'bg-muted text-foreground'
-                    : 'bg-muted text-muted-foreground/50'
+                    ? 'bg-muted text-foreground border-border'
+                    : 'bg-muted text-muted-foreground/50 border-muted/60'
                 )}
               >
                 {autoRotate ? countdown : '—'}
@@ -142,7 +138,7 @@ export default function CloseCalls() {
       {view === 'electorates' ? (
         <div
           className={cn(
-            'rounded-xl border bg-card p-4 sm:p-6 opacity-0 animate-fade-in-up shadow-sm'
+            'border opacity-0 animate-fade-in-up'
           )}
         >
           <ElectorateRacesView electorates={electorates} />

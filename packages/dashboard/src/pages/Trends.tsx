@@ -52,24 +52,13 @@ function PartyLegend({
   return (
     <div className="flex flex-wrap gap-3 justify-center mt-2">
       {payload.map((entry) => {
-        const dark = isDarkColor(entry.color);
         return (
           <div key={entry.value} className="flex items-center gap-1.5">
             <div
-              className={cn(
-                'w-2.5 h-2.5 rounded-full shrink-0 ring-1',
-                dark ? 'ring-white/50' : 'ring-black/10'
-              )}
+              className="w-2.5 h-2.5 shrink-0 ring-1 ring-foreground/20"
               style={{ backgroundColor: entry.color }}
             />
-            <span
-              className={cn(
-                'text-xs font-bold',
-                dark
-                  ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]'
-                  : 'text-foreground'
-              )}
-            >
+            <span className="font-label text-xs font-semibold text-foreground">
               {entry.value}
             </span>
           </div>
@@ -116,8 +105,8 @@ function PartyTooltip({
   const labelText = typeof label === 'number' ? formatTimeLabel(label) : label;
 
   return (
-    <div className="rounded-xl border bg-card shadow-lg p-3 text-sm max-w-xs">
-      <p className="font-bold text-muted-foreground text-xs mb-1.5 uppercase tracking-wide">
+    <div className="border bg-popover p-3 text-sm max-w-xs">
+      <p className="font-label font-bold text-muted-foreground text-xs mb-1.5 uppercase tracking-wide">
         {labelText}
       </p>
       {sorted.map((entry) => (
@@ -127,7 +116,7 @@ function PartyTooltip({
         >
           <div className="flex items-center gap-1.5 min-w-0">
             <div
-              className="w-2 h-2 rounded-full shrink-0 ring-1 ring-black/10"
+              className="w-2 h-2 shrink-0 ring-1 ring-foreground/20"
               style={{ backgroundColor: entry.color }}
             />
             <span className="font-semibold truncate">{entry.name}</span>
@@ -236,10 +225,9 @@ export default function Trends() {
   if (!hasData) {
     return (
       <div className="animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-1">
-          Trends
-        </h1>
-        <div className="h-1 w-12 bg-gradient-brand rounded-full mb-2" />
+        <div className="pagehead">
+          <h1>Trends</h1>
+        </div>
         <WaitingState context="trends" title="Waiting for more results" />
       </div>
     );
@@ -254,11 +242,8 @@ export default function Trends() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-          Trends
-        </h1>
-        <div className="h-1 w-16 bg-gradient-brand rounded-full mt-1.5" />
+      <div className="pagehead">
+        <h1>Trends</h1>
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -268,14 +253,14 @@ export default function Trends() {
             : `Party ${mode === 'seats' ? 'seat totals' : mode === 'percent' ? 'vote share' : 'vote totals'} over time.`}
         </p>
 
-        <div className="flex flex-wrap rounded-full border border-border p-0.5 bg-muted/50">
+        <div className="flex flex-wrap border border-border">
           <button
             onClick={() => setMode('votes')}
             className={cn(
-              'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors',
+              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               mode === 'votes'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             # Votes
@@ -283,10 +268,10 @@ export default function Trends() {
           <button
             onClick={() => setMode('percent')}
             className={cn(
-              'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors',
+              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               mode === 'percent'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             % of Vote
@@ -294,10 +279,10 @@ export default function Trends() {
           <button
             onClick={() => setMode('seats')}
             className={cn(
-              'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors',
+              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               mode === 'seats'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             # Seats
@@ -305,10 +290,10 @@ export default function Trends() {
           <button
             onClick={() => setMode('counted')}
             className={cn(
-              'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors',
+              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               mode === 'counted'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             Counted
@@ -323,24 +308,23 @@ export default function Trends() {
               key={party}
               onClick={() => toggleParty(party)}
               className={cn(
-                'rounded-full px-3 py-1 text-sm font-bold tracking-wide transition-colors border',
+                'chip-print transition-colors',
                 selectedParties.has(party)
-                  ? 'text-white border-transparent shadow-sm ring-1 ring-white/40'
-                  : 'bg-background text-muted-foreground hover:text-foreground border-border'
+                  ? 'border-foreground/40 bg-foreground/5'
+                  : 'hover:bg-muted/40'
               )}
-              style={
-                selectedParties.has(party)
-                  ? { backgroundColor: partyColors[party] || '#666' }
-                  : undefined
-              }
             >
+              <span
+                className="inline-block w-2 h-2 ring-1 ring-foreground/25 shrink-0"
+                style={{ backgroundColor: partyColors[party] || '#666' }}
+              />
               {party}
             </button>
           ))}
         </div>
       )}
 
-      <div className="rounded-xl border bg-card p-3 sm:p-4 shadow-sm">
+      <div className="border p-3 sm:p-4">
         <ResponsiveContainer width="100%" height={400}>
           <LineChart
             data={chartData}

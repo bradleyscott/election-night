@@ -15,6 +15,7 @@ Compact instructions for working in this repo. When in doubt, trust executable c
 - The **Hallmark** design skill ships in this repo at `.pi/skills/hallmark/` (ported from https://github.com/Nutlope/hallmark, MIT). Pi loads it as a project skill; any session in this repo can invoke it.
 - Verbs: `hallmark audit <target>` (score UI against anti-patterns, no edits) · `hallmark redesign <target>` (visual overhaul inside existing routes/components) · `hallmark study <url|screenshot>` (extract design DNA) · or just ask for a new page/component and the default design flow runs.
 - The skill picks a macrostructure + theme and gates output through a 58-point slop test. Use it before touching dashboard UI, and before building any new page.
+- The dashboard's locked design system lives in `design.md` (genre: editorial / Newsprint printed-edition: Playfair Display + Crimson Pro + Inter + IBM Plex Mono, hairline panels, masthead red accent, OS colour mode). The token source of truth is `packages/dashboard/src/styles/index.css` (shadcn-compatible HSL vars + `pagehead` / `chip-print` / `stat-grid` utilities). Hallmark runs read `design.md` first and defer to it; amendments go there, not in per-page hacks.
 
 ## Quick commands
 

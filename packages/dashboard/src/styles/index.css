@@ -2,50 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ────────────────────────────────────────────────────────────
+   Hallmark · genre: editorial · macrostructure: Workbench (app shell) ·
+   theme: Newsprint (printed edition) · nav: N6 Newspaper masthead ·
+   footer: Ft1 Mast-headed · designed-as-app · design.md ·
+   pre-emit critique: P5 H4 E5 S5 R4 V5
+   ------------------------------------------------------------ */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 24 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 24 20% 92%;
-    --secondary-foreground: 24 10% 20%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 24 100% 96%;
-    --accent-foreground: 24 100% 40%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 24 10% 88%;
-    --input: 24 10% 88%;
-    --ring: 24 100% 50%;
-    --radius: 0.5rem;
+    /* newsprint stock — near-white, faint warm cast */
+    --background: 60 9% 94%;
+    --foreground: 40 6% 13%;
+    --card: 60 9% 94%;
+    --card-foreground: 40 6% 13%;
+    --popover: 60 12% 97%;
+    --popover-foreground: 40 6% 13%;
+    --primary: 14 55% 38%;
+    --primary-foreground: 60 10% 97%;
+    --secondary: 60 8% 90%;
+    --secondary-foreground: 40 6% 20%;
+    --muted: 60 8% 90%;
+    --muted-foreground: 45 6% 37%;
+    --accent: 60 8% 90%;
+    --accent-foreground: 40 6% 20%;
+    --destructive: 0 72% 42%;
+    --destructive-foreground: 60 10% 97%;
+    --border: 50 5% 80%;
+    --input: 50 5% 80%;
+    --ring: 14 55% 38%;
+    --radius: 0px;
   }
 
   .dark {
-    --background: 24 10% 4%;
-    --foreground: 24 5% 95%;
-    --card: 24 10% 6%;
-    --card-foreground: 24 5% 95%;
-    --popover: 24 10% 6%;
-    --popover-foreground: 24 5% 95%;
-    --primary: 28 100% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 24 10% 14%;
-    --secondary-foreground: 24 5% 90%;
-    --muted: 24 10% 14%;
-    --muted-foreground: 24 5% 60%;
-    --accent: 24 30% 14%;
-    --accent-foreground: 28 100% 52%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 24 10% 16%;
-    --input: 24 10% 16%;
-    --ring: 28 100% 52%;
+    /* night edition — warm ink paper */
+    --background: 40 8% 9%;
+    --foreground: 55 8% 90%;
+    --card: 40 8% 11%;
+    --card-foreground: 55 8% 90%;
+    --popover: 40 8% 14%;
+    --popover-foreground: 55 8% 90%;
+    --primary: 14 72% 58%;
+    --primary-foreground: 40 8% 9%;
+    --secondary: 40 8% 17%;
+    --secondary-foreground: 55 8% 84%;
+    --muted: 40 8% 17%;
+    --muted-foreground: 50 5% 60%;
+    --accent: 40 8% 17%;
+    --accent-foreground: 55 8% 84%;
+    --destructive: 0 68% 55%;
+    --destructive-foreground: 40 8% 9%;
+    --border: 40 8% 24%;
+    --input: 40 8% 24%;
+    --ring: 14 72% 58%;
   }
 }
 
@@ -54,68 +63,155 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: clip;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+    overflow-x: clip;
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 1rem;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+  /* faint paper grain — the medium is stock, not screen */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  html {
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    overflow-wrap: break-word;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.22);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001s !important;
+    }
   }
 }
 
 @layer utilities {
+  /* print chrome */
+  .font-display { font-family: 'Playfair Display', Georgia, serif; }
+  .font-label { font-family: 'Inter', system-ui, sans-serif; }
+  .font-mono, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+  .kicker {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* page header: double rule, broadsheet style */
+  .pagehead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 1.25rem 0 0.5rem;
+    margin-bottom: 0;
+    border-bottom: 2px solid hsl(var(--foreground));
+  }
+  .pagehead h1 {
+    font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+    letter-spacing: -0.015em;
+  }
+
+  /* red masthead accents — the one print accent */
+  .text-brand { color: hsl(var(--primary)); }
+  .bg-brand { background-color: hsl(var(--primary)); }
+
+  /* retired gradient chrome — now solid print red/paper so no call-site breaks */
   .bg-gradient-brand {
-    background: linear-gradient(135deg, hsl(24 100% 50%), hsl(28 100% 40%));
+    background: hsl(var(--primary));
   }
-
   .bg-gradient-brand-subtle {
-    background: linear-gradient(135deg, hsl(24 100% 96%), hsl(28 100% 92%));
+    background: hsl(var(--muted));
   }
-
-  .dark .bg-gradient-brand-subtle {
-    background: linear-gradient(135deg, hsl(24 30% 10%), hsl(28 30% 8%));
-  }
-
   .text-gradient-brand {
-    background: linear-gradient(135deg, hsl(24 100% 50%), hsl(28 100% 40%));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: hsl(var(--primary));
+    -webkit-text-fill-color: currentColor;
   }
 
-  .animate-fade-in {
-    animation: fadeIn 0.6s ease-out forwards;
+  /* hairline panel (replaces card + shadow) */
+  .panel-print {
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
   }
 
-  .animate-fade-in-up {
-    animation: fadeInUp 0.6s ease-out forwards;
+  /* stat strip — hairline grid with column + row rules */
+  .stat-grid {
+    border: 1px solid hsl(var(--border));
+  }
+  .stat-grid > * {
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .stat-grid > *:not(:last-child) {
+    border-right: 1px solid hsl(var(--border));
+  }
+  @media (min-width: 1024px) {
+    .stat-grid > *:nth-last-child(-n+4) { border-bottom: 0; }
+  }
+  @media (max-width: 1023px) {
+    .stat-grid > *:nth-last-child(-n+2) { border-bottom: 0; }
   }
 
+  /* chips: square, hairline */
+  .chip-print {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.125rem 0.45rem;
+    border: 1px solid hsl(var(--border));
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .chip-print--ink { border-color: hsl(var(--foreground) / 0.45); }
+  .chip-print--red { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+
+  .rule-red { border-top: 2px solid hsl(var(--primary)); }
+
+  /* quiet motion */
+  .animate-fade-in,
+  .animate-fade-in-up,
   .animate-slide-in-right {
-    animation: slideInRight 0.4s ease-out forwards;
-  }
-
-  .animate-pulse-soft {
-    animation: pulseSoft 2s ease-in-out infinite;
-  }
-
-  .animate-pulse-glow {
-    animation: pulseGlow 2s ease-in-out infinite;
-  }
-
-  .animate-shimmer {
-    background-size: 200% 100%;
-    animation: shimmer 3s ease-in-out infinite;
+    will-change: opacity, transform;
   }
 
   .stagger-1 { animation-delay: 0.05s; }
@@ -130,98 +226,90 @@
   .stagger-10 { animation-delay: 0.5s; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* ── flat print: cards are hairlines, shadows are off ───────── */
+.shadow-sm,
+.shadow,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl,
+.hover\:shadow-sm:hover,
+.hover\:shadow-md:hover,
+.hover\:shadow-lg:hover {
+  box-shadow: none !important;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Leaflet: paper map, serif popups ──────────────────────── */
+.leaflet-container {
+  background: hsl(var(--background));
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
 }
 
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* warm the OSM tiles toward newsprint stock */
+.leaflet-tile {
+  filter: saturate(0.78) sepia(0.14) brightness(1.02) contrast(0.97);
 }
-
-@keyframes pulseSoft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.animate-pulse-live {
-  animation: pulseLive 1.5s ease-in-out infinite;
-}
-
-@keyframes pulseLive {
-  0%, 100% {
-    opacity: 1;
-    box-shadow: 0 0 8px 2px rgba(34, 197, 94, 0.3);
-  }
-  50% {
-    opacity: 0.85;
-    box-shadow: 0 0 24px 8px rgba(34, 197, 94, 0.6);
-  }
-}
-
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 107, 0, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(255, 107, 0, 0.6); }
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@keyframes waitDot {
-  0%, 100% {
-    opacity: 0.2;
-    transform: translateY(0px);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-4px);
-  }
+.dark .leaflet-tile {
+  filter: grayscale(0.25) sepia(0.2) brightness(0.72) contrast(1.05);
 }
 
 .leaflet-tooltip.electorate-label {
   background: none;
   border: none;
   box-shadow: none;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px;
   font-weight: 700;
-  color: #1a1a1a;
+  letter-spacing: 0.02em;
+  color: hsl(var(--foreground));
   text-shadow:
-    0 0 3px #fff, 0 0 3px #fff,
-    0 0 3px #fff, 0 0 3px #fff;
+    0 0 3px hsl(var(--background)), 0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)), 0 0 3px hsl(var(--background));
   padding: 0;
   margin: 0;
   white-space: nowrap;
   pointer-events: none;
 }
 
-.dark .leaflet-tooltip.electorate-label {
-  color: #e5e5e5;
-  text-shadow:
-    0 0 3px #000, 0 0 3px #000,
-    0 0 3px #000, 0 0 3px #000;
-}
-
 .leaflet-popup-content-wrapper {
-  border-radius: 0.5rem;
-  font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+  border-radius: 0;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: none;
+  font-family: 'Crimson Pro', Georgia, serif;
+}
+.leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  line-height: 1.5;
+}
+.leaflet-popup-tip {
+  background: hsl(var(--popover));
+  box-shadow: none;
+}
+.leaflet-popup-close-button {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.leaflet-bar {
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.leaflet-bar a {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+.leaflet-bar a:hover {
+  background: hsl(var(--muted)) !important;
+}
+.leaflet-control-attribution {
+  background: hsl(var(--popover) / 0.85) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a {
+  color: hsl(var(--muted-foreground)) !important;
 }

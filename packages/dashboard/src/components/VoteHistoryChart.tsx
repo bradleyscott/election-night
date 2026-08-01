@@ -80,12 +80,11 @@ function VoteChartTooltip({
   const labelStr = formatFullDate(Number(label));
 
   return (
-    <div className="rounded-xl border bg-card shadow-lg p-3 text-sm max-w-xs">
-      <p className="font-bold text-muted-foreground text-xs mb-1.5 uppercase tracking-wide">
+    <div className="border bg-popover p-3 text-sm max-w-xs">
+      <p className="font-label font-bold text-muted-foreground text-xs mb-1.5 uppercase tracking-wide">
         {labelStr}
       </p>
       {payload.map((entry) => {
-        const dark = isDarkColor(entry.color);
         return (
           <div
             key={entry.dataKey}
@@ -93,10 +92,7 @@ function VoteChartTooltip({
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <div
-                className={cn(
-                  'w-2 h-2 rounded-full shrink-0 ring-1',
-                  dark ? 'ring-white/50' : 'ring-black/10'
-                )}
+                className="w-2 h-2 shrink-0 ring-1 ring-foreground/20"
                 style={{ backgroundColor: entry.color }}
               />
               <span className="font-semibold truncate">{entry.name}</span>
@@ -138,23 +134,14 @@ function VoteChartLegend({
       <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center">
         {visible.map((entry) => {
           const color = entry.color ?? getEntityColor(entry.party);
-          const dark = isDarkColor(color);
           return (
             <div key={entry.name} className="flex items-center gap-1.5">
               <div
-                className={cn(
-                  'w-2.5 h-2.5 rounded-full shrink-0 ring-1',
-                  dark ? 'ring-white/50' : 'ring-black/10'
-                )}
+                className="w-2.5 h-2.5 shrink-0 ring-1 ring-foreground/20"
                 style={{ backgroundColor: color }}
               />
               <span
-                className={cn(
-                  'text-xs font-bold',
-                  dark
-                    ? 'text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]'
-                    : 'text-foreground'
-                )}
+                className="font-label text-xs font-semibold text-foreground"
                 title={entry.name}
               >
                 {entry.name}
@@ -167,7 +154,7 @@ function VoteChartLegend({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-2 mx-auto block text-xs font-bold text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-full border border-border bg-muted/50 transition-colors"
+          className="mt-2 mx-auto block font-label text-xs font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1 border border-border bg-background transition-colors"
         >
           {expanded ? 'Show less ▲' : `+ ${hiddenCount} more ▼`}
         </button>
@@ -278,22 +265,20 @@ export default function VoteHistoryChart({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card p-3 sm:p-4 shadow-sm',
+        'border p-3 sm:p-4',
         className
       )}
     >
       <div className="flex items-center justify-between mb-3">
-        <div className="text-xs sm:text-sm text-muted-foreground font-bold uppercase tracking-wide">
-          {chartTitle}
-        </div>
-        <div className="flex flex-wrap rounded-full border border-border p-0.5 bg-muted/50">
+        <div className="kicker">{chartTitle}</div>
+        <div className="flex flex-wrap border border-border">
           <button
             onClick={() => setChartMode('votes')}
             className={cn(
-              'rounded-full px-3 py-1 text-xs sm:text-sm font-bold tracking-wide transition-colors',
+              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               chartMode === 'votes'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             # Votes
@@ -301,10 +286,10 @@ export default function VoteHistoryChart({
           <button
             onClick={() => setChartMode('percentage')}
             className={cn(
-              'rounded-full px-3 py-1 text-xs sm:text-sm font-bold tracking-wide transition-colors',
+              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               chartMode === 'percentage'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             % of Vote
@@ -312,10 +297,10 @@ export default function VoteHistoryChart({
           <button
             onClick={() => setChartMode('counted')}
             className={cn(
-              'rounded-full px-3 py-1 text-xs sm:text-sm font-bold tracking-wide transition-colors',
+              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
               chartMode === 'counted'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             Counted

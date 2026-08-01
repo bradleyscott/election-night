@@ -23,29 +23,29 @@ export function ElectorateResultsTable({
   ).sort((a, b) => b.votes - a.votes);
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+    <div className="border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
               {showPartyVote ? (
-                <th className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+                <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                   Party
                 </th>
               ) : (
-                <th className="text-left py-2 sm:py-3 px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+                <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                   Candidate
                 </th>
               )}
               {!showPartyVote && (
-                <th className="text-left px-2 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+                <th className="text-left px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                   Party
                 </th>
               )}
-              <th className="text-right px-2 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Votes
               </th>
-              <th className="text-right px-3 font-extrabold text-muted-foreground uppercase tracking-wide text-xs">
+              <th className="text-right px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 %
               </th>
             </tr>
@@ -65,7 +65,7 @@ export function ElectorateResultsTable({
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
                       <div
-                        className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10"
+                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
                           backgroundColor: partyColors[c.candidate] || '#666',
                         }}
@@ -79,7 +79,7 @@ export function ElectorateResultsTable({
                     <td className="px-2">
                       <div className="flex items-center gap-1.5">
                         <div
-                          className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10"
+                          className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                           style={{
                             backgroundColor:
                               partyColors[
