@@ -70,7 +70,7 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
           </span>
         </div>
         {event.commentary && (
-          <p className="text-xs text-foreground/70 mt-0.5 leading-snug">
+          <p className="text-sm text-foreground/70 mt-0.5 leading-snug">
             {event.commentary}
           </p>
         )}
