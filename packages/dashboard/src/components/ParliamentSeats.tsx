@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
 import {
   useFloating,
   autoUpdate,
@@ -36,6 +36,8 @@ export default function ParliamentSeats({
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const [showAllParties, setShowAllParties] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const markerAreaRef = useRef<HTMLDivElement>(null);
+  const markerRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useMediaQuery('(max-width: 767px)');
 
@@ -74,6 +76,59 @@ export default function ParliamentSeats({
     () => buildSeats(order, partyVote, electorateResults, partyLists, totalSeats),
     [order, partyVote, electorateResults, partyLists, totalSeats]
   );
+
+  // The seat grid has a min-width and scrolls horizontally on small screens, so a
+  // plain 50% of the wrapper drifts from the grid's midpoint on mobile. Anchor the
+  // majority marker to the grid's measured geometry instead.
+  useLayoutEffect(() => {
+    const area = markerAreaRef.current;
+    const marker = markerRef.current;
+    if (!area || !marker) return;
+
+    const gridEl = area.querySelector('[data-seat-grid]');
+    if (!gridEl) return;
+
+    const update = () => {
+      const areaRect = area.getBoundingClientRect();
+      const gridRect = gridEl.getBoundingClientRect();
+      if (areaRect.width === 0 || gridRect.width === 0) return;
+
+      // The line sits at the midpoint of the seat grid, measured in the marker
+      // area's coordinate space. Measuring the grid (not the wrapper) keeps it
+      // aligned while the grid scrolls horizontally on narrow screens.
+      const x = gridRect.left - areaRect.left + gridRect.width / 2;
+      marker.style.left = `${x}px`;
+
+      // Keep the label chip centered on the line, but never let it spill past
+      // the edges of the marker area on narrow screens.
+      const label = marker.querySelector('[data-majority-label]');
+      if (label instanceof HTMLElement) {
+        const halfLabel = label.offsetWidth / 2;
+        const clamped = Math.min(
+          areaRect.width - halfLabel,
+          Math.max(halfLabel, x)
+        );
+        label.style.transform = `translate(-50%, -100%) translateX(${clamped - x}px)`;
+      }
+    };
+
+    update();
+
+    const ro = new ResizeObserver(update);
+    ro.observe(area);
+    ro.observe(gridEl);
+
+    // gridEl.parentElement is the overflow-x-auto wrapper that scrolls.
+    const scroller = gridEl.parentElement;
+    scroller?.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+
+    return () => {
+      ro.disconnect();
+      scroller?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [seats]);
 
   const totalPartyVotes = useMemo(
     () => partyVote.reduce((s, p) => s + p.votes, 0),
@@ -151,7 +206,7 @@ export default function ParliamentSeats({
         </div>
       </div>
 
-      <div className="relative mt-8 mb-2">
+      <div className="relative mt-8 mb-2" ref={markerAreaRef}>
         <ParliamentSeatGrid
           seats={seats}
           draggingParty={draggingParty}
@@ -177,11 +232,15 @@ export default function ParliamentSeats({
         />
 
         <div
+          ref={markerRef}
           className="absolute pointer-events-none inset-y-0 z-10"
           style={{ left: '50%', width: 0 }}
         >
           <div className="absolute inset-y-0 w-px -translate-x-1/2 bg-brand" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap">
+          <div
+            data-majority-label
+            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap"
+          >
             <div className="bg-brand text-background font-label text-[10px] font-bold uppercase tracking-[0.08em] px-2 py-0.5">
               {majority} seats required to govern
             </div>

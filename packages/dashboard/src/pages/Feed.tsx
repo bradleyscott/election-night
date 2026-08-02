@@ -76,6 +76,10 @@ function linkifyElectorate(text: string, electorateName: string) {
 function EventContent({ event }: { event: FeedEvent }) {
   const typeConfig = TYPE_CONFIG[event.type] ?? TYPE_CONFIG.result_updated;
   const d = event.diff;
+  const percentageDelta =
+    d.previousPercentageCounted !== null
+      ? (d.currentPercentageCounted - d.previousPercentageCounted) * 100
+      : null;
 
   return (
     <>
@@ -101,9 +105,10 @@ function EventContent({ event }: { event: FeedEvent }) {
       <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1 text-sm text-muted-foreground font-medium">
         <span>
           {(d.currentPercentageCounted * 100).toFixed(0)}% votes counted
-          {d.previousPercentageCounted !== null && d.currentPercentageCounted !== d.previousPercentageCounted && (
+          {percentageDelta !== null && percentageDelta !== 0 && (
             <span className="text-blue-700 dark:text-blue-400 ml-0.5">
-              (+{((d.currentPercentageCounted - d.previousPercentageCounted) * 100).toFixed(1)}%)
+              ({percentageDelta > 0 ? '+' : ''}
+              {percentageDelta.toFixed(1)}%)
             </span>
           )}
         </span>
@@ -135,7 +140,7 @@ function FilterBar({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 mt-4">
       {filters.map((f) => {
         const count = counts[f.value] ?? 0;
         const disabled = f.value !== 'all' && count === 0;

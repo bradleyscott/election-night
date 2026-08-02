@@ -139,11 +139,11 @@ export function ParliamentTable({
                 <td colSpan={5} className="py-3 text-sm">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="kicker">Coalition</span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                       {coalitionInfo.parties.map((p, i) => (
                         <span
                           key={p.candidate}
-                          className="inline-flex items-center gap-1"
+                          className="inline-flex items-center gap-1 whitespace-nowrap"
                         >
                           {i > 0 && (
                             <span className="text-muted-foreground/50 mx-0.5">
@@ -157,16 +157,16 @@ export function ParliamentTable({
                                 partyColors[p.candidate] || '#666',
                             }}
                           />
-                          <span className="font-bold whitespace-nowrap">
-                            {p.candidate}
-                          </span>
+                          <span className="font-bold">{p.candidate}</span>
                         </span>
                       ))}
-                      <span className="text-muted-foreground/50 mx-1">=</span>
-                      <span className="font-extrabold tabular-nums">
-                        {coalitionInfo.cumulative}
+                      <span className="inline-flex items-center whitespace-nowrap">
+                        <span className="text-muted-foreground/50 mx-1">=</span>
+                        <span className="font-extrabold tabular-nums">
+                          {coalitionInfo.cumulative}
+                        </span>
+                        <span className="text-muted-foreground mr-1">seats</span>
                       </span>
-                      <span className="text-muted-foreground mr-1">seats</span>
                     </div>
                   </div>
                 </td>

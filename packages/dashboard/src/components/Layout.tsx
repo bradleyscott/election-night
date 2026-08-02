@@ -93,7 +93,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   <span
                     className={cn(
                       'block h-0.5 bg-foreground transition-[transform,opacity] duration-300',
-                      menuOpen ? 'rotate-45 translate-y-1' : ''
+                      menuOpen ? 'rotate-45 translate-y-2' : ''
                     )}
                   />
                   <span
@@ -105,7 +105,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   <span
                     className={cn(
                       'block h-0.5 bg-foreground transition-[transform,opacity] duration-300',
-                      menuOpen ? '-rotate-45 -translate-y-1' : ''
+                      menuOpen ? '-rotate-45 -translate-y-2' : ''
                     )}
                   />
                 </div>

@@ -48,6 +48,7 @@ export function ParliamentSeatGrid({
     >
       <div
         ref={gridRef}
+        data-seat-grid
         className="grid gap-px sm:gap-0.5 min-w-[480px] select-none"
         style={{
           gridAutoFlow: 'column',
