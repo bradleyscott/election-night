@@ -1,9 +1,12 @@
-node_modules
+# dockerignore patterns without a leading slash are anchored to the
+# context root, so use **/ for anything that also appears nested under
+# packages/* (node_modules, .cache, .data, dist)
+**/node_modules
+**/.cache
+**/.data
+**/dist
 .git
 .gitignore
-.cache
-.data
-dist
 .env
 .env.local
 .vscode
