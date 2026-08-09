@@ -20,6 +20,10 @@ describe('collector metric events', () => {
       metric: 'scrapeElectoratesTotal',
       status: 'error',
     });
+    expect(emitScrapeElectorate('cached')).toEqual({
+      metric: 'scrapeElectoratesTotal',
+      status: 'cached',
+    });
   });
 
   it('emits socket connection events', () => {

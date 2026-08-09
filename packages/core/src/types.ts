@@ -112,7 +112,11 @@ export type WebhookPayload = {
 
 // ---- Feed / Commentary ----
 
-export type FeedEventType = 'result_updated' | 'prediction_called' | 'leader_change' | 'count_completed';
+export type FeedEventType =
+  | 'result_updated'
+  | 'prediction_called'
+  | 'leader_change'
+  | 'count_completed';
 
 export type ElectorateDiff = {
   electorateName: string;
@@ -152,6 +156,6 @@ export type MetricEvent =
       seconds: number;
       status: 'success' | 'partial' | 'error';
     }
-  | { metric: 'scrapeElectoratesTotal'; status: 'success' | 'error' }
+  | { metric: 'scrapeElectoratesTotal'; status: 'success' | 'error' | 'cached' }
   | { metric: 'collectorSocketConnected'; connected: boolean }
   | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' };

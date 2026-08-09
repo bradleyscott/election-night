@@ -26,7 +26,7 @@ export function cacheResults(toCache: Results[]) {
   );
 }
 
-function readResults(): Results[] {
+export function readResults(): Results[] {
   if (electorateResults) {
     return electorateResults;
   }
@@ -149,13 +149,9 @@ export async function sendWebhook(
  * Call this *before* calling `cacheResults()` so the cached snapshot still
  * represents the previous cycle for comparison.
  */
-export async function processResults(
-  currentResults: Results[]
-): Promise<void> {
+export async function processResults(currentResults: Results[]): Promise<void> {
   const cachedResults = readResults();
-  const cacheMap = new Map(
-    cachedResults.map((r) => [r.electorateName, r])
-  );
+  const cacheMap = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   const promises: Promise<void>[] = [];
 
