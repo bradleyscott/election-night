@@ -25,6 +25,12 @@
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
+    },
+    "vitest": {
+      "vite": "^7.3.5"
+    },
+    "@vitest/mocker": {
+      "vite": "^7.3.5"
     }
   },
   "devDependencies": {
