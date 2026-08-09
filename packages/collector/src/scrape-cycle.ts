@@ -53,12 +53,21 @@ export async function scrapeCycle(
 
   const settled = await Promise.allSettled(
     configs.map((cfg) =>
-      limit(() =>
-        getElectoratePageHtml(browser, cfg).then((html) => ({
-          html,
-          config: cfg,
-        }))
-      )
+      limit(async () => {
+        const startedAt = performance.now();
+        try {
+          const html = await getElectoratePageHtml(browser, cfg);
+          return { html, config: cfg };
+        } catch (reason) {
+          const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
+          const detail =
+            reason instanceof Error ? reason.message : String(reason);
+          log.error(
+            `${cfg.electorateName}: fetch failed after ${elapsed}s (${detail})`
+          );
+          throw reason;
+        }
+      })
     )
   );
 
