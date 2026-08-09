@@ -29,7 +29,7 @@ primary_region = "nrt"
   BASE_RESULTS_URL = "https://www.electionresults.govt.nz/electionresults_2023"
   WS_URL = "ws://localhost:3456"
   POLL_INTERVAL_MS = "120000"
-  CONCURRENCY = "1"
+  CONCURRENCY = "2"
   LOG_LEVEL = "3"
   DB_PATH = "/app/.data/election_results.db"
 
