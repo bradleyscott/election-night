@@ -18,6 +18,7 @@ import {
 import { log } from './logger.js';
 import { getElectoratePageHtml } from './scraper.js';
 import { publishMetrics } from './ws-client.js';
+import { readResults } from './results.js';
 import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
 
 export type ScrapeCycleOptions = {
@@ -47,6 +48,9 @@ export async function scrapeCycle(
   log.info('Starting election results scraping...');
   const start = performance.now();
 
+  const cachedResults = readResults();
+  const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
+
   const settled = await Promise.allSettled(
     configs.map((cfg) =>
       limit(() =>
@@ -59,7 +63,12 @@ export async function scrapeCycle(
   );
 
   const results: ElectorateResults[] = [];
-  for (const s of settled) {
+  type ElectorateSource = 'fresh' | 'cached' | 'failed';
+  const electorateSources: ElectorateSource[] = [];
+
+  for (let i = 0; i < settled.length; i++) {
+    const s = settled[i];
+    const cfg = configs[i];
     if (s.status === 'fulfilled') {
       const raw = source.parseRawResults(s.value.html, s.value.config);
       const electorateResults: ElectorateResults = {
@@ -86,14 +95,25 @@ export async function scrapeCycle(
         }
       }
       results.push(electorateResults);
+      electorateSources.push('fresh');
     } else {
-      log.error(`Failed to scrape electorate`, s.reason);
+      const cached = cachedByName.get(cfg.electorateName);
+      if (cached) {
+        log.warn(
+          `${cfg.electorateName}: scrape failed (${s.reason}); using cached result from previous poll`
+        );
+        results.push(cached);
+        electorateSources.push('cached');
+      } else {
+        log.error(`Failed to scrape electorate`, s.reason);
+        electorateSources.push('failed');
+      }
     }
   }
 
   const totalVotes = results.reduce((s, r) => s + (r.votesCounted || 0), 0);
   log.info(
-    `Finished scraping ${results.length}/${configs.length} electorates (total votes counted: ${totalVotes.toLocaleString()})`
+    `Finished with ${results.length}/${configs.length} electorates (total votes counted: ${totalVotes.toLocaleString()})`
   );
   if (results.length > 0) {
     const zeroVoteElectorates = results.filter(
@@ -148,15 +168,18 @@ export async function scrapeCycle(
   log.debug(`${totalListCandidates} list candidates above the cut`);
 
   const duration = (performance.now() - start) / 1000;
+  const freshCount = electorateSources.filter((s) => s === 'fresh').length;
   const status: 'success' | 'partial' | 'error' =
-    results.length === configs.length
+    freshCount === configs.length
       ? 'success'
       : results.length > 0
         ? 'partial'
         : 'error';
   const events = [emitScrapeDuration(duration, status)];
-  for (const s of settled) {
-    events.push(emitScrapeElectorate(s.status === 'fulfilled' ? 'success' : 'error'));
+  for (const source of electorateSources) {
+    const electorateStatus =
+      source === 'fresh' ? 'success' : source === 'failed' ? 'error' : 'cached';
+    events.push(emitScrapeElectorate(electorateStatus));
   }
   publishMetrics(events);
 

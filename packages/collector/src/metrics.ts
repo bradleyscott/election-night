@@ -7,7 +7,9 @@ export function emitScrapeDuration(
   return { metric: 'scrapeDurationSeconds', seconds, status };
 }
 
-export function emitScrapeElectorate(status: 'success' | 'error'): MetricEvent {
+export function emitScrapeElectorate(
+  status: 'success' | 'error' | 'cached'
+): MetricEvent {
   return { metric: 'scrapeElectoratesTotal', status };
 }
 
