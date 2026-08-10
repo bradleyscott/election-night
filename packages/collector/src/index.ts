@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { launch } from 'cloakbrowser/puppeteer';
+import { launch } from 'cloakbrowser';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
 import {
@@ -53,6 +53,15 @@ log.info(`FETCH_PACING_MS:   ${collectorConfig.fetchPacingMs}`);
 log.info(
   `WARMUP_TIMEOUT_MS: ${collectorConfig.challengeWarmupTimeoutMs} (max ${collectorConfig.challengeWarmupMaxAttempts} attempts)`
 );
+log.info(`BROWSER:          ${collectorConfig.headless ? 'headless' : 'headed'} (humanize: ${collectorConfig.humanize})`);
+if (collectorConfig.proxyUrl) {
+  const masked = collectorConfig.proxyUrl.replace(/\/\/[^@]*@/, '//***@');
+  log.info(
+    `PROXY:            ${masked} (geoip: ${collectorConfig.geoip})`
+  );
+} else {
+  log.info(`PROXY:            none (geoip: ${collectorConfig.geoip})`);
+}
 log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
 if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
@@ -63,13 +72,23 @@ log.info('=============================');
 
 async function runOnce(): Promise<void> {
   const browser = await launch({
-    headless: true,
+    headless: collectorConfig.headless,
+    humanize: collectorConfig.humanize,
+    ...(collectorConfig.proxyUrl
+      ? { proxy: collectorConfig.proxyUrl }
+      : {}),
+    geoip: collectorConfig.geoip,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
     ],
   });
+  // One shared context per cycle: every electorate page (and the challenge
+  // warm-up) rides the same cookie jar, so a cf_clearance cookie solved once
+  // is reused across all electorates. (Playwright's browser.newPage() would
+  // create a fresh context per page and lose the cookies.)
+  const context = await browser.newContext();
 
   try {
     // Solve the Cloudflare challenge (if present) once per cycle so the
@@ -77,7 +96,7 @@ async function runOnce(): Promise<void> {
     const warmupUrl = electorateConfigs[0]?.url;
     if (warmupUrl) {
       await warmUpChallenge(
-        browser,
+        context,
         warmupUrl,
         collectorConfig.challengeWarmupTimeoutMs,
         collectorConfig.challengeWarmupMaxAttempts
@@ -85,7 +104,7 @@ async function runOnce(): Promise<void> {
     }
 
     const payload = await scrapeCycle({
-      browser,
+      context,
       source,
       configs: electorateConfigs,
       candidateRecords,
@@ -103,6 +122,9 @@ async function runOnce(): Promise<void> {
     );
     publishResults(payload);
   } finally {
+    await context.close().catch((err) =>
+      log.error('Error closing browser context', err)
+    );
     await browser.close().catch((err) =>
       log.error('Error closing browser', err)
     );

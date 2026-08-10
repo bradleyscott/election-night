@@ -1,4 +1,4 @@
-import type { Browser } from 'puppeteer-core';
+import type { BrowserContext } from 'playwright-core';
 import pLimit from 'p-limit';
 import { config } from '@election-night/core/config';
 import type {
@@ -23,7 +23,7 @@ import { readResults } from './results.js';
 import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
 
 export type ScrapeCycleOptions = {
-  browser: Browser;
+  context: BrowserContext;
   source: ElectionSource;
   configs: ElectorateConfig[];
   candidateRecords: Record<string, string>[];
@@ -36,7 +36,7 @@ export async function scrapeCycle(
   options: ScrapeCycleOptions
 ): Promise<ResultsPayload> {
   const {
-    browser,
+    context,
     source,
     configs,
     candidateRecords,
@@ -47,7 +47,7 @@ export async function scrapeCycle(
   const limit = pLimit(concurrency);
 
   async function fetchWithPacing(
-    browser: Browser,
+    context: BrowserContext,
     electorateConfig: ElectorateConfig
   ): Promise<{ html: string; config: ElectorateConfig }> {
     // Gentle pacing between requests (jittered) so bursts don't trip
@@ -55,7 +55,7 @@ export async function scrapeCycle(
     await sleep(collectorConfig.fetchPacingMs * (0.5 + Math.random()));
     const startedAt = performance.now();
     try {
-      const html = await getElectoratePageHtml(browser, electorateConfig);
+      const html = await getElectoratePageHtml(context, electorateConfig);
       return { html, config: electorateConfig };
     } catch (reason) {
       const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
@@ -75,7 +75,7 @@ export async function scrapeCycle(
   const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   const settled = await Promise.allSettled(
-    configs.map((cfg) => limit(() => fetchWithPacing(browser, cfg)))
+    configs.map((cfg) => limit(() => fetchWithPacing(context, cfg)))
   );
 
   const failedIndexes: number[] = [];
@@ -95,7 +95,9 @@ export async function scrapeCycle(
   if (failedIndexes.length > 0 && anySucceeded) {
     log.info(`Retrying ${failedIndexes.length} failed electorates...`);
     const retryResults = await Promise.allSettled(
-      failedIndexes.map((i) => limit(() => fetchWithPacing(browser, configs[i])))
+      failedIndexes.map((i) =>
+        limit(() => fetchWithPacing(context, configs[i]))
+      )
     );
     failedIndexes.forEach((originalIndex, k) => {
       retried.set(originalIndex, retryResults[k]);

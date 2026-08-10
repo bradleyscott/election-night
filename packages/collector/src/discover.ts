@@ -1,5 +1,5 @@
-import type { Browser } from 'puppeteer-core';
-import { launch } from 'cloakbrowser/puppeteer';
+import type { Browser } from 'playwright-core';
+import { launch } from 'cloakbrowser';
 import { load } from 'cheerio';
 import { writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -104,7 +104,7 @@ export async function runDiscover(argv: string[]) {
 
 async function fetchPageHtml(browser: Browser, url: string): Promise<string> {
   const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'networkidle0' });
+  await page.goto(url, { waitUntil: 'networkidle' });
   return page.content();
 }
 

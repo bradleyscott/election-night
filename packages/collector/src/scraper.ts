@@ -1,19 +1,19 @@
-import { Browser } from 'puppeteer-core';
+import type { BrowserContext } from 'playwright-core';
 import { ElectorateConfig } from '@election-night/core/types';
 import { log } from './logger.js';
 import { collectorConfig } from './config.js';
 
 export async function getElectoratePageHtml(
-  browser: Browser,
+  context: BrowserContext,
   config: ElectorateConfig
 ): Promise<string> {
   log.debug(`Fetching ${config.electorateName} results`);
-  const page = await browser.newPage();
+  const page = await context.newPage();
   try {
     await page.goto(config.url, {
       timeout: collectorConfig.navigationTimeoutMs,
     });
-    await page.waitForNetworkIdle({
+    await page.waitForLoadState('networkidle', {
       timeout: collectorConfig.navigationTimeoutMs,
     });
     log.debug(`${config.electorateName} results successfully fetched`);
@@ -45,19 +45,21 @@ export function isCloudflareChallenge(html: string, url: string): boolean {
  * Returns true when a real (non-challenge) page loaded within the attempts.
  */
 export async function warmUpChallenge(
-  browser: Browser,
+  context: BrowserContext,
   url: string,
   timeoutMs: number,
   maxAttempts: number
 ): Promise<boolean> {
   log.info(`Warming up challenge protection against ${url}...`);
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const page = await browser.newPage();
+    const page = await context.newPage();
     const startedAt = performance.now();
     try {
       await page.goto(url, { timeout: timeoutMs, waitUntil: 'load' });
       await page
-        .waitForNetworkIdle({ timeout: Math.min(timeoutMs, 60_000) })
+        .waitForLoadState('networkidle', {
+          timeout: Math.min(timeoutMs, 60_000),
+        })
         .catch(() => {});
       const html = await page.content();
       const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);

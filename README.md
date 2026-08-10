@@ -6,7 +6,7 @@ This started as a project for a 2023 election night party — the goal was to av
 
 ## Features
 
-- **Automated scraping** — Uses Puppeteer (via `cloakbrowser`/`puppeteer-core`) to pull results from the [official NZ Electoral Commission site](https://electionresults.govt.nz/) as they're published.
+- **Automated scraping** — Uses a stealth Chromium (via `cloakbrowser`, Playwright backend) to pull results from the [official NZ Electoral Commission site](https://electionresults.govt.nz/) as they're published, surviving Cloudflare managed challenges.
 - **Race calling** — Predicts winners per electorate with confidence levels (`too-close`, `leaning`, `likely`, `projected`) using statistical margin analysis.
 - **Seat projections** — Allocates list seats via the Sainte-Laguë method to project the final parliament makeup.
 - **Interactive web dashboard** — Built with React, Vite, Leaflet, Recharts, and Tailwind, dressed as a printed-edition newsroom broadsheet (see `design.md`). Includes:

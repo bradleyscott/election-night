@@ -67,7 +67,7 @@ npm run fmt           # prettier --write .
 
 - `packages/core/src/index.ts` — shared types, config, reducers, and source adapters.
 - `packages/core/src/sources/index.ts` — exports available source adapters (currently `NzElectionResultsSource`).
-- `packages/collector/src/index.ts` — main scraper loop. Scrapes results with Puppeteer via `cloakbrowser`, calculates predictions, writes to SQLite, and publishes results via Socket.io client.
+- `packages/collector/src/index.ts` — main scraper loop. Scrapes results with Playwright via `cloakbrowser` (stealth Chromium), calculates predictions, writes to SQLite, and publishes results via Socket.io client.
 - `packages/collector/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches via Puppeteer.
 - `packages/collector/src/discover.ts` — `discover` subcommand loaded dynamically when `process.argv[2] === 'discover'`. Generates a source adapter in `packages/core/src/sources/`.
 - `packages/collector/src/clear.ts` — truncates the SQLite database and removes the JSON results cache.
@@ -82,7 +82,7 @@ npm run fmt           # prettier --write .
 
 - **Core is built.** `packages/core` ships compiled JS from `dist/`. Root scripts run `npm run build:core` before starting the collector or dashboard. `npm install` triggers `prepare` which also builds core.
 - **Socket.io is the backbone.** The collector is a Socket.io *client*; the dashboard package runs the *server*. The server listens on `WS_PORT` (default `3456`). Dashboard `index.html` hardcodes a `preconnect` to `http://localhost:3456`.
-- **Browser automation uses `cloakbrowser` + `puppeteer-core`.** The collector launches the browser via `cloakbrowser/puppeteer`; `cloakbrowser install` is run during Docker builds.
+- **Browser automation uses `cloakbrowser` + `playwright-core`.** The collector launches the stealth Chromium via `cloakbrowser` (the Playwright variant; the Puppeteer variant was dropped because its CDP protocol leaks automation signals). It opens one shared `BrowserContext` per cycle so a solved `cf_clearance` cookie rides across all electorate fetches; `cloakbrowser install` is run during Docker builds.
 - **Dashboard is NOT part of root `tsc -b` references.** Root `tsconfig.json` only references `core` and `collector`. `dashboard` typechecks via its own `tsc -b` inside `npm run build` and in `npm run typecheck`.
 - **SQLite + Drizzle ORM.** Collector uses `better-sqlite3` (native dependency). The DB path defaults to `./.data/election_results.db`. Migrations live in `packages/collector/drizzle/` and auto-run on startup via `migrate()` in `db.ts`. Drizzle config is at `packages/collector/drizzle.config.ts`.
 - **Dashboard server reads the same DB.** It opens the SQLite DB read-only for history endpoints and polls for the DB file to appear if the collector hasn't created it yet.
@@ -91,6 +91,7 @@ npm run fmt           # prettier --write .
   - Scraping: `BASE_RESULTS_URL`, `RESULTS_TABLE_SELECTOR`, `CANDIDATE_TABLE_SELECTOR`, `PARTY_VOTE_TABLE_SELECTOR`, `VOTE_PERCENT_COUNTED_SELECTOR`, `VOTES_COUNTED_SELECTOR`
   - Webhooks: `WEBHOOK_URL` (single URL; payload includes an `event` field to discriminate type), `WEBHOOK_LOG_PORT` (default `3458`)
   - Runtime: `POLL_INTERVAL_MS` (default 120s), `CONCURRENCY` (default 10), `NAVIGATION_TIMEOUT_MS` (default 120s; per-page goto/networkIdle timeout — bumped from 60s so Cloudflare managed challenges can complete), `FETCH_PACING_MS` (default 300; jittered delay between electorate fetches to avoid rate-limit bursts), `CHALLENGE_WARMUP_TIMEOUT_MS` (default 180s; per-attempt timeout when solving the Cloudflare challenge at browser launch), `CHALLENGE_WARMUP_MAX_ATTEMPTS` (default 3), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `WS_PORT`/`WS_URL`, `WS_RECONNECT_DELAY_MS` (default 2s), `DB_PATH` (default `.data/election_results.db`), `ELECTION_SOURCE_PATH`
+  - Browser tuning: `CLOAKBROWSER_PROXY` (proxy URL for alternate egress, e.g. a residential proxy `http://user:pass@host:port` — the site WAF-blocks datacenter IPs, so the collector usually needs this or a home connection), `CLOAKBROWSER_GEOIP` (default `false`; `true` matches timezone/locale/WebRTC to the exit IP), `CLOAKBROWSER_HUMANIZE` (default `true`; human-like mouse/keyboard/scroll), `CLOAKBROWSER_HEADLESS` (default `true`; set `false` for headed mode — needs a display, e.g. Xvfb on servers)
   - Mock: `MOCK_PORT` (default `3457`)
   - Discover subcommand: `OPENAI_API_KEY`, `OPENAI_BASE_URL` (default `https://api.openai.com/v1`), `LLM_MODEL` (default `gpt-4o`)
   - Web server: `DIST_DIR` (default `./dist`), `CACHE_PATH` (default `.data/electorate_results.json`), `FEED_CACHE_PATH` (default `.data/feed_events.json`), `MAX_FEED_EVENTS` (default `200`)
@@ -113,7 +114,7 @@ npm run fmt           # prettier --write .
 
 - `@election-night/core` must be built before running the collector or dashboard. If you see module-resolution errors, run `npm run build:core`.
 - `better-sqlite3` is a native Node dependency. If installation fails, the environment likely needs build tools (Python, a C++ compiler).
-- `cloakbrowser` manages the browser binary; run `npx cloakbrowser install` manually if Puppeteer can't find a browser.
+- `cloakbrowser` manages the browser binary; run `npx cloakbrowser install` manually if the stealth Chromium can't be found.
 - The collector creates `.data/` automatically for the SQLite DB and JSON results cache.
 - The dashboard server serves the built Vite bundle from `DIST_DIR` in production. For local dev, `npm run dev` starts both the server and the Vite dev server.
 - Mock server (`serve-mock.ts`) serves HTML matching the NZ Electoral Commission site structure. The real scraper fetches it via Puppeteer, parses it with Cheerio, and runs the full prediction pipeline — same as election night.

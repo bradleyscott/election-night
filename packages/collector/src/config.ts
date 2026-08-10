@@ -1,6 +1,17 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+/**
+ * Parse a boolean from an env var that must be exactly 'true' or 'false'.
+ * (z.coerce.boolean() treats the string 'false' as true — avoid that trap.)
+ */
+function envBoolean(dflt: boolean) {
+  return z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? dflt : v === 'true'));
+}
+
 const collectorConfigSchema = z.object({
   baseResultsUrl: z
     .string()
@@ -40,6 +51,21 @@ const collectorConfigSchema = z.object({
     .describe('Webhook URL for result events'),
   electionSourcePath: z.string().optional(),
   wsReconnectDelayMs: z.coerce.number().int().min(100).default(2_000),
+  proxyUrl: z
+    .string()
+    .optional()
+    .describe(
+      'cloakbrowser proxy URL (e.g. http://user:pass@host:port) for residential/alternate egress'
+    ),
+  geoip: envBoolean(false).describe(
+    'Match timezone/locale/WebRTC to the (proxy) exit IP (true|false)'
+  ),
+  humanize: envBoolean(true).describe(
+    'Human-like mouse, keyboard and scroll behavior (true|false)'
+  ),
+  headless: envBoolean(true).describe(
+    'Run the stealth browser headless (true|false); false needs a display (e.g. Xvfb on servers)'
+  ),
 });
 
 export type CollectorConfig = z.infer<typeof collectorConfigSchema>;
@@ -60,6 +86,10 @@ function loadCollectorConfig(): CollectorConfig {
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,
     wsReconnectDelayMs: process.env.WS_RECONNECT_DELAY_MS,
+    proxyUrl: process.env.CLOAKBROWSER_PROXY,
+    geoip: process.env.CLOAKBROWSER_GEOIP,
+    humanize: process.env.CLOAKBROWSER_HUMANIZE,
+    headless: process.env.CLOAKBROWSER_HEADLESS,
   });
 
   if (!parsed.success) {

@@ -91,7 +91,7 @@ describe('pipeline integration', () => {
       const { NzElectionResultsSource } = await import(
         '@election-night/core/sources/nz-election-results'
       );
-      const { launch } = await import('cloakbrowser/puppeteer');
+      const { launch } = await import('cloakbrowser');
       const { scrapeCycle } = await import('./scrape-cycle.js');
       const { openDb, closeDb, writeResults } = await import('./db.js');
 
@@ -119,9 +119,10 @@ describe('pipeline integration', () => {
           '--disable-dev-shm-usage',
         ],
       });
+      const context = await browser.newContext();
 
       const payload = await scrapeCycle({
-        browser,
+        context,
         source,
         configs,
         candidateRecords,
@@ -130,6 +131,7 @@ describe('pipeline integration', () => {
         concurrency: 5,
       });
 
+      await context.close();
       await browser.close();
 
       expect(payload.electorateResults.length).toBeGreaterThan(0);
