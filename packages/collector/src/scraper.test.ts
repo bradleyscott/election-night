@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { NzElectionResultsSource } from '@election-night/core/sources/nz-election-results';
 import type { ElectorateConfig } from '@election-night/core/types';
 import { html } from './html-fixture';
+import { isCloudflareChallenge } from './scraper.js';
 
 const config: ElectorateConfig = {
   electorateName: 'Auckland Central',
@@ -10,6 +11,35 @@ const config: ElectorateConfig = {
 
 const source = new NzElectionResultsSource({
   electorateNames: ['Auckland Central'],
+});
+
+describe('isCloudflareChallenge', () => {
+  test('detects the managed challenge page', () => {
+    const challengeHtml =
+      '<html><head><title>Just a moment...</title></head><body><div class="cf-chl-widget"></div><script>challenge-platform</script></body></html>';
+    expect(isCloudflareChallenge(challengeHtml, 'https://x.example/')).toBe(
+      true
+    );
+  });
+
+  test('detects the attention-required block page', () => {
+    const blockHtml =
+      '<html><title>Attention Required! | Cloudflare</title><body>This website is using a security service to protect itself from online attacks.</body></html>';
+    expect(isCloudflareChallenge(blockHtml, 'https://x.example/')).toBe(true);
+  });
+
+  test('detects a challenged URL even with innocuous html', () => {
+    expect(
+      isCloudflareChallenge(
+        '<html>skeleton</html>',
+        'https://x.example/?__cf_chl_rt_tk=abc123'
+      )
+    ).toBe(true);
+  });
+
+  test('does not flag a real results page', () => {
+    expect(isCloudflareChallenge(html, config.url)).toBe(false);
+  });
 });
 
 describe('NzElectionResultsSource', () => {

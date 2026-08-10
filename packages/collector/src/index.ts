@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { launch } from 'cloakbrowser/puppeteer';
+import { launch } from 'cloakbrowser';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
 import {
@@ -11,6 +11,7 @@ import { cacheResults, processResults } from './results.js';
 import { loadCsvData } from './csv-data.js';
 import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
+import { warmUpChallenge } from './scraper.js';
 import { collectorConfig } from './config.js';
 
 if (process.argv[2] === 'discover') {
@@ -48,6 +49,19 @@ log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
 log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
 log.info(`CONCURRENCY:      ${collectorConfig.concurrency}`);
 log.info(`NAV_TIMEOUT_MS:   ${collectorConfig.navigationTimeoutMs}`);
+log.info(`FETCH_PACING_MS:   ${collectorConfig.fetchPacingMs}`);
+log.info(
+  `WARMUP_TIMEOUT_MS: ${collectorConfig.challengeWarmupTimeoutMs} (max ${collectorConfig.challengeWarmupMaxAttempts} attempts)`
+);
+log.info(`BROWSER:          ${collectorConfig.headless ? 'headless' : 'headed'} (humanize: ${collectorConfig.humanize})`);
+if (collectorConfig.proxyUrl) {
+  const masked = collectorConfig.proxyUrl.replace(/\/\/[^@]*@/, '//***@');
+  log.info(
+    `PROXY:            ${masked} (geoip: ${collectorConfig.geoip})`
+  );
+} else {
+  log.info(`PROXY:            none (geoip: ${collectorConfig.geoip})`);
+}
 log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
 if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
@@ -58,17 +72,39 @@ log.info('=============================');
 
 async function runOnce(): Promise<void> {
   const browser = await launch({
-    headless: true,
+    headless: collectorConfig.headless,
+    humanize: collectorConfig.humanize,
+    ...(collectorConfig.proxyUrl
+      ? { proxy: collectorConfig.proxyUrl }
+      : {}),
+    geoip: collectorConfig.geoip,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
     ],
   });
+  // One shared context per cycle: every electorate page (and the challenge
+  // warm-up) rides the same cookie jar, so a cf_clearance cookie solved once
+  // is reused across all electorates. (Playwright's browser.newPage() would
+  // create a fresh context per page and lose the cookies.)
+  const context = await browser.newContext();
 
   try {
+    // Solve the Cloudflare challenge (if present) once per cycle so the
+    // cf_clearance cookie rides in this browser context for all electorates.
+    const warmupUrl = electorateConfigs[0]?.url;
+    if (warmupUrl) {
+      await warmUpChallenge(
+        context,
+        warmupUrl,
+        collectorConfig.challengeWarmupTimeoutMs,
+        collectorConfig.challengeWarmupMaxAttempts
+      );
+    }
+
     const payload = await scrapeCycle({
-      browser,
+      context,
       source,
       configs: electorateConfigs,
       candidateRecords,
@@ -86,6 +122,9 @@ async function runOnce(): Promise<void> {
     );
     publishResults(payload);
   } finally {
+    await context.close().catch((err) =>
+      log.error('Error closing browser context', err)
+    );
     await browser.close().catch((err) =>
       log.error('Error closing browser', err)
     );
