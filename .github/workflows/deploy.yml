@@ -36,6 +36,7 @@ jobs:
               - '.dockerignore'
               - '.github/workflows/checks.yml'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/security.yml'
 
   check:
     name: Lint, typecheck & test
@@ -43,9 +44,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true'
     uses: ./.github/workflows/checks.yml
 
+  security:
+    name: Security checks
+    uses: ./.github/workflows/security.yml
+
   deploy:
     name: Deploy to Fly
-    needs: [changes, check]
+    needs: [changes, check, security]
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:

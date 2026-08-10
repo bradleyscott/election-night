@@ -1,8 +1,10 @@
 name: Security Checks
 
 on:
-  push:
-    branches: [main]
+  # Runs on every main push via the deploy workflow (deploy.yml), which gates the
+  # production deploy on these checks passing. No standalone `push` trigger here,
+  # otherwise security checks would run twice on each main push.
+  workflow_call:
   pull_request:
     branches: [main]
   schedule:
