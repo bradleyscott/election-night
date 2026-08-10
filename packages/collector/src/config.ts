@@ -15,7 +15,20 @@ const collectorConfigSchema = z.object({
   wsPort: z.coerce.number().int().min(1).max(65535).default(3456),
   wsUrl: z.string().default('ws://localhost:3456'),
   concurrency: z.coerce.number().int().min(1).default(10),
-  navigationTimeoutMs: z.coerce.number().int().min(1000).default(60_000),
+  navigationTimeoutMs: z.coerce.number().int().min(1000).default(120_000),
+  fetchPacingMs: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(300)
+    .describe('Average delay between electorate fetches (jittered 0.5x-1.5x)'),
+  challengeWarmupTimeoutMs: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .default(180_000)
+    .describe('Per-attempt timeout when solving the Cloudflare challenge on browser launch'),
+  challengeWarmupMaxAttempts: z.coerce.number().int().min(1).default(3),
   logLevel: z.coerce.number().int().min(0).max(3).default(3),
   dbPath: z.string().default('.data/election_results.db'),
   webhookUrl: z
@@ -39,6 +52,9 @@ function loadCollectorConfig(): CollectorConfig {
     wsUrl: process.env.WS_URL,
     concurrency: process.env.CONCURRENCY,
     navigationTimeoutMs: process.env.NAVIGATION_TIMEOUT_MS,
+    fetchPacingMs: process.env.FETCH_PACING_MS,
+    challengeWarmupTimeoutMs: process.env.CHALLENGE_WARMUP_TIMEOUT_MS,
+    challengeWarmupMaxAttempts: process.env.CHALLENGE_WARMUP_MAX_ATTEMPTS,
     logLevel: process.env.LOG_LEVEL,
     dbPath: process.env.DB_PATH,
     webhookUrl: process.env.WEBHOOK_URL,

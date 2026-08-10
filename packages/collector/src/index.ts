@@ -11,6 +11,7 @@ import { cacheResults, processResults } from './results.js';
 import { loadCsvData } from './csv-data.js';
 import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
+import { warmUpChallenge } from './scraper.js';
 import { collectorConfig } from './config.js';
 
 if (process.argv[2] === 'discover') {
@@ -48,6 +49,10 @@ log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
 log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
 log.info(`CONCURRENCY:      ${collectorConfig.concurrency}`);
 log.info(`NAV_TIMEOUT_MS:   ${collectorConfig.navigationTimeoutMs}`);
+log.info(`FETCH_PACING_MS:   ${collectorConfig.fetchPacingMs}`);
+log.info(
+  `WARMUP_TIMEOUT_MS: ${collectorConfig.challengeWarmupTimeoutMs} (max ${collectorConfig.challengeWarmupMaxAttempts} attempts)`
+);
 log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
 if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
@@ -67,6 +72,18 @@ async function runOnce(): Promise<void> {
   });
 
   try {
+    // Solve the Cloudflare challenge (if present) once per cycle so the
+    // cf_clearance cookie rides in this browser context for all electorates.
+    const warmupUrl = electorateConfigs[0]?.url;
+    if (warmupUrl) {
+      await warmUpChallenge(
+        browser,
+        warmupUrl,
+        collectorConfig.challengeWarmupTimeoutMs,
+        collectorConfig.challengeWarmupMaxAttempts
+      );
+    }
+
     const payload = await scrapeCycle({
       browser,
       source,

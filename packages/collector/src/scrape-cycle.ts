@@ -16,7 +16,8 @@ import {
   predictWinner,
 } from '@election-night/core/reducers';
 import { log } from './logger.js';
-import { getElectoratePageHtml } from './scraper.js';
+import { getElectoratePageHtml, sleep } from './scraper.js';
+import { collectorConfig } from './config.js';
 import { publishMetrics } from './ws-client.js';
 import { readResults } from './results.js';
 import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
@@ -45,6 +46,28 @@ export async function scrapeCycle(
   } = options;
   const limit = pLimit(concurrency);
 
+  async function fetchWithPacing(
+    browser: Browser,
+    electorateConfig: ElectorateConfig
+  ): Promise<{ html: string; config: ElectorateConfig }> {
+    // Gentle pacing between requests (jittered) so bursts don't trip
+    // Cloudflare rate limiting mid-cycle.
+    await sleep(collectorConfig.fetchPacingMs * (0.5 + Math.random()));
+    const startedAt = performance.now();
+    try {
+      const html = await getElectoratePageHtml(browser, electorateConfig);
+      return { html, config: electorateConfig };
+    } catch (reason) {
+      const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
+      const detail =
+        reason instanceof Error ? reason.message : String(reason);
+      log.error(
+        `${electorateConfig.electorateName}: fetch failed after ${elapsed}s (${detail})`
+      );
+      throw reason;
+    }
+  }
+
   log.info('Starting election results scraping...');
   const start = performance.now();
 
@@ -52,31 +75,43 @@ export async function scrapeCycle(
   const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   const settled = await Promise.allSettled(
-    configs.map((cfg) =>
-      limit(async () => {
-        const startedAt = performance.now();
-        try {
-          const html = await getElectoratePageHtml(browser, cfg);
-          return { html, config: cfg };
-        } catch (reason) {
-          const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
-          const detail =
-            reason instanceof Error ? reason.message : String(reason);
-          log.error(
-            `${cfg.electorateName}: fetch failed after ${elapsed}s (${detail})`
-          );
-          throw reason;
-        }
-      })
-    )
+    configs.map((cfg) => limit(() => fetchWithPacing(browser, cfg)))
   );
+
+  const failedIndexes: number[] = [];
+  settled.forEach((s, i) => {
+    if (s.status === 'rejected') failedIndexes.push(i);
+  });
+
+  // One retry pass over failures once the browser context is warm (the
+  // Cloudflare challenge is solved by then and cf_clearance is in the jar).
+  // Skipped entirely when nothing succeeded at all — retrying would just
+  // double the burn time while the site is still blocking the IP.
+  const retried = new Map<
+    number,
+    PromiseSettledResult<{ html: string; config: ElectorateConfig }>
+  >();
+  const anySucceeded = settled.some((s) => s.status === 'fulfilled');
+  if (failedIndexes.length > 0 && anySucceeded) {
+    log.info(`Retrying ${failedIndexes.length} failed electorates...`);
+    const retryResults = await Promise.allSettled(
+      failedIndexes.map((i) => limit(() => fetchWithPacing(browser, configs[i])))
+    );
+    failedIndexes.forEach((originalIndex, k) => {
+      retried.set(originalIndex, retryResults[k]);
+    });
+  } else if (failedIndexes.length > 0) {
+    log.warn(
+      `Skipping retry pass: ${failedIndexes.length} electorates failed and none succeeded (site likely still blocking)`
+    );
+  }
 
   const results: ElectorateResults[] = [];
   type ElectorateSource = 'fresh' | 'cached' | 'failed';
   const electorateSources: ElectorateSource[] = [];
 
   for (let i = 0; i < settled.length; i++) {
-    const s = settled[i];
+    const s = retried.get(i) ?? settled[i];
     const cfg = configs[i];
     if (s.status === 'fulfilled') {
       const raw = source.parseRawResults(s.value.html, s.value.config);
