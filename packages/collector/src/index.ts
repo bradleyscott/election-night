@@ -51,7 +51,7 @@ log.info(`CONCURRENCY:      ${collectorConfig.concurrency}`);
 log.info(`NAV_TIMEOUT_MS:   ${collectorConfig.navigationTimeoutMs}`);
 log.info(`FETCH_PACING_MS:   ${collectorConfig.fetchPacingMs}`);
 log.info(
-  `WARMUP_TIMEOUT_MS: ${collectorConfig.challengeWarmupTimeoutMs} (max ${collectorConfig.challengeWarmupMaxAttempts} attempts)`
+  `WARMUP:            ${collectorConfig.challengeWarmupEnabled ? 'enabled' : 'disabled'} (timeout ${collectorConfig.challengeWarmupTimeoutMs}ms, max ${collectorConfig.challengeWarmupMaxAttempts} attempts)`
 );
 log.info(`BROWSER:          ${collectorConfig.headless ? 'headless' : 'headed'} (humanize: ${collectorConfig.humanize})`);
 if (collectorConfig.proxyUrl) {
@@ -93,8 +93,10 @@ async function runOnce(): Promise<void> {
   try {
     // Solve the Cloudflare challenge (if present) once per cycle so the
     // cf_clearance cookie rides in this browser context for all electorates.
+    // Skipped when CHALLENGE_WARMUP_ENABLED=false (e.g. trusted home egress
+    // where the site serves results without a challenge).
     const warmupUrl = electorateConfigs[0]?.url;
-    if (warmupUrl) {
+    if (warmupUrl && collectorConfig.challengeWarmupEnabled) {
       await warmUpChallenge(
         context,
         warmupUrl,

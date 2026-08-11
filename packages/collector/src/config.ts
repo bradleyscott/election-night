@@ -40,6 +40,9 @@ const collectorConfigSchema = z.object({
     .default(180_000)
     .describe('Per-attempt timeout when solving the Cloudflare challenge on browser launch'),
   challengeWarmupMaxAttempts: z.coerce.number().int().min(1).default(3),
+  challengeWarmupEnabled: envBoolean(true).describe(
+    'Run the Cloudflare challenge warm-up at browser launch (true|false); disable on trusted egress (e.g. a home connection) where the site serves results directly'
+  ),
   logLevel: z.coerce.number().int().min(0).max(3).default(3),
   dbPath: z.string().default('.data/election_results.db'),
   webhookUrl: z
@@ -81,6 +84,7 @@ function loadCollectorConfig(): CollectorConfig {
     fetchPacingMs: process.env.FETCH_PACING_MS,
     challengeWarmupTimeoutMs: process.env.CHALLENGE_WARMUP_TIMEOUT_MS,
     challengeWarmupMaxAttempts: process.env.CHALLENGE_WARMUP_MAX_ATTEMPTS,
+    challengeWarmupEnabled: process.env.CHALLENGE_WARMUP_ENABLED,
     logLevel: process.env.LOG_LEVEL,
     dbPath: process.env.DB_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
