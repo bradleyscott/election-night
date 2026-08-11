@@ -77,7 +77,13 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=builder /app /app
 
-# Optional: expose the history REST endpoint once implemented (see README).
-# EXPOSE 3459
+# Health/live state endpoint (also the future history REST port, variant B).
+EXPOSE 3459
+
+# Healthcheck: the state server on 3459 must answer (wget ships in this
+# image). Note: Coolify does not auto-restart unhealthy containers — the
+# restart policy recovers crashes; this check exists for stall visibility.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q -O - http://127.0.0.1:3459/health || exit 1
 
 CMD ["npx", "tsx", "/app/packages/collector/src/index.ts"]

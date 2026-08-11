@@ -44,6 +44,7 @@ const collectorConfigSchema = z.object({
     'Run the Cloudflare challenge warm-up at browser launch (true|false); disable on trusted egress (e.g. a home connection) where the site serves results directly'
   ),
   logLevel: z.coerce.number().int().min(0).max(3).default(3),
+  healthPort: z.coerce.number().int().min(1024).max(65535).default(3459),
   dbPath: z.string().default('.data/election_results.db'),
   webhookUrl: z
     .string()
@@ -86,6 +87,7 @@ function loadCollectorConfig(): CollectorConfig {
     challengeWarmupMaxAttempts: process.env.CHALLENGE_WARMUP_MAX_ATTEMPTS,
     challengeWarmupEnabled: process.env.CHALLENGE_WARMUP_ENABLED,
     logLevel: process.env.LOG_LEVEL,
+    healthPort: process.env.HEALTH_PORT,
     dbPath: process.env.DB_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,

@@ -13,6 +13,7 @@ import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
 import { warmUpChallenge } from './scraper.js';
 import { collectorConfig } from './config.js';
+import { startHealthServer, health } from './health.js';
 
 if (process.argv[2] === 'discover') {
   const { runDiscover } = await import('./discover.js');
@@ -63,6 +64,7 @@ if (collectorConfig.proxyUrl) {
   log.info(`PROXY:            none (geoip: ${collectorConfig.geoip})`);
 }
 log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
+log.info(`HEALTH_PORT:      ${collectorConfig.healthPort}`);
 if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
 if (collectorConfig.electionSourcePath)
@@ -71,6 +73,9 @@ log.info(`Electorates:      ${electorateConfigs.length}`);
 log.info('=============================');
 
 async function runOnce(): Promise<void> {
+  health.cycleCount += 1;
+  health.lastCycleStartedAt = Date.now();
+  health.lastError = null;
   const browser = await launch({
     headless: collectorConfig.headless,
     humanize: collectorConfig.humanize,
@@ -123,6 +128,12 @@ async function runOnce(): Promise<void> {
       payload.partyLists
     );
     publishResults(payload);
+    health.lastCycleFinishedAt = Date.now();
+    health.lastCycleOk = true;
+    health.lastVotesCounted = payload.electorateResults.reduce(
+      (sum, r) => sum + (r.votesCounted || 0),
+      0
+    );
   } finally {
     await context.close().catch((err) =>
       log.error('Error closing browser context', err)
@@ -140,6 +151,8 @@ async function loopRun(): Promise<void> {
     await runOnce();
   } catch (err) {
     log.error('Election night cycle failed', err);
+    health.lastCycleOk = false;
+    health.lastError = err instanceof Error ? err.message : String(err);
   }
   setTimeout(loopRun, POLL_INTERVAL_MS);
 }
@@ -157,6 +170,7 @@ process.on('unhandledRejection', (reason) => {
 
 openDb(dbPath);
 connectWs(WS_URL);
+startHealthServer(collectorConfig.healthPort);
 loopRun().catch((err) => log.error('Fatal error in loop', err));
 
 process.on('SIGINT', () => {

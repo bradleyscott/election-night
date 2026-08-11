@@ -3,6 +3,7 @@ import type { MetricEvent, ResultsPayload } from '@election-night/core/types';
 import { log } from './logger.js';
 import { collectorConfig } from './config.js';
 import { emitCollectorSocketConnected } from './metrics.js';
+import { health } from './health.js';
 
 let socket: Socket | null = null;
 const pendingResults: ResultsPayload[] = [];
@@ -32,6 +33,8 @@ export function connectWs(url: string) {
 
   socket.on('connect', () => {
     log.info(`Connected to socket.io server at ${url}`);
+    health.socketConnected = true;
+    health.socketUrl = url;
     publishMetrics(emitCollectorSocketConnected(true));
     flushPending();
   });
@@ -42,6 +45,7 @@ export function connectWs(url: string) {
 
   socket.on('disconnect', (reason) => {
     log.warn(`Socket.io disconnected: ${reason}`);
+    health.socketConnected = false;
   });
 }
 
@@ -53,6 +57,7 @@ export function publishResults(payload: ResultsPayload) {
   }
 
   socket.emit('results_update', payload);
+  health.lastPublishAt = Date.now();
   log.info('Published results via socket.io');
 }
 

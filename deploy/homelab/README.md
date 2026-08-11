@@ -150,9 +150,23 @@ election-night.example.com {
   the last published results; only fresh data stops. That's the accepted
   tradeoff for the residential-IP egress.
 
+## Health checks
+
+The collector serves live state at `http://127.0.0.1:3459/health` (JSON: cycle
+count, last success, votes counted, socket state, last publish). The Dockerfile
+declares a `HEALTHCHECK` that Coolify picks up automatically; optionally mirror
+it in the app's Health Check settings (HTTP, path `/health`, port 3459).
+
+Note: an "unhealthy" status does **not** restart the container — Coolify only
+de-routes unhealthy apps behind its proxy, which doesn't apply to this
+outbound worker. Crash recovery comes from the app's restart policy (default
+`unless-stopped`); the healthcheck exists for stall visibility on election
+night.
+
 ## When the history REST endpoint (variant B) lands
 
-- Uncomment `EXPOSE 3459` in `Dockerfile.collector`.
-- In Coolify: add storage is already there; add **Port 3459** under Ports and a
-  **Domain**; router forwards 80/443 → LXC (see above).
+- `EXPOSE 3459` is already enabled — the health server owns the port today;
+  variant B extends the same HTTP server.
+- In Coolify: add **Port 3459** under Ports and a **Domain**; router forwards
+  80/443 → LXC (see above).
 - Point the cloud server's `HISTORY_UPSTREAM` at `https://<your-domain>`.
