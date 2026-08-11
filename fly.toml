@@ -27,11 +27,13 @@ primary_region = "nrt"
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
   BASE_RESULTS_URL = "https://www.electionresults.govt.nz/electionresults_2023"
-  WS_URL = "ws://localhost:3456"
   POLL_INTERVAL_MS = "120000"
   CONCURRENCY = "2"
   LOG_LEVEL = "3"
   DB_PATH = "/app/.data/election_results.db"
+  # The collector runs on the homelab (Coolify) and publishes here over
+  # Socket.io; this app is server-only.
+  RUN_COLLECTOR = "false"
 
 # Shared persistent storage for SQLite DB and JSON cache.
 [[mounts]]

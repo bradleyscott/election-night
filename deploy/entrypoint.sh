@@ -3,6 +3,7 @@ set -e
 
 echo "Starting web server..."
 node /app/server.cjs &
+SERVER_PID=$!
 
 echo "Waiting for server to be ready..."
 for i in $(seq 1 30); do
@@ -17,5 +18,11 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-echo "Starting scraper..."
-exec npx tsx /app/packages/collector/src/index.ts
+if [ "${RUN_COLLECTOR:-true}" = "true" ]; then
+  echo "Starting scraper..."
+  exec npx tsx /app/packages/collector/src/index.ts
+fi
+
+# Server-only mode (RUN_COLLECTOR=false): keep the web server in the
+# foreground so the container stays alive without the collector.
+wait $SERVER_PID
