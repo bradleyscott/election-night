@@ -38,7 +38,9 @@ const collectorConfigSchema = z.object({
     .int()
     .min(1000)
     .default(180_000)
-    .describe('Per-attempt timeout when solving the Cloudflare challenge on browser launch'),
+    .describe(
+      'Per-attempt timeout when solving the Cloudflare challenge on browser launch'
+    ),
   challengeWarmupMaxAttempts: z.coerce.number().int().min(1).default(3),
   challengeWarmupEnabled: envBoolean(true).describe(
     'Run the Cloudflare challenge warm-up at browser launch (true|false); disable on trusted egress (e.g. a home connection) where the site serves results directly'

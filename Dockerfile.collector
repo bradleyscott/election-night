@@ -1,10 +1,11 @@
 # Collector-only image for homelab deployments (e.g. Coolify on a Proxmox LXC).
 #
 # Builds @election-night/core + the collector, installs the stealth Chromium,
-# and runs the scraper loop. Outbound-only by default: the collector is a
-# Socket.io *client* (publishes results to the cloud dashboard server), so no
-# EXPOSE is declared. If the history REST endpoint (variant B) is added later,
-# uncomment the EXPOSE line and map it in Coolify.
+# and runs the scraper loop. Outbound-only except port 3459: the collector is
+# a Socket.io *client* (publishes results to the cloud dashboard server) and
+# serves /health plus the unauthenticated /history/* REST API that the
+# cloud dashboard server reads via HISTORY_UPSTREAM — see
+# packages/collector/src/history-server.ts.
 #
 # Mirrors the root Dockerfile's build pattern (prebuilt better-sqlite3,
 # cloakbrowser install, tsx runtime) so what works in Fly CI works here.
@@ -77,7 +78,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=builder /app /app
 
-# Health/live state endpoint (also the future history REST port, variant B).
+# Health/live state endpoint + history REST API (unauthenticated;
+# rate limiting happens at the reverse proxy when exposed).
 EXPOSE 3459
 
 # Healthcheck: the state server on 3459 must answer (wget ships in this
