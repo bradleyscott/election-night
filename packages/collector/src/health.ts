@@ -1,4 +1,5 @@
 import http from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { log } from './logger.js';
 
 export interface CollectorHealthState {
@@ -30,17 +31,21 @@ export const health: CollectorHealthState = {
 /**
  * Tiny state server (node:http, no deps) so Coolify can healthcheck the
  * worker and we can inspect live state on election night. Binds 0.0.0.0 so
- * both in-container probes and the future Caddy proxy (variant B history
- * REST, which will share this HTTP server) can reach it; no host port is
- * mapped and nothing is exposed publicly.
+ * in-container probes, the reverse proxy, and the history REST
+ * routes (mounted via `handleRoute`) can all reach it. `/health` stays open
+ * (nothing sensitive); `/history/*` authenticate with a bearer token.
  */
-export function startHealthServer(port: number): void {
+export function startHealthServer(
+  port: number,
+  handleRoute?: (req: IncomingMessage, res: ServerResponse) => boolean
+): void {
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(health, null, 2));
       return;
     }
+    if (handleRoute?.(req, res)) return;
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('Not found');
   });

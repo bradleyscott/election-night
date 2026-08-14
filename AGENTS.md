@@ -68,33 +68,34 @@ npm run fmt           # prettier --write .
 - `packages/core/src/index.ts` — shared types, config, reducers, and source adapters.
 - `packages/core/src/sources/index.ts` — exports available source adapters (currently `NzElectionResultsSource`).
 - `packages/collector/src/index.ts` — main scraper loop. Scrapes results with Playwright via `cloakbrowser` (stealth Chromium), calculates predictions, writes to SQLite, and publishes results via Socket.io client.
-- `packages/collector/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches via Puppeteer.
+- `packages/collector/src/serve-mock.ts` — mock election results website; serves evolving HTML that the scraper fetches through the same stealth-Chromium pipeline as the real site.
 - `packages/collector/src/discover.ts` — `discover` subcommand loaded dynamically when `process.argv[2] === 'discover'`. Generates a source adapter in `packages/core/src/sources/`.
 - `packages/collector/src/clear.ts` — truncates the SQLite database and removes the JSON results cache.
 - `packages/collector/src/log-webhooks.ts` — local HTTP server that pretty-prints incoming webhook payloads.
 - `packages/collector/src/source-loader.ts` — loads a custom `ElectionSource` from `ELECTION_SOURCE_PATH` or falls back to `NzElectionResultsSource`.
+- `packages/collector/src/health.ts` / `packages/collector/src/history-server.ts` — the collector's HTTP surface on `HEALTH_PORT`: `/health` live state (open) and `/history/*` REST endpoints reading the collector's SQLite DB. This is the **only** source of history data; loopback callers are trusted, remote ones need `HISTORY_TOKEN`.
 - `packages/dashboard/server/index.ts` — Socket.io server. Receives results from the collector, broadcasts to web clients, serves the built Vite app, and exposes `/health`, `/ready`, `/metrics`, `/api/clear`, and `/api/history/*` endpoints.
-- `packages/dashboard/server/db-reader.ts` — read-only SQLite access for the history API.
+- `packages/dashboard/server/history-upstream.ts` — the dashboard server's history API client; fetches `/history/*` from the collector over HTTP with a short response cache. No local DB fallback exists by design.
 - `packages/dashboard/server/seed.ts` — generates synthetic seed data for manual testing.
 - `packages/dashboard/src/main.tsx` — React frontend entrypoint (Vite, Tailwind, Leaflet, react-router-dom, Recharts).
 
 ## Architecture notes that aren't obvious from filenames
 
 - **Core is built.** `packages/core` ships compiled JS from `dist/`. Root scripts run `npm run build:core` before starting the collector or dashboard. `npm install` triggers `prepare` which also builds core.
-- **Socket.io is the backbone.** The collector is a Socket.io *client*; the dashboard package runs the *server*. The server listens on `WS_PORT` (default `3456`). Dashboard `index.html` hardcodes a `preconnect` to `http://localhost:3456`.
+- **Socket.io is the backbone.** The collector is a Socket.io _client_; the dashboard package runs the _server_. The server listens on `WS_PORT` (default `3456`). Dashboard `index.html` hardcodes a `preconnect` to `http://localhost:3456`.
 - **Browser automation uses `cloakbrowser` + `playwright-core`.** The collector launches the stealth Chromium via `cloakbrowser` (the Playwright variant; the Puppeteer variant was dropped because its CDP protocol leaks automation signals). It opens one shared `BrowserContext` per cycle so a solved `cf_clearance` cookie rides across all electorate fetches; `cloakbrowser install` is run during Docker builds.
 - **Dashboard is NOT part of root `tsc -b` references.** Root `tsconfig.json` only references `core` and `collector`. `dashboard` typechecks via its own `tsc -b` inside `npm run build` and in `npm run typecheck`.
 - **SQLite + Drizzle ORM.** Collector uses `better-sqlite3` (native dependency). The DB path defaults to `./.data/election_results.db`. Migrations live in `packages/collector/drizzle/` and auto-run on startup via `migrate()` in `db.ts`. Drizzle config is at `packages/collector/drizzle.config.ts`.
-- **Dashboard server reads the same DB.** It opens the SQLite DB read-only for history endpoints and polls for the DB file to appear if the collector hasn't created it yet.
+- **The dashboard server never opens a database.** The collector owns SQLite; the server fetches history from the collector's `/history/*` REST API (`HISTORY_UPSTREAM`, default loopback) for live results it relies on Socket.io.
 - **Static CSV data.** `csv/candidates.csv`, `csv/electorates.csv`, and `csv/party_list.csv` are read at runtime by the collector. They are not bundled.
 - **Environment loading.** Collector and dashboard server entrypoints import `dotenv/config`. Expected variables:
   - Scraping: `BASE_RESULTS_URL`, `RESULTS_TABLE_SELECTOR`, `CANDIDATE_TABLE_SELECTOR`, `PARTY_VOTE_TABLE_SELECTOR`, `VOTE_PERCENT_COUNTED_SELECTOR`, `VOTES_COUNTED_SELECTOR`
   - Webhooks: `WEBHOOK_URL` (single URL; payload includes an `event` field to discriminate type), `WEBHOOK_LOG_PORT` (default `3458`)
-  - Runtime: `POLL_INTERVAL_MS` (default 120s), `CONCURRENCY` (default 10), `NAVIGATION_TIMEOUT_MS` (default 120s; per-page goto/networkIdle timeout — bumped from 60s so Cloudflare managed challenges can complete), `FETCH_PACING_MS` (default 300; jittered delay between electorate fetches to avoid rate-limit bursts), `CHALLENGE_WARMUP_TIMEOUT_MS` (default 180s; per-attempt timeout when solving the Cloudflare challenge at browser launch), `CHALLENGE_WARMUP_MAX_ATTEMPTS` (default 3), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `WS_PORT`/`WS_URL`, `WS_RECONNECT_DELAY_MS` (default 2s), `DB_PATH` (default `.data/election_results.db`), `ELECTION_SOURCE_PATH`
+  - Runtime: `POLL_INTERVAL_MS` (default 120s), `CONCURRENCY` (default 10), `NAVIGATION_TIMEOUT_MS` (default 120s; per-page goto/networkIdle timeout — bumped from 60s so Cloudflare managed challenges can complete), `FETCH_PACING_MS` (default 300; jittered delay between electorate fetches to avoid rate-limit bursts), `CHALLENGE_WARMUP_TIMEOUT_MS` (default 180s; per-attempt timeout when solving the Cloudflare challenge at browser launch), `CHALLENGE_WARMUP_MAX_ATTEMPTS` (default 3), `CHALLENGE_WARMUP_ENABLED` (default `true`; set `false` to skip the warm-up on trusted egress), `HEALTH_PORT` (default 3459; collector health/live-state endpoint), `HISTORY_TOKEN` (collector: bearer token for remote `/history/*` callers; loopback is always trusted), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `WS_PORT`/`WS_URL`, `WS_RECONNECT_DELAY_MS` (default 2s), `DB_PATH` (default `.data/election_results.db`), `ELECTION_SOURCE_PATH`
   - Browser tuning: `CLOAKBROWSER_PROXY` (proxy URL for alternate egress, e.g. a residential proxy `http://user:pass@host:port` — the site WAF-blocks datacenter IPs, so the collector usually needs this or a home connection), `CLOAKBROWSER_GEOIP` (default `false`; `true` matches timezone/locale/WebRTC to the exit IP), `CLOAKBROWSER_HUMANIZE` (default `true`; human-like mouse/keyboard/scroll), `CLOAKBROWSER_HEADLESS` (default `true`; set `false` for headed mode — needs a display, e.g. Xvfb on servers)
   - Mock: `MOCK_PORT` (default `3457`)
   - Discover subcommand: `OPENAI_API_KEY`, `OPENAI_BASE_URL` (default `https://api.openai.com/v1`), `LLM_MODEL` (default `gpt-4o`)
-  - Web server: `DIST_DIR` (default `./dist`), `CACHE_PATH` (default `.data/electorate_results.json`), `FEED_CACHE_PATH` (default `.data/feed_events.json`), `MAX_FEED_EVENTS` (default `200`)
+  - Web server: `DIST_DIR` (default `./dist`), `CACHE_PATH` (default `.data/electorate_results.json`), `FEED_CACHE_PATH` (default `.data/feed_events.json`), `MAX_FEED_EVENTS` (default `200`), `HISTORY_UPSTREAM` (dashboard server: base URL of the collector's history REST API — always used, defaults to `http://127.0.0.1:3459` for a co-located collector), `HISTORY_TOKEN` (bearer token for non-loopback history calls, matching the collector)
 - **Custom source adapters.** Set `ELECTION_SOURCE_PATH` to a JS/TS module exporting `default` or `NzElectionResultsSource`. Used to adapt to other election result sites. The `discover` subcommand generates these files into `packages/core/src/sources/`.
 
 ## Toolchain and style quirks
@@ -117,4 +118,9 @@ npm run fmt           # prettier --write .
 - `cloakbrowser` manages the browser binary; run `npx cloakbrowser install` manually if the stealth Chromium can't be found.
 - The collector creates `.data/` automatically for the SQLite DB and JSON results cache.
 - The dashboard server serves the built Vite bundle from `DIST_DIR` in production. For local dev, `npm run dev` starts both the server and the Vite dev server.
-- Mock server (`serve-mock.ts`) serves HTML matching the NZ Electoral Commission site structure. The real scraper fetches it via Puppeteer, parses it with Cheerio, and runs the full prediction pipeline — same as election night.
+- Mock server (`serve-mock.ts`) serves HTML matching the NZ Electoral Commission site structure. The real scraper fetches it via cloakbrowser, parses it with Cheerio, and runs the full prediction pipeline — same as election night.
+
+## Deployment
+
+- Production is split: the **dashboard server runs on Fly.io** (`fly.toml` + `Dockerfile`, server-only via `RUN_COLLECTOR=false` in `deploy/entrypoint.sh`) and the **collector runs on a homelab LXC via Coolify** (`Dockerfile.collector`; full guide in `deploy/homelab/README.md`). The collector publishes to the cloud server over Socket.io (`WS_URL`), so the homelab needs no inbound ports.
+- CI: `.github/workflows/deploy.yml` deploys `main` to Fly, gated on `checks.yml` (lint/typecheck/test) and `security.yml`; `preview.yml` deploys per-PR preview apps.

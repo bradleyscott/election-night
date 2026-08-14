@@ -1,0 +1,39 @@
+# Expose the collector's history REST API to the cloud dashboard
+# server. Place this block in your homelab Caddyfile (or import this file).
+#
+# Prereqs (see deploy/homelab/README.md §"Router & DNS"):
+#   - ports 80 + 443 forwarded to this box (ACME HTTP-01 needs port 80)
+#   - DNS A record for history.example.com → your WAN IP (or DDNS hostname)
+#   - not behind CGNAT (else use a Cloudflare Tunnel instead)
+#
+# TLS certificates are obtained/renewed automatically — no manual cert config.
+#
+# The endpoints themselves are bearer-token protected
+# (HISTORY_TOKEN on the collector), so only the cloud server can read them;
+# Caddy only provides TLS + proxying.
+
+history.example.com {
+	encode gzip
+
+	# Only proxy the API paths the cloud server needs; everything else 404s.
+	handle /health {
+		reverse_proxy 127.0.0.1:3459
+	}
+	handle /history/* {
+		reverse_proxy 127.0.0.1:3459
+	}
+	respond 404
+}
+
+# ── Alternatives ────────────────────────────────────────────────────────────
+#
+# 1. Keep it off the public internet entirely (recommended if you run
+#    Tailscale): point the cloud server's HISTORY_UPSTREAM at the tailnet
+#    hostname instead and skip the domain/port-forwarding entirely:
+#
+#    history.<tailnet>.ts.net {
+	#        reverse_proxy 127.0.0.1:3459
+	#    }
+#
+# 2. Coolify's built-in Traefik proxy instead of Caddy: add Port 3459 and a
+#    Domain to the collector application in Coolify — no Caddyfile needed.

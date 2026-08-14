@@ -22,13 +22,13 @@ inbound ports and no router changes at all** — everything the collector does
 
 - Template: **Debian 12** (from the Proxmox template store).
 - **Resources:** 4 GB RAM / 2 vCPU / 32 GB disk. The LXC runs Coolify's own
-  stack (app + Postgres + Redis + proxy) *and* the collector's stealth Chromium,
+  stack (app + Postgres + Redis + proxy) _and_ the collector's stealth Chromium,
   which spikes memory during a scrape.
 - **Networking:** bridge `vmbr0`, static IP or a DHCP reservation on your
   router. Note the IP for later.
 - **Features (if unprivileged — recommended):** enable `nesting=1` and
   `keyctl=1`. Docker inside LXC requires them. If you hit permission quirks,
-  a small Debian *VM* is the boring-reliable fallback (Proxmox treats both the
+  a small Debian _VM_ is the boring-reliable fallback (Proxmox treats both the
   same; a VM sidesteps LXC+Docker edge cases entirely).
 
 ## 2. Install Docker + Coolify
@@ -57,13 +57,14 @@ Paste the values from [`.env.collector.example`](.env.collector.example) into
 the application's **Environment Variables** tab. The ones that matter on the
 homelab:
 
-| Variable | Value / note |
-|---|---|
-| `WS_URL` | `https://<your-cloud-app>.fly.dev` — where the collector publishes to |
-| `BASE_RESULTS_URL` | the real election results site (default in config if unset) |
-| `SOCKET_TOKEN` | shared secret — set the **same value** in the cloud server's `fly.toml` |
-| `CLOAKBROWSER_HEADLESS` | `true` on a headless LXC |
-| `CLOAKBROWSER_PROXY` | only if the home connection itself gets WAF-blocked |
+| Variable                | Value / note                                                                                              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| `WS_URL`                | `https://<your-cloud-app>.fly.dev` — where the collector publishes to                                     |
+| `BASE_RESULTS_URL`      | the real election results site (default in config if unset)                                               |
+| `SOCKET_TOKEN`          | shared secret — set the **same value** in the cloud server's `fly.toml`                                   |
+| `CLOAKBROWSER_HEADLESS` | `true` on a headless LXC                                                                                  |
+| `CLOAKBROWSER_PROXY`    | only if the home connection itself gets WAF-blocked                                                       |
+| `HISTORY_TOKEN`         | bearer token for the `/history/*` REST API — set the **same value** as the cloud server's `HISTORY_TOKEN` |
 
 Coolify injects these as container env vars. `dotenv` never overrides
 already-set env vars, so no `.env` file is needed (and none should be shipped —
@@ -73,9 +74,9 @@ already-set env vars, so no `.env` file is needed (and none should be shipped �
 
 Add two **Storages** (persistent volumes) to the application:
 
-| Volume (Coolify) | Mount path | Why |
-|---|---|---|
-| `collector-data` | `/app/.data` | SQLite DB + JSON caches survive redeploys |
+| Volume (Coolify)    | Mount path           | Why                                        |
+| ------------------- | -------------------- | ------------------------------------------ |
+| `collector-data`    | `/app/.data`         | SQLite DB + JSON caches survive redeploys  |
 | `collector-browser` | `/app/.cloakbrowser` | stealth Chromium binary survives redeploys |
 
 ## 6. Deploy & verify
@@ -91,7 +92,7 @@ Processing of results completed!     # first cycle done
 ```
 
 Then confirm the cloud dashboard starts updating. Test before the real night
-with the mock server: run `npm run start:mock` on the LXC *host*, set
+with the mock server: run `npm run start:mock` on the LXC _host_, set
 `BASE_RESULTS_URL=http://<lxc-host-ip>:3457` for one deploy, and watch the
 dashboard populate.
 
@@ -105,7 +106,7 @@ With the GitHub App connected, every push to `main` redeploys automatically
 ## Router & DNS — only when you expose something inbound
 
 **Nothing to do for the collector as-is.** Ports are only needed if you later
-serve the history REST endpoint (variant B) or the whole dashboard from home:
+serve the history REST endpoint or the whole dashboard from home:
 
 1. **CGNAT check first** (make-or-break): compare the router's WAN IP with
    `curl ifconfig.me` from the homelab. If they differ, you're behind ISP NAT
@@ -122,17 +123,9 @@ serve the history REST endpoint (variant B) or the whole dashboard from home:
 
 ## Caddy?
 
-Not needed with Coolify — its built-in proxy (Traefik) handles domains, TLS,
-and WebSocket upgrades. The only time you'd write a Caddyfile is if you run the
-collector (or the dashboard server) outside Coolify; for reference, exposing
-the history endpoint directly:
-
-```caddyfile
-election-night.example.com {
-    encode gzip
-    reverse_proxy 127.0.0.1:3459   # collector's history REST endpoint
-}
-```
+Only needed for the history endpoint if you prefer Caddy over Coolify's built-in Traefik
+proxy — see the reference block in [`Caddyfile`](Caddyfile). Coolify's proxy
+handles domains, TLS, and WebSocket upgrades on its own.
 
 ## Operational notes
 
@@ -153,7 +146,8 @@ election-night.example.com {
 ## Health checks
 
 The collector serves live state at `http://127.0.0.1:3459/health` (JSON: cycle
-count, last success, votes counted, socket state, last publish). The Dockerfile
+count, last success, votes counted, socket state, last publish) and the
+token-authenticated history API at `/history/*` (see above). The Dockerfile
 declares a `HEALTHCHECK` that Coolify picks up automatically; optionally mirror
 it in the app's Health Check settings (HTTP, path `/health`, port 3459).
 
@@ -163,10 +157,49 @@ outbound worker. Crash recovery comes from the app's restart policy (default
 `unless-stopped`); the healthcheck exists for stall visibility on election
 night.
 
-## When the history REST endpoint (variant B) lands
+## History REST endpoint — cloud Trends page
 
-- `EXPOSE 3459` is already enabled — the health server owns the port today;
-  variant B extends the same HTTP server.
-- In Coolify: add **Port 3459** under Ports and a **Domain**; router forwards
-  80/443 → LXC (see above).
-- Point the cloud server's `HISTORY_UPSTREAM` at `https://<your-domain>`.
+The SQLite DB that powers the dashboard's **Trends** page lives on the
+homelab (the collector writes it). The collector serves it over HTTP on the
+same port as the health endpoint (3459), bearer-token protected:
+
+- `GET /history/snapshots`
+- `GET /history/electorate/<name>`
+- `GET /history/party-votes`
+
+`/health` stays open (nothing sensitive); every `/history/*` route requires
+`Authorization: Bearer <HISTORY_TOKEN>` from remote callers. Loopback callers
+(a co-located server, local dev) are trusted without a token; if
+`HISTORY_TOKEN` is unset, remote requests 404 — safe by default.
+
+### 1. Collector side
+
+Set `HISTORY_TOKEN` in the Coolify application's environment (same value
+you'll use on the cloud server).
+
+### 2. Expose it over TLS
+
+Pick one:
+
+- **Caddy** (if you run your own): copy the block from
+  [`Caddyfile`](Caddyfile) into your homelab Caddyfile. Requires ports
+  80/443 forwarded + DNS (see §"Router & DNS" above); TLS is automatic.
+- **Coolify's built-in proxy**: add **Port 3459** and a **Domain** to the
+  application — Traefik terminates TLS, no Caddy needed.
+- **Tailscale only** (no public exposure): point `HISTORY_UPSTREAM` at the
+  tailnet hostname; no router changes at all.
+
+### 3. Cloud server side
+
+```bash
+fly secrets set \
+  HISTORY_UPSTREAM=https://history.example.com \
+  HISTORY_TOKEN=<same value as the collector>
+```
+
+The dashboard server then serves `/api/history/*` by fetching from the
+homelab (10s response cache, 5s timeout). `/ready` reports
+`history: upstream` once reachable.
+
+> Note: set these via `fly secrets`, not `fly.toml`, so the token never
+> lands in the repo.

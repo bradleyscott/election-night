@@ -2,11 +2,7 @@ import 'dotenv/config';
 import { launch } from 'cloakbrowser';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
-import {
-  connectWs,
-  publishResults,
-  disconnectWs,
-} from './ws-client.js';
+import { connectWs, publishResults, disconnectWs } from './ws-client.js';
 import { cacheResults, processResults } from './results.js';
 import { loadCsvData } from './csv-data.js';
 import { loadSource } from './source-loader.js';
@@ -14,6 +10,7 @@ import { scrapeCycle } from './scrape-cycle.js';
 import { warmUpChallenge } from './scraper.js';
 import { collectorConfig } from './config.js';
 import { startHealthServer, health } from './health.js';
+import { createHistoryHandler, closeHistoryDb } from './history-server.js';
 
 if (process.argv[2] === 'discover') {
   const { runDiscover } = await import('./discover.js');
@@ -37,9 +34,8 @@ const {
 const { candidateRecords, partyListRecords, electorateNames, partyMap } =
   loadCsvData();
 
-const { source, configs: electorateConfigs } = await loadSource(
-  electorateNames
-);
+const { source, configs: electorateConfigs } =
+  await loadSource(electorateNames);
 
 log.info('=== Scraper Configuration ===');
 log.info(`DB_PATH:          ${collectorConfig.dbPath}`);
@@ -54,17 +50,20 @@ log.info(`FETCH_PACING_MS:   ${collectorConfig.fetchPacingMs}`);
 log.info(
   `WARMUP:            ${collectorConfig.challengeWarmupEnabled ? 'enabled' : 'disabled'} (timeout ${collectorConfig.challengeWarmupTimeoutMs}ms, max ${collectorConfig.challengeWarmupMaxAttempts} attempts)`
 );
-log.info(`BROWSER:          ${collectorConfig.headless ? 'headless' : 'headed'} (humanize: ${collectorConfig.humanize})`);
+log.info(
+  `BROWSER:          ${collectorConfig.headless ? 'headless' : 'headed'} (humanize: ${collectorConfig.humanize})`
+);
 if (collectorConfig.proxyUrl) {
   const masked = collectorConfig.proxyUrl.replace(/\/\/[^@]*@/, '//***@');
-  log.info(
-    `PROXY:            ${masked} (geoip: ${collectorConfig.geoip})`
-  );
+  log.info(`PROXY:            ${masked} (geoip: ${collectorConfig.geoip})`);
 } else {
   log.info(`PROXY:            none (geoip: ${collectorConfig.geoip})`);
 }
 log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
 log.info(`HEALTH_PORT:      ${collectorConfig.healthPort}`);
+log.info(
+  `HISTORY_API:      ${collectorConfig.historyToken ? 'enabled (bearer token required)' : 'disabled (set HISTORY_TOKEN to enable)'}`
+);
 if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
 if (collectorConfig.electionSourcePath)
@@ -79,9 +78,7 @@ async function runOnce(): Promise<void> {
   const browser = await launch({
     headless: collectorConfig.headless,
     humanize: collectorConfig.humanize,
-    ...(collectorConfig.proxyUrl
-      ? { proxy: collectorConfig.proxyUrl }
-      : {}),
+    ...(collectorConfig.proxyUrl ? { proxy: collectorConfig.proxyUrl } : {}),
     geoip: collectorConfig.geoip,
     args: [
       '--no-sandbox',
@@ -135,12 +132,12 @@ async function runOnce(): Promise<void> {
       0
     );
   } finally {
-    await context.close().catch((err) =>
-      log.error('Error closing browser context', err)
-    );
-    await browser.close().catch((err) =>
-      log.error('Error closing browser', err)
-    );
+    await context
+      .close()
+      .catch((err) => log.error('Error closing browser context', err));
+    await browser
+      .close()
+      .catch((err) => log.error('Error closing browser', err));
   }
 
   log.info('Processing of results completed!');
@@ -170,17 +167,25 @@ process.on('unhandledRejection', (reason) => {
 
 openDb(dbPath);
 connectWs(WS_URL);
-startHealthServer(collectorConfig.healthPort);
+startHealthServer(
+  collectorConfig.healthPort,
+  createHistoryHandler({
+    dbPath: collectorConfig.dbPath,
+    token: collectorConfig.historyToken,
+  })
+);
 loopRun().catch((err) => log.error('Fatal error in loop', err));
 
 process.on('SIGINT', () => {
   disconnectWs();
   closeDb();
+  closeHistoryDb();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   disconnectWs();
   closeDb();
+  closeHistoryDb();
   process.exit(0);
 });

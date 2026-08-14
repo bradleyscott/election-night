@@ -1,8 +1,5 @@
-import { statSync } from 'fs';
-import { resolve } from 'path';
 import { Counter, Gauge, Histogram, Registry } from 'prom-client';
 import type { MetricEvent } from '@election-night/core/types';
-import { dashboardServerConfig } from './config.js';
 
 export const register = new Registry();
 
@@ -16,12 +13,6 @@ export const feedEventsTotal = new Counter({
   name: 'election_feed_events_total',
   help: 'Total number of feed events generated',
   labelNames: ['type'],
-  registers: [register],
-});
-
-export const dbSizeBytes = new Gauge({
-  name: 'election_db_size_bytes',
-  help: 'Size of the SQLite database file',
   registers: [register],
 });
 
@@ -86,12 +77,6 @@ export function applyMetricEvents(events: MetricEvent | MetricEvent[]): void {
 export async function metricsResponse(): Promise<string> {
   if (Date.now() - lastCollectorMetricsAt > COLLECTOR_METRICS_STALE_MS) {
     collectorSocketConnected.set(0);
-  }
-
-  try {
-    dbSizeBytes.set(statSync(resolve(dashboardServerConfig.dbPath)).size);
-  } catch {
-    dbSizeBytes.set(0);
   }
 
   return register.metrics();

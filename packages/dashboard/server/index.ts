@@ -18,14 +18,7 @@ import type {
   FeedEventType,
   ElectorateDiff,
 } from '@election-night/core/types';
-import {
-  openDbReader,
-  closeDbReader,
-  hasDbReader,
-  getElectorateHistory,
-  getPartyVoteHistory,
-  getSnapshotMetas,
-} from './db-reader.js';
+import { createHistorySource, type HistorySource } from './history-upstream.js';
 import { dashboardServerConfig } from './config.js';
 import {
   register,
@@ -127,14 +120,21 @@ function computeDiff(
     previousMarginPercent: prev?.leaders.marginPercent ?? null,
     currentMarginPercent: current.leaders.marginPercent ?? 0,
     leaderChanged: prev
-      ? prev.leaders.leadingCandidateParty !== current.leaders.leadingCandidateParty
+      ? prev.leaders.leadingCandidateParty !==
+        current.leaders.leadingCandidateParty
       : false,
-    previousLeaderName: prev && prev.leaders.leadingCandidateParty !== current.leaders.leadingCandidateParty
-      ? prev.leaders.leadingCandidate
-      : null,
-    previousLeaderParty: prev && prev.leaders.leadingCandidateParty !== current.leaders.leadingCandidateParty
-      ? prev.leaders.leadingCandidateParty
-      : null,
+    previousLeaderName:
+      prev &&
+      prev.leaders.leadingCandidateParty !==
+        current.leaders.leadingCandidateParty
+        ? prev.leaders.leadingCandidate
+        : null,
+    previousLeaderParty:
+      prev &&
+      prev.leaders.leadingCandidateParty !==
+        current.leaders.leadingCandidateParty
+        ? prev.leaders.leadingCandidateParty
+        : null,
     predictionStatusChanged: prev
       ? prev.leaders.predictionStatus !== current.leaders.predictionStatus
       : false,
@@ -155,14 +155,18 @@ function determineFeedType(diff: ElectorateDiff): FeedEventType {
   }
   if (
     diff.predictionStatusChanged &&
-    (diff.currentPredictionStatus === 'likely' || diff.currentPredictionStatus === 'projected')
+    (diff.currentPredictionStatus === 'likely' ||
+      diff.currentPredictionStatus === 'projected')
   ) {
     return 'prediction_called';
   }
   return 'result_updated';
 }
 
-function templateSummary(diff: ElectorateDiff, result: ElectorateResult): string {
+function templateSummary(
+  diff: ElectorateDiff,
+  result: ElectorateResult
+): string {
   const l = result.leaders;
   const pct = (result.votePercentageCounted * 100).toFixed(0);
   const marginPct = (l.marginPercent * 100).toFixed(2);
@@ -172,10 +176,17 @@ function templateSummary(diff: ElectorateDiff, result: ElectorateResult): string
   if (diff.leaderChanged) {
     return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) took the lead from ${diff.previousLeaderName} (${party(diff.previousLeaderParty)}) — leads by ${marginPct}%.`;
   }
-  if (diff.previousPercentageCounted !== null && diff.previousPercentageCounted < 1 && diff.currentPercentageCounted >= 1) {
+  if (
+    diff.previousPercentageCounted !== null &&
+    diff.previousPercentageCounted < 1 &&
+    diff.currentPercentageCounted >= 1
+  ) {
     return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner — ${marginPct}% lead at 100% counted.`;
   }
-  if (diff.predictionStatusChanged && (l.predictionStatus === 'likely' || l.predictionStatus === 'projected')) {
+  if (
+    diff.predictionStatusChanged &&
+    (l.predictionStatus === 'likely' || l.predictionStatus === 'projected')
+  ) {
     return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner — ${marginPct}% lead exceeds ±${moePct}% MoE, making this a confident prediction at ${pct}% counted.`;
   }
   if (diff.predictionStatusChanged && l.predictionStatus === 'leaning') {
@@ -184,18 +195,27 @@ function templateSummary(diff: ElectorateDiff, result: ElectorateResult): string
   if (diff.previousMargin !== null) {
     const marginDelta = l.margin - diff.previousMargin;
     if (marginDelta > 0) {
-      const widenedPct = ((l.marginPercent - diff.previousMarginPercent) * 100).toFixed(2);
+      const widenedPct = (
+        (l.marginPercent - diff.previousMarginPercent) *
+        100
+      ).toFixed(2);
       return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% at ${pct}% counted.`;
     }
     if (marginDelta < 0) {
-      const narrowedPct = ((diff.previousMarginPercent - l.marginPercent) * 100).toFixed(2);
+      const narrowedPct = (
+        (diff.previousMarginPercent - l.marginPercent) *
+        100
+      ).toFixed(2);
       return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`;
     }
   }
   return `${result.electorateName}: ${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads ${l.secondCandidate} (${party(l.secondCandidateParty)}) by ${marginPct}% at ${pct}% counted.`;
 }
 
-function templateCommentary(diff: ElectorateDiff, result: ElectorateResult): string {
+function templateCommentary(
+  diff: ElectorateDiff,
+  result: ElectorateResult
+): string {
   const l = result.leaders;
   const pct = (result.votePercentageCounted * 100).toFixed(0);
   const marginPct = (l.marginPercent * 100).toFixed(2);
@@ -205,10 +225,17 @@ function templateCommentary(diff: ElectorateDiff, result: ElectorateResult): str
   if (diff.leaderChanged) {
     return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) has taken the lead from ${diff.previousLeaderName} (${party(diff.previousLeaderParty)}) in ${result.electorateName}. The lead is ${marginPct}% with ${pct}% of votes counted.`;
   }
-  if (diff.previousPercentageCounted !== null && diff.previousPercentageCounted < 1 && diff.currentPercentageCounted >= 1) {
+  if (
+    diff.previousPercentageCounted !== null &&
+    diff.previousPercentageCounted < 1 &&
+    diff.currentPercentageCounted >= 1
+  ) {
     return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner in ${result.electorateName} with all ordinary votes counted.`;
   }
-  if (diff.predictionStatusChanged && (l.predictionStatus === 'likely' || l.predictionStatus === 'projected')) {
+  if (
+    diff.predictionStatusChanged &&
+    (l.predictionStatus === 'likely' || l.predictionStatus === 'projected')
+  ) {
     return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) is the likely winner in ${result.electorateName}. The ${marginPct}% lead exceeds the ±${moePct}% margin of error, making this a confident prediction at ${pct}% counted.`;
   }
   if (diff.predictionStatusChanged && l.predictionStatus === 'leaning') {
@@ -217,11 +244,17 @@ function templateCommentary(diff: ElectorateDiff, result: ElectorateResult): str
   if (diff.previousMargin !== null) {
     const marginDelta = l.margin - diff.previousMargin;
     if (marginDelta > 0) {
-      const widenedPct = ((l.marginPercent - diff.previousMarginPercent) * 100).toFixed(2);
+      const widenedPct = (
+        (l.marginPercent - diff.previousMarginPercent) *
+        100
+      ).toFixed(2);
       return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) extended their lead by ${widenedPct}% to ${marginPct}% in ${result.electorateName} at ${pct}% counted.`;
     }
     if (marginDelta < 0) {
-      const narrowedPct = ((diff.previousMarginPercent - l.marginPercent) * 100).toFixed(2);
+      const narrowedPct = (
+        (diff.previousMarginPercent - l.marginPercent) *
+        100
+      ).toFixed(2);
       return `${l.leadingCandidate} (${party(l.leadingCandidateParty)}) leads in ${result.electorateName} by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`;
     }
   }
@@ -249,7 +282,13 @@ function buildFeedEvents(
       diff.previousPercentageCounted < 1 &&
       diff.currentPercentageCounted >= 1;
 
-    if (!changed && !diff.predictionStatusChanged && !diff.leaderChanged && !countCompleted) continue;
+    if (
+      !changed &&
+      !diff.predictionStatusChanged &&
+      !diff.leaderChanged &&
+      !countCompleted
+    )
+      continue;
 
     events.push({
       id: `${result.electorateName}-${diff.currentVotesCounted}-${Math.round(
@@ -269,7 +308,10 @@ function buildFeedEvents(
   return events;
 }
 
-function generateFeedCommentaries(events: FeedEvent[], results: Map<string, ElectorateResult>): FeedEvent[] {
+function generateFeedCommentaries(
+  events: FeedEvent[],
+  results: Map<string, ElectorateResult>
+): FeedEvent[] {
   return events.map((event) => {
     const result = results.get(event.electorateName);
     if (!result) return event;
@@ -299,15 +341,10 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse) {
     let ready = true;
 
     try {
-      if (hasDbReader()) {
-        getSnapshotMetas();
-        checks.db = 'ok';
-      } else {
-        checks.db = 'no database';
-        ready = false;
-      }
+      await historySource.snapshotMetas();
+      checks.history = 'upstream';
     } catch {
-      checks.db = 'error';
+      checks.history = 'error';
       ready = false;
     }
 
@@ -359,12 +396,16 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse) {
   res.end('Not found');
 }
 
-function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
+async function serveApi(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL
+): Promise<boolean> {
   const pathname = url.pathname;
 
   // GET /api/history/snapshots — return all snapshot timestamps
   if (pathname === '/api/history/snapshots') {
-    const metas = getSnapshotMetas();
+    const metas = await historySource.snapshotMetas();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(metas));
     return true;
@@ -374,7 +415,7 @@ function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean 
   const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
   if (electorateMatch) {
     const name = decodeURIComponent(electorateMatch[1]);
-    const history = getElectorateHistory(name);
+    const history = await historySource.electorateHistory(name);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(history));
     return true;
@@ -382,7 +423,7 @@ function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean 
 
   // GET /api/history/party-votes — return party vote totals over time
   if (pathname === '/api/history/party-votes') {
-    const history = getPartyVoteHistory();
+    const history = await historySource.partyVoteHistory();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(history));
     return true;
@@ -391,7 +432,12 @@ function serveApi(req: IncomingMessage, res: ServerResponse, url: URL): boolean 
   return false;
 }
 
-const server = createServer((req, res) => {
+const historySource: HistorySource = createHistorySource({
+  baseUrl: dashboardServerConfig.historyUpstream,
+  token: dashboardServerConfig.historyToken,
+});
+
+const server = createServer(async (req, res) => {
   // POST /api/clear — reset feed state and notify all connected clients
   if (req.method === 'POST' && req.url === '/api/clear') {
     latestResults = null;
@@ -405,7 +451,7 @@ const server = createServer((req, res) => {
   // API routes
   if (req.url) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (serveApi(req, res, url)) return;
+    if (await serveApi(req, res, url)) return;
   }
 
   serveStatic(req, res);
@@ -433,10 +479,15 @@ io.on('connection', (socket) => {
     console.log('Received results update, broadcasting...');
     socket.broadcast.emit('results_update', payload);
 
-    const rawEvents = buildFeedEvents(previousResults, payload.electorateResults);
+    const rawEvents = buildFeedEvents(
+      previousResults,
+      payload.electorateResults
+    );
     if (rawEvents.length === 0) return;
 
-    const resultMap = new Map(payload.electorateResults.map((r) => [r.electorateName, r]));
+    const resultMap = new Map(
+      payload.electorateResults.map((r) => [r.electorateName, r])
+    );
     const eventsWithCommentary = generateFeedCommentaries(rawEvents, resultMap);
     const newEvents = addFeedEvents(eventsWithCommentary);
     if (newEvents.length > 0) {
@@ -457,41 +508,29 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, () => {
   console.log('=== Dashboard Server Configuration ===');
-  console.log(`WS_PORT:         ${PORT}`);
-  console.log(`DB_PATH:         ${resolve(dashboardServerConfig.dbPath)}`);
-  console.log(`DIST_DIR:        ${DIST_DIR}`);
-  console.log(`CACHE_PATH:      ${resolve(CACHE_PATH)}`);
-  console.log(`MAX_FEED_EVENTS: ${MAX_FEED_EVENTS}`);
-  console.log(`CWD:             ${process.cwd()}`);
+  console.log(`WS_PORT:           ${PORT}`);
+  console.log(`HISTORY_UPSTREAM:  ${dashboardServerConfig.historyUpstream}`);
+  console.log(`DIST_DIR:          ${DIST_DIR}`);
+  console.log(`CACHE_PATH:        ${resolve(CACHE_PATH)}`);
+  console.log(`MAX_FEED_EVENTS:   ${MAX_FEED_EVENTS}`);
+  console.log(`CWD:               ${process.cwd()}`);
   console.log('======================================');
   console.log(`Socket.io server running on http://localhost:${PORT}`);
-  openDbReader(dashboardServerConfig.dbPath);
   loadCachedResults();
   feedEvents = loadFeedEvents();
 });
 
-// Poll for the DB to appear (collector creates it on first scrape)
-const dbPollTimer = setInterval(() => {
-  if (!hasDbReader() && existsSync(dashboardServerConfig.dbPath)) {
-    openDbReader(dashboardServerConfig.dbPath);
-  }
-}, 5000);
-
 process.on('SIGINT', () => {
   console.log('Shutting down...');
-  closeDbReader();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   console.log('Shutting down...');
-  closeDbReader();
   process.exit(0);
 });
 
 export function stopDashboardServer(): void {
-  clearInterval(dbPollTimer);
-  closeDbReader();
   io.close();
   server.close();
 }

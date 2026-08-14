@@ -5,8 +5,9 @@
 **/.cache
 **/.data
 **/dist
-# tsbuildinfo is tracked in git; if it ships in the context while dist is
-# excluded, tsc -b treats the project as up-to-date and skips emitting dist
+# tsbuildinfo can linger locally from incremental builds; if it ships in the
+# context while dist is excluded, tsc -b treats the project as up-to-date and
+# skips emitting dist
 **/*.tsbuildinfo
 .git
 .gitignore
