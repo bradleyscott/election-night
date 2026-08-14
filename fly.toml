@@ -23,22 +23,12 @@ primary_region = "nrt"
   port = 3456
   path = "/metrics"
 
+# Server-only app: the collector runs on the homelab and publishes results
+# over Socket.io (WS_URL) plus history over HTTP (set HISTORY_UPSTREAM via
+# `fly secrets set` to point at the homelab's history endpoint).
 [env]
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
-  BASE_RESULTS_URL = "https://www.electionresults.govt.nz/electionresults_2023"
-  POLL_INTERVAL_MS = "120000"
-  CONCURRENCY = "2"
-  LOG_LEVEL = "3"
-  DB_PATH = "/app/.data/election_results.db"
-  # The collector runs on the homelab (Coolify) and publishes here over
-  # Socket.io; this app is server-only.
-  RUN_COLLECTOR = "false"
-
-# Shared persistent storage for SQLite DB and JSON cache.
-[[mounts]]
-  source = "election_data"
-  destination = "/app/.data"
 
 [[vm]]
   memory = "1gb"

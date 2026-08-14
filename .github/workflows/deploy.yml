@@ -27,9 +27,7 @@ jobs:
             deploy:
               - 'Dockerfile'
               - 'fly.toml'
-              - 'entrypoint.sh'
               - 'packages/**'
-              - 'csv/**'
               - 'tsconfig*.json'
               - 'package.json'
               - 'package-lock.json'

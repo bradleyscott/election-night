@@ -450,7 +450,18 @@ const server = createServer(async (req, res) => {
   // API routes
   if (req.url) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    if (await serveApi(req, res, url)) return;
+    try {
+      if (await serveApi(req, res, url)) return;
+    } catch (err) {
+      // History upstream unreachable and nothing cached — degrade to 502
+      // rather than crashing the server on an unhandled rejection.
+      console.error('API route failed:', err);
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'history upstream unavailable' }));
+      }
+      return;
+    }
   }
 
   serveStatic(req, res);

@@ -1,22 +1,25 @@
+# Server-only image for the dashboard server (deployed to Fly.io).
+#
+# The collector runs separately on the homelab (see Dockerfile.collector) and
+# publishes to this server over Socket.io; history data arrives via the
+# collector's /history/* REST API (HISTORY_UPSTREAM). No browser, no SQLite —
+# nothing here launches cloakbrowser, so the image stays slim.
+
 FROM node:22 AS builder
 WORKDIR /app
-
-ENV CLOAKBROWSER_CACHE_DIR=/app/.cloakbrowser
-ENV CLOAKBROWSER_AUTO_UPDATE=false
 
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/collector/package.json packages/collector/
 COPY packages/dashboard/package.json packages/dashboard/
-RUN npm ci --ignore-scripts && \
-    npm rebuild better-sqlite3 && \
-    cd packages/collector && npx cloakbrowser install && cd /app
+# npm ci validates every workspace listed in the root package.json against
+# the lockfile, so packages/collector/package.json must exist even though
+# this image never runs the collector.
+RUN npm ci --ignore-scripts
 
 COPY tsconfig.base.json tsconfig.json ./
 COPY packages/core/ packages/core/
-COPY packages/collector/ packages/collector/
 COPY packages/dashboard/ packages/dashboard/
-COPY csv/ csv/
 
 RUN npm run build:core
 
@@ -36,45 +39,8 @@ RUN npx esbuild packages/dashboard/server/index.ts \
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CLOAKBROWSER_CACHE_DIR=/app/.cloakbrowser
-ENV CLOAKBROWSER_AUTO_UPDATE=false
-
-RUN apt-get update && apt-get install -y \
-  wget \
-  ca-certificates \
-  fonts-liberation \
-  libasound2 \
-  libatk-bridge2.0-0 \
-  libatk1.0-0 \
-  libcairo2 \
-  libcups2 \
-  libdbus-1-3 \
-  libdrm2 \
-  libgbm1 \
-  libglib2.0-0 \
-  libgtk-3-0 \
-  libnspr4 \
-  libnss3 \
-  libpango-1.0-0 \
-  libpangocairo-1.0-0 \
-  libx11-6 \
-  libx11-xcb1 \
-  libxcb1 \
-  libxcomposite1 \
-  libxcursor1 \
-  libxdamage1 \
-  libxext6 \
-  libxfixes3 \
-  libxi6 \
-  libxrandr2 \
-  libxrender1 \
-  libxss1 \
-  --no-install-recommends \
-  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app /app
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 3456
-CMD ["/app/entrypoint.sh"]
+CMD ["node", "server.cjs"]

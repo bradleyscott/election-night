@@ -147,7 +147,6 @@ Other flags: `--port 3457` (or `MOCK_PORT`), `--help`.
 | `CLOAKBROWSER_GEOIP`            | `false`                                                | `true` matches timezone/locale/WebRTC to the (proxy) exit IP                                                                                                                                                               |
 | `CLOAKBROWSER_HUMANIZE`         | `true`                                                 | Human-like mouse, keyboard, and scroll behaviour                                                                                                                                                                           |
 | `CLOAKBROWSER_HEADLESS`         | `true`                                                 | `false` runs the stealth browser headed (needs a display, e.g. Xvfb)                                                                                                                                                       |
-| `RUN_COLLECTOR`                 | `true`                                                 | Docker entrypoint toggle: set `false` to run the web server only                                                                                                                                                           |
 | `CACHE_PATH`                    | `.data/electorate_results.json`                        | Dashboard server JSON cache path                                                                                                                                                                                           |
 | `FEED_CACHE_PATH`               | `.data/feed_events.json`                               | Dashboard server feed-events cache path                                                                                                                                                                                    |
 | `MAX_FEED_EVENTS`               | `200`                                                  | Maximum feed events retained by the dashboard server                                                                                                                                                                       |
@@ -168,11 +167,11 @@ docker build -t election-night .
 docker run -p 3456:3456 election-night
 ```
 
-The container bundles the dashboard, starts the web server, and then starts the scraper (see `entrypoint.sh`). Set `RUN_COLLECTOR=false` to run the web server only.
+The image is **server-only** (the collector never runs in it — no browser, no SQLite). Run the collector separately via `Dockerfile.collector`.
 
 ### Fly.io (dashboard server)
 
-`fly.toml` deploys the **server only** (`RUN_COLLECTOR=false`); the collector publishes to it from the homelab over Socket.io (`WS_URL`). The `election_data` volume persists the SQLite DB and JSON caches at `/app/.data`. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits), and PR previews are deployed by `.github/workflows/preview.yml`.
+`fly.toml` deploys the server; the collector publishes to it from the homelab over Socket.io (`WS_URL`) and serves history over HTTP (point `HISTORY_UPSTREAM` at it via `fly secrets set`). JSON caches (`.data/`) are ephemeral — after a restart the feed rebuilds from the next collector publish. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits), and PR previews are deployed by `.github/workflows/preview.yml`.
 
 ### Homelab collector (Coolify)
 
