@@ -1,6 +1,6 @@
 # Design — Election Night (NZ general election tracker)
 
-Locked design system. Future Hallmark runs read this file first; pages defer
+Locked design system. Pages defer
 to it. Amend intentionally — the file is the rule.
 
 ## System
