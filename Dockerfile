@@ -33,8 +33,7 @@ RUN npx esbuild packages/dashboard/server/index.ts \
   --format=cjs \
   --outfile=/app/server.cjs \
   --external:bufferutil \
-  --external:utf-8-validate \
-  --external:better-sqlite3
+  --external:utf-8-validate
 
 FROM node:22-slim
 WORKDIR /app
