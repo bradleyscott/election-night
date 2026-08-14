@@ -119,5 +119,5 @@ npm run fmt           # prettier --write .
 
 ## Deployment
 
-- Production is split: the **dashboard server runs on Fly.io** (`fly.toml` + `Dockerfile`, server-only via `RUN_COLLECTOR=false` in `deploy/entrypoint.sh`) and the **collector runs on a homelab LXC via Coolify** (`Dockerfile.collector`; full guide in `deploy/homelab/README.md`). The collector publishes to the cloud server over Socket.io (`WS_URL`), so the homelab needs no inbound ports.
+- Production is split: the **dashboard server runs on Fly.io** (`fly.toml` + `Dockerfile`, server-only via `RUN_COLLECTOR=false` in `entrypoint.sh`) and the **collector runs on a homelab LXC via Coolify** (`Dockerfile.collector`). The collector publishes to the cloud server over Socket.io (`WS_URL`) and serves `/history/*` on port 3459, which the cloud server reads via `HISTORY_UPSTREAM`.
 - CI: `.github/workflows/deploy.yml` deploys `main` to Fly, gated on `checks.yml` (lint/typecheck/test) and `security.yml`; `preview.yml` deploys per-PR preview apps.
