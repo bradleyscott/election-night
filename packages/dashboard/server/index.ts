@@ -434,7 +434,6 @@ async function serveApi(
 
 const historySource: HistorySource = createHistorySource({
   baseUrl: dashboardServerConfig.historyUpstream,
-  token: dashboardServerConfig.historyToken,
 });
 
 const server = createServer(async (req, res) => {

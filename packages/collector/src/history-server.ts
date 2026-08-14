@@ -8,16 +8,15 @@ import { log } from './logger.js';
  * the health server's port (3459). This is the *only* source of history
  * data: the dashboard server never opens a SQLite DB, it always fetches
  * from here — co-located processes over loopback, split deployments over
- * TLS + bearer token.
+ * TLS via a reverse proxy.
  *
- * Safe by default: loopback peers are trusted; remote callers need
- * `HISTORY_TOKEN` (404 when unset, 401 when wrong).
+ * The data is public election results, so the endpoints are unauthenticated.
+ * Rate limiting is deliberately not implemented here — it belongs at the
+ * networking layer (reverse proxy / firewall) in front of the collector.
  */
 
 export interface HistoryHandlerOptions {
   dbPath: string;
-  /** Bearer token required by non-loopback callers; loopback is trusted. */
-  token: string | undefined;
 }
 
 let db: Database.Database | null = null;
@@ -48,27 +47,6 @@ export function closeHistoryDb(): void {
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
-}
-
-/** Loopback peers (dev, all-in-one image) are trusted without a token. */
-function isLoopback(remoteAddress: string): boolean {
-  return (
-    remoteAddress === '127.0.0.1' ||
-    remoteAddress === '::1' ||
-    remoteAddress === '::ffff:127.0.0.1'
-  );
-}
-
-/** Pure auth decision, exported for testing. */
-export function authorizeHistoryRequest(
-  remoteAddress: string,
-  authorization: string | undefined,
-  token: string | undefined
-): 'allow' | 'unauthorized' | 'not-found' {
-  const loopback = isLoopback(remoteAddress);
-  if (!token) return loopback ? 'allow' : 'not-found';
-  if (loopback) return 'allow';
-  return authorization === `Bearer ${token}` ? 'allow' : 'unauthorized';
 }
 
 function getSnapshotMetas(handle: Database.Database): unknown[] {
@@ -173,27 +151,13 @@ function getPartyVoteHistory(handle: Database.Database): unknown[] {
 export function createHistoryHandler(
   options: HistoryHandlerOptions
 ): (req: IncomingMessage, res: ServerResponse) => boolean {
-  const { dbPath, token } = options;
+  const { dbPath } = options;
 
   return (req, res) => {
     const url = req.url ?? '';
     if (!url.startsWith('/history')) return false;
     if (req.method !== 'GET') {
       sendJson(res, 405, { error: 'method not allowed' });
-      return true;
-    }
-
-    // Loopback (dev, all-in-one image) is trusted; remote callers need the
-    // token — 404 when unset (feature off), 401 when set but wrong.
-    const decision = authorizeHistoryRequest(
-      req.socket.remoteAddress ?? '',
-      req.headers.authorization,
-      token
-    );
-    if (decision !== 'allow') {
-      sendJson(res, decision === 'unauthorized' ? 401 : 404, {
-        error: decision === 'unauthorized' ? 'unauthorized' : 'not found',
-      });
       return true;
     }
 

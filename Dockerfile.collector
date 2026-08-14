@@ -3,9 +3,9 @@
 # Builds @election-night/core + the collector, installs the stealth Chromium,
 # and runs the scraper loop. Outbound-only except port 3459: the collector is
 # a Socket.io *client* (publishes results to the cloud dashboard server) and
-# serves /health plus the bearer-token-protected /history/* REST API (variant
-# B) that the cloud server reads via HISTORY_UPSTREAM. Map 3459 in Coolify or
-# via the reference deploy/homelab/Caddyfile.
+# serves /health plus the unauthenticated /history/* REST API that the
+# cloud dashboard server reads via HISTORY_UPSTREAM — see
+# packages/collector/src/history-server.ts.
 #
 # Mirrors the root Dockerfile's build pattern (prebuilt better-sqlite3,
 # cloakbrowser install, tsx runtime) so what works in Fly CI works here.
@@ -78,8 +78,8 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=builder /app /app
 
-# Health/live state endpoint + variant B history REST API (bearer-token
-# protected — see packages/collector/src/history-server.ts).
+# Health/live state endpoint + history REST API (unauthenticated;
+# rate limiting happens at the reverse proxy when exposed).
 EXPOSE 3459
 
 # Healthcheck: the state server on 3459 must answer (wget ships in this

@@ -8,9 +8,10 @@
 #
 # TLS certificates are obtained/renewed automatically — no manual cert config.
 #
-# The endpoints themselves are bearer-token protected
-# (HISTORY_TOKEN on the collector), so only the cloud server can read them;
-# Caddy only provides TLS + proxying.
+# The endpoints serve public election data and are unauthenticated; if you
+# want rate limiting, do it here at the proxy (e.g. the caddy-ratelimit
+# plugin: rate_limit {...}) or with Traefik's rateLimit middleware — Caddy
+# core has no built-in rate limiter.
 
 history.example.com {
 	encode gzip

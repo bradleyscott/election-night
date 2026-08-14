@@ -18,12 +18,6 @@ const dashboardServerConfigSchema = z.object({
     .describe(
       'Base URL of the collector history REST API. The server never reads a SQLite DB — it always fetches /api/history/* from here. Default suits a co-located collector; point it at the homelab collector in split deployments'
     ),
-  historyToken: z
-    .string()
-    .optional()
-    .describe(
-      'Bearer token for HISTORY_UPSTREAM (must match the collector HISTORY_TOKEN)'
-    ),
 });
 
 export type DashboardServerConfig = z.infer<typeof dashboardServerConfigSchema>;
@@ -36,7 +30,6 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     feedCachePath: process.env.FEED_CACHE_PATH,
     maxFeedEvents: process.env.MAX_FEED_EVENTS,
     historyUpstream: process.env.HISTORY_UPSTREAM,
-    historyToken: process.env.HISTORY_TOKEN,
   });
 
   if (!parsed.success) {

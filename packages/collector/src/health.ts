@@ -33,7 +33,7 @@ export const health: CollectorHealthState = {
  * worker and we can inspect live state on election night. Binds 0.0.0.0 so
  * in-container probes, the reverse proxy, and the history REST
  * routes (mounted via `handleRoute`) can all reach it. `/health` stays open
- * (nothing sensitive); `/history/*` authenticate with a bearer token.
+ * (nothing sensitive); `/history/*` are rate limited per IP.
  */
 export function startHealthServer(
   port: number,

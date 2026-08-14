@@ -15,7 +15,7 @@ describe('history source (collector REST API client)', () => {
     vi.restoreAllMocks();
   });
 
-  it('sends the bearer token and returns parsed JSON', async () => {
+  it('returns parsed JSON', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse(200, [{ snapshotId: 1 }]));
@@ -23,30 +23,13 @@ describe('history source (collector REST API client)', () => {
 
     const source = createHistorySource({
       baseUrl: 'https://history.example.com',
-      token: 'sekrit',
     });
     const metas = await source.snapshotMetas();
 
     expect(metas).toEqual([{ snapshotId: 1 }]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://history.example.com/history/snapshots');
-    expect((init as RequestInit).headers).toEqual({
-      authorization: 'Bearer sekrit',
-    });
-  });
-
-  it('omits the auth header when no token is configured', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, []));
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-    const source = createHistorySource({
-      baseUrl: 'http://127.0.0.1:3459',
-    });
-    await source.snapshotMetas();
-
-    const [, init] = fetchMock.mock.calls[0]!;
-    expect((init as RequestInit).headers).toEqual({});
+    expect((init as RequestInit).headers).toBeUndefined();
   });
 
   it('caches responses within the TTL', async () => {
@@ -55,7 +38,6 @@ describe('history source (collector REST API client)', () => {
 
     const source = createHistorySource({
       baseUrl: 'https://history.example.com',
-      token: 'sekrit',
       cacheTtlMs: 60_000,
     });
     await source.snapshotMetas();
@@ -70,7 +52,6 @@ describe('history source (collector REST API client)', () => {
 
     const source = createHistorySource({
       baseUrl: 'https://history.example.com',
-      token: 'sekrit',
     });
     await source.electorateHistory('Te Tai Tonga');
 
@@ -86,19 +67,48 @@ describe('history source (collector REST API client)', () => {
 
     const source = createHistorySource({
       baseUrl: 'https://history.example.com',
-      token: 'sekrit',
     });
     await expect(source.partyVoteHistory()).resolves.toEqual([]);
   });
 
-  it('throws on upstream errors', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(401, {}));
+  it('serves the stale cached value when the upstream errors or is unreachable', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, [{ snapshotId: 1 }]))
+      .mockResolvedValueOnce(jsonResponse(429, {}))
+      .mockRejectedValueOnce(new Error('connection refused'));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const source = createHistorySource({
       baseUrl: 'https://history.example.com',
-      token: 'wrong',
+      cacheTtlMs: 0, // always expired → always refetches
     });
-    await expect(source.snapshotMetas()).rejects.toThrow('responded 401');
+
+    // Prime the cache.
+    await expect(source.snapshotMetas()).resolves.toEqual([{ snapshotId: 1 }]);
+    // Upstream error (e.g. proxy rate limit) → stale cache instead of a throw.
+    await expect(source.snapshotMetas()).resolves.toEqual([{ snapshotId: 1 }]);
+    // Network failure → stale cache instead of a throw.
+    await expect(source.snapshotMetas()).resolves.toEqual([{ snapshotId: 1 }]);
+  });
+
+  it('throws when unreachable with no cached value', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('refused'));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const source = createHistorySource({
+      baseUrl: 'https://history.example.com',
+    });
+    await expect(source.snapshotMetas()).rejects.toThrow('unreachable');
+  });
+
+  it('throws on upstream errors', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(500, {}));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const source = createHistorySource({
+      baseUrl: 'https://history.example.com',
+    });
+    await expect(source.snapshotMetas()).rejects.toThrow('responded 500');
   });
 });

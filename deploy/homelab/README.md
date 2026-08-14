@@ -57,14 +57,13 @@ Paste the values from [`.env.collector.example`](.env.collector.example) into
 the application's **Environment Variables** tab. The ones that matter on the
 homelab:
 
-| Variable                | Value / note                                                                                              |
-| ----------------------- | --------------------------------------------------------------------------------------------------------- |
-| `WS_URL`                | `https://<your-cloud-app>.fly.dev` — where the collector publishes to                                     |
-| `BASE_RESULTS_URL`      | the real election results site (default in config if unset)                                               |
-| `SOCKET_TOKEN`          | shared secret — set the **same value** in the cloud server's `fly.toml`                                   |
-| `CLOAKBROWSER_HEADLESS` | `true` on a headless LXC                                                                                  |
-| `CLOAKBROWSER_PROXY`    | only if the home connection itself gets WAF-blocked                                                       |
-| `HISTORY_TOKEN`         | bearer token for the `/history/*` REST API — set the **same value** as the cloud server's `HISTORY_TOKEN` |
+| Variable                | Value / note                                                            |
+| ----------------------- | ----------------------------------------------------------------------- |
+| `WS_URL`                | `https://<your-cloud-app>.fly.dev` — where the collector publishes to   |
+| `BASE_RESULTS_URL`      | the real election results site (default in config if unset)             |
+| `SOCKET_TOKEN`          | shared secret — set the **same value** in the cloud server's `fly.toml` |
+| `CLOAKBROWSER_HEADLESS` | `true` on a headless LXC                                                |
+| `CLOAKBROWSER_PROXY`    | only if the home connection itself gets WAF-blocked                     |
 
 Coolify injects these as container env vars. `dotenv` never overrides
 already-set env vars, so no `.env` file is needed (and none should be shipped —
@@ -161,23 +160,17 @@ night.
 
 The SQLite DB that powers the dashboard's **Trends** page lives on the
 homelab (the collector writes it). The collector serves it over HTTP on the
-same port as the health endpoint (3459), bearer-token protected:
+same port as the health endpoint (3459):
 
 - `GET /history/snapshots`
 - `GET /history/electorate/<name>`
 - `GET /history/party-votes`
 
-`/health` stays open (nothing sensitive); every `/history/*` route requires
-`Authorization: Bearer <HISTORY_TOKEN>` from remote callers. Loopback callers
-(a co-located server, local dev) are trusted without a token; if
-`HISTORY_TOKEN` is unset, remote requests 404 — safe by default.
+The data is public election results, so the endpoints are unauthenticated.
+Rate limiting is not implemented in the app — it belongs at the networking
+layer (see the Caddyfile for where to add it).
 
-### 1. Collector side
-
-Set `HISTORY_TOKEN` in the Coolify application's environment (same value
-you'll use on the cloud server).
-
-### 2. Expose it over TLS
+### 1. Expose it over TLS
 
 Pick one:
 
@@ -189,12 +182,10 @@ Pick one:
 - **Tailscale only** (no public exposure): point `HISTORY_UPSTREAM` at the
   tailnet hostname; no router changes at all.
 
-### 3. Cloud server side
+### 2. Cloud server side
 
 ```bash
-fly secrets set \
-  HISTORY_UPSTREAM=https://history.example.com \
-  HISTORY_TOKEN=<same value as the collector>
+fly secrets set HISTORY_UPSTREAM=https://history.example.com
 ```
 
 The dashboard server then serves `/api/history/*` by fetching from the

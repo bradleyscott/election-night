@@ -9,10 +9,7 @@ import type {
   WithLeaders,
   WithMarginOfError,
 } from '@election-night/core/types';
-import {
-  createHistoryHandler,
-  authorizeHistoryRequest,
-} from './history-server.js';
+import { createHistoryHandler } from './history-server.js';
 
 vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -70,8 +67,8 @@ describe('history-server', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function start(token: string | undefined): Promise<void> {
-    const handler = createHistoryHandler({ dbPath, token });
+  function start(): Promise<void> {
+    const handler = createHistoryHandler({ dbPath });
     server = http.createServer((req, res) => {
       if (!handler(req, res)) {
         res.writeHead(404);
@@ -86,32 +83,9 @@ describe('history-server', () => {
     });
   }
 
-  test('serves snapshots to loopback without a token configured (dev default)', async () => {
-    await start(undefined);
+  test('serves snapshots with no configuration (open by default)', async () => {
+    await start();
     const res = await fetch(`${baseUrl}/history/snapshots`);
-    expect(res.status).toBe(200);
-    const metas = (await res.json()) as { snapshotId: number }[];
-    expect(metas).toHaveLength(2);
-  });
-
-  test('401s on wrong bearer token', async () => {
-    await start('sekrit');
-    // Loopback is trusted, so exercise the remote path via the pure
-    // auth function instead (see the authorizeHistoryRequest tests below).
-    expect(
-      authorizeHistoryRequest('203.0.113.9', 'Bearer wrong', 'sekrit')
-    ).toBe('unauthorized');
-    const res = await fetch(`${baseUrl}/history/snapshots`, {
-      headers: { authorization: 'Bearer wrong' },
-    });
-    expect(res.status).toBe(200); // loopback bypass
-  });
-
-  test('serves snapshots with a valid token', async () => {
-    await start('sekrit');
-    const res = await fetch(`${baseUrl}/history/snapshots`, {
-      headers: { authorization: 'Bearer sekrit' },
-    });
     expect(res.status).toBe(200);
     const metas = (await res.json()) as {
       snapshotId: number;
@@ -122,10 +96,9 @@ describe('history-server', () => {
   });
 
   test('serves electorate history with candidates and party votes', async () => {
-    await start('sekrit');
+    await start();
     const res = await fetch(
-      `${baseUrl}/history/electorate/${encodeURIComponent('Test Electorate')}`,
-      { headers: { authorization: 'Bearer sekrit' } }
+      `${baseUrl}/history/electorate/${encodeURIComponent('Test Electorate')}`
     );
     expect(res.status).toBe(200);
     const history = (await res.json()) as {
@@ -138,10 +111,8 @@ describe('history-server', () => {
   });
 
   test('serves party-vote history', async () => {
-    await start('sekrit');
-    const res = await fetch(`${baseUrl}/history/party-votes`, {
-      headers: { authorization: 'Bearer sekrit' },
-    });
+    await start();
+    const res = await fetch(`${baseUrl}/history/party-votes`);
     expect(res.status).toBe(200);
     const history = (await res.json()) as { snapshotId: number }[];
     expect(history).toHaveLength(2);
@@ -149,49 +120,14 @@ describe('history-server', () => {
 
   test('503s when the DB does not exist yet', async () => {
     dbPath = join(tmpDir, 'missing.db');
-    await start('sekrit');
-    const res = await fetch(`${baseUrl}/history/snapshots`, {
-      headers: { authorization: 'Bearer sekrit' },
-    });
+    await start();
+    const res = await fetch(`${baseUrl}/history/snapshots`);
     expect(res.status).toBe(503);
   });
 
   test('leaves non-history routes unhandled', async () => {
-    await start('sekrit');
+    await start();
     const res = await fetch(`${baseUrl}/other`);
     expect(res.status).toBe(404);
-  });
-});
-
-describe('authorizeHistoryRequest', () => {
-  test('loopback without token is allowed (dev / all-in-one default)', () => {
-    expect(authorizeHistoryRequest('127.0.0.1', undefined, undefined)).toBe(
-      'allow'
-    );
-    expect(authorizeHistoryRequest('::1', undefined, undefined)).toBe('allow');
-    expect(
-      authorizeHistoryRequest('::ffff:127.0.0.1', undefined, undefined)
-    ).toBe('allow');
-  });
-
-  test('remote without token configured is not found', () => {
-    expect(authorizeHistoryRequest('203.0.113.9', undefined, undefined)).toBe(
-      'not-found'
-    );
-  });
-
-  test('remote with matching bearer token is allowed', () => {
-    expect(
-      authorizeHistoryRequest('203.0.113.9', 'Bearer sekrit', 'sekrit')
-    ).toBe('allow');
-  });
-
-  test('remote with wrong or missing token is unauthorized', () => {
-    expect(
-      authorizeHistoryRequest('203.0.113.9', 'Bearer wrong', 'sekrit')
-    ).toBe('unauthorized');
-    expect(authorizeHistoryRequest('203.0.113.9', undefined, 'sekrit')).toBe(
-      'unauthorized'
-    );
   });
 });

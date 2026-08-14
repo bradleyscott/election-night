@@ -61,9 +61,6 @@ if (collectorConfig.proxyUrl) {
 }
 log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
 log.info(`HEALTH_PORT:      ${collectorConfig.healthPort}`);
-log.info(
-  `HISTORY_API:      ${collectorConfig.historyToken ? 'enabled (bearer token required)' : 'disabled (set HISTORY_TOKEN to enable)'}`
-);
 if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
 if (collectorConfig.electionSourcePath)
@@ -171,7 +168,6 @@ startHealthServer(
   collectorConfig.healthPort,
   createHistoryHandler({
     dbPath: collectorConfig.dbPath,
-    token: collectorConfig.historyToken,
   })
 );
 loopRun().catch((err) => log.error('Fatal error in loop', err));

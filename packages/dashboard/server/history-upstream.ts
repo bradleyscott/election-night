@@ -1,6 +1,6 @@
 /**
  * History source for the dashboard server: the collector's history REST API
- * (`/history/*` on its health port, bearer-token protected — see
+ * (`/history/*` on its health port, unauthenticated — see
  * packages/collector/src/history-server.ts).
  *
  * This is the *only* history source. The server never opens a SQLite DB:
@@ -74,11 +74,10 @@ interface CacheEntry {
 
 export function createHistorySource(options: {
   baseUrl: string;
-  token?: string;
   fetchTimeoutMs?: number;
   cacheTtlMs?: number;
 }): HistorySource {
-  const { baseUrl, token } = options;
+  const { baseUrl } = options;
   const timeoutMs = options.fetchTimeoutMs ?? 5_000;
   const ttlMs = options.cacheTtlMs ?? 10_000;
   const cache = new Map<string, CacheEntry>();
@@ -88,15 +87,25 @@ export function createHistorySource(options: {
     if (cached && cached.expiresAt > Date.now()) {
       return cached.value as T;
     }
-    const res = await fetch(`${baseUrl}${path}`, {
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}${path}`, {
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch {
+      // Collector unreachable: fall back to the stale cached value if we
+      // have one — better than a 500 on the Trends page.
+      if (cached) return cached.value as T;
+      throw new Error(`history upstream ${path} unreachable`);
+    }
     if (res.status === 503) {
       // Collector hasn't created the DB yet — treat as empty, not an error.
       return [] as T;
     }
     if (!res.ok) {
+      // Proxy-level errors (rate limiting, bad gateway): serve stale if we
+      // have it, else surface the failure.
+      if (cached) return cached.value as T;
       throw new Error(`history upstream ${path} responded ${res.status}`);
     }
     const value = (await res.json()) as T;
