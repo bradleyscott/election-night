@@ -1,5 +1,5 @@
 app = "election-night"
-primary_region = "nrt"
+primary_region = "syd"
 
 [build]
   dockerfile = "Dockerfile.dashboard"
@@ -30,7 +30,12 @@ primary_region = "nrt"
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
 
+# 256mb keeps the machine inside the Legacy Hobby plan's free allowance
+# (3x shared-cpu-1x 256MB VMs). Before election night, bump it:
+#   fly machine update <id> --memory 1024
+# then drop back after the result is settled:
+#   fly machine update <id> --memory 256
 [[vm]]
-  memory = "1gb"
+  memory = "256mb"
   cpu_kind = "shared"
   cpus = 1

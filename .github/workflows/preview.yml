@@ -4,7 +4,7 @@ on:
     types: [opened, synchronize, reopened, closed]
 
 env:
-  FLY_REGION: nrt
+  FLY_REGION: syd
 
 jobs:
   preview:
