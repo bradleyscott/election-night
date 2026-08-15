@@ -8,7 +8,8 @@ class ResizeObserverStub {
   disconnect() {}
 }
 
-global.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+globalThis.ResizeObserver =
+  ResizeObserverStub as unknown as typeof ResizeObserver;
 
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
