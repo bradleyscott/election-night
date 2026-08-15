@@ -12,8 +12,8 @@
     "start": "tsx server/index.ts"
   },
   "dependencies": {
-    "@dnd-kit/helpers": "^0.4.0",
-    "@dnd-kit/react": "^0.4.0",
+    "@dnd-kit/helpers": "^0.5.0",
+    "@dnd-kit/react": "^0.5.0",
     "@election-night/core": "*",
     "@floating-ui/react": "^0.27.19",
     "leaflet": "^1.9.4",
@@ -22,29 +22,29 @@
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.1.0",
-    "recharts": "^2.15.0",
+    "recharts": "^3.10.1",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",
-    "tslog": "^4.9.2",
-    "zod": "^3.25.76"
+    "tslog": "^5.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/leaflet": "^1.9.21",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
+    "@vitejs/plugin-react": "^6.0.5",
     "autoprefixer": "^10.4.20",
     "clsx": "^2.1.1",
-    "concurrently": "^9.2.3",
-    "jsdom": "^29.1.1",
+    "concurrently": "^10.0.4",
+    "jsdom": "^30.0.1",
     "postcss": "^8.5.0",
-    "tailwind-merge": "^2.6.0",
-    "tailwindcss": "^3.4.17",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "vite": "^8.2.1"
   }
 }
