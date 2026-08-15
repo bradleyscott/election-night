@@ -166,9 +166,24 @@ describe('reducers', () => {
 
   test('calculatePartyVoteWithSeats handles overhang seats', () => {
     const overhangPartyVotes = [
-      { candidate: 'Labour Party', votes: 900000, percentage: 0.45, marginOfError: 0 },
-      { candidate: 'National Party', votes: 800000, percentage: 0.40, marginOfError: 0 },
-      { candidate: 'Te Pāti Māori', votes: 50000, percentage: 0.025, marginOfError: 0 },
+      {
+        candidate: 'Labour Party',
+        votes: 900000,
+        percentage: 0.45,
+        marginOfError: 0,
+      },
+      {
+        candidate: 'National Party',
+        votes: 800000,
+        percentage: 0.4,
+        marginOfError: 0,
+      },
+      {
+        candidate: 'Te Pāti Māori',
+        votes: 50000,
+        percentage: 0.025,
+        marginOfError: 0,
+      },
     ];
 
     const overhangElectorateVotes = [
@@ -288,7 +303,10 @@ describe('reducers', () => {
       },
     ];
 
-    const result = calculatePartyVoteWithSeats(overhangPartyVotes, overhangElectorateVotes);
+    const result = calculatePartyVoteWithSeats(
+      overhangPartyVotes,
+      overhangElectorateVotes
+    );
     const tpm = result.find((p) => p.candidate === 'Te Pāti Māori');
 
     expect(tpm).toBeDefined();

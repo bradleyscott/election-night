@@ -16,7 +16,8 @@ import {
   predictWinner,
 } from '@election-night/core/reducers';
 import { log } from './logger.js';
-import { getElectoratePageHtml, sleep } from './scraper.js';
+import { getElectoratePageHtml } from './scraper.js';
+import { sleep } from './util.js';
 import { collectorConfig } from './config.js';
 import { publishMetrics } from './ws-client.js';
 import { readResults } from './results.js';
@@ -59,8 +60,7 @@ export async function scrapeCycle(
       return { html, config: electorateConfig };
     } catch (reason) {
       const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
-      const detail =
-        reason instanceof Error ? reason.message : String(reason);
+      const detail = reason instanceof Error ? reason.message : String(reason);
       log.error(
         `${electorateConfig.electorateName}: fetch failed after ${elapsed}s (${detail})`
       );
@@ -222,9 +222,13 @@ export async function scrapeCycle(
         ? 'partial'
         : 'error';
   const events = [emitScrapeDuration(duration, status)];
-  for (const source of electorateSources) {
+  for (const electorateSource of electorateSources) {
     const electorateStatus =
-      source === 'fresh' ? 'success' : source === 'failed' ? 'error' : 'cached';
+      electorateSource === 'fresh'
+        ? 'success'
+        : electorateSource === 'failed'
+          ? 'error'
+          : 'cached';
     events.push(emitScrapeElectorate(electorateStatus));
   }
   publishMetrics(events);

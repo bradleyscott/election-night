@@ -22,6 +22,14 @@
       "types": "./dist/reducers.d.ts",
       "default": "./dist/reducers.js"
     },
+    "./diff": {
+      "types": "./dist/diff.d.ts",
+      "default": "./dist/diff.js"
+    },
+    "./history": {
+      "types": "./dist/history.d.ts",
+      "default": "./dist/history.js"
+    },
     "./sources": {
       "types": "./dist/sources/index.d.ts",
       "default": "./dist/sources/index.js"
@@ -31,7 +39,9 @@
       "default": "./dist/sources/nz-election-results.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b"
   },

@@ -54,8 +54,7 @@ function calculateLead(
     ? partyMap[secondCandidate]
     : undefined;
   const margin =
-    (sortedCandidates[0]?.votes ?? 0) -
-    (sortedCandidates[1]?.votes ?? 0);
+    (sortedCandidates[0]?.votes ?? 0) - (sortedCandidates[1]?.votes ?? 0);
   const marginPercent = results.votesCounted
     ? margin / results.votesCounted
     : 0;
@@ -79,9 +78,6 @@ function predictWinner(
   results: ElectorateResults & WithLeaders,
   confidence: number
 ): ElectorateResults & WithLeaders & WithMarginOfError {
-  const resultsWithWinner = { ...results } as ElectorateResults &
-    WithLeaders &
-    WithMarginOfError;
   const votesCounted = results.votesCounted;
   const totalVotes = votesCounted / results.votePercentageCounted;
   const leadingShare = (results.candidateVotes[0]?.votes ?? 0) / votesCounted;
@@ -95,17 +91,24 @@ function predictWinner(
   const diffVariance =
     (leadingShare + secondShare - leadPercent * leadPercent) / votesCounted;
 
-  resultsWithWinner.marginOfError =
+  const marginOfError =
     zScore * Math.sqrt(diffVariance) * finitePopulationCorrection;
 
-  const ratio = resultsWithWinner.marginOfError > 0
-    ? leadPercent / resultsWithWinner.marginOfError
-    : leadPercent > 0
-      ? Infinity
-      : 0;
+  const ratio =
+    marginOfError > 0
+      ? leadPercent / marginOfError
+      : leadPercent > 0
+        ? Infinity
+        : 0;
 
-  resultsWithWinner.leaders.predictionStatus = predictionStatusFromRatio(ratio);
-  return resultsWithWinner;
+  return {
+    ...results,
+    marginOfError,
+    leaders: {
+      ...results.leaders,
+      predictionStatus: predictionStatusFromRatio(ratio),
+    },
+  };
 }
 
 function calculatePartyVote(results: ElectorateResults[]): VotingResults[] {
@@ -251,7 +254,6 @@ function calculatePartyList(
   seats: (VotingResults & WithSeats)[],
   list: PartyList[]
 ): (PartyList & WithAdjustedRank)[] {
-
   const winners = getElectorateWinners(electoralVotes);
   const withAdjustedRank = list.map((x) => ({
     ...x,
@@ -261,7 +263,7 @@ function calculatePartyList(
   const withCutDistance = withAdjustedRank.map((x) => ({
     ...x,
     distanceFromCut:
-      (seats.find((y) => (y.candidate) === x.party)?.listSeats || 0) -
+      (seats.find((y) => y.candidate === x.party)?.listSeats || 0) -
       x.adjustedRank,
   }));
 
