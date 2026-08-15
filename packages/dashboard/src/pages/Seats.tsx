@@ -105,7 +105,7 @@ function SuccessfulCandidates({
       : list;
 
     filtered.sort((a, b) => {
-      let cmp = 0;
+      let cmp: number;
       if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
       else if (sortKey === 'party') cmp = a.party.localeCompare(b.party);
       else cmp = a.certainty - b.certainty;

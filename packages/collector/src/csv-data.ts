@@ -26,7 +26,7 @@ export function loadPartyListRecords(): PartyList[] {
     resolve(__dirname, '../../../csv/party_list.csv'),
     'utf-8'
   );
-  return parse(csv, { columns: true }).map(
+  return (parse(csv, { columns: true }) as Record<string, string>[]).map(
     (x: Record<string, string>) => ({
       party: x.Party,
       candidate: `${x['Ballot Last Name']}, ${x['Ballot First Name']}`,
