@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 import { log } from './logger.js';
+import { collectorConfig } from './config.js';
 
 const TABLES_IN_ORDER = [
   'party_lists',
@@ -14,12 +15,11 @@ const TABLES_IN_ORDER = [
   'scrape_snapshots',
 ];
 
-const CACHE_FILES = [
-  resolve(process.cwd(), '.data/electorate_results.json'),
-];
+const CACHE_FILES = [resolve(process.cwd(), collectorConfig.resultsCachePath)];
 
 export async function runClear(): Promise<void> {
-  const dbPath = process.env.DB_PATH || resolve(process.cwd(), '.data/election_results.db');
+  const dbPath =
+    process.env.DB_PATH || resolve(process.cwd(), '.data/election_results.db');
 
   log.info('=== Clear: starting ===');
 
@@ -44,14 +44,18 @@ export async function runClear(): Promise<void> {
 
     try {
       const totalRows = deleteAll();
-      log.info(`Database cleared: ${totalRows} total rows removed from ${TABLES_IN_ORDER.length} tables`);
+      log.info(
+        `Database cleared: ${totalRows} total rows removed from ${TABLES_IN_ORDER.length} tables`
+      );
 
       // Check if vacuum is needed — SQLite DELETE marks pages as free but doesn't shrink the file
       const pageCount = (
         sqliteDb.prepare('PRAGMA page_count').get() as { page_count: number }
       ).page_count;
       const freelistCount = (
-        sqliteDb.prepare('PRAGMA freelist_count').get() as { freelist_count: number }
+        sqliteDb.prepare('PRAGMA freelist_count').get() as {
+          freelist_count: number;
+        }
       ).freelist_count;
 
       if (totalRows > 0 || freelistCount > 100) {

@@ -1,27 +1,31 @@
 import { mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { dirname } from 'path';
 import {
-  ElectorateResults,
-  WithLeaders,
-  WithMarginOfError,
-  ElectorateDiff,
   WebhookEventType,
   WebhookPayload,
+  type ElectorateDiff,
 } from '@election-night/core/types';
-import { config } from '@election-night/core/config';
+import {
+  computeDiff,
+  determineWebhookEvents,
+  type ComparableResult,
+} from '@election-night/core/diff';
 import { fetchWithRetry } from './retry.js';
 import { publishMetrics } from './ws-client.js';
 import { emitWebhookPublish } from './metrics.js';
+import { collectorConfig } from './config.js';
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+export type Results = ComparableResult;
+
+export { computeDiff, determineWebhookEvents };
 
 let electorateResults: Results[];
 
 export function cacheResults(toCache: Results[]) {
   electorateResults = toCache;
-  mkdirSync(dirname(config.cachePaths.electoralResults), { recursive: true });
+  mkdirSync(dirname(collectorConfig.resultsCachePath), { recursive: true });
   writeFileSync(
-    config.cachePaths.electoralResults,
+    collectorConfig.resultsCachePath,
     JSON.stringify(toCache, null, 2)
   );
 }
@@ -32,7 +36,7 @@ export function readResults(): Results[] {
   }
   try {
     const resultsString = readFileSync(
-      config.cachePaths.electoralResults,
+      collectorConfig.resultsCachePath,
       'utf8'
     );
     return JSON.parse(resultsString);
@@ -41,75 +45,12 @@ export function readResults(): Results[] {
   }
 }
 
-export function computeDiff(
-  previous: Results | null,
-  current: Results
-): ElectorateDiff {
-  return {
-    electorateName: current.electorateName,
-    previousVotesCounted: previous?.votesCounted ?? null,
-    currentVotesCounted: current.votesCounted,
-    previousPercentageCounted: previous?.votePercentageCounted ?? null,
-    currentPercentageCounted: current.votePercentageCounted,
-    previousMargin: previous?.leaders.margin ?? null,
-    currentMargin: current.leaders.margin,
-    previousMarginPercent: previous?.leaders.marginPercent ?? null,
-    currentMarginPercent: current.leaders.marginPercent,
-    leaderChanged:
-      previous !== null &&
-      previous.leaders.leadingCandidateParty !==
-        current.leaders.leadingCandidateParty,
-    previousLeaderName: previous?.leaders.leadingCandidate ?? null,
-    previousLeaderParty: previous?.leaders.leadingCandidateParty ?? null,
-    predictionStatusChanged:
-      previous !== null &&
-      previous.leaders.predictionStatus !== current.leaders.predictionStatus,
-    previousPredictionStatus: previous?.leaders.predictionStatus ?? null,
-    currentPredictionStatus: current.leaders.predictionStatus,
-  };
-}
-
-export function determineEvents(diff: ElectorateDiff): WebhookEventType[] {
-  // Only fire events when there was a previous result (first scrape just
-  // establishes the baseline — no webhooks are sent).
-  if (diff.previousVotesCounted === null) {
-    return [];
-  }
-
-  const events: WebhookEventType[] = [];
-
-  const votesChanged =
-    diff.previousVotesCounted !== diff.currentVotesCounted ||
-    diff.previousPercentageCounted !== diff.currentPercentageCounted;
-
-  if (votesChanged) {
-    events.push('result_updated');
-  }
-
-  if (diff.predictionStatusChanged) {
-    events.push('prediction_changed');
-  }
-
-  if (diff.leaderChanged) {
-    events.push('leader_change');
-  }
-
-  if (
-    (diff.previousPercentageCounted ?? 0) < 1 &&
-    diff.currentPercentageCounted >= 1
-  ) {
-    events.push('count_completed');
-  }
-
-  return events;
-}
-
 export async function sendWebhook(
   event: WebhookEventType,
   result: Results,
   diff: ElectorateDiff
 ): Promise<void> {
-  const url = config.webhookUrl;
+  const url = collectorConfig.webhookUrl;
   if (!url) return;
 
   const payload: WebhookPayload = {
@@ -158,7 +99,7 @@ export async function processResults(currentResults: Results[]): Promise<void> {
   for (const result of currentResults) {
     const previous = cacheMap.get(result.electorateName) ?? null;
     const diff = computeDiff(previous, result);
-    const events = determineEvents(diff);
+    const events = determineWebhookEvents(diff);
 
     for (const event of events) {
       promises.push(sendWebhook(event, result, diff));

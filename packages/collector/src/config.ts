@@ -48,6 +48,12 @@ const collectorConfigSchema = z.object({
   logLevel: z.coerce.number().int().min(0).max(3).default(3),
   healthPort: z.coerce.number().int().min(1024).max(65535).default(3459),
   dbPath: z.string().default('.data/election_results.db'),
+  resultsCachePath: z
+    .string()
+    .default('.data/electorate_results.json')
+    .describe(
+      'JSON cache of the last cycle electorate results (webhook diff baseline)'
+    ),
   webhookUrl: z
     .string()
     .url()
@@ -91,6 +97,7 @@ function loadCollectorConfig(): CollectorConfig {
     logLevel: process.env.LOG_LEVEL,
     healthPort: process.env.HEALTH_PORT,
     dbPath: process.env.DB_PATH,
+    resultsCachePath: process.env.RESULTS_CACHE_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,
     wsReconnectDelayMs: process.env.WS_RECONNECT_DELAY_MS,

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { NzElectionResultsSource } from '@election-night/core/sources/nz-election-results';
 import type { ElectorateConfig } from '@election-night/core/types';
-import { html } from './html-fixture';
+import { html } from './fixtures';
 import { isCloudflareChallenge } from './scraper.js';
 
 const config: ElectorateConfig = {

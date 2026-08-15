@@ -5,10 +5,6 @@ export type ResultPageConfig = {
 
 export type Config = {
   predictionConfidence: number;
-  cachePaths: {
-    electoralResults: string;
-  };
-  webhookUrl: string | undefined;
 };
 
 export type ElectorateResults = {
@@ -97,10 +93,7 @@ export interface ElectionSource {
 // ---- Webhook Event Types ----
 
 export type WebhookEventType =
-  | 'result_updated'
-  | 'prediction_changed'
-  | 'leader_change'
-  | 'count_completed';
+  'result_updated' | 'prediction_changed' | 'leader_change' | 'count_completed';
 
 export type WebhookPayload = {
   event: WebhookEventType;
@@ -113,10 +106,7 @@ export type WebhookPayload = {
 // ---- Feed / Commentary ----
 
 export type FeedEventType =
-  | 'result_updated'
-  | 'prediction_called'
-  | 'leader_change'
-  | 'count_completed';
+  'result_updated' | 'prediction_called' | 'leader_change' | 'count_completed';
 
 export type ElectorateDiff = {
   electorateName: string;

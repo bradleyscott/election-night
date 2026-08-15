@@ -12,15 +12,15 @@ import type {
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
 const mockConfig: {
-  cachePaths: { electoralResults: string };
+  resultsCachePath: string;
   webhookUrl: string | undefined;
 } = {
-  cachePaths: { electoralResults: '' },
+  resultsCachePath: '',
   webhookUrl: undefined,
 };
 
-vi.mock('@election-night/core/config', () => ({
-  config: mockConfig,
+vi.mock('./config.js', () => ({
+  collectorConfig: mockConfig,
 }));
 
 function makeResult(overrides: Partial<Results> = {}): Results {
@@ -49,7 +49,7 @@ describe('cacheResults', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.cachePaths.electoralResults = join(tmpDir, 'results.json');
+    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
   });
 
   afterEach(() => {
@@ -64,9 +64,9 @@ describe('cacheResults', () => {
 
     cacheResults([result]);
 
-    expect(existsSync(mockConfig.cachePaths.electoralResults)).toBe(true);
+    expect(existsSync(mockConfig.resultsCachePath)).toBe(true);
     const written = JSON.parse(
-      readFileSync(mockConfig.cachePaths.electoralResults, 'utf-8')
+      readFileSync(mockConfig.resultsCachePath, 'utf-8')
     );
     expect(written).toHaveLength(1);
     expect(written[0].electorateName).toBe('Test');
@@ -78,7 +78,7 @@ describe('cacheResults', () => {
     cacheResults([makeResult({ electorateName: 'Second' })]);
 
     const written = JSON.parse(
-      readFileSync(mockConfig.cachePaths.electoralResults, 'utf-8')
+      readFileSync(mockConfig.resultsCachePath, 'utf-8')
     );
     expect(written).toHaveLength(1);
     expect(written[0].electorateName).toBe('Second');
@@ -153,40 +153,45 @@ describe('computeDiff', () => {
   });
 });
 
-describe('determineEvents', () => {
+describe('determineWebhookEvents', () => {
   test('returns empty when there is no previous result (first scrape)', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const diff = computeDiff(null, makeResult());
-    expect(determineEvents(diff)).toEqual([]);
+    expect(determineWebhookEvents(diff)).toEqual([]);
   });
 
   test('returns result_updated when votes counted changed', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const diff = computeDiff(makeResult(), makeResult({ votesCounted: 15000 }));
-    expect(determineEvents(diff)).toContain('result_updated');
+    expect(determineWebhookEvents(diff)).toContain('result_updated');
   });
 
   test('returns result_updated when percentage counted changed', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const diff = computeDiff(
       makeResult(),
       makeResult({ votePercentageCounted: 0.9 })
     );
-    expect(determineEvents(diff)).toContain('result_updated');
+    expect(determineWebhookEvents(diff)).toContain('result_updated');
   });
 
   test('returns prediction_changed when status changes', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const previous = makeResult();
     const current = makeResult({
       leaders: { ...previous.leaders, predictionStatus: 'likely' },
     });
     const diff = computeDiff(previous, current);
-    expect(determineEvents(diff)).toContain('prediction_changed');
+    expect(determineWebhookEvents(diff)).toContain('prediction_changed');
   });
 
   test('returns leader_change when leading party changes', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const previous = makeResult();
     const current = makeResult({
       leaders: {
@@ -195,29 +200,32 @@ describe('determineEvents', () => {
       },
     });
     const diff = computeDiff(previous, current);
-    expect(determineEvents(diff)).toContain('leader_change');
+    expect(determineWebhookEvents(diff)).toContain('leader_change');
   });
 
   test('returns count_completed when reaching 100%', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const diff = computeDiff(
       makeResult({ votePercentageCounted: 0.95 }),
       makeResult({ votePercentageCounted: 1.0 })
     );
-    expect(determineEvents(diff)).toContain('count_completed');
+    expect(determineWebhookEvents(diff)).toContain('count_completed');
   });
 
   test('does not return count_completed if already at 100%', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const diff = computeDiff(
       makeResult({ votePercentageCounted: 1.0 }),
       makeResult({ votePercentageCounted: 1.0 })
     );
-    expect(determineEvents(diff)).not.toContain('count_completed');
+    expect(determineWebhookEvents(diff)).not.toContain('count_completed');
   });
 
   test('returns multiple events when several things changed', async () => {
-    const { computeDiff, determineEvents } = await import('./results.js');
+    const { computeDiff, determineWebhookEvents } =
+      await import('./results.js');
     const previous = makeResult({ votePercentageCounted: 0.8 });
     const current = makeResult({
       votesCounted: 20000,
@@ -233,7 +241,7 @@ describe('determineEvents', () => {
       },
     });
     const diff = computeDiff(previous, current);
-    const events = determineEvents(diff);
+    const events = determineWebhookEvents(diff);
 
     expect(events).toContain('result_updated');
     expect(events).toContain('prediction_changed');
@@ -247,7 +255,7 @@ describe('sendWebhook', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.cachePaths.electoralResults = join(tmpDir, 'results.json');
+    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
     mockConfig.webhookUrl = undefined;
   });
 
@@ -264,10 +272,7 @@ describe('sendWebhook', () => {
     const url = 'https://hooks.example.com/webhook';
     mockConfig.webhookUrl = url;
 
-    const {
-      computeDiff,
-      sendWebhook,
-    } = await import('./results.js');
+    const { computeDiff, sendWebhook } = await import('./results.js');
 
     const result = makeResult();
 
@@ -336,7 +341,7 @@ describe('processResults', () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.cachePaths.electoralResults = join(tmpDir, 'results.json');
+    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
   });
 
   afterEach(() => {
@@ -410,7 +415,9 @@ describe('processResults', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
 
     const calls = fetchMock.mock.calls.map(
-      (c) => (JSON.parse((c[1] as RequestInit).body as string) as WebhookPayload).event
+      (c) =>
+        (JSON.parse((c[1] as RequestInit).body as string) as WebhookPayload)
+          .event
     );
     expect(calls).toContain('result_updated');
     expect(calls).toContain('prediction_changed');
@@ -444,7 +451,9 @@ describe('processResults', () => {
     ]);
 
     const events = fetchMock.mock.calls.map(
-      (c) => (JSON.parse((c[1] as RequestInit).body as string) as WebhookPayload).event
+      (c) =>
+        (JSON.parse((c[1] as RequestInit).body as string) as WebhookPayload)
+          .event
     );
     expect(events).toContain('count_completed');
     expect(events).toContain('result_updated');

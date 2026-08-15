@@ -2,6 +2,7 @@ import type { BrowserContext } from 'playwright-core';
 import { ElectorateConfig } from '@election-night/core/types';
 import { log } from './logger.js';
 import { collectorConfig } from './config.js';
+import { sleep } from './util.js';
 
 export async function getElectoratePageHtml(
   context: BrowserContext,
@@ -25,10 +26,6 @@ export async function getElectoratePageHtml(
   } finally {
     await page.close().catch(() => {});
   }
-}
-
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function isCloudflareChallenge(html: string, url: string): boolean {

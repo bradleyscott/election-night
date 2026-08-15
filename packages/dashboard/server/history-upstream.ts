@@ -12,54 +12,13 @@
  * (Trends page, /ready) don't hammer the collector on every request.
  */
 
-export type CandidateSnapshot = {
-  candidate: string;
-  party: string | null;
-  votes: number;
-  isPredicted: boolean;
-};
+import type {
+  ElectorateHistoryPoint,
+  PartyVoteHistoryPoint,
+  SnapshotMeta,
+} from '@election-night/core/history';
 
-export type PartyVoteSnapshot = {
-  party: string;
-  votes: number;
-};
-
-export type ElectorateHistoryPoint = {
-  snapshotId: number;
-  startedAt: string;
-  completedAt: string | null;
-  votesCounted: number;
-  votePctCounted: number;
-  leadingCandidate: string | null;
-  leadingParty: string | null;
-  predictedWinner: number;
-  margin: number | null;
-  marginPct: number | null;
-  marginOfError: number | null;
-  candidates: CandidateSnapshot[];
-  partyVotes: PartyVoteSnapshot[];
-};
-
-export type PartyVoteHistoryPoint = {
-  snapshotId: number;
-  startedAt: string;
-  completedAt: string | null;
-  votesCounted: number;
-  votePctCounted: number;
-  parties: {
-    party: string;
-    votes: number;
-    seats: number;
-    electorateSeats: number;
-    listSeats: number;
-  }[];
-};
-
-export type SnapshotMeta = {
-  snapshotId: number;
-  startedAt: string;
-  completedAt: string | null;
-};
+export type { ElectorateHistoryPoint, PartyVoteHistoryPoint, SnapshotMeta };
 
 export interface HistorySource {
   snapshotMetas(): Promise<SnapshotMeta[]>;

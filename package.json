@@ -19,7 +19,7 @@
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",
     "fmt": "prettier --write .",
-    "typecheck": "npm run build:core && tsc -b && tsc -b packages/dashboard",
+    "typecheck": "npm run build:core && tsc -b && tsc -b packages/dashboard && tsc -p packages/dashboard/tsconfig.server.json",
     "prepare": "npm run build:core"
   },
   "overrides": {
