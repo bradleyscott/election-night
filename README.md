@@ -163,15 +163,15 @@ Production is a two-machine setup: the **dashboard server runs in the cloud** (F
 ### Docker
 
 ```bash
-docker build -t election-night .
+docker build -t election-night -f Dockerfile.dashboard .
 docker run -p 3456:3456 election-night
 ```
 
-The image is **server-only** (the collector never runs in it — no browser, no SQLite). Run the collector separately via `Dockerfile.collector`.
+The image is **server-only** (the collector never runs in it — no browser, no SQLite). Run the collector separately via `Dockerfile.collector`. The server image is built from `Dockerfile.dashboard`.
 
 ### Fly.io (dashboard server)
 
-`fly.toml` deploys the server; the collector publishes to it from the homelab over Socket.io (`WS_URL`) and serves history over HTTP (point `HISTORY_UPSTREAM` at it via `fly secrets set`). JSON caches (`.data/`) are ephemeral — after a restart the feed rebuilds from the next collector publish. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits), and PR previews are deployed by `.github/workflows/preview.yml`.
+`fly.toml` deploys the server (built from `Dockerfile.dashboard`); the collector publishes to it from the homelab over Socket.io (`WS_URL`) and serves history over HTTP (point `HISTORY_UPSTREAM` at it via `fly secrets set`). JSON caches (`.data/`) are ephemeral — after a restart the feed rebuilds from the next collector publish. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits), and PR previews are deployed by `.github/workflows/preview.yml`.
 
 ### Homelab collector (Coolify)
 

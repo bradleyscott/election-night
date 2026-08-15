@@ -2,7 +2,7 @@ app = "election-night"
 primary_region = "nrt"
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = "Dockerfile.dashboard"
 
 [http_service]
   internal_port = 3456
