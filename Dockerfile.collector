@@ -1,10 +1,11 @@
-# Collector-only image for homelab deployments (e.g. Coolify on a Proxmox LXC).
+# Collector-only image; run it wherever it has suitable network egress
+# (see the notes in README.md on datacenter-IP blocking).
 #
 # Builds @election-night/core + the collector, installs the stealth Chromium,
 # and runs the scraper loop. Outbound-only except port 3459: the collector is
-# a Socket.io *client* (publishes results to the cloud dashboard server) and
+# a Socket.io *client* (publishes results to the dashboard server) and
 # serves /health plus the unauthenticated /history/* REST API that the
-# cloud dashboard server reads via HISTORY_UPSTREAM — see
+# dashboard server reads via HISTORY_UPSTREAM — see
 # packages/collector/src/history-server.ts.
 #
 # Mirrors the root Dockerfile's build pattern (prebuilt better-sqlite3,
@@ -83,7 +84,7 @@ COPY --from=builder /app /app
 EXPOSE 3459
 
 # Healthcheck: the state server on 3459 must answer (wget ships in this
-# image). Note: Coolify does not auto-restart unhealthy containers — the
+# image). Some orchestrators do not auto-restart unhealthy containers — the
 # restart policy recovers crashes; this check exists for stall visibility.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -q -O - http://127.0.0.1:3459/health || exit 1

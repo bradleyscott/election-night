@@ -150,7 +150,7 @@ Other flags: `--port 3457` (or `MOCK_PORT`), `--help`.
 | `CACHE_PATH`                    | `.data/electorate_results.json`                        | Dashboard server JSON cache path                                                                                                                                                                                           |
 | `FEED_CACHE_PATH`               | `.data/feed_events.json`                               | Dashboard server feed-events cache path                                                                                                                                                                                    |
 | `MAX_FEED_EVENTS`               | `200`                                                  | Maximum feed events retained by the dashboard server                                                                                                                                                                       |
-| `HISTORY_UPSTREAM`              | `http://127.0.0.1:3459`                                | Dashboard server: base URL of the collector's history REST API — the server's _only_ source of history data. Default suits a co-located collector; point it at the homelab collector in split deployments                  |
+| `HISTORY_UPSTREAM`              | `http://127.0.0.1:3459`                                | Dashboard server: base URL of the collector's history REST API — the server's _only_ source of history data. Default suits a co-located collector; point it at the collector in split deployments                  |
 | `DIST_DIR`                      | `./dist`                                               | Directory the dashboard server serves static files from                                                                                                                                                                    |
 | `OPENAI_API_KEY`                | —                                                      | API key for the `discover` subcommand                                                                                                                                                                                      |
 | `OPENAI_BASE_URL`               | `https://api.openai.com/v1`                            | Base URL for the LLM used by `discover`                                                                                                                                                                                    |
@@ -158,7 +158,7 @@ Other flags: `--port 3457` (or `MOCK_PORT`), `--help`.
 
 ## Deployment
 
-Production is a two-machine setup: the **dashboard server runs in the cloud** (Fly.io, server-only) and the **collector runs on a homelab box** with residential-IP egress, publishing results to the cloud server over Socket.io.
+The components can be deployed together or split across machines: the **dashboard server** runs as a server-only workload (e.g. Fly.io) and the **collector** runs wherever it has suitable network egress — the results site WAF-blocks datacenter IPs, so it typically needs a residential connection or a residential proxy (`CLOAKBROWSER_PROXY`). The collector publishes results to the dashboard server over Socket.io. Where you run each component is up to you; the only hard requirement is the collector's egress.
 
 ### Docker
 
@@ -171,11 +171,11 @@ The image is **server-only** (the collector never runs in it — no browser, no 
 
 ### Fly.io (dashboard server)
 
-`fly.toml` deploys the server (built from `Dockerfile.dashboard`); the collector publishes to it from the homelab over Socket.io (`WS_URL`) and serves history over HTTP (point `HISTORY_UPSTREAM` at it via `fly secrets set`). JSON caches (`.data/`) are ephemeral — after a restart the feed rebuilds from the next collector publish. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits), and PR previews are deployed by `.github/workflows/preview.yml`.
+`fly.toml` deploys the server (built from `Dockerfile.dashboard`); the collector publishes to it over Socket.io (`WS_URL`) and serves history over HTTP (point `HISTORY_UPSTREAM` at it via `fly secrets set`). JSON caches (`.data/`) are ephemeral — after a restart the feed rebuilds from the next collector publish. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits), and PR previews are deployed by `.github/workflows/preview.yml`.
 
-### Homelab collector (Coolify)
+### Collector
 
-`Dockerfile.collector` builds a collector-only image for deployment on a residential connection (e.g. Coolify on a Proxmox LXC). It serves a health/live-state endpoint on port 3459, plus the `/history/*` REST API (public data, unauthenticated — rate limit at the proxy if you expose it) which the cloud dashboard server reads via `HISTORY_UPSTREAM` so the Trends page works across the split deployment.
+`Dockerfile.collector` builds a collector-only image you can run wherever suits — a VM, container host, or bare metal — provided the egress IP is acceptable to the results site (residential connection or proxy). It serves a health/live-state endpoint on port 3459, plus the `/history/*` REST API (public data, unauthenticated — rate limit at the proxy if you expose it) which the dashboard server reads via `HISTORY_UPSTREAM` so the Trends page works across a split deployment.
 
 ## Custom Source Adapters
 
