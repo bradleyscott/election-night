@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { partyColors } from '../lib/constants.js';
 import 'leaflet/dist/leaflet.css';
 
-const defaultIconPrototype = L.Icon.Default.prototype as unknown as Record<string, unknown>;
+const defaultIconPrototype = L.Icon.Default.prototype as unknown as Record<
+  string,
+  unknown
+>;
 delete defaultIconPrototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -17,6 +20,7 @@ import type {
   ElectorateResults,
   WithLeaders,
   WithMarginOfError,
+  VotingResults,
 } from '@election-night/core/types';
 
 type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
@@ -48,6 +52,48 @@ type GeoFeatureCollection = GeoJSON.FeatureCollection<
   { name: string }
 >;
 
+function isGeoFeatureCollection(data: unknown): data is GeoFeatureCollection {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'features' in data &&
+    Array.isArray((data as GeoFeatureCollection).features)
+  );
+}
+
+function leadingPartyVote(
+  partyVotes: VotingResults[]
+): VotingResults | undefined {
+  if (partyVotes.length === 0) return undefined;
+  let top = partyVotes[0];
+  for (let i = 1; i < partyVotes.length; i++) {
+    if (partyVotes[i].votes > top.votes) top = partyVotes[i];
+  }
+  return top;
+}
+
+function getCandidateOpacity(result: ElectorateResult): number {
+  const moe = result.marginOfError;
+  const marginPercent = result.leaders.marginPercent;
+  if (!Number.isFinite(moe) || moe <= 0) return 0.2;
+  const ratio = marginPercent / moe;
+  if (ratio >= 2) return 0.8;
+  if (ratio <= 1) return 0.2;
+  return 0.2 + (ratio - 1) * 0.6;
+}
+
+function getPartyOpacity(
+  leading: VotingResults | undefined,
+  votesCounted: number
+): number {
+  if (!leading || votesCounted <= 0) return 0.15;
+  const share = leading.votes / votesCounted;
+  if (!Number.isFinite(share)) return 0.15;
+  if (share >= 0.5) return 0.8;
+  if (share <= 0.2) return 0.2;
+  return 0.2 + ((share - 0.2) / 0.3) * 0.6;
+}
+
 function MapUpdater({
   selectedName,
   geoData,
@@ -56,6 +102,7 @@ function MapUpdater({
   geoData: GeoFeatureCollection | null;
 }) {
   const map = useMap();
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (selectedName && geoData) {
@@ -64,17 +111,23 @@ function MapUpdater({
       );
       if (feature) {
         const layer = L.geoJSON(feature);
-        requestAnimationFrame(() => {
+        rafRef.current = requestAnimationFrame(() => {
           map.invalidateSize();
           map.fitBounds(layer.getBounds(), { padding: [30, 30] });
         });
       }
     } else if (geoData) {
-      requestAnimationFrame(() => {
+      rafRef.current = requestAnimationFrame(() => {
         map.invalidateSize();
         map.setView([-41.5, 173.5], 5.5);
       });
     }
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, [selectedName, geoData, map]);
 
   return null;
@@ -87,48 +140,68 @@ export default function ElectorateMap({
   showPartyVote,
 }: ElectorateMapProps) {
   const [geoData, setGeoData] = useState<GeoFeatureCollection | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const geoKey = showMaori ? 'maori' : 'general';
 
-  const getLeadingParty = (result: ElectorateResult) =>
-    [...result.partyVotes].sort((a, b) => b.votes - a.votes)[0];
+  const lookup = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        color: string;
+        opacity: number;
+      }
+    >();
+    for (const e of electorates) {
+      if (showPartyVote) {
+        const leading = leadingPartyVote(e.partyVotes);
+        map.set(e.electorateName, {
+          color: partyColors[leading?.candidate ?? ''] || '#9ca3af',
+          opacity: getPartyOpacity(leading, e.votesCounted),
+        });
+      } else {
+        map.set(e.electorateName, {
+          color:
+            partyColors[e.leaders.leadingCandidateParty ?? ''] || '#9ca3af',
+          opacity: getCandidateOpacity(e),
+        });
+      }
+    }
+    return map;
+  }, [electorates, showPartyVote]);
 
   useEffect(() => {
     setGeoData(null);
-    fetch(GEO_FILES[geoKey])
-      .then((res) => res.json())
-      .then((data) => setGeoData(data as GeoFeatureCollection));
+    setError(null);
+    const controller = new AbortController();
+
+    fetch(GEO_FILES[geoKey], { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as unknown;
+        if (!isGeoFeatureCollection(data)) {
+          throw new Error('Invalid GeoJSON payload');
+        }
+        setGeoData(data);
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : 'Failed to load map');
+      });
+
+    return () => controller.abort();
   }, [geoKey]);
 
-  const resultMap = new Map(electorates.map((e) => [e.electorateName, e]));
-
-  const getColor = (name: string) => {
-    const result = resultMap.get(name);
-    if (!result) return '#e5e7eb';
-    if (showPartyVote) {
-      const leading = getLeadingParty(result);
-      return partyColors[leading?.candidate ?? ''] || '#9ca3af';
-    }
-    return partyColors[result.leaders.leadingCandidateParty ?? ''] || '#9ca3af';
-  };
-
-  const getOpacity = (name: string) => {
-    const result = resultMap.get(name);
-    if (!result) return 0.15;
-    if (showPartyVote) {
-      const leading = getLeadingParty(result);
-      if (!leading) return 0.15;
-      const share = leading.votes / result.votesCounted;
-      if (share >= 0.5) return 0.8;
-      if (share <= 0.2) return 0.2;
-      return 0.2 + ((share - 0.2) / 0.3) * 0.6;
-    }
-    const ratio = result.leaders.marginPercent / result.marginOfError;
-    if (ratio >= 2) return 0.8;
-    if (ratio <= 1) return 0.2;
-    return 0.2 + (ratio - 1) * 0.6;
-  };
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[300px] sm:h-[600px] border bg-muted/20">
+        <p className="text-muted-foreground text-sm">Map error: {error}</p>
+      </div>
+    );
+  }
 
   if (!geoData) {
     return (
@@ -152,17 +225,18 @@ export default function ElectorateMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
       <GeoJSON
-        key={`${geoKey}-${showPartyVote ? 'party' : 'candidate'}-${electorates.map((e) => showPartyVote ? (getLeadingParty(e)?.candidate ?? '') : (e.leaders.leadingCandidateParty ?? '')).join(',')}`}
+        key={`${geoKey}-${showPartyVote ? 'party' : 'candidate'}`}
         data={geoData}
         style={(feature) => {
           const name = feature?.properties?.name;
           const isSelected = name === selectedName;
+          const style = name ? lookup.get(name) : undefined;
           return {
-            fillColor: getColor(name),
+            fillColor: style?.color ?? '#e5e7eb',
             weight: isSelected ? 3 : 1,
             opacity: 1,
             color: isSelected ? '#000' : '#fff',
-            fillOpacity: getOpacity(name),
+            fillOpacity: style?.opacity ?? 0.15,
           };
         }}
         onEachFeature={(feature, layer) => {

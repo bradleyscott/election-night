@@ -24,6 +24,7 @@ export interface HistorySource {
   snapshotMetas(): Promise<SnapshotMeta[]>;
   electorateHistory(name: string): Promise<ElectorateHistoryPoint[]>;
   partyVoteHistory(): Promise<PartyVoteHistoryPoint[]>;
+  clearCache(): void;
 }
 
 interface CacheEntry {
@@ -77,5 +78,6 @@ export function createHistorySource(options: {
     electorateHistory: (name) =>
       fetchJson(`/history/electorate/${encodeURIComponent(name)}`),
     partyVoteHistory: () => fetchJson('/history/party-votes'),
+    clearCache: () => cache.clear(),
   };
 }

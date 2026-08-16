@@ -232,7 +232,9 @@ function SuccessfulCandidates({
                     <span>
                       {(c.certainty * 100).toFixed(1)}%{' '}
                       <span className="text-muted-foreground font-medium whitespace-nowrap">
-                        ± {(c.marginOfError! * 100).toFixed(1)}%
+                        {c.marginOfError !== undefined
+                          ? `± ${(c.marginOfError * 100).toFixed(1)}%`
+                          : '—'}
                       </span>
                     </span>
                   ) : (

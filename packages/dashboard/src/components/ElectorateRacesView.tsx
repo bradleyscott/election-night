@@ -72,13 +72,24 @@ export function ElectorateRacesView({
               return (
                 <tr
                   key={er.electorateName}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View details for ${er.electorateName}`}
                   onClick={() =>
                     navigate(
                       `/electorates/${encodeURIComponent(er.electorateName)}`
                     )
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(
+                        `/electorates/${encodeURIComponent(er.electorateName)}`
+                      );
+                    }
+                  }}
                   className={cn(
-                    'border-b last:border-0 transition-colors hover:bg-muted/20 cursor-pointer',
+                    'border-b last:border-0 transition-colors hover:bg-muted/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/25 focus:bg-muted/20',
                     'opacity-0 animate-fade-in-up'
                   )}
                   style={{ animationDelay: `${i * 0.03}s` }}

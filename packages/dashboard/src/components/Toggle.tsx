@@ -19,6 +19,8 @@ export function Toggle<T extends string>({
       {options.map((opt) => (
         <button
           key={opt.value}
+          type="button"
+          aria-pressed={value === opt.value}
           className={cn(
             'px-3 py-2 sm:py-1.5 transition-colors min-h-[44px] font-bold',
             value === opt.value

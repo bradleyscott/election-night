@@ -5,6 +5,7 @@ import { WaitingState } from '../components/WaitingState.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateRacesView } from '../components/ElectorateRacesView.js';
 import { ListCutLinesView } from '../components/ListCutLinesView.js';
+import { MAJOR_PARTY_ORDER, MAJOR_PARTIES } from '../lib/constants.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -15,16 +16,6 @@ import type {
 
 type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 type PartyListEntry = PartyList & WithAdjustedRank;
-
-const MAJOR_PARTY_ORDER = [
-  'National Party',
-  'Labour Party',
-  'Green Party',
-  'ACT New Zealand',
-  'New Zealand First Party',
-] as const;
-
-const MAJOR_PARTIES = new Set<string>(MAJOR_PARTY_ORDER);
 
 export default function CloseCalls() {
   const { results } = useResults();

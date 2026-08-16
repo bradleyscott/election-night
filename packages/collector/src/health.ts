@@ -29,11 +29,13 @@ export const health: CollectorHealthState = {
 };
 
 /**
- * Tiny state server (node:http, no deps) so Coolify can healthcheck the
+ * Tiny state server (node:http, no deps) so container orchestrators can healthcheck the
  * worker and we can inspect live state on election night. Binds 0.0.0.0 so
  * in-container probes, the reverse proxy, and the history REST
  * routes (mounted via `handleRoute`) can all reach it. `/health` stays open
- * (nothing sensitive); `/history/*` are rate limited per IP.
+ * (nothing sensitive). `/history/*` are unauthenticated and are NOT rate
+ * limited in-process — rate limiting belongs at the reverse proxy / firewall
+ * in front of the collector.
  */
 export function startHealthServer(
   port: number,

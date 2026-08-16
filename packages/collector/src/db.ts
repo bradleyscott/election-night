@@ -81,7 +81,11 @@ export function writeResults(
           scrapeId,
           electorate: r.electorateName,
           votesCounted: r.votesCounted,
-          estimatedTotalVotes: r.votesCounted / r.votePercentageCounted,
+          estimatedTotalVotes:
+            r.votePercentageCounted > 0 &&
+            Number.isFinite(r.votePercentageCounted)
+              ? r.votesCounted / r.votePercentageCounted
+              : 0,
           votePctCounted: r.votePercentageCounted,
           leadingCandidate: r.leaders.leadingCandidate,
           leadingParty: r.leaders.leadingCandidateParty,
@@ -94,7 +98,9 @@ export function writeResults(
           marginPct: r.leaders.marginPercent,
           secondCandidate: r.leaders.secondCandidate,
           secondParty: r.leaders.secondCandidateParty,
-          marginOfError: r.marginOfError,
+          marginOfError: Number.isFinite(r.marginOfError)
+            ? r.marginOfError
+            : null,
         })
         .run();
 

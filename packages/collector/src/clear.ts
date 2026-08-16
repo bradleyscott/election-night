@@ -18,8 +18,7 @@ const TABLES_IN_ORDER = [
 const CACHE_FILES = [resolve(process.cwd(), collectorConfig.resultsCachePath)];
 
 export async function runClear(): Promise<void> {
-  const dbPath =
-    process.env.DB_PATH || resolve(process.cwd(), '.data/election_results.db');
+  const dbPath = resolve(process.cwd(), collectorConfig.dbPath);
 
   log.info('=== Clear: starting ===');
 

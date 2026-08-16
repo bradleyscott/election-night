@@ -102,6 +102,24 @@ describe('history source (collector REST API client)', () => {
     await expect(source.snapshotMetas()).rejects.toThrow('unreachable');
   });
 
+  it('clearCache drops cached values', async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(jsonResponse(200, [{ snapshotId: 1 }]))
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const source = createHistorySource({
+      baseUrl: 'https://history.example.com',
+      cacheTtlMs: 60_000,
+    });
+
+    await source.snapshotMetas();
+    source.clearCache();
+    await source.snapshotMetas();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('throws on upstream errors', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(500, {}));
     globalThis.fetch = fetchMock as unknown as typeof fetch;

@@ -26,6 +26,7 @@ export function SeatDetailContent({
           onClick={onClose}
           className="text-muted-foreground hover:text-foreground text-xs leading-none p-0.5"
           type="button"
+          aria-label="Close details"
         >
           ✕
         </button>

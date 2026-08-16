@@ -2,12 +2,19 @@ import { cn } from '../lib/utils.js';
 import { partyColors } from '../lib/constants.js';
 import type {
   ElectorateResults,
+  VotingResults,
   WithLeaders,
   WithMarginOfError,
   WithParty,
 } from '@election-night/core/types';
 
 type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+
+function hasParty(
+  v: VotingResults | (VotingResults & WithParty)
+): v is VotingResults & WithParty {
+  return 'party' in v;
+}
 
 export function ElectorateResultsTable({
   result,
@@ -82,12 +89,11 @@ export function ElectorateResultsTable({
                           className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                           style={{
                             backgroundColor:
-                              partyColors[
-                                (c as typeof c & WithParty).party ?? ''
-                              ] || '#666',
+                              partyColors[hasParty(c) ? (c.party ?? '') : ''] ||
+                              '#666',
                           }}
                         />
-                        {(c as typeof c & WithParty).party ?? 'Independent'}
+                        {hasParty(c) ? (c.party ?? 'Independent') : 'Independent'}
                       </div>
                     </td>
                   </>

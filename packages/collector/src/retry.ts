@@ -35,5 +35,11 @@ export function fetchWithRetry(
   init: RequestInit,
   options: RetryOptions = {}
 ): Promise<Response> {
-  return withRetry(() => fetch(url, init), options);
+  return withRetry(async () => {
+    const res = await fetch(url, init);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return res;
+  }, options);
 }

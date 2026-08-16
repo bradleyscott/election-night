@@ -14,6 +14,7 @@ import { fetchWithRetry } from './retry.js';
 import { publishMetrics } from './ws-client.js';
 import { emitWebhookPublish } from './metrics.js';
 import { collectorConfig } from './config.js';
+import { log } from './logger.js';
 
 export type Results = ComparableResult;
 
@@ -76,8 +77,8 @@ export async function sendWebhook(
     publishMetrics(emitWebhookPublish('success'));
   } catch (e) {
     publishMetrics(emitWebhookPublish('error'));
-    console.error(
-      `Webhook POST failed for ${event} on ${result.electorateName} after retries:`,
+    log.error(
+      `Webhook POST failed for ${event} on ${result.electorateName} after retries`,
       e
     );
   }

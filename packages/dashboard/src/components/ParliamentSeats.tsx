@@ -264,6 +264,7 @@ export default function ParliamentSeats({
       <BottomSheet
         open={selectedSeatInfo !== null && isMobile}
         onClose={() => setSelectedSeat(null)}
+        title={selectedSeatInfo ? `${selectedSeatInfo.party} seat` : 'Seat details'}
       >
         {selectedSeatInfo && (
           <SeatDetailContent

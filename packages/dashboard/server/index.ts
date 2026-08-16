@@ -25,6 +25,7 @@ import {
   loadFeedEvents,
   resetFeedState,
 } from './feed.js';
+import { withMutex, Mutex } from './mutex.js';
 import { log } from './logger.js';
 
 const {
@@ -35,6 +36,7 @@ const {
 } = dashboardServerConfig;
 
 let latestResults: ResultsPayload | null = null;
+const feedMutex = new Mutex();
 
 function loadCachedResults() {
   if (existsSync(CACHE_PATH)) {
@@ -75,9 +77,12 @@ const server = createServer(
         res.end(JSON.stringify({ error: 'invalid or missing x-clear-token' }));
         return;
       }
-      latestResults = null;
-      resetFeedState();
-      io.emit('clear');
+      await withMutex(feedMutex, async () => {
+        latestResults = null;
+        resetFeedState();
+        historySource.clearCache();
+        io.emit('clear');
+      });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
       return;
@@ -124,23 +129,25 @@ io.on('connection', (socket) => {
   }
 
   socket.on('results_update', (payload: ResultsPayload) => {
-    const previousResults = latestResults?.electorateResults ?? [];
-    latestResults = payload;
-    lastScrapeTimestampSeconds.set(Date.now() / 1000);
-    log.info('Received results update, broadcasting...');
-    socket.broadcast.emit('results_update', payload);
+    withMutex(feedMutex, async () => {
+      const previousResults = latestResults?.electorateResults ?? [];
+      latestResults = payload;
+      lastScrapeTimestampSeconds.set(Date.now() / 1000);
+      log.info('Received results update, broadcasting...');
+      socket.broadcast.emit('results_update', payload);
 
-    const rawEvents = buildFeedEvents(
-      previousResults,
-      payload.electorateResults
-    );
-    if (rawEvents.length === 0) return;
+      const rawEvents = buildFeedEvents(
+        previousResults,
+        payload.electorateResults
+      );
+      if (rawEvents.length === 0) return;
 
-    const newEvents = addFeedEvents(rawEvents);
-    if (newEvents.length > 0) {
-      log.info(`Generated ${newEvents.length} feed events`);
-      io.emit('feed_update', newEvents);
-    }
+      const newEvents = addFeedEvents(rawEvents);
+      if (newEvents.length > 0) {
+        log.info(`Generated ${newEvents.length} feed events`);
+        io.emit('feed_update', newEvents);
+      }
+    }).catch((err) => log.error('results_update handler failed:', err));
   });
 
   socket.on('disconnect', () => {

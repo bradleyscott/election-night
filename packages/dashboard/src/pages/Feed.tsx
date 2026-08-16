@@ -2,30 +2,10 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useFeed } from '../hooks/useFeed.js';
 import { cn } from '../lib/utils.js';
+import { relativeTime, formatClockTime } from '../lib/feed.js';
 import { TimelineItem, TimelineGroupHeader } from '../components/Timeline.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { FeedEvent } from '@election-night/core/types';
-
-function formatClockTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('en-NZ', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
-function relativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'Just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours < 24) return mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function timeBucket(timestamp: number): number {
   return Math.floor(timestamp / 10000) * 10000;

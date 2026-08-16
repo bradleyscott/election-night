@@ -18,6 +18,13 @@ function calculateMarginOfError(
   population: number,
   confidence: number
 ) {
+  if (
+    sample <= 0 ||
+    population <= 0 ||
+    !Number.isFinite(resultAsPercentage)
+  ) {
+    return 0;
+  }
   const zScore = jstat.normal.inv(1 - (1 - confidence) / 2, 0, 1);
   const finitePopulationCorrection = Math.sqrt(
     (population - sample) / (population - 1)
@@ -27,7 +34,7 @@ function calculateMarginOfError(
     Math.sqrt((resultAsPercentage * (1 - resultAsPercentage)) / sample) *
     finitePopulationCorrection;
 
-  return marginOfError;
+  return Number.isFinite(marginOfError) ? marginOfError : 0;
 }
 
 function predictionStatusFromRatio(ratio: number): PredictionStatus {
@@ -79,7 +86,24 @@ function predictWinner(
   confidence: number
 ): ElectorateResults & WithLeaders & WithMarginOfError {
   const votesCounted = results.votesCounted;
-  const totalVotes = votesCounted / results.votePercentageCounted;
+  const votePercentageCounted = results.votePercentageCounted;
+
+  if (
+    votesCounted <= 0 ||
+    votePercentageCounted <= 0 ||
+    !Number.isFinite(votePercentageCounted)
+  ) {
+    return {
+      ...results,
+      marginOfError: 0,
+      leaders: {
+        ...results.leaders,
+        predictionStatus: 'too-close',
+      },
+    };
+  }
+
+  const totalVotes = votesCounted / votePercentageCounted;
   const leadingShare = (results.candidateVotes[0]?.votes ?? 0) / votesCounted;
   const secondShare = (results.candidateVotes[1]?.votes ?? 0) / votesCounted;
   const leadPercent = leadingShare - secondShare;
@@ -103,7 +127,7 @@ function predictWinner(
 
   return {
     ...results,
-    marginOfError,
+    marginOfError: Number.isFinite(marginOfError) ? marginOfError : 0,
     leaders: {
       ...results.leaders,
       predictionStatus: predictionStatusFromRatio(ratio),
@@ -130,10 +154,12 @@ function calculatePartyVote(results: ElectorateResults[]): VotingResults[] {
 
 function aggregateVotesCounted(results: ElectorateResults[]) {
   const votesCounted = results.reduce((prev, x) => prev + x.votesCounted, 0);
-  const totalVotes = results.reduce(
-    (prev, x) => prev + x.votesCounted / x.votePercentageCounted,
-    0
-  );
+  const totalVotes = results.reduce((prev, x) => {
+    const pct = x.votePercentageCounted;
+    return pct > 0 && Number.isFinite(pct)
+      ? prev + x.votesCounted / pct
+      : prev;
+  }, 0);
 
   return { votesCounted, totalVotes };
 }
@@ -144,6 +170,14 @@ function calculatePartyVoteWithPercentages(
 ): (VotingResults & WithPercentages)[] {
   const { votesCounted, totalVotes } = aggregateVotesCounted(results);
   const votes = calculatePartyVote(results);
+
+  if (votesCounted <= 0) {
+    return votes.map((x) => ({
+      ...x,
+      percentage: 0,
+      marginOfError: 0,
+    }));
+  }
 
   return votes.map((x) => ({
     ...x,

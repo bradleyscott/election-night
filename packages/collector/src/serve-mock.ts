@@ -51,7 +51,12 @@ function buildNameToResults(): Map<string, ElectorateResults[]> {
 const resultsMap = buildNameToResults();
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function formatVotes(n: number): string {
@@ -145,7 +150,7 @@ function renderPage(results: ElectorateResults): string {
                 <tr><td colspan="3" class="item"></td></tr>
                 ${
                   partyLead
-                    ? `<tr><td>PARTY VOTE LEAD:</td><td class="bold">${escapeHtml(partyLead.candidate)}</td><td class="bold text-right">${(partyLead.votes / totalPartyVotes * 100).toFixed(2)}%</td><td></td></tr>`
+                    ? `<tr><td>PARTY VOTE LEAD:</td><td class="bold">${escapeHtml(partyLead.candidate)}</td><td class="bold text-right">${(totalPartyVotes > 0 ? (partyLead.votes / totalPartyVotes * 100) : 0).toFixed(2)}%</td><td></td></tr>`
                     : ''
                 }
               </tbody>
@@ -321,6 +326,11 @@ const server = http.createServer((req, res) => {
 
   res.writeHead(404);
   res.end('Not found');
+});
+
+server.on('error', (err) => {
+  console.error(`Mock server failed on port ${PORT}:`, err);
+  process.exit(1);
 });
 
 server.listen(PORT, () => {

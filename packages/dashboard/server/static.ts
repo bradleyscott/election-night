@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { register, metricsResponse } from './metrics.js';
 import { dashboardServerConfig } from './config.js';
 import type { HistorySource } from './history-upstream.js';
+import { evaluateReady } from './ready-check.js';
 import { log } from './logger.js';
 
 const DIST_DIR = dashboardServerConfig.distDir;
@@ -50,30 +51,27 @@ export function serveHealth(_req: IncomingMessage, res: ServerResponse) {
   res.end(JSON.stringify({ status: 'ok' }));
 }
 
+async function isHistoryReachable(source: HistorySource): Promise<boolean> {
+  try {
+    await source.snapshotMetas();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function serveReady(
   _req: IncomingMessage,
   res: ServerResponse,
   historySource: HistorySource,
   feedEvents: { timestamp: number }[]
 ) {
-  const checks: Record<string, string | boolean | number> = {};
-  let ready = true;
-
-  try {
-    await historySource.snapshotMetas();
-    checks.history = 'upstream';
-  } catch {
-    checks.history = 'error';
-    ready = false;
-  }
+  const historyReachable = await isHistoryReachable(historySource);
 
   const lastEvent = feedEvents[feedEvents.length - 1];
-  if (lastEvent) {
-    checks.lastScrape = lastEvent.timestamp;
-  } else {
-    checks.lastScrape = 'none';
-    ready = false;
-  }
+  const lastScrape = lastEvent ? lastEvent.timestamp : 'none';
+
+  const { ready, checks } = evaluateReady(historyReachable, lastScrape);
 
   res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ ready, checks }));

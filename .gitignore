@@ -3,6 +3,8 @@ node_modules
 .data
 .vscode
 .env
+.env.*
+!.env.example
 dist
 *.db
 *.tsbuildinfo

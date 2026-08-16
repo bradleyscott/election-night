@@ -2,31 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { cn } from '../lib/utils.js';
-import { partyColors } from '../lib/constants.js';
+import {
+  partyColors,
+  MAJOR_PARTY_ORDER,
+  MAJOR_PARTIES,
+  buildElectorateLookup,
+} from '../lib/constants.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
 
-const MAJOR_PARTY_ORDER = [
-  'National Party',
-  'Labour Party',
-  'Green Party',
-  'ACT New Zealand',
-  'New Zealand First Party',
-] as const;
-
-const MAJOR_PARTIES = new Set<string>(MAJOR_PARTY_ORDER);
-
 type PartyListEntry = PartyList & WithAdjustedRank;
-
-function buildElectorateLookup(
-  electorateResults: { electorateName: string; leaders: { leadingCandidate: string } }[]
-): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const r of electorateResults) {
-    map.set(r.leaders.leadingCandidate, r.electorateName);
-  }
-  return map;
-}
 
 export default function Parties() {
   const { results } = useResults();
