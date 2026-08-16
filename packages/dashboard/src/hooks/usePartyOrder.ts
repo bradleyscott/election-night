@@ -31,7 +31,11 @@ export function usePartyOrder(partyVote: PartyEntry[]) {
 
   useEffect(() => {
     if (order.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+      } catch {
+        /* storage unavailable — order stays in memory for this visit */
+      }
     }
   }, [order]);
 

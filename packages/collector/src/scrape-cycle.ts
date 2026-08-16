@@ -16,7 +16,7 @@ import {
   predictWinner,
 } from '@election-night/core/reducers';
 import { log } from './logger.js';
-import { getElectoratePageHtml } from './scraper.js';
+import { getElectoratePageHtml, isCloudflareChallenge } from './scraper.js';
 import { sleep } from './util.js';
 import { collectorConfig } from './config.js';
 import { publishMetrics } from './ws-client.js';
@@ -57,6 +57,9 @@ export async function scrapeCycle(
     const startedAt = performance.now();
     try {
       const html = await getElectoratePageHtml(context, electorateConfig);
+      if (isCloudflareChallenge(html, electorateConfig.url)) {
+        throw new Error('Cloudflare challenge page detected');
+      }
       return { html, config: electorateConfig };
     } catch (reason) {
       const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);

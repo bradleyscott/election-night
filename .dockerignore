@@ -12,7 +12,8 @@
 .git
 .gitignore
 .env
-.env.local
+.env.*
+!.env.example
 .vscode
 *.md
 .DS_Store

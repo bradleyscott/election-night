@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useMemo } from 'react';
+import { type ReactNode, useState, useMemo, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils.js';
 import Logo from './Logo.js';
@@ -16,17 +16,24 @@ const navItems = [
 ];
 
 function Dateline() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="hidden sm:flex items-center justify-between gap-4 text-[11px] uppercase tracking-[0.09em] text-muted-foreground border-b border-border py-1.5 font-label">
       <span>NZ General Election</span>
       <span className="tabular-nums tracking-normal">
-        {new Date().toLocaleDateString('en-NZ', {
+        {now.toLocaleDateString('en-NZ', {
           weekday: 'short',
           day: 'numeric',
           month: 'short',
         })}{' '}
         ·{' '}
-        {new Date().toLocaleTimeString('en-NZ', {
+        {now.toLocaleTimeString('en-NZ', {
           hour: 'numeric',
           minute: '2-digit',
           hour12: true,

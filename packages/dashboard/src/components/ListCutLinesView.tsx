@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { partyColors } from '../lib/constants.js';
+import { partyColors, buildElectorateLookup } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import type {
@@ -11,16 +11,6 @@ import type {
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 type PartyListEntry = PartyList & WithAdjustedRank;
-
-function buildElectorateLookup(
-  electorateResults: { electorateName: string; leaders: { leadingCandidate: string } }[]
-): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const r of electorateResults) {
-    map.set(r.leaders.leadingCandidate, r.electorateName);
-  }
-  return map;
-}
 
 export function ListCutLinesView({
   partyLists,

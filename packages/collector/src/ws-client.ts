@@ -7,6 +7,8 @@ import { health } from './health.js';
 
 let socket: Socket | null = null;
 const pendingResults: ResultsPayload[] = [];
+const MAX_PENDING_RESULTS = 10;
+let droppedResults = 0;
 
 function flushPending() {
   if (!socket?.connected) return;
@@ -19,7 +21,10 @@ function flushPending() {
 }
 
 export function publishMetrics(events: MetricEvent | MetricEvent[]) {
-  if (!socket?.connected) return;
+  if (!socket?.connected) {
+    log.debug('Socket.io not connected, dropping metrics event');
+    return;
+  }
   socket.emit('metrics', events);
 }
 
@@ -51,8 +56,15 @@ export function connectWs(url: string) {
 
 export function publishResults(payload: ResultsPayload) {
   if (!socket?.connected) {
-    log.debug('Socket.io not connected, queueing results for retry');
+    if (pendingResults.length >= MAX_PENDING_RESULTS) {
+      pendingResults.shift();
+      droppedResults += 1;
+      log.warn(
+        `Socket.io not connected; pending results queue full. Dropped ${droppedResults} result payload(s) so far.`
+      );
+    }
     pendingResults.push(payload);
+    log.debug('Socket.io not connected, queueing results for retry');
     return;
   }
 

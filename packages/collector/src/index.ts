@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { launch } from 'cloakbrowser';
+import type { ElectorateConfig, ElectionSource, PartyList } from '@election-night/core/types';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
 import { connectWs, publishResults, disconnectWs } from './ws-client.js';
@@ -31,13 +32,15 @@ const {
   dbPath,
 } = collectorConfig;
 
-const { candidateRecords, partyListRecords, electorateNames, partyMap } =
-  loadCsvData();
+let candidateRecords: Record<string, string>[] = [];
+let partyListRecords: PartyList[] = [];
+let electorateNames: string[] = [];
+let partyMap: Record<string, string | undefined> = {};
+let source: ElectionSource;
+let electorateConfigs: ElectorateConfig[] = [];
 
-const { source, configs: electorateConfigs } =
-  await loadSource(electorateNames);
-
-log.info('=== Scraper Configuration ===');
+function logConfiguration(): void {
+  log.info('=== Scraper Configuration ===');
 log.info(`DB_PATH:          ${collectorConfig.dbPath}`);
 log.info(
   `BASE_RESULTS_URL: ${collectorConfig.baseResultsUrl || 'https://electionresults.govt.nz/electionresults_2023'}`
@@ -65,8 +68,9 @@ if (collectorConfig.webhookUrl)
   log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
 if (collectorConfig.electionSourcePath)
   log.info(`ELECTION_SOURCE:   ${collectorConfig.electionSourcePath}`);
-log.info(`Electorates:      ${electorateConfigs.length}`);
-log.info('=============================');
+  log.info(`Electorates:      ${electorateConfigs.length}`);
+  log.info('=============================');
+}
 
 async function runOnce(): Promise<void> {
   health.cycleCount += 1;
@@ -114,13 +118,13 @@ async function runOnce(): Promise<void> {
       concurrency: CONCURRENCY,
     });
 
-    await processResults(payload.electorateResults);
-    cacheResults(payload.electorateResults);
     writeResults(
       payload.electorateResults,
       payload.partyVote,
       payload.partyLists
     );
+    await processResults(payload.electorateResults);
+    cacheResults(payload.electorateResults);
     publishResults(payload);
     health.lastCycleFinishedAt = Date.now();
     health.lastCycleOk = true;
@@ -157,20 +161,58 @@ process.on('unhandledRejection', (reason) => {
     (reason.message.includes('TargetCloseError') ||
       reason.message.includes('Protocol error'))
   ) {
+    log.warn('Ignored browser rejection', reason);
     return;
   }
   log.error('Unhandled rejection', reason);
 });
 
-openDb(dbPath);
-connectWs(WS_URL);
-startHealthServer(
-  collectorConfig.healthPort,
-  createHistoryHandler({
-    dbPath: collectorConfig.dbPath,
-  })
-);
-loopRun().catch((err) => log.error('Fatal error in loop', err));
+async function main(): Promise<void> {
+  try {
+    ({ candidateRecords, partyListRecords, electorateNames, partyMap } =
+      loadCsvData());
+  } catch (err) {
+    log.error('Failed to load CSV data', err);
+    process.exit(1);
+  }
+
+  try {
+    ({ source, configs: electorateConfigs } = await loadSource(electorateNames));
+  } catch (err) {
+    log.error('Failed to load election source', err);
+    process.exit(1);
+  }
+
+  logConfiguration();
+
+  try {
+    openDb(dbPath);
+  } catch (err) {
+    log.error('Failed to open database', err);
+    process.exit(1);
+  }
+
+  connectWs(WS_URL);
+
+  try {
+    startHealthServer(
+      collectorConfig.healthPort,
+      createHistoryHandler({
+        dbPath: collectorConfig.dbPath,
+      })
+    );
+  } catch (err) {
+    log.error('Failed to start health server', err);
+    process.exit(1);
+  }
+
+  loopRun().catch((err) => {
+    log.error('Fatal error in scrape loop', err);
+    process.exit(1);
+  });
+}
+
+main();
 
 process.on('SIGINT', () => {
   disconnectWs();

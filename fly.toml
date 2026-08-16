@@ -23,9 +23,12 @@ primary_region = "syd"
   port = 3456
   path = "/metrics"
 
-# Server-only app: the collector runs on the homelab and publishes results
-# over Socket.io (WS_URL) plus history over HTTP (set HISTORY_UPSTREAM via
-# `fly secrets set` to point at the homelab's history endpoint).
+# Server-only app: the collector runs elsewhere and publishes results
+# over Socket.io (WS_URL) plus history over HTTP. HISTORY_UPSTREAM is
+# REQUIRED for history data — set it via `fly secrets set` to point at the
+# collector's history endpoint (e.g. https://history.example.com). Without
+# it the server defaults to http://127.0.0.1:3459, which is unreachable
+# inside Fly, so the Trends page and /ready will show no history.
 [env]
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"

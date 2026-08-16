@@ -1,13 +1,16 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface BottomSheetProps {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  title?: string;
 }
 
-export default function BottomSheet({ open, onClose, children }: BottomSheetProps) {
+export default function BottomSheet({ open, onClose, children, title }: BottomSheetProps) {
+  const titleId = useId();
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -33,6 +36,9 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="absolute bottom-0 left-0 right-0 bg-background border-t border-border max-h-[70dvh] overflow-y-auto animate-slide-up overscroll-y-contain"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         onClick={(e) => e.stopPropagation()}
@@ -41,6 +47,11 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
           <div className="w-10 border-t-2 border-foreground/40" />
         </div>
         <div className="p-4 pt-2">
+          {title && (
+            <h2 id={titleId} className="font-display text-base font-bold tracking-tight mb-2">
+              {title}
+            </h2>
+          )}
           {children}
         </div>
       </div>
