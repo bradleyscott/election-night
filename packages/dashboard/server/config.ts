@@ -16,7 +16,7 @@ const dashboardServerConfigSchema = z.object({
     .url()
     .default('http://127.0.0.1:3459')
     .describe(
-      'Base URL of the collector history REST API. The server never reads a SQLite DB — it always fetches /api/history/* from here. Default suits a co-located collector; point it at the homelab collector in split deployments'
+      'Base URL of the collector history REST API. The server never reads a SQLite DB — it always fetches /api/history/* from here. Default suits a co-located collector; point it at the collector in split deployments'
     ),
   clearToken: z
     .string()

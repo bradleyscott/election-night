@@ -1,6 +1,6 @@
 # Server-only image for the dashboard server (deployed to Fly.io).
 #
-# The collector runs separately on the homelab (see Dockerfile.collector) and
+# The collector runs separately (see Dockerfile.collector) and
 # publishes to this server over Socket.io; history data arrives via the
 # collector's /history/* REST API (HISTORY_UPSTREAM). No browser, no SQLite —
 # nothing here launches cloakbrowser, so the image stays slim.
