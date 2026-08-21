@@ -8,6 +8,10 @@ env:
 
 jobs:
   preview:
+    # Dependabot-triggered runs have no access to GitHub Actions secrets
+    # (FLY_API_TOKEN) and a read-only GITHUB_TOKEN, so preview deploys would
+    # always fail for them. Skip entirely to avoid the noise.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
