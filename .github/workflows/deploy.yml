@@ -26,8 +26,6 @@ jobs:
           filters: |
             deploy:
               - 'Dockerfile.app'
-              - 'Dockerfile.collector'
-              - 'docker/**'
               - 'fly.toml'
               - 'fly.preview.toml'
               - 'packages/**'

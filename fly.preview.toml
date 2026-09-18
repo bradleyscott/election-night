@@ -5,8 +5,8 @@
 #   - COLLECTOR_ENABLED = "false" (previews never poll the live feed)
 #   - smaller VM
 #
-# State (result/feed caches) lives in the container filesystem and is thrown
-# away when the preview is destroyed, which is fine for a preview.
+# With the collector disabled the preview serves the UI with no history, which
+# /ready reports as ready — there is no feed to wait for.
 
 app = "election-night-preview-placeholder"
 primary_region = "syd"
@@ -37,7 +37,6 @@ primary_region = "syd"
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
   COLLECTOR_ENABLED = "false"
-  CACHE_PATH = "/data/electorate_results.json"
   FEED_CACHE_PATH = "/data/feed_events.json"
 
 [[vm]]
