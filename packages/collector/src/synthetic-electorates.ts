@@ -17,80 +17,196 @@ export const MOCK_PARTIES: { name: string; abbrev: string }[] = [
   { name: 'The Opportunities Party (TOP)', abbrev: 'TOP' },
 ];
 
-const ELECTORATE_NAMES: string[] = [
-  'Auckland Central',
-  'Banks Peninsula',
-  'Bay of Plenty',
-  'Botany',
-  'Christchurch Central',
-  'Christchurch East',
-  'Coromandel',
-  'Dunedin',
-  'East Coast',
-  'East Coast Bays',
-  'Epsom',
-  'Hamilton East',
-  'Hamilton West',
-  'Hutt South',
-  'Ilam',
-  'Invercargill',
-  'Kaikōura',
-  'Kaipara ki Mahurangi',
-  'Kelston',
-  'Mana',
-  'Māngere',
-  'Manurewa',
-  'Maungakiekie',
-  'Mt Albert',
-  'Mt Roskill',
-  'Napier',
-  'Nelson',
-  'New Lynn',
-  'New Plymouth',
-  'North Shore',
-  'Northcote',
-  'Northland',
-  'Ōhāriu',
-  'Ōtaki',
-  'Pakuranga',
-  'Palmerston North',
-  'Panmure-Ōtāhuhu',
-  'Papakura',
-  'Port Waikato',
-  'Rangitata',
-  'Rangitīkei',
-  'Remutaka',
-  'Rongotai',
-  'Rotorua',
-  'Selwyn',
-  'Southland',
-  'Taieri',
-  'Takanini',
-  'Tāmaki',
-  'Taranaki-King Country',
-  'Taupō',
-  'Tauranga',
-  'Te Atatū',
-  'Tukituki',
-  'Upper Harbour',
-  'Waikato',
-  'Waimakariri',
-  'Wairarapa',
-  'Waitaki',
-  'Wellington Central',
-  'West Coast-Tasman',
-  'Whanganui',
-  'Whangaparāoa',
-  'Whāngārei',
-  'Wigram',
-  'Hauraki-Waikato',
-  'Ikaroa-Rāwhiti',
-  'Tāmaki Makaurau',
-  'Te Tai Hauāuru',
-  'Te Tai Tokerau',
-  'Te Tai Tonga',
-  'Waiariki',
+/** Election cycles the mock can replay. */
+export type MockElectionYear = '2023' | '2026';
+
+export const MOCK_ELECTION_YEARS: readonly MockElectionYear[] = [
+  '2023',
+  '2026',
 ];
+
+export const DEFAULT_MOCK_ELECTION_YEAR: MockElectionYear = '2023';
+
+export function isMockElectionYear(value: string): value is MockElectionYear {
+  return (MOCK_ELECTION_YEARS as readonly string[]).includes(value);
+}
+
+/**
+ * Electorate names per cycle, split general/Māori in the order the Electoral
+ * Commission's `electorates.xml` uses (general first, then Māori), so the
+ * mock's `e_no` numbering matches the real feed.
+ *
+ * 2026 uses the Representation Commission's final 2025 boundaries: 64 general
+ * electorates instead of 65, with 10 renamed or new (Kapiti, Kenepuru,
+ * Glendene, Henderson, Waitākere, Ōtāhuhu, Mt Maunganui, East Cape, Wellington
+ * North, Wellington Bays) and 11 abolished (Ōtaki, Mana, Ōhāriu, Kelston,
+ * New Lynn, Te Atatū, Panmure-Ōtāhuhu, Rongotai, Wellington Central, East
+ * Coast, Bay of Plenty).
+ *
+ * `synthetic-electorates.test.ts` asserts these lists match the boundary
+ * manifest the dashboard map draws from, so the mock cannot serve electorates
+ * the map has no polygon for.
+ */
+export const MOCK_ELECTORATE_SETS: Record<
+  MockElectionYear,
+  { general: string[]; maori: string[] }
+> = {
+  '2023': {
+    general: [
+      'Auckland Central',
+      'Banks Peninsula',
+      'Bay of Plenty',
+      'Botany',
+      'Christchurch Central',
+      'Christchurch East',
+      'Coromandel',
+      'Dunedin',
+      'East Coast',
+      'East Coast Bays',
+      'Epsom',
+      'Hamilton East',
+      'Hamilton West',
+      'Hutt South',
+      'Ilam',
+      'Invercargill',
+      'Kaikōura',
+      'Kaipara ki Mahurangi',
+      'Kelston',
+      'Mana',
+      'Māngere',
+      'Manurewa',
+      'Maungakiekie',
+      'Mt Albert',
+      'Mt Roskill',
+      'Napier',
+      'Nelson',
+      'New Lynn',
+      'New Plymouth',
+      'North Shore',
+      'Northcote',
+      'Northland',
+      'Ōhāriu',
+      'Ōtaki',
+      'Pakuranga',
+      'Palmerston North',
+      'Panmure-Ōtāhuhu',
+      'Papakura',
+      'Port Waikato',
+      'Rangitata',
+      'Rangitīkei',
+      'Remutaka',
+      'Rongotai',
+      'Rotorua',
+      'Selwyn',
+      'Southland',
+      'Taieri',
+      'Takanini',
+      'Tāmaki',
+      'Taranaki-King Country',
+      'Taupō',
+      'Tauranga',
+      'Te Atatū',
+      'Tukituki',
+      'Upper Harbour',
+      'Waikato',
+      'Waimakariri',
+      'Wairarapa',
+      'Waitaki',
+      'Wellington Central',
+      'West Coast-Tasman',
+      'Whanganui',
+      'Whangaparāoa',
+      'Whangārei',
+      'Wigram',
+    ],
+    maori: [
+      'Hauraki-Waikato',
+      'Ikaroa-Rāwhiti',
+      'Tāmaki Makaurau',
+      'Te Tai Hauāuru',
+      'Te Tai Tokerau',
+      'Te Tai Tonga',
+      'Waiariki',
+    ],
+  },
+  '2026': {
+    general: [
+      'Auckland Central',
+      'Banks Peninsula',
+      'Botany',
+      'Christchurch Central',
+      'Christchurch East',
+      'Coromandel',
+      'Dunedin',
+      'East Cape',
+      'East Coast Bays',
+      'Epsom',
+      'Glendene',
+      'Hamilton East',
+      'Hamilton West',
+      'Henderson',
+      'Hutt South',
+      'Ilam',
+      'Invercargill',
+      'Kaikōura',
+      'Kaipara ki Mahurangi',
+      'Kapiti',
+      'Kenepuru',
+      'Māngere',
+      'Manurewa',
+      'Maungakiekie',
+      'Mt Albert',
+      'Mt Maunganui',
+      'Mt Roskill',
+      'Napier',
+      'Nelson',
+      'New Plymouth',
+      'North Shore',
+      'Northcote',
+      'Northland',
+      'Ōtāhuhu',
+      'Pakuranga',
+      'Palmerston North',
+      'Papakura',
+      'Port Waikato',
+      'Rangitata',
+      'Rangitīkei',
+      'Remutaka',
+      'Rotorua',
+      'Selwyn',
+      'Southland',
+      'Taieri',
+      'Takanini',
+      'Tāmaki',
+      'Taranaki-King Country',
+      'Taupō',
+      'Tauranga',
+      'Tukituki',
+      'Upper Harbour',
+      'Waikato',
+      'Waimakariri',
+      'Wairarapa',
+      'Waitākere',
+      'Waitaki',
+      'Wellington Bays',
+      'Wellington North',
+      'West Coast-Tasman',
+      'Whanganui',
+      'Whangaparāoa',
+      'Whangārei',
+      'Wigram',
+    ],
+    maori: [
+      'Hauraki-Waikato',
+      'Ikaroa-Rāwhiti',
+      'Tāmaki Makaurau',
+      'Te Tai Hauāuru',
+      'Te Tai Tokerau',
+      'Te Tai Tonga',
+      'Waiariki',
+    ],
+  },
+};
 
 const SURNAMES = [
   'SMITH',
@@ -163,8 +279,20 @@ function mockCandidateName(n: number): string {
   return `${surname}${cycle > 0 ? ` ${cycle + 1}` : ''}, ${given}`;
 }
 
-export const MOCK_ELECTORATES: { name: string; candidates: CandidateInfo[] }[] =
-  ELECTORATE_NAMES.map((name, i) => {
+export type MockElectorate = { name: string; candidates: CandidateInfo[] };
+
+/**
+ * Build the mock's electorate list (and its candidates) for one cycle.
+ *
+ * Candidate names are derived from the flat index so they stay unique across
+ * the whole feed, which is what lets the mock resolve a candidate back to its
+ * `c_no` when serializing results.
+ */
+function buildElectorates(set: {
+  general: string[];
+  maori: string[];
+}): MockElectorate[] {
+  return [...set.general, ...set.maori].map((name, i) => {
     const candidates: CandidateInfo[] = MOCK_PARTIES.map((party, k) => ({
       name: mockCandidateName(i * 10 + k),
       party: party.name,
@@ -173,13 +301,6 @@ export const MOCK_ELECTORATES: { name: string; candidates: CandidateInfo[] }[] =
     if (i % 3 === 0) candidates.push({ name: mockCandidateName(i * 10 + 8) });
     return { name, candidates };
   });
-
-const electorateCandidates = new Map<string, CandidateInfo[]>(
-  MOCK_ELECTORATES.map((e) => [e.name, e.candidates])
-);
-
-function getElectorateNames(): string[] {
-  return [...ELECTORATE_NAMES];
 }
 
 type VotePattern = {
@@ -442,37 +563,125 @@ const PATTERN_GREEN_URBAN: VotePattern = {
   independentsWeight: 0.3,
 };
 
-type PatternEntry = {
+/** A pattern bound to the electorates it applies to. */
+type PatternAssignment = PatternPlan & { electorates: string[] };
+
+/** Share of an electorate's count reported at each stage. */
+type StagePct = { early: number; mid: number; late: number; full: number };
+
+/**
+ * A pattern plus the electorates it is applied to and how quickly each reports.
+ *
+ * `generalCounts` is per cycle, because the two cycles have a different number
+ * of general electorates (65 in 2023, 64 in 2026). Every general electorate
+ * gets exactly one pattern; the counts must therefore sum to the cycle's
+ * general electorate count, which `synthetic-electorates.test.ts` enforces.
+ * Only MARGINAL changes between the cycles, so the difference is visible in
+ * one place rather than smeared across the list.
+ */
+type PatternPlan = {
   pattern: VotePattern;
-  electorates: string[];
+  generalCounts: Record<MockElectionYear, number>;
+  pct: StagePct;
 };
 
-const ALL_PATTERNS: Omit<PatternEntry, 'electorates'>[] = [
-  { pattern: PATTERN_SAFE_NATIONAL },
-  { pattern: PATTERN_STRONG_NATIONAL },
-  { pattern: PATTERN_LEAN_NATIONAL },
-  { pattern: PATTERN_LEAN_LABOUR },
-  { pattern: PATTERN_LABOUR_STRONGHOLD },
-  { pattern: PATTERN_ACT_STRONGHOLD },
-  { pattern: PATTERN_MAORI_ELECTORATE },
-  { pattern: PATTERN_MARGINAL },
-  { pattern: PATTERN_VERY_CLOSE },
-  { pattern: PATTERN_PHOTO_FINISH },
-  { pattern: PATTERN_GREEN_URBAN },
+const GENERAL_PLANS: PatternPlan[] = [
+  {
+    pattern: PATTERN_SAFE_NATIONAL,
+    generalCounts: { '2023': 7, '2026': 7 },
+    pct: { early: 0.85, mid: 0.95, late: 1.0, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_STRONG_NATIONAL,
+    generalCounts: { '2023': 11, '2026': 11 },
+    pct: { early: 0.75, mid: 0.85, late: 0.95, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_LEAN_NATIONAL,
+    generalCounts: { '2023': 12, '2026': 12 },
+    pct: { early: 0.4, mid: 0.65, late: 0.95, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_LEAN_LABOUR,
+    generalCounts: { '2023': 11, '2026': 11 },
+    pct: { early: 0.2, mid: 0.45, late: 0.8, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_LABOUR_STRONGHOLD,
+    generalCounts: { '2023': 6, '2026': 6 },
+    pct: { early: 0.15, mid: 0.4, late: 0.75, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_ACT_STRONGHOLD,
+    generalCounts: { '2023': 2, '2026': 2 },
+    pct: { early: 0.35, mid: 0.6, late: 0.9, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_MARGINAL,
+    // Absorbs the change in general electorate count between cycles.
+    generalCounts: { '2023': 7, '2026': 6 },
+    pct: { early: 0.4, mid: 0.65, late: 0.9, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_VERY_CLOSE,
+    generalCounts: { '2023': 4, '2026': 4 },
+    pct: { early: 0.15, mid: 0.4, late: 0.85, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_PHOTO_FINISH,
+    generalCounts: { '2023': 2, '2026': 2 },
+    pct: { early: 0.1, mid: 0.35, late: 0.8, full: 1.0 },
+  },
+  {
+    pattern: PATTERN_GREEN_URBAN,
+    generalCounts: { '2023': 3, '2026': 3 },
+    pct: { early: 0.25, mid: 0.5, late: 0.85, full: 1.0 },
+  },
 ];
 
-const TARGET_COUNTS = [7, 11, 12, 11, 6, 2, 6, 8, 4, 2, 3];
+/**
+ * Every Māori electorate gets the Māori pattern, so Te Pāti Māori wins all
+ * seven and the resulting overhang exercises the seat-allocation maths. The
+ * pattern is not drawn at random from the general pool: doing so would hand a
+ * National or Labour win to a Māori electorate (and vice versa) and could hide
+ * the overhang entirely.
+ */
+const MAORI_PCT: StagePct = {
+  early: 0.15,
+  mid: 0.4,
+  late: 0.75,
+  full: 1.0,
+};
 
-function assignElectorates(names: string[]): PatternEntry[] {
-  const shuffled = [...names];
-  shuffle(shuffled);
-  let idx = 0;
-  return ALL_PATTERNS.map((entry, i) => {
-    const count = TARGET_COUNTS[i];
-    const electorates = shuffled.slice(idx, idx + count);
-    idx += count;
-    return { pattern: entry.pattern, electorates };
+function assignPatterns(
+  set: { general: string[]; maori: string[] },
+  year: MockElectionYear
+): PatternAssignment[] {
+  const general = [...set.general];
+  shuffle(general);
+
+  let index = 0;
+  const assignments: PatternAssignment[] = GENERAL_PLANS.map((plan) => {
+    const count = plan.generalCounts[year];
+    const electorates = general.slice(index, index + count);
+    index += count;
+    return { ...plan, electorates };
   });
+
+  if (index !== general.length) {
+    throw new Error(
+      `Mock patterns for ${year} cover ${index} general electorates but ${general.length} exist — check generalCounts in GENERAL_PLANS`
+    );
+  }
+
+  assignments.push({
+    pattern: PATTERN_MAORI_ELECTORATE,
+    generalCounts: { '2023': 0, '2026': 0 },
+    pct: MAORI_PCT,
+    electorates: [...set.maori],
+  });
+
+  return assignments;
 }
 
 function shuffle<T>(arr: T[]): void {
@@ -549,53 +758,51 @@ function buildSyntheticElectorate(
   };
 }
 
-function generateAtPct(
-  assignments: PatternEntry[],
-  getPct: (entry: PatternEntry, index: number) => number
+function generateStage(
+  assignments: PatternAssignment[],
+  candidatesByElectorate: Map<string, CandidateInfo[]>,
+  stage: keyof StagePct
 ): ElectorateResults[] {
   const results: ElectorateResults[] = [];
-  for (let i = 0; i < assignments.length; i++) {
-    const { pattern, electorates } = assignments[i];
-    const pct = getPct(assignments[i], i);
+  for (const { pattern, electorates, pct } of assignments) {
     for (const name of electorates) {
-      const candidates = electorateCandidates.get(name) ?? [];
-      const syn = buildSyntheticElectorate(name, pattern, candidates);
-      results.push(generatePartialResults(syn, pct));
+      const candidates = candidatesByElectorate.get(name) ?? [];
+      const synthetic = buildSyntheticElectorate(name, pattern, candidates);
+      results.push(generatePartialResults(synthetic, pct[stage]));
     }
   }
   return results;
 }
 
-const earlyPct = () => [
-  0.85, 0.75, 0.4, 0.2, 0.15, 0.35, 0.15, 0.4, 0.15, 0.1, 0.25,
-];
+export type MockElectionSet = {
+  year: MockElectionYear;
+  electorates: MockElectorate[];
+  /** One result set per counting stage, each covering every electorate. */
+  stages: Record<keyof StagePct, ElectorateResults[]>;
+};
 
-const midPct = () => [
-  0.95, 0.85, 0.65, 0.45, 0.4, 0.6, 0.4, 0.65, 0.4, 0.35, 0.5,
-];
+/**
+ * Build the whole mock feed for one election cycle: electorates, candidates,
+ * and the four counting stages.
+ */
+export function buildMockElectionSet(
+  year: MockElectionYear = DEFAULT_MOCK_ELECTION_YEAR
+): MockElectionSet {
+  const set = MOCK_ELECTORATE_SETS[year];
+  const electorates = buildElectorates(set);
+  const candidatesByElectorate = new Map(
+    electorates.map((e) => [e.name, e.candidates])
+  );
+  const assignments = assignPatterns(set, year);
 
-const latePct = () => [
-  1.0, 0.95, 0.95, 0.8, 0.75, 0.9, 0.75, 0.9, 0.85, 0.8, 0.85,
-];
-
-const fullPct = () => [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-
-const electorates = getElectorateNames();
-const assignments = assignElectorates(electorates);
-
-export const earlyCountResults = generateAtPct(
-  assignments,
-  (_, i) => earlyPct()[i]
-);
-export const midCountResults = generateAtPct(
-  assignments,
-  (_, i) => midPct()[i]
-);
-export const lateCountResults = generateAtPct(
-  assignments,
-  (_, i) => latePct()[i]
-);
-export const fullCountResults = generateAtPct(
-  assignments,
-  (_, i) => fullPct()[i]
-);
+  return {
+    year,
+    electorates,
+    stages: {
+      early: generateStage(assignments, candidatesByElectorate, 'early'),
+      mid: generateStage(assignments, candidatesByElectorate, 'mid'),
+      late: generateStage(assignments, candidatesByElectorate, 'late'),
+      full: generateStage(assignments, candidatesByElectorate, 'full'),
+    },
+  };
+}

@@ -5,9 +5,8 @@ import { useElectorateHistory } from '../hooks/useVoteHistory.js';
 import { ElectorateSearch } from '../components/ElectorateSearch.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateDetail } from '../components/ElectorateDetail.js';
-import ElectorateMap, {
-  MAORI_ELECTORATES,
-} from '../components/ElectorateMap.js';
+import ElectorateMap from '../components/ElectorateMap.js';
+import { isMaoriElectorate } from '../lib/electorates.js';
 import { WaitingState } from '../components/WaitingState.js';
 import { cn } from '../lib/utils.js';
 import type {
@@ -30,13 +29,13 @@ export default function Electorates() {
   const selectedName = name ? decodeURIComponent(name) : null;
 
   useEffect(() => {
-    if (selectedName && MAORI_ELECTORATES.has(selectedName)) {
+    if (selectedName && isMaoriElectorate(selectedName)) {
       setShowMaori(true);
     }
   }, [selectedName]);
 
   const electorateNames = electorates
-    .filter((e) => showMaori === MAORI_ELECTORATES.has(e.electorateName))
+    .filter((e) => showMaori === isMaoriElectorate(e.electorateName))
     .map((e) => e.electorateName);
 
   const selectedElectorate = selectedName

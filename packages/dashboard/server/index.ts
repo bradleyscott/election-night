@@ -26,6 +26,10 @@ import {
   resetFeedState,
 } from './feed.js';
 import { withMutex, Mutex } from './mutex.js';
+import {
+  describeCacheSkip,
+  extractCachedElectorates,
+} from './results-cache.js';
 import { log } from './logger.js';
 
 const {
@@ -40,18 +44,34 @@ const feedMutex = new Mutex();
 
 function loadCachedResults() {
   if (existsSync(CACHE_PATH)) {
+    let raw: string;
     try {
-      const data = JSON.parse(readFileSync(CACHE_PATH, 'utf-8'));
+      raw = readFileSync(CACHE_PATH, 'utf-8');
+    } catch (err) {
+      log.error('Failed to read cached results:', err);
+      return;
+    }
+
+    const electorates = extractCachedElectorates(
+      raw,
+      dashboardServerConfig.electionYear
+    );
+    if (electorates) {
       latestResults = {
-        electorateResults: data,
+        electorateResults: electorates as ResultsPayload['electorateResults'],
         partyVote: [],
         partyLists: [],
       };
       log.info(`Loaded cached results from ${CACHE_PATH}`);
       return;
-    } catch (err) {
-      log.error('Failed to load cached results:', err);
     }
+
+    // The cache is the collector's diff baseline, so it may be absent, from a
+    // different cycle, or written by an older version. None of those are worth
+    // failing over — the first scrape replaces it within a poll interval.
+    log.warn(
+      `Ignoring cached results at ${CACHE_PATH}: ${describeCacheSkip(raw, dashboardServerConfig.electionYear)}`
+    );
   }
   log.info('No cached results found, waiting for first scrape...');
 }

@@ -9,6 +9,13 @@ const dashboardServerConfigSchema = z.object({
     .default('./dist')
     .transform((v) => resolve(v)),
   cachePath: z.string().default('.data/electorate_results.json'),
+  /**
+   * Election cycle this server is serving (`ELECTION_YEAR`). Used to reject a
+   * preloaded results cache from a different cycle. Optional: when unset, a
+   * tagged cache is still read but an untagged (pre-2026) one is accepted
+   * unverified.
+   */
+  electionYear: z.string().optional(),
   feedCachePath: z.string().default('.data/feed_events.json'),
   maxFeedEvents: z.coerce.number().int().min(1).default(200),
   historyUpstream: z
@@ -33,6 +40,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     wsPort: process.env.WS_PORT,
     distDir: process.env.DIST_DIR,
     cachePath: process.env.CACHE_PATH,
+    electionYear: process.env.ELECTION_YEAR,
     feedCachePath: process.env.FEED_CACHE_PATH,
     maxFeedEvents: process.env.MAX_FEED_EVENTS,
     historyUpstream: process.env.HISTORY_UPSTREAM,

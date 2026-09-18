@@ -80,20 +80,46 @@ npm run dev
 
 ### Dev commands
 
-| Command                   | Description                                                    |
-| ------------------------- | -------------------------------------------------------------- |
-| `npm run build:core`      | Compile `@election-night/core` to `dist/`                      |
-| `npm run dev`             | Start web server + Vite dev server concurrently                |
-| `npm run build`           | Build core + production dashboard bundle                       |
-| `npm run start:collector` | Run the collector CLI                                          |
-| `npm run start:server`    | Start Socket.io / dashboard server only                        |
-| `npm run start:mock`      | Start mock election results server                             |
-| `npm run clear`           | Truncate the SQLite database and delete the JSON results cache |
-| `npm run log:webhooks`    | Start a local webhook receiver on port 3458                    |
-| `npm test`                | Run Vitest test suite                                          |
-| `npm run lint`            | ESLint all packages                                            |
-| `npm run typecheck`       | TypeScript type checking for core, collector, and dashboard    |
-| `npm run fmt`             | Prettier format                                                |
+| Command                                        | Description                                                    |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| `npm run build:core`                           | Compile `@election-night/core` to `dist/`                      |
+| `npm run dev`                                  | Start web server + Vite dev server concurrently                |
+| `npm run build`                                | Build core + production dashboard bundle                       |
+| `npm run start:collector`                      | Run the collector CLI                                          |
+| `npm run start:server`                         | Start Socket.io / dashboard server only                        |
+| `npm run start:mock`                           | Start mock election results server                             |
+| `npm run clear`                                | Truncate the SQLite database and delete the JSON results cache |
+| `npm run log:webhooks`                         | Start a local webhook receiver on port 3458                    |
+| `node scripts/fetch-electorate-boundaries.mjs` | Re-fetch official electorate boundaries (see below)            |
+| `npm test`                                     | Run Vitest test suite                                          |
+| `npm run lint`                                 | ESLint all packages                                            |
+| `npm run typecheck`                            | TypeScript type checking for core, collector, and dashboard    |
+| `npm run fmt`                                  | Prettier format                                                |
+
+### Electorate boundaries
+
+The map draws electorate boundaries from
+`packages/dashboard/public/boundaries/<year>/{general,maori}-electorates.geojson`,
+so each election cycle keeps its own geometry. Boundaries are redrawn most
+cycles — 2026 has 64 general electorates where 2023 had 65, with 10 renamed or
+replaced and 11 removed — so the map picks the year whose electorate names
+match the live results and warns when they cannot be reconciled. See
+[`docs/2026-election-boundaries.md`](docs/2026-election-boundaries.md).
+
+```bash
+# Re-fetch the 2026 boundaries from Stats NZ (~55 m tolerance)
+node scripts/fetch-electorate-boundaries.mjs --year 2026
+
+# Coarser geometry and a smaller download (~110 m)
+node scripts/fetch-electorate-boundaries.mjs --year 2026 --tolerance 0.001
+
+# Validate without writing
+node scripts/fetch-electorate-boundaries.mjs --year 2026 --check
+```
+
+The script rebuilds `public/boundaries/index.json` (the name manifest used for
+year selection) after writing, and drops the geometry into the minimal shape the
+map needs. Data: Stats NZ, CC BY 4.0.
 
 ### Mock server
 
@@ -113,7 +139,26 @@ curl -X POST http://localhost:3457/reset
 curl http://localhost:3457/stage
 ```
 
-Other flags: `--port 3457` (or `MOCK_PORT`), `--help`.
+Other flags: `--port 3457` (or `MOCK_PORT`), `--year 2023|2026` (or `MOCK_ELECTION_YEAR`), `--help`.
+
+#### Replaying 2026
+
+`--year 2026` replays the next cycle's electorate list: 64 general + 7 Māori electorates instead of 65 + 7, with the 2026 names (`Kapiti`, `Kenepuru`, `Glendene`, `Henderson`, `Waitākere`, `Ōtāhuhu`, `Mt Maunganui`, `East Cape`, `Wellington North`, `Wellington Bays`) and the 2023 ones gone. Māori electorates are won by Te Pāti Māori, which produces the overhang the seat maths has to absorb (the mock's 2026 cycle totals 125 seats, against 122 in 2023).
+
+The mock's electorate list is asserted against the boundary manifest the dashboard map draws from, so a replay can never serve an electorate the map has no polygon for.
+
+```bash
+# Terminal 1 — mock backend replaying 2026
+npm run start:mock -- --year 2026
+
+# Terminal 2 — collector reading it
+XML_FEED_BASE_URL=http://localhost:3457/ ELECTION_YEAR=2026 npm run start:collector
+
+# Terminal 3 — dashboard
+npm run dev
+```
+
+Set `ELECTION_YEAR=2026` too (not just the mock flag): it tags snapshots with the cycle, so the 2026 replay does not mix into 2023 history, and the dashboard's map picks the 2026 boundaries to match. Advance stages with the `curl` calls above to watch counts, predictions, and seat totals move.
 
 ## Environment Variables
 
@@ -130,17 +175,18 @@ Other flags: `--port 3457` (or `MOCK_PORT`), `--help`.
 | `WS_PORT`               | `3456`                          | Socket.io server port                                                                                                                                                                                                      |
 | `WS_URL`                | `ws://localhost:3456`           | Socket.io server URL (for the collector); loopback in the combined deployment                                                                                                                                              |
 | `WS_RECONNECT_DELAY_MS` | `2000`                          | Delay before reconnecting to the Socket.io server                                                                                                                                                                          |
-| `DB_PATH`               | `.data/election_results.db`     | Collector: SQLite database path (the dashboard server never opens a DB)                                                                                                                                                    |
-| `ELECTION_SOURCE_PATH`  | —                               | Path to a custom source adapter module implementing `ElectionSource`                                                                                                                                                       |
+| `DB_PATH`               | `.data/election_results.db`     | Collector: SQLite database path (the dashboard server never opens a DB)                                                                                                                                                    |     | `ELECTION_SOURCE_PATH` | —   | Path to a custom source adapter module implementing `ElectionSource` |
 | `WEBHOOK_URL`           | —                               | Single webhook URL for all events. Payload includes an `event` field (`result_updated`, `prediction_changed`, `leader_change`, or `count_completed`) plus the full electorate result and a `diff` describing what changed. |
 | `WEBHOOK_LOG_PORT`      | `3458`                          | Port for the local `npm run log:webhooks` receiver                                                                                                                                                                         |
 | `MOCK_PORT`             | `3457`                          | Port for the mock XML feed server                                                                                                                                                                                          |
+| `MOCK_ELECTION_YEAR`    | `2023`                          | Mock server: which cycle's electorate list to replay (`2023` or `2026`). Overridden by `--year`.                                                                                                                           |
 | `COLLECTOR_ENABLED`     | `true`                          | Combined image only: set `false` to run the dashboard server without the collector (PR previews do this)                                                                                                                   |
 | `CACHE_PATH`            | `.data/electorate_results.json` | Dashboard server JSON cache path                                                                                                                                                                                           |
 | `FEED_CACHE_PATH`       | `.data/feed_events.json`        | Dashboard server feed-events cache path                                                                                                                                                                                    |
 | `MAX_FEED_EVENTS`       | `200`                           | Maximum feed events retained by the dashboard server                                                                                                                                                                       |
 | `HISTORY_UPSTREAM`      | `http://127.0.0.1:3459`         | Dashboard server: base URL of the collector's history REST API. Defaults to loopback for the co-located deployment.                                                                                                        |
 | `DIST_DIR`              | `./dist`                        | Directory the dashboard server serves static files from                                                                                                                                                                    |
+| `VITE_ELECTION_YEAR`    | auto                            | Frontend: pin the electorate boundary dataset to an election year (e.g. `2026`). Unset, the map picks the year whose names match the live results.                                                                         |
 
 ## Deployment
 

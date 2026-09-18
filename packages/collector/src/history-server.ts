@@ -17,6 +17,13 @@ import { log } from './logger.js';
 
 export interface HistoryHandlerOptions {
   dbPath: string;
+  /**
+   * Election cycle to serve history for (`ELECTION_YEAR`). Every query is
+   * scoped to it so a DB holding more than one cycle — the Fly deployment
+   * keeps SQLite on a persistent volume — cannot blend 2023 results into 2026
+   * charts. Requests may override it with `?year=YYYY`.
+   */
+  electionYear?: string;
 }
 
 let db: Database.Database | null = null;
@@ -49,24 +56,60 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-function getSnapshotMetas(handle: Database.Database): unknown[] {
+/**
+ * Resolve which cycle to answer for.
+ *
+ * An explicit `?year=` wins (a UI browsing an archived cycle). Otherwise the
+ * configured year is authoritative even when it has no rows yet: substituting
+ * another cycle's history would show 2023 trends on a 2026 dashboard before the
+ * first scrape lands. Only when no year is configured at all — a dashboard
+ * process without `ELECTION_YEAR` — do we fall back to the newest cycle in the
+ * DB.
+ */
+function resolveElectionYear(
+  handle: Database.Database,
+  requested: string | null,
+  configured: string | undefined
+): string | null {
+  if (requested) return requested;
+  if (configured) return configured;
+
+  const newest = handle
+    .prepare(
+      `SELECT election_year AS year FROM scrape_snapshots
+       WHERE election_year IS NOT NULL
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get() as { year: string } | undefined;
+
+  return newest?.year ?? null;
+}
+
+function getSnapshotMetas(
+  handle: Database.Database,
+  electionYear: string
+): unknown[] {
   return handle
     .prepare(
-      `SELECT id AS snapshotId, started_at AS startedAt, completed_at AS completedAt
+      `SELECT id AS snapshotId, election_year AS electionYear,
+              started_at AS startedAt, completed_at AS completedAt
        FROM scrape_snapshots
+       WHERE election_year = ?
        ORDER BY started_at ASC`
     )
-    .all();
+    .all(electionYear);
 }
 
 function getElectorateHistory(
   handle: Database.Database,
-  name: string
+  name: string,
+  electionYear: string
 ): unknown[] {
   const summaries = handle
     .prepare(
       `SELECT
          ss.id AS snapshotId,
+         ss.election_year AS electionYear,
          ss.started_at AS startedAt,
          ss.completed_at AS completedAt,
          es.votes_counted AS votesCounted,
@@ -79,10 +122,10 @@ function getElectorateHistory(
          es.margin_of_error AS marginOfError
        FROM scrape_snapshots ss
        JOIN electorate_summary es ON es.scrape_id = ss.id
-       WHERE es.electorate = ?
+       WHERE es.electorate = ? AND ss.election_year = ?
        ORDER BY ss.started_at ASC`
     )
-    .all(name) as Record<string, unknown>[];
+    .all(name, electionYear) as Record<string, unknown>[];
 
   return summaries.map((row) => ({
     ...row,
@@ -105,14 +148,19 @@ function getElectorateHistory(
   }));
 }
 
-function getPartyVoteHistory(handle: Database.Database): unknown[] {
+function getPartyVoteHistory(
+  handle: Database.Database,
+  electionYear: string
+): unknown[] {
   const snapshots = handle
     .prepare(
-      `SELECT id AS snapshotId, started_at AS startedAt, completed_at AS completedAt
+      `SELECT id AS snapshotId, election_year AS electionYear,
+              started_at AS startedAt, completed_at AS completedAt
        FROM scrape_snapshots
+       WHERE election_year = ?
        ORDER BY started_at ASC`
     )
-    .all() as Record<string, unknown>[];
+    .all(electionYear) as Record<string, unknown>[];
 
   return snapshots.map((snap) => {
     const sid = snap.snapshotId as number;
@@ -151,7 +199,7 @@ function getPartyVoteHistory(handle: Database.Database): unknown[] {
 export function createHistoryHandler(
   options: HistoryHandlerOptions
 ): (req: IncomingMessage, res: ServerResponse) => boolean {
-  const { dbPath } = options;
+  const { dbPath, electionYear } = options;
 
   return (req, res) => {
     const url = req.url ?? '';
@@ -167,23 +215,34 @@ export function createHistoryHandler(
       return true;
     }
 
-    const pathname = url.split('?')[0]!;
+    const [pathname, query] = url.split('?');
+    const requestedYear = new URLSearchParams(query ?? '').get('year');
+    const year = resolveElectionYear(handle, requestedYear, electionYear);
+    if (!year) {
+      sendJson(res, 200, []);
+      return true;
+    }
+
     try {
       if (pathname === '/history/snapshots') {
-        sendJson(res, 200, getSnapshotMetas(handle));
+        sendJson(res, 200, getSnapshotMetas(handle, year));
         return true;
       }
-      const electorateMatch = pathname.match(/^\/history\/electorate\/(.+)$/);
+      const electorateMatch = pathname!.match(/^\/history\/electorate\/(.+)$/);
       if (electorateMatch) {
         sendJson(
           res,
           200,
-          getElectorateHistory(handle, decodeURIComponent(electorateMatch[1]!))
+          getElectorateHistory(
+            handle,
+            decodeURIComponent(electorateMatch[1]!),
+            year
+          )
         );
         return true;
       }
       if (pathname === '/history/party-votes') {
-        sendJson(res, 200, getPartyVoteHistory(handle));
+        sendJson(res, 200, getPartyVoteHistory(handle, year));
         return true;
       }
     } catch (err) {

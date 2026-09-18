@@ -1,5 +1,11 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'fs';
+import {
+  mkdtempSync,
+  rmSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type {
@@ -14,9 +20,11 @@ type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 const mockConfig: {
   resultsCachePath: string;
   webhookUrl: string | undefined;
+  electionYear: string;
 } = {
   resultsCachePath: '',
   webhookUrl: undefined,
+  electionYear: '2026',
 };
 
 vi.mock('./config.js', () => ({
@@ -68,8 +76,9 @@ describe('cacheResults', () => {
     const written = JSON.parse(
       readFileSync(mockConfig.resultsCachePath, 'utf-8')
     );
-    expect(written).toHaveLength(1);
-    expect(written[0].electorateName).toBe('Test');
+    expect(written.electionYear).toBe('2026');
+    expect(written.results).toHaveLength(1);
+    expect(written.results[0].electorateName).toBe('Test');
   });
 
   test('overwrites previous cache', async () => {
@@ -80,8 +89,83 @@ describe('cacheResults', () => {
     const written = JSON.parse(
       readFileSync(mockConfig.resultsCachePath, 'utf-8')
     );
-    expect(written).toHaveLength(1);
-    expect(written[0].electorateName).toBe('Second');
+    expect(written.results).toHaveLength(1);
+    expect(written.results[0].electorateName).toBe('Second');
+  });
+});
+
+describe('readResults election-year guard', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
+    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
+  });
+
+  afterEach(() => {
+    if (existsSync(tmpDir)) {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  /**
+   * The cache is a snapshot of the current cycle, so a leftover file from the
+   * previous one must not become the diff baseline — otherwise the first
+   * scrape of election night fires a burst of bogus events. Each case here
+   * writes the file directly because `cacheResults` is memoised in module
+   * state and already holds the current cycle.
+   */
+  const staleCases: { name: string; contents: string; year: string }[] = [
+    {
+      name: 'a cache from a previous cycle',
+      contents: JSON.stringify({
+        electionYear: '2023',
+        results: [makeResult({ electorateName: 'Wellington Central' })],
+      }),
+      year: '2026',
+    },
+    {
+      name: 'a legacy bare-array cache with no cycle attribution',
+      contents: JSON.stringify([
+        makeResult({ electorateName: 'Wellington Central' }),
+      ]),
+      year: '2026',
+    },
+    {
+      name: 'a corrupt cache file',
+      contents: 'not json at all',
+      year: '2026',
+    },
+  ];
+
+  for (const { name, contents, year } of staleCases) {
+    test(`ignores ${name}`, async () => {
+      mockConfig.electionYear = year;
+      writeFileSync(mockConfig.resultsCachePath, contents);
+
+      // Reset module state so a memoised result from an earlier test cannot
+      // mask the file being read.
+      vi.resetModules();
+      const { readResults } = await import('./results.js');
+
+      expect(readResults()).toEqual([]);
+    });
+  }
+
+  test('uses a cache written for the active cycle', async () => {
+    mockConfig.electionYear = '2026';
+    writeFileSync(
+      mockConfig.resultsCachePath,
+      JSON.stringify({
+        electionYear: '2026',
+        results: [makeResult({ electorateName: 'Kenepuru' })],
+      })
+    );
+    vi.resetModules();
+    const { readResults } = await import('./results.js');
+
+    expect(readResults()).toHaveLength(1);
+    expect(readResults()[0]!.electorateName).toBe('Kenepuru');
   });
 });
 

@@ -9,6 +9,15 @@ import { sql } from 'drizzle-orm';
 
 export const scrapeSnapshots = sqliteTable('scrape_snapshots', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  /**
+   * Election cycle this scrape belongs to (`ELECTION_YEAR`).
+   *
+   * History queries are scoped to the active cycle, so a DB (or a Fly volume)
+   * that still holds 2023 rows cannot leak them into 2026 charts. Nullable
+   * for rows written before cycles were tracked; the 0001 migration backfills
+   * those to '2023' because that was the only feed the collector could read.
+   */
+  electionYear: text('election_year'),
   startedAt: text('started_at')
     .notNull()
     .default(sql`(datetime('now'))`),
