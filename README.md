@@ -20,7 +20,6 @@ This started as a project for a 2023 election night party — the goal was to av
 - **Webhook notifications** — Configurable webhooks for new predictions, updated results, and leader changes (e.g., smart home integrations). A built-in webhook logger is available for local testing.
 - **Persistence** — SQLite database via Drizzle ORM with one immutable snapshot per scrape, giving crash recovery, history and trends; feed events are cached to disk.
 - **Mock server** — A built-in mock XML feed server that serves evolving results for development and testing.
-- **Custom source adapters** — Pluggable `ElectionSource` interface to adapt the collector for non-NZ elections or other feeds.
 
 ## Architecture
 
@@ -167,7 +166,6 @@ Set `ELECTION_YEAR=2026` too (not just the mock flag): it tags snapshots with th
 | `COLLECTOR_ENABLED`    | `true`                      | Run the in-process collector loop. `false` serves the last written snapshot without polling (PR previews do this).                                                                                                          |
 | `WS_PORT`              | `3456`                      | Public HTTP + Socket.io port                                                                                                                                                                                               |
 | `DB_PATH`              | `.data/election_results.db` | SQLite database path (written by the collector, read by the history API)                                                                                                                                                    |
-| `ELECTION_SOURCE_PATH` | —                           | Path to a custom source adapter module implementing `ElectionSource`                                                                                                                                                       |
 | `WEBHOOK_URL`          | —                           | Single webhook URL for all events. Payload includes an `event` field (`result_updated`, `prediction_changed`, `leader_change`, or `count_completed`) plus the full electorate result and a `diff` describing what changed. |
 | `WEBHOOK_LOG_PORT`     | `3458`                      | Port for the local `npm run log:webhooks` receiver                                                                                                                                                                         |
 | `MOCK_PORT`            | `3457`                      | Port for the mock XML feed server                                                                                                                                                                                          |
@@ -209,12 +207,6 @@ scripts/fly-validate.sh election-night-xmltest          # deploy + verify the XM
 scripts/fly-validate.sh election-night-xmltest destroy  # tear down
 ```
 
-## Custom Source Adapters
+## Results Source
 
-Set `ELECTION_SOURCE_PATH` to a JS/TS module that exports a class implementing the `ElectionSource` interface (see `packages/core/src/types.ts`). Implementations must set `party` on each candidate vote so seat calculations work.
-
-```bash
-ELECTION_SOURCE_PATH=./my-source.ts npm run start:server
-```
-
-The built-in source is `NzElectionXmlSource`, which reads the Electoral Commission XML feed.
+There is exactly one source: `NzElectionXmlSource` (`packages/core/src/sources/nz-election-xml.ts`), which reads the Electoral Commission XML feed. It is fetched through the `ElectionSource` interface (`packages/core/src/types.ts`) — that interface exists so the cycle can be tested with fakes, not as a plug-in point; adding another feed means editing `loadSource()` in `packages/collector/src/collector.ts`.

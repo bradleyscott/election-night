@@ -1,9 +1,42 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import type { ResultsPayload } from '@election-night/core/types';
 
-const mockLoadSource = vi.fn();
 const mockWriteResults = vi.fn();
 const mockProcessResults = vi.fn();
+
+/**
+ * Stand-in for the XML source. The loader lives inside `collector.ts`, so the
+ * class it constructs is what the test controls.
+ */
+const mockSource = vi.hoisted(() => ({
+  name: 'Test Source',
+  configs: [
+    {
+      electorateName: 'Auckland Central',
+      url: 'https://example.test/e01/e01.xml',
+    },
+  ],
+  fetchResults: (async () => {
+    throw new Error('unset');
+  }) as (config: unknown) => Promise<unknown>,
+}));
+
+vi.mock('@election-night/core/sources', () => ({
+  NzElectionXmlSource: class {
+    getName() {
+      return mockSource.name;
+    }
+    async loadElectorates() {
+      return mockSource.configs;
+    }
+    async loadPartyList() {
+      return [];
+    }
+    fetchResults(config: unknown) {
+      return mockSource.fetchResults(config);
+    }
+  },
+}));
 
 vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -18,7 +51,6 @@ vi.mock('./config.js', () => ({
     fetchTimeoutMs: 1_000,
     logLevel: 3,
     xmlFeedBaseUrl: undefined,
-    electionSourcePath: undefined,
     webhookUrl: undefined,
   },
 }));
@@ -39,25 +71,17 @@ vi.mock('./results.js', () => ({
   processResults: (...args: unknown[]) => mockProcessResults(...args),
 }));
 
-vi.mock('./source-loader.js', () => ({
-  loadSource: () => mockLoadSource(),
-}));
-
 const { startCollector, stopCollector, collectorState } = await import(
   './collector.js'
 );
 
-const CONFIG = {
-  electorateName: 'Auckland Central',
-  url: 'https://example.test/e01/e01.xml',
-};
-
-function sourceReturning(fetchResults: () => Promise<unknown>) {
+function result(votes = 1000) {
   return {
-    getName: () => 'Test Source',
-    loadElectorates: async () => [CONFIG],
-    loadPartyList: async () => [],
-    fetchResults,
+    electorateName: 'Auckland Central',
+    candidateVotes: [{ candidate: 'Alice', votes, party: 'Red Party' }],
+    partyVotes: [{ candidate: 'Red Party', votes }],
+    votesCounted: votes,
+    votePercentageCounted: 0.5,
   };
 }
 
@@ -73,40 +97,30 @@ async function waitUntil(
   throw new Error('timed out waiting for the collector cycle');
 }
 
+/** Run exactly one cycle, then stop the loop. */
 async function runCycle(
-  source: unknown,
   done: () => boolean,
   onMetrics?: (events: unknown) => void
-): Promise<number> {
-  mockLoadSource.mockResolvedValue({
-    source,
-    configs: [CONFIG],
-    partyListRecords: [],
-  });
+): Promise<void> {
   const before = collectorState.cycleCount;
   await startCollector({ onMetrics });
   await waitUntil(() => collectorState.cycleCount > before && done());
   stopCollector();
-  return before;
 }
 
 describe('collector loop', () => {
   beforeEach(() => {
-    mockLoadSource.mockReset();
     mockWriteResults.mockReset();
     mockProcessResults.mockReset();
+    mockSource.fetchResults = async () => {
+      throw new Error('unset');
+    };
   });
 
   test('writes a snapshot and publishes when electorates are fetched', async () => {
-    const source = sourceReturning(async () => ({
-      electorateName: 'Auckland Central',
-      candidateVotes: [{ candidate: 'Alice', votes: 1000, party: 'Red Party' }],
-      partyVotes: [{ candidate: 'Red Party', votes: 1000 }],
-      votesCounted: 1000,
-      votePercentageCounted: 0.5,
-    }));
+    mockSource.fetchResults = async () => result();
 
-    await runCycle(source, () => collectorState.lastCycleFinishedAt !== null);
+    await runCycle(() => collectorState.lastCycleFinishedAt !== null);
 
     expect(mockWriteResults).toHaveBeenCalledTimes(1);
     expect(mockWriteResults.mock.calls[0]![3]).toBe('2026');
@@ -122,11 +136,11 @@ describe('collector loop', () => {
    * DB, an empty one), so the last good state is left alone instead.
    */
   test('skips the snapshot write when nothing could be fetched', async () => {
-    const source = sourceReturning(async () => {
+    mockSource.fetchResults = async () => {
       throw new Error('feed down');
-    });
+    };
 
-    await runCycle(source, () => collectorState.lastError !== null);
+    await runCycle(() => collectorState.lastError !== null);
 
     expect(mockWriteResults).not.toHaveBeenCalled();
     expect(mockProcessResults).not.toHaveBeenCalled();
@@ -135,20 +149,9 @@ describe('collector loop', () => {
   });
 
   test('reports the payload to onResults when a cycle succeeds', async () => {
+    mockSource.fetchResults = async () => result(10);
     const onResults = vi.fn<(p: ResultsPayload) => void>();
-    const source = sourceReturning(async () => ({
-      electorateName: 'Auckland Central',
-      candidateVotes: [{ candidate: 'Alice', votes: 10, party: 'Red Party' }],
-      partyVotes: [{ candidate: 'Red Party', votes: 10 }],
-      votesCounted: 10,
-      votePercentageCounted: 0.1,
-    }));
 
-    mockLoadSource.mockResolvedValue({
-      source,
-      configs: [CONFIG],
-      partyListRecords: [],
-    });
     const before = collectorState.cycleCount;
     await startCollector({ onResults });
     await waitUntil(
@@ -168,17 +171,10 @@ describe('collector loop', () => {
    * incremented — the metric existed but was always empty.
    */
   test('forwards onMetrics to processResults so webhook publishes are counted', async () => {
+    mockSource.fetchResults = async () => result(10);
     const onMetrics = vi.fn<(e: unknown) => void>();
-    const source = sourceReturning(async () => ({
-      electorateName: 'Auckland Central',
-      candidateVotes: [{ candidate: 'Alice', votes: 10, party: 'Red Party' }],
-      partyVotes: [{ candidate: 'Red Party', votes: 10 }],
-      votesCounted: 10,
-      votePercentageCounted: 0.1,
-    }));
 
     await runCycle(
-      source,
       () => collectorState.lastCycleFinishedAt !== null,
       onMetrics
     );

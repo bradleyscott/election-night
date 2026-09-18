@@ -56,7 +56,7 @@ npm run fmt           # prettier --write .
 
 ## Package entrypoints and boundaries
 
-- `packages/core/src/index.ts` — shared types, config, reducers, and source adapters. `ElectionSource` is async and self-fetching: `getName()`, `loadElectorates()`, `loadPartyList()`, `fetchResults(config)`. There is no browser or context in the contract; implementations must set `party` on each candidate vote.
+- `packages/core/src/index.ts` — shared types, config, reducers, and the XML source adapter. `ElectionSource` is async and self-fetching: `getName()`, `loadElectorates()`, `loadPartyList()`, `fetchResults(config)`. There is no browser or context in the contract; implementations must set `party` on each candidate vote.
 - `packages/core/src/sources/index.ts` — exports the built-in `NzElectionXmlSource`.
 - `packages/core/src/sources/nz-election-xml.ts` — the only built-in source. Fetches `candidates.xml`, `parties.xml`, `electorates.xml`, and per-electorate `e{NN}/e{NN}.xml` from `https://electionresults.govt.nz/electionresults_{YEAR}/xml/` over plain HTTPS. Year from `ELECTION_YEAR`; full URL override via `XML_FEED_BASE_URL`. No browser.
 - `packages/collector/src/index.ts` — the library entrypoint: re-exports `startCollector`/`stopCollector`/`collectorState` (`collector.ts`), `createResultsDb` (`query.ts`) and `collectorConfig`.
@@ -65,7 +65,6 @@ npm run fmt           # prettier --write .
 - `packages/collector/src/serve-mock.ts` — mock XML feed server. Serves `candidates.xml`, `parties.xml`, `electorates.xml`, and per-electorate `e{NN}/e{NN}.xml` from evolving synthetic stages, so the full pipeline can run offline via `XML_FEED_BASE_URL`. `--year 2023|2026` (or `MOCK_ELECTION_YEAR`) picks which cycle's electorate list to replay; `packages/collector/src/synthetic-electorates.ts` holds both lists and is asserted against the dashboard boundary manifest, so a replay cannot serve an electorate the map has no polygon for.
 - `packages/collector/src/clear.ts` — truncates the SQLite database.
 - `packages/collector/src/log-webhooks.ts` — local HTTP server that pretty-prints incoming webhook payloads.
-- `packages/collector/src/source-loader.ts` — loads a custom `ElectionSource` from `ELECTION_SOURCE_PATH` or falls back to `NzElectionXmlSource`.
 - `packages/dashboard/server/index.ts` — the single process. Owns the Socket.io server, starts the collector in-process (unless `COLLECTOR_ENABLED=false`), broadcasts payloads to browsers, seeds live state from the newest snapshot on boot, and exposes `/health`, `/ready`, `/metrics` and `/api/history/*`. Split into `static.ts` (static/SPA serving), `api.ts` (history routes), `health.ts` (health/ready/metrics), `ready-check.ts` (pure readiness rules) and `feed.ts` (diff → feed-event generation and copy).
 - `packages/core/src/diff.ts` — shared scrape-to-scrape diff and webhook/feed event classification, used by both the collector and the dashboard server. `packages/core/src/history.ts` holds the `/history/*` response types shared by collector, server, and frontend.
 - `packages/dashboard/server/seed.ts` — generates synthetic seed data for manual testing.
@@ -79,7 +78,7 @@ npm run fmt           # prettier --write .
 - **Socket.io carries results server → browser, and nothing else.** The collector used to be a Socket.io _client_ talking to the server; it now runs inside the server process and results reach the browser by direct call. The server listens on `WS_PORT` (default `3456`), and the browser connects same-origin — there is no socket-URL configuration, and Vite proxies `/socket.io` to `:3456` in dev.
 - **The results source is the official XML feed.** `NzElectionXmlSource` reads `candidates.xml`, `parties.xml`, `electorates.xml`, and per-electorate `e{NN}/e{NN}.xml`. The feed supplies candidate names, party mapping, and party list rankings directly, so there are no static CSV data files and no HTML parsing. The feed is a Cloudflare-cached static asset that is reachable from datacenter egress — see `docs/deployment-simplification.md`.
 - **No browser anywhere.** `cloakbrowser`, `playwright-core`, `cheerio`, and the HTML scraping path were removed. Do not reintroduce a browser into the collector without a matching plan update.
-- **`calculateLead(results)` resolves party from each candidate.** There is no separate name→party map. Custom sources must populate `party` on `RawElectorateResults.candidateVotes`.
+- **`calculateLead(results)` resolves party from each candidate.** There is no separate name→party map: `NzElectionXmlSource` populates `party` on every `RawElectorateResults.candidateVotes` entry.
 - **Dashboard is NOT part of root `tsc -b` references.** Root `tsconfig.json` only references `core` and `collector`. `dashboard` typechecks via its own `tsc -b` inside `npm run build` and in `npm run typecheck`.
 - **SQLite + Drizzle ORM.** Collector uses `better-sqlite3` (native dependency). The DB path defaults to `./.data/election_results.db`. Migrations live in `packages/collector/drizzle/` and auto-run on startup via `migrate()` in `db.ts`. Drizzle config is at `packages/collector/drizzle.config.ts`.
 - **One process owns the database.** `packages/collector/src/db.ts` writes snapshots and `query.ts` reads them, both against the same SQLite file in the same process. There is no history HTTP API and no JSON results cache: a snapshot is the only shared state, so what is served as history and what is used as the diff baseline cannot disagree.
@@ -88,11 +87,11 @@ npm run fmt           # prettier --write .
 - **Environment loading.** Collector and dashboard server entrypoints import `dotenv/config`. Expected variables:
   - Source: `ELECTION_YEAR` (default `2023`; builds the XML feed URL), `XML_FEED_BASE_URL` (optional full override, must end with `/`; used to point at the mock server)
   - Webhooks: `WEBHOOK_URL` (single URL; payload includes an `event` field to discriminate type), `WEBHOOK_LOG_PORT` (default `3458`)
-  - Runtime: `POLL_INTERVAL_MS` (default 30s; the feed is CDN-cached with `max-age` 30s and a full cycle takes ~1s), `CONCURRENCY` (default 10), `FETCH_TIMEOUT_MS` (default 5s; a hang guard — responses are ~13ms), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `DB_PATH` (default `.data/election_results.db`), `ELECTION_SOURCE_PATH`, `COLLECTOR_ENABLED` (default `true`; `false` serves the last written snapshot without polling)
+  - Runtime: `POLL_INTERVAL_MS` (default 30s; the feed is CDN-cached with `max-age` 30s and a full cycle takes ~1s), `CONCURRENCY` (default 10), `FETCH_TIMEOUT_MS` (default 5s; a hang guard — responses are ~13ms), `LOG_LEVEL` (0=silly, 1=trace, 2=debug, 3=info), `DB_PATH` (default `.data/election_results.db`), `COLLECTOR_ENABLED` (default `true`; `false` serves the last written snapshot without polling)
   - Mock: `MOCK_PORT` (default `3457`), `MOCK_ELECTION_YEAR` (default `2023`; the cycle the mock replays — `2026` uses the 64 + 7 2025 boundaries; `--year` overrides it)
   - Web server: `WS_PORT` (default `3456`), `DIST_DIR` (default `./dist`), `FEED_CACHE_PATH` (default `.data/feed_events.json`), `MAX_FEED_EVENTS` (default `200`)
   - Frontend: `VITE_ELECTION_YEAR` (pin the electorate boundary dataset to an election year; unset = pick the year whose electorate names match the live results)
-- **Custom source adapters.** Set `ELECTION_SOURCE_PATH` to a JS/TS module exporting a class implementing `ElectionSource` (or `NzElectionXmlSource`). The module must set `party` on candidate votes.
+- **One results source.** `NzElectionXmlSource` is the only source, built in `collector.ts#loadSource()`. The `ElectionSource` interface is kept so the scrape cycle can be tested with fakes, not as an extension point; a second feed means editing `loadSource()`.
 
 ## Toolchain and style quirks
 

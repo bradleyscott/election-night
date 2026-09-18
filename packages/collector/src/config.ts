@@ -49,7 +49,6 @@ const collectorConfigSchema = z.object({
     .or(z.literal(''))
     .transform((v) => (v ? v : undefined))
     .describe('Webhook URL for result events'),
-  electionSourcePath: z.string().optional(),
 });
 
 export type CollectorConfig = z.infer<typeof collectorConfigSchema>;
@@ -65,7 +64,6 @@ function loadCollectorConfig(): CollectorConfig {
     logLevel: process.env.LOG_LEVEL,
     dbPath: process.env.DB_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
-    electionSourcePath: process.env.ELECTION_SOURCE_PATH,
   });
 
   if (!parsed.success) {

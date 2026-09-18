@@ -21,11 +21,11 @@ import type {
   PartyList,
   ResultsPayload,
 } from '@election-night/core/types';
+import { NzElectionXmlSource } from '@election-night/core/sources';
 import { collectorConfig } from './config.js';
 import { log } from './logger.js';
 import { closeDb, openDb, writeResults } from './db.js';
 import { createResultsDb, type ResultsDb } from './query.js';
-import { loadSource } from './source-loader.js';
 import { processResults } from './results.js';
 import { scrapeCycle } from './scrape-cycle.js';
 
@@ -75,6 +75,29 @@ type CycleOutcome =
   | { status: 'no-data' }
   | { status: 'skipped' };
 
+/**
+ * The XML feed is the only source. `ElectionSource` stays an interface because
+ * the cycle is written against it and tested with fakes.
+ */
+async function loadSource(): Promise<{
+  source: ElectionSource;
+  configs: ElectorateConfig[];
+  partyListRecords: PartyList[];
+}> {
+  const source = new NzElectionXmlSource({
+    year: collectorConfig.electionYear,
+    baseUrl: collectorConfig.xmlFeedBaseUrl,
+    timeoutMs: collectorConfig.fetchTimeoutMs,
+    verbose: collectorConfig.logLevel < 3,
+  });
+  const [configs, partyListRecords] = await Promise.all([
+    source.loadElectorates(),
+    source.loadPartyList(),
+  ]);
+  log.info(`Loaded XML source with ${configs.length} electorates`);
+  return { source, configs, partyListRecords };
+}
+
 function logConfiguration(): void {
   log.info('=== Collector Configuration ===');
   log.info(`DB_PATH:          ${collectorConfig.dbPath}`);
@@ -87,9 +110,6 @@ function logConfiguration(): void {
   log.info(`Electorates:      ${configs.length}`);
   if (collectorConfig.webhookUrl) {
     log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
-  }
-  if (collectorConfig.electionSourcePath) {
-    log.info(`ELECTION_SOURCE:  ${collectorConfig.electionSourcePath}`);
   }
   log.info('=============================');
 }
