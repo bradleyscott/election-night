@@ -18,11 +18,7 @@ function calculateMarginOfError(
   population: number,
   confidence: number
 ) {
-  if (
-    sample <= 0 ||
-    population <= 0 ||
-    !Number.isFinite(resultAsPercentage)
-  ) {
+  if (sample <= 0 || population <= 0 || !Number.isFinite(resultAsPercentage)) {
     return 0;
   }
   const zScore = jstat.normal.inv(1 - (1 - confidence) / 2, 0, 1);
@@ -45,21 +41,16 @@ function predictionStatusFromRatio(ratio: number): PredictionStatus {
 }
 
 function calculateLead(
-  results: ElectorateResults,
-  partyMap: Record<string, string | undefined>
+  results: ElectorateResults
 ): ElectorateResults & WithLeaders {
   const sortedCandidates = [...results.candidateVotes].sort(
     (a, b) => b.votes - a.votes
   );
 
   const leadingCandidate = sortedCandidates[0]?.candidate ?? '';
-  const leadingCandidateParty = leadingCandidate
-    ? partyMap[leadingCandidate]
-    : undefined;
+  const leadingCandidateParty = sortedCandidates[0]?.party;
   const secondCandidate = sortedCandidates[1]?.candidate ?? '';
-  const secondCandidateParty = secondCandidate
-    ? partyMap[secondCandidate]
-    : undefined;
+  const secondCandidateParty = sortedCandidates[1]?.party;
   const margin =
     (sortedCandidates[0]?.votes ?? 0) - (sortedCandidates[1]?.votes ?? 0);
   const marginPercent = results.votesCounted
@@ -156,9 +147,7 @@ function aggregateVotesCounted(results: ElectorateResults[]) {
   const votesCounted = results.reduce((prev, x) => prev + x.votesCounted, 0);
   const totalVotes = results.reduce((prev, x) => {
     const pct = x.votePercentageCounted;
-    return pct > 0 && Number.isFinite(pct)
-      ? prev + x.votesCounted / pct
-      : prev;
+    return pct > 0 && Number.isFinite(pct) ? prev + x.votesCounted / pct : prev;
   }, 0);
 
   return { votesCounted, totalVotes };

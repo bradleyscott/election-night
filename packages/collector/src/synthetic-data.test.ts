@@ -4,7 +4,6 @@ import {
   predictWinner,
   calculatePartyVoteWithPercentages,
 } from '@election-night/core/reducers';
-import type { ElectorateResults } from '@election-night/core/types';
 import {
   generatePartialResults,
   SCENARIO_LANDSLIDE,
@@ -21,16 +20,6 @@ import {
   tiedFixtures,
 } from './synthetic-data';
 
-function buildPartyMap(
-  results: ElectorateResults
-): Record<string, string | undefined> {
-  const map: Record<string, string | undefined> = {};
-  for (const cv of results.candidateVotes) {
-    map[cv.candidate] = cv.party;
-  }
-  return map;
-}
-
 describe('synthetic data', () => {
   describe('electorate predictions', () => {
     test('predicts a landslide correctly even when candidateVotes are not in vote order', () => {
@@ -39,7 +28,7 @@ describe('synthetic data', () => {
         ...r,
         candidateVotes: [...r.candidateVotes].reverse(),
       };
-      const withLead = calculateLead(shuffled, buildPartyMap(shuffled));
+      const withLead = calculateLead(shuffled);
       const prediction = predictWinner(withLead, 0.95);
 
       expect(prediction.leaders.leadingCandidate).toBe('Smith, John');
@@ -92,11 +81,9 @@ describe('synthetic data', () => {
       for (const [pct, exp] of Object.entries(expected)) {
         test(`${name} at ${+pct * 100}% → predicted=${exp}`, () => {
           const r = fixtures[+pct as unknown as keyof typeof fixtures];
-          const withLead = calculateLead(r, buildPartyMap(r));
+          const withLead = calculateLead(r);
           const prediction = predictWinner(withLead, 0.95);
-          expect(
-            prediction.leaders.predictionStatus !== 'too-close'
-          ).toBe(exp);
+          expect(prediction.leaders.predictionStatus !== 'too-close').toBe(exp);
         });
       }
     }
@@ -201,7 +188,7 @@ describe('synthetic data', () => {
     for (const pct of PCTS) {
       test(`margin is 0 at ${pct * 100}%`, () => {
         const result = tiedFixtures[pct];
-        const withLead = calculateLead(result, buildPartyMap(result));
+        const withLead = calculateLead(result);
         expect(withLead.leaders.margin).toBe(0);
       });
     }
@@ -209,7 +196,7 @@ describe('synthetic data', () => {
     for (const pct of PCTS) {
       test(`no predicted winner at ${pct * 100}%`, () => {
         const r = tiedFixtures[pct];
-        const withLead = calculateLead(r, buildPartyMap(r));
+        const withLead = calculateLead(r);
         const result = predictWinner(withLead, 0.95);
         expect(result.leaders.predictionStatus).toBe('too-close');
       });

@@ -1,8 +1,13 @@
 import { isAbsolute, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
-import type { ElectorateConfig, ElectionSource } from '@election-night/core/types';
-import { NzElectionResultsSource } from '@election-night/core/sources/nz-election-results';
+import type {
+  ElectorateConfig,
+  ElectionSource,
+  PartyList,
+} from '@election-night/core/types';
+import { NzElectionXmlSource } from '@election-night/core/sources';
 import { log } from './logger.js';
+import { collectorConfig } from './config.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../../..');
@@ -35,33 +40,47 @@ function validateSourcePath(sourcePath: string): string {
 export type SourceLoadResult = {
   source: ElectionSource;
   configs: ElectorateConfig[];
+  partyListRecords: PartyList[];
 };
 
-export async function loadSource(
-  electorateNames: string[]
-): Promise<SourceLoadResult> {
-  const sourcePath = process.env.ELECTION_SOURCE_PATH;
+async function loadCustomSource(sourcePath: string): Promise<SourceLoadResult> {
+  const resolvedPath = validateSourcePath(sourcePath);
+  log.info(`Loading custom election source from: ${resolvedPath}`);
+  const mod = await import(resolvedPath);
+  const SourceClass = mod.default ?? mod.NzElectionXmlSource;
+  const source = new SourceClass({}) as ElectionSource;
+  const [configs, partyListRecords] = await Promise.all([
+    source.loadElectorates(),
+    source.loadPartyList(),
+  ]);
+  log.info(`Loaded custom source with ${configs.length} electorates`);
+  return { source, configs, partyListRecords };
+}
 
+export async function loadSource(): Promise<SourceLoadResult> {
+  const sourcePath = collectorConfig.electionSourcePath;
   if (sourcePath) {
-    const resolvedPath = validateSourcePath(sourcePath);
-    log.info(`Loading custom election source from: ${resolvedPath}`);
     try {
-      const mod = await import(resolvedPath);
-      const SourceClass = mod.default ?? mod.NzElectionResultsSource;
-      const source = new SourceClass({ electorateNames }) as ElectionSource;
-      const configs = source.getElectorateConfigs();
-      log.info(`Loaded source with ${configs.length} electorates`);
-      return { source, configs };
+      return await loadCustomSource(sourcePath);
     } catch (err) {
       log.error(
-        `Failed to load source from ${resolvedPath}, falling back to default`,
+        `Failed to load custom source from ${sourcePath}, falling back to the XML feed`,
         err
       );
     }
   }
 
-  const verbose = parseInt(process.env.LOG_LEVEL ?? '', 10) < 3;
-  const source = new NzElectionResultsSource({ electorateNames, verbose });
-  const configs = source.getElectorateConfigs();
-  return { source, configs };
+  const verbose = collectorConfig.logLevel < 3;
+  const source = new NzElectionXmlSource({
+    year: collectorConfig.electionYear,
+    baseUrl: collectorConfig.xmlFeedBaseUrl,
+    timeoutMs: collectorConfig.fetchTimeoutMs,
+    verbose,
+  });
+  const [configs, partyListRecords] = await Promise.all([
+    source.loadElectorates(),
+    source.loadPartyList(),
+  ]);
+  log.info(`Loaded XML source with ${configs.length} electorates`);
+  return { source, configs, partyListRecords };
 }

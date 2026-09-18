@@ -11,7 +11,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    allowedHosts: ['flounder-immense-moose.ngrok-free.app'],
     proxy: {
       '/socket.io': {
         target: 'http://localhost:3456',

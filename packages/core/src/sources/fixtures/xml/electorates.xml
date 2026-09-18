@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<electorates>
+    <electorate e_no="2">
+        <electorate_name>Wellington Central</electorate_name>
+    </electorate>
+    <electorate e_no="1">
+        <electorate_name>Auckland Central</electorate_name>
+    </electorate>
+</electorates>

@@ -2,7 +2,7 @@ app = "election-night"
 primary_region = "syd"
 
 [build]
-  dockerfile = "Dockerfile.dashboard"
+  dockerfile = "Dockerfile.app"
 
 [http_service]
   internal_port = 3456
@@ -14,7 +14,7 @@ primary_region = "syd"
   [[http_service.checks]]
     interval = "10s"
     timeout = "2s"
-    grace_period = "10s"
+    grace_period = "15s"
     method = "GET"
     path = "/health"
     protocol = "http"
@@ -23,22 +23,32 @@ primary_region = "syd"
   port = 3456
   path = "/metrics"
 
-# Server-only app: the collector runs elsewhere and publishes results
-# over Socket.io (WS_URL) plus history over HTTP. HISTORY_UPSTREAM is
-# REQUIRED for history data — set it via `fly secrets set` to point at the
-# collector's history endpoint (e.g. https://history.example.com). Without
-# it the server defaults to http://127.0.0.1:3459, which is unreachable
-# inside Fly, so the Trends page and /ready will show no history.
+# SQLite history and the result/feed caches must survive restarts and deploys.
+# Create once with: fly volumes create election_data --size 1 --region syd
+[[mounts]]
+  source = "election_data"
+  destination = "/data"
+
+# Single app, single machine: the dashboard server (public, :3456) and the
+# collector (loopback, :3459) run together from Dockerfile.app.
+# Set COLLECTOR_ENABLED=false to run the dashboard alone (PR previews do this
+# so they never poll the live feed).
 [env]
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
+  COLLECTOR_ENABLED = "true"
+  ELECTION_YEAR = "2023"
+  WS_URL = "ws://127.0.0.1:3456"
+  HISTORY_UPSTREAM = "http://127.0.0.1:3459"
+  DB_PATH = "/data/election_results.db"
+  RESULTS_CACHE_PATH = "/data/electorate_results.json"
+  CACHE_PATH = "/data/electorate_results.json"
+  FEED_CACHE_PATH = "/data/feed_events.json"
 
-# 256mb keeps the machine inside the Legacy Hobby plan's free allowance
-# (3x shared-cpu-1x 256MB VMs). Before election night, bump it:
+# 512mb gives the collector headroom alongside the dashboard server. Before
+# election night, bump to 1024 if needed:
 #   fly machine update <id> --memory 1024
-# then drop back after the result is settled:
-#   fly machine update <id> --memory 256
 [[vm]]
-  memory = "256mb"
+  memory = "512mb"
   cpu_kind = "shared"
   cpus = 1

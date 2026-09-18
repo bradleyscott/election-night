@@ -1,1 +1,1 @@
-export { NzElectionResultsSource } from './nz-election-results.js';
+export { NzElectionXmlSource } from './nz-election-xml.js';

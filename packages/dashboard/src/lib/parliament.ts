@@ -48,7 +48,19 @@ export function defaultOrder(partyVote: PartyEntry[]): string[] {
 }
 
 export function getOpacity(result: ElectorateEntry): number {
-  const ratio = result.leaders.marginPercent / result.marginOfError;
+  const marginPercent = result.leaders.marginPercent;
+  const marginOfError = result.marginOfError;
+
+  // At a complete count marginOfError is 0 (and a deferred electorate with no
+  // candidate votes yet has marginPercent 0 too), so guard the division rather
+  // than producing Infinity/NaN in the opacity style. A decided race is solid;
+  // an unresolved one is dim.
+  if (!Number.isFinite(marginOfError) || marginOfError <= 0) {
+    return marginPercent > 0 ? 0.8 : 0.2;
+  }
+
+  const ratio = marginPercent / marginOfError;
+  if (!Number.isFinite(ratio)) return 0.2;
   if (ratio >= 2) return 0.8;
   if (ratio <= 1) return 0.2;
   return 0.2 + (ratio - 1) * 0.6;

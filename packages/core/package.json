@@ -46,7 +46,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "cheerio": "^1.0.0",
+    "fast-xml-parser": "^5.11.1",
     "jstat": "^1.9.6",
     "sainte-lague": "^3.0.0"
   }

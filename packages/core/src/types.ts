@@ -79,15 +79,24 @@ export interface ElectorateConfig {
 
 export type RawElectorateResults = {
   electorateName: string;
-  candidateVotes: VotingResults[];
+  candidateVotes: (VotingResults & WithParty)[];
   partyVotes: VotingResults[];
   votesCounted: number;
   votePercentageCounted: number;
 };
 
 export interface ElectionSource {
-  getElectorateConfigs(): ElectorateConfig[];
-  parseRawResults(html: string, config: ElectorateConfig): RawElectorateResults;
+  /** Human-readable source name, used for logging. */
+  getName(): string;
+  /** Load reference data and return the list of electorates to poll. */
+  loadElectorates(): Promise<ElectorateConfig[]>;
+  /** Load party list rankings needed for list-MP calculations. */
+  loadPartyList(): Promise<PartyList[]>;
+  /**
+   * Fetch and parse results for a single electorate. Implementations must set
+   * `party` on each candidate vote so downstream seat calculations work.
+   */
+  fetchResults(config: ElectorateConfig): Promise<RawElectorateResults>;
 }
 
 // ---- Webhook Event Types ----

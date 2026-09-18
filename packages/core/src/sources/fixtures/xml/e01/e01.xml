@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<electorate e_no="1" final="false" updated="2026-11-08T02:00:00">
+    <statistics>
+        <total_voting_places></total_voting_places>
+        <total_voting_places_counted>50</total_voting_places_counted>
+        <percent_voting_places_counted>42.5</percent_voting_places_counted>
+        <total_votes_cast>10000</total_votes_cast>
+        <percent_votes_cast>70.0</percent_votes_cast>
+        <total_party_informals>12</total_party_informals>
+        <total_candidate_informals>20</total_candidate_informals>
+        <total_registered_parties>2</total_registered_parties>
+        <total_candidates>2</total_candidates>
+    </statistics>
+    <partyvotes>
+        <party p_no="10">
+            <votes>6000</votes>
+        </party>
+        <party p_no="20">
+            <votes>4000</votes>
+        </party>
+    </partyvotes>
+    <candidatevotes>
+        <candidate c_no="1">
+            <votes>7000</votes>
+        </candidate>
+        <candidate c_no="2">
+            <votes>3000</votes>
+        </candidate>
+    </candidatevotes>
+</electorate>
