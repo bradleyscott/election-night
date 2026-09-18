@@ -1,6 +1,20 @@
 # Deployment Simplification: Retiring the Split Collector
 
-> **STATUS: IMPLEMENTED (Option A).** The collector and dashboard now ship as one image (`Dockerfile.app`) and run together from `docker/entrypoint.sh`; `fly.toml` mounts a `/data` volume and wires loopback `WS_URL`/`HISTORY_UPSTREAM`. PR previews use `fly.preview.toml` (no volume, `COLLECTOR_ENABLED=false`). The Docker image build itself is unverified (no Docker daemon available at implementation time).
+> **STATUS: IMPLEMENTED — Option A first, then Option B.**
+>
+> This landed in two steps. **Option A** (one image, two processes over
+> loopback) shipped with the XML-feed change. **Option B** (one process)
+> followed: the collector is now a library
+> (`packages/collector/src/collector.ts`) that the dashboard server starts
+> in-process. There is no supervisor, no `WS_URL`/`HISTORY_UPSTREAM` hop, no
+> `/history/*` HTTP API, and no JSON results cache — the SQLite snapshot is the
+> only shared state. `Dockerfile.collector` and `docker/entrypoint.sh` are gone;
+> the image runs `packages/dashboard/server/index.ts` through `tsx`.
+>
+> This document is kept as the record of *why* the split was retired — the
+> Cloudflare evidence below is the part still worth re-reading. The topology
+> diagrams and option analysis describe the decision as it was made, not the
+> final state.
 
 ## Why the collector was split
 
@@ -47,7 +61,10 @@ Jina's cloud reader fetched the XML and returned 200.
 separate host. It can run anywhere — including on the same machine as the
 dashboard.
 
-## Current topology
+## Topology at the time of the decision (historical)
+
+The split this document retires looked like this — note the Chromium-based
+collector and the residential host, both of which are gone:
 
 ```text
 ┌─ Fly.io (app: election-night) ─┐        ┌─ elsewhere (residential IP) ─┐
@@ -136,7 +153,7 @@ Keep the split, but deploy the collector to Fly too and talk over
   Socket.io + HTTP history protocol. This is the least simplification and is
   only worth it if you specifically want independent lifecycles.
 
-## Recommendation — CHOSEN: Option A
+## Recommendation — CHOSEN: Option A, then Option B
 
 **DECISION: Option A.** One Fly app, one machine, two processes (collector +
 dashboard server) connected over loopback, one volume mounted at `/data`.
@@ -151,11 +168,21 @@ server currently never opens a DB), so it deserves its own change.
 Option A is the target. It removes the residential-egress constraint and the
 public collector surface with minimal code change, and stays reversible.
 
+**Follow-up (implemented): Option B.** Once Option A was running, Option B was
+implemented as a separate change: the collector became a library started
+in-process by the dashboard server. That deleted `ws-client.ts`,
+`history-server.ts`, `history-upstream.ts`, `results-cache.ts` and `health.ts`,
+removed the `socket.io-client` dependency and the supervisor script, and
+replaced the JSON diff cache (and the duplicated cycle-tagging rules it needed)
+with the previous snapshot read from SQLite. Readiness now reports collector
+state directly, so a dashboard-only node is ready immediately instead of
+reporting a permanent `history: error`.
+
 ## New considerations introduced by co-location
 
 | Topic                             | Detail                                                                                                                                                       | Action                                                                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **SQLite persistence**            | Fly machines are ephemeral; a redeploy wipes the disk. The collector's history (snapshots, feed events) is cumulative and must survive restarts and deploys. | Create a Fly volume (`/data`) and point `DB_PATH`, `RESULTS_CACHE_PATH`, `CACHE_PATH`, `FEED_CACHE_PATH` at it.                            |
+| **SQLite persistence**            | Fly machines are ephemeral; a redeploy wipes the disk. The collector's history (snapshots, feed events) is cumulative and must survive restarts and deploys. | Create a Fly volume (`/data`) and point `DB_PATH` and `FEED_CACHE_PATH` at it.                                                             |
 | **Single-machine, single-volume** | A Fly volume attaches to one machine. Do not scale to multiple machines without LiteFS/Postgres.                                                             | Keep `min_machines_running = 1`, `ha = false` (or accept a brief restart window).                                                          |
 | **Memory**                        | Currently 256 MB. Collector is now tiny (no Chromium), but adding it to the dashboard process/machine warrants headroom.                                     | Bump to 512 MB. Cost impact is minor.                                                                                                      |
 | **Previews**                      | `preview.yml` deploys one app per PR. Those preview machines would run a live collector and poll the real feed.                                              | Gate the collector behind an env flag (e.g. `COLLECTOR_ENABLED`) and set it `false` in previews, or point previews at the mock XML server. |
@@ -180,12 +207,16 @@ public collector surface with minimal code change, and stays reversible.
   the scraper removal plan.
 - Add: `COLLECTOR_ENABLED` (for previews).
 
-**Code (Option B only)**
+**Code (Option B — implemented)**
 
-- Delete `ws-client.ts`, `history-server.ts`, `history-upstream.ts`.
-- Replace the history HTTP client with an in-process DB-backed `HistorySource`.
-- Replace `publishResults()` Socket.io emit with an in-process subscriber call.
-- Drop `socket.io` / `socket.io-client` dependencies.
+- Deleted `ws-client.ts`, `history-server.ts`, `health.ts`,
+  `history-upstream.ts`, `results-cache.ts`.
+- Replaced the history HTTP client with `query.ts`, read-only SQL used directly
+  by the server and as the collector's diff baseline.
+- Replaced `publishResults()`'s Socket.io emit with an in-process `onResults`
+  callback.
+- Removed the `socket.io-client` dependency (Socket.io itself stays, for
+  server → browser).
 
 **Docs / runbook**
 
@@ -197,14 +228,14 @@ public collector surface with minimal code change, and stays reversible.
 
 ## Suggested sequencing
 
-1. Land the XML-only collector (see `docs/removing-html-scraper-plan.md`).
-2. Confirm one real election-night-style cycle from a datacenter IP.
+1. Land the XML-only collector (see `docs/removing-html-scraper-plan.md`). — **done**
+2. Confirm one real election-night-style cycle from a datacenter IP. — **done**
 3. **Option A:** merge images, add an entrypoint supervisor, add the Fly volume,
-   set loopback `WS_URL` / `HISTORY_UPSTREAM`, gate the collector for previews.
-4. **Option B (optional):** collapse to one process and delete the Socket.io +
-   history HTTP plumbing.
+   set loopback `WS_URL` / `HISTORY_UPSTREAM`, gate the collector for previews. — **done, then superseded**
+4. **Option B:** collapse to one process and delete the Socket.io +
+   history HTTP plumbing. — **done**
 5. Update docs, delete the residential/proxy runbook, and remove the proxy
-   secret.
+   secret. — **done**
 
 ## Caveats / things to verify before committing
 

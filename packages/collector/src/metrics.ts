@@ -8,13 +8,9 @@ export function emitScrapeDuration(
 }
 
 export function emitScrapeElectorate(
-  status: 'success' | 'error' | 'cached'
+  status: 'success' | 'error' | 'fallback'
 ): MetricEvent {
   return { metric: 'scrapeElectoratesTotal', status };
-}
-
-export function emitCollectorSocketConnected(connected: boolean): MetricEvent {
-  return { metric: 'collectorSocketConnected', connected };
 }
 
 export function emitWebhookPublish(status: 'success' | 'error'): MetricEvent {

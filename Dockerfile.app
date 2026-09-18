@@ -1,13 +1,15 @@
-# Combined production image (Option A): dashboard server + collector in one
-# machine. The collector polls the Electoral Commission XML feed over plain
-# HTTPS (no browser, no residential egress required) and talks to the
-# dashboard server over loopback:
+# Production image: the dashboard server and the collector in ONE process.
 #
-#   WS_URL=ws://127.0.0.1:3456
-#   HISTORY_UPSTREAM=http://127.0.0.1:3459
+# The collector runs in-process (see packages/dashboard/server/index.ts), so
+# there is no supervisor, no Socket.io hop between processes, and no history
+# HTTP API — the server reads the same SQLite file the collector writes.
 #
-# Only port 3456 is public. SQLite and the caches live on a mounted volume
-# (see fly.toml). See docs/deployment-simplification.md.
+# The server is run from TypeScript via tsx rather than bundled: bundling would
+# break better-sqlite3 (a native module) and drizzle's on-disk migrations.
+# tsx is already required by the collector's source imports, so this costs
+# nothing extra.
+#
+# SQLite and the feed-event cache live on the mounted volume (see fly.toml).
 
 FROM node:22 AS builder
 WORKDIR /app
@@ -30,24 +32,13 @@ WORKDIR /app/packages/dashboard
 RUN npx vite build
 WORKDIR /app
 
-RUN npx esbuild packages/dashboard/server/index.ts \
-  --bundle \
-  --platform=node \
-  --format=cjs \
-  --outfile=/app/server.cjs \
-  --external:bufferutil \
-  --external:utf-8-validate
-
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apt-get update && apt-get install -y --no-install-recommends bash \
-  && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p /data
+RUN mkdir -p /data
 
 COPY --from=builder /app /app
-COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 
 EXPOSE 3456
-CMD ["bash", "/app/docker/entrypoint.sh"]
+CMD ["node", "--import", "tsx", "packages/dashboard/server/index.ts"]

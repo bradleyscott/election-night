@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { HistorySource } from './history-upstream.js';
+import type { ResultsDb } from '@election-night/collector';
 
 function sendJson(res: ServerResponse, body: unknown): void {
   res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -7,35 +7,39 @@ function sendJson(res: ServerResponse, body: unknown): void {
 }
 
 /**
- * Handle `/api/history/*` routes. Returns false when the pathname is not a
- * history route (so the caller can fall through to static serving).
+ * Handle `/api/history/*` routes straight from the in-process snapshot DB.
+ *
+ * `?year=YYYY` browses an archived cycle; without it the configured
+ * `ELECTION_YEAR` applies. An unreadable DB yields empty arrays rather than an
+ * error — the UI shows its waiting state until the first snapshot lands.
+ *
+ * Returns false when the pathname is not a history route (so the caller can
+ * fall through to static serving).
  */
-export async function serveApi(
+export function serveApi(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  historySource: HistorySource
-): Promise<boolean> {
+  resultsDb: ResultsDb
+): boolean {
   void req;
   const pathname = url.pathname;
+  const year = url.searchParams.get('year') ?? undefined;
 
-  // GET /api/history/snapshots — return all snapshot timestamps
   if (pathname === '/api/history/snapshots') {
-    sendJson(res, await historySource.snapshotMetas());
+    sendJson(res, resultsDb.snapshotMetas(year));
     return true;
   }
 
-  // GET /api/history/electorate/:name — return history for one electorate
   const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
   if (electorateMatch) {
-    const name = decodeURIComponent(electorateMatch[1]);
-    sendJson(res, await historySource.electorateHistory(name));
+    const name = decodeURIComponent(electorateMatch[1]!);
+    sendJson(res, resultsDb.electorateHistory(name, year));
     return true;
   }
 
-  // GET /api/history/party-votes — return party vote totals over time
   if (pathname === '/api/history/party-votes') {
-    sendJson(res, await historySource.partyVoteHistory());
+    sendJson(res, resultsDb.partyVoteHistory(year));
     return true;
   }
 

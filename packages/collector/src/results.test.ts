@@ -1,13 +1,4 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
-import {
-  mkdtempSync,
-  rmSync,
-  existsSync,
-  readFileSync,
-  writeFileSync,
-} from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -17,14 +8,8 @@ import type {
 
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
-const mockConfig: {
-  resultsCachePath: string;
-  webhookUrl: string | undefined;
-  electionYear: string;
-} = {
-  resultsCachePath: '',
+const mockConfig: { webhookUrl: string | undefined } = {
   webhookUrl: undefined,
-  electionYear: '2026',
 };
 
 vi.mock('./config.js', () => ({
@@ -51,123 +36,6 @@ function makeResult(overrides: Partial<Results> = {}): Results {
     ...overrides,
   };
 }
-
-describe('cacheResults', () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
-  });
-
-  afterEach(() => {
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  test('writes to disk', async () => {
-    const { cacheResults } = await import('./results.js');
-    const result = makeResult({ electorateName: 'Test' });
-
-    cacheResults([result]);
-
-    expect(existsSync(mockConfig.resultsCachePath)).toBe(true);
-    const written = JSON.parse(
-      readFileSync(mockConfig.resultsCachePath, 'utf-8')
-    );
-    expect(written.electionYear).toBe('2026');
-    expect(written.results).toHaveLength(1);
-    expect(written.results[0].electorateName).toBe('Test');
-  });
-
-  test('overwrites previous cache', async () => {
-    const { cacheResults } = await import('./results.js');
-    cacheResults([makeResult({ electorateName: 'First' })]);
-    cacheResults([makeResult({ electorateName: 'Second' })]);
-
-    const written = JSON.parse(
-      readFileSync(mockConfig.resultsCachePath, 'utf-8')
-    );
-    expect(written.results).toHaveLength(1);
-    expect(written.results[0].electorateName).toBe('Second');
-  });
-});
-
-describe('readResults election-year guard', () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
-  });
-
-  afterEach(() => {
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  /**
-   * The cache is a snapshot of the current cycle, so a leftover file from the
-   * previous one must not become the diff baseline — otherwise the first
-   * scrape of election night fires a burst of bogus events. Each case here
-   * writes the file directly because `cacheResults` is memoised in module
-   * state and already holds the current cycle.
-   */
-  const staleCases: { name: string; contents: string; year: string }[] = [
-    {
-      name: 'a cache from a previous cycle',
-      contents: JSON.stringify({
-        electionYear: '2023',
-        results: [makeResult({ electorateName: 'Wellington Central' })],
-      }),
-      year: '2026',
-    },
-    {
-      name: 'a legacy bare-array cache with no cycle attribution',
-      contents: JSON.stringify([
-        makeResult({ electorateName: 'Wellington Central' }),
-      ]),
-      year: '2026',
-    },
-    {
-      name: 'a corrupt cache file',
-      contents: 'not json at all',
-      year: '2026',
-    },
-  ];
-
-  for (const { name, contents, year } of staleCases) {
-    test(`ignores ${name}`, async () => {
-      mockConfig.electionYear = year;
-      writeFileSync(mockConfig.resultsCachePath, contents);
-
-      // Reset module state so a memoised result from an earlier test cannot
-      // mask the file being read.
-      vi.resetModules();
-      const { readResults } = await import('./results.js');
-
-      expect(readResults()).toEqual([]);
-    });
-  }
-
-  test('uses a cache written for the active cycle', async () => {
-    mockConfig.electionYear = '2026';
-    writeFileSync(
-      mockConfig.resultsCachePath,
-      JSON.stringify({
-        electionYear: '2026',
-        results: [makeResult({ electorateName: 'Kenepuru' })],
-      })
-    );
-    vi.resetModules();
-    const { readResults } = await import('./results.js');
-
-    expect(readResults()).toHaveLength(1);
-    expect(readResults()[0]!.electorateName).toBe('Kenepuru');
-  });
-});
 
 describe('computeDiff', () => {
   test('returns nulls for previous values when no previous result', async () => {
@@ -335,18 +203,12 @@ describe('determineWebhookEvents', () => {
 });
 
 describe('sendWebhook', () => {
-  let tmpDir: string;
-
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
     mockConfig.webhookUrl = undefined;
   });
 
   afterEach(() => {
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
+    vi.unstubAllGlobals();
   });
 
   test('posts correct payload to webhook URL', async () => {
@@ -359,8 +221,6 @@ describe('sendWebhook', () => {
     const { computeDiff, sendWebhook } = await import('./results.js');
 
     const result = makeResult();
-
-    // First scrape produces no events — force one by providing a previous result
     const testDiff = computeDiff(
       makeResult({ votesCounted: 5000 }),
       makeResult({ votesCounted: 10000 })
@@ -369,7 +229,7 @@ describe('sendWebhook', () => {
     await sendWebhook('result_updated', result, testDiff);
 
     const callBody = JSON.parse(
-      (fetchMock.mock.calls[0][1] as RequestInit).body as string
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string
     ) as WebhookPayload;
 
     expect(callBody.event).toBe('result_updated');
@@ -384,8 +244,6 @@ describe('sendWebhook', () => {
       body: expect.any(String),
       headers: { 'Content-Type': 'application/json' },
     });
-
-    vi.unstubAllGlobals();
   });
 
   test('does nothing when webhookUrl is not set', async () => {
@@ -399,7 +257,6 @@ describe('sendWebhook', () => {
     await sendWebhook('result_updated', result, diff);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   test('does not throw when POST fails', async () => {
@@ -415,52 +272,40 @@ describe('sendWebhook', () => {
     await expect(
       sendWebhook('result_updated', result, diff)
     ).resolves.toBeUndefined();
-
-    vi.unstubAllGlobals();
   });
 });
 
 describe('processResults', () => {
-  let tmpDir: string;
-
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'election-night-test-'));
-    mockConfig.resultsCachePath = join(tmpDir, 'results.json');
+    mockConfig.webhookUrl = undefined;
   });
 
   afterEach(() => {
-    if (existsSync(tmpDir)) {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
+    vi.unstubAllGlobals();
   });
 
-  test('fires no webhooks on first scrape (no cached results)', async () => {
+  test('fires no webhooks when there is no previous snapshot', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
+    mockConfig.webhookUrl = 'https://hooks.example.com/webhook';
 
+    const { processResults } = await import('./results.js');
+    await processResults(
+      [makeResult({ electorateName: 'Auckland Central' })],
+      []
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('fires webhooks for changes between the previous snapshot and now', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
     mockConfig.webhookUrl = 'https://hooks.example.com/webhook';
 
     const { processResults } = await import('./results.js');
 
-    const result = makeResult({ electorateName: 'Auckland Central' });
-    await processResults([result]);
-
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    // Cache should still be separate — verify by checking later
-    vi.unstubAllGlobals();
-  });
-
-  test('fires webhooks for changes between cached and current results', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal('fetch', fetchMock);
-
-    mockConfig.webhookUrl = 'https://hooks.example.com/webhook';
-
-    const { cacheResults, processResults } = await import('./results.js');
-
-    // Seed cache with previous cycle results
-    cacheResults([
+    const previous = [
       makeResult({
         electorateName: 'Auckland Central',
         votesCounted: 5000,
@@ -475,29 +320,29 @@ describe('processResults', () => {
           predictionStatus: 'too-close',
         },
       }),
-    ]);
+    ];
 
-    // Current cycle with changes
-    await processResults([
-      makeResult({
-        electorateName: 'Auckland Central',
-        votesCounted: 10000,
-        votePercentageCounted: 0.8,
-        leaders: {
-          leadingCandidate: 'Jones, Mary',
-          leadingCandidateParty: 'Labour Party',
-          secondCandidate: 'Smith, John',
-          secondCandidateParty: 'National Party',
-          margin: 150,
-          marginPercent: 0.015,
-          predictionStatus: 'leaning',
-        },
-      }),
-    ]);
+    await processResults(
+      [
+        makeResult({
+          electorateName: 'Auckland Central',
+          votesCounted: 10000,
+          votePercentageCounted: 0.8,
+          leaders: {
+            leadingCandidate: 'Jones, Mary',
+            leadingCandidateParty: 'Labour Party',
+            secondCandidate: 'Smith, John',
+            secondCandidateParty: 'National Party',
+            margin: 150,
+            marginPercent: 0.015,
+            predictionStatus: 'leaning',
+          },
+        }),
+      ],
+      previous
+    );
 
-    // Should have fired for result_updated, prediction_changed, AND leader_change
     expect(fetchMock).toHaveBeenCalledTimes(3);
-
     const calls = fetchMock.mock.calls.map(
       (c) =>
         (JSON.parse((c[1] as RequestInit).body as string) as WebhookPayload)
@@ -506,33 +351,31 @@ describe('processResults', () => {
     expect(calls).toContain('result_updated');
     expect(calls).toContain('prediction_changed');
     expect(calls).toContain('leader_change');
-
-    vi.unstubAllGlobals();
   });
 
-  test('fires count_completed when electorate reaches 100%', async () => {
+  test('fires count_completed when an electorate reaches 100%', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-
     mockConfig.webhookUrl = 'https://hooks.example.com/webhook';
 
-    const { cacheResults, processResults } = await import('./results.js');
+    const { processResults } = await import('./results.js');
 
-    cacheResults([
-      makeResult({
-        electorateName: 'Wellington Central',
-        votesCounted: 30000,
-        votePercentageCounted: 0.95,
-      }),
-    ]);
-
-    await processResults([
-      makeResult({
-        electorateName: 'Wellington Central',
-        votesCounted: 32000,
-        votePercentageCounted: 1.0,
-      }),
-    ]);
+    await processResults(
+      [
+        makeResult({
+          electorateName: 'Wellington Central',
+          votesCounted: 32000,
+          votePercentageCounted: 1.0,
+        }),
+      ],
+      [
+        makeResult({
+          electorateName: 'Wellington Central',
+          votesCounted: 30000,
+          votePercentageCounted: 0.95,
+        }),
+      ]
+    );
 
     const events = fetchMock.mock.calls.map(
       (c) =>
@@ -541,25 +384,18 @@ describe('processResults', () => {
     );
     expect(events).toContain('count_completed');
     expect(events).toContain('result_updated');
-
-    vi.unstubAllGlobals();
   });
 
   test('does not fire webhooks when nothing changed', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-
     mockConfig.webhookUrl = 'https://hooks.example.com/webhook';
 
-    const { cacheResults, processResults } = await import('./results.js');
-
+    const { processResults } = await import('./results.js');
     const result = makeResult({ electorateName: 'Dunedin' });
-    cacheResults([result]);
 
-    await processResults([result]);
+    await processResults([result], [result]);
 
     expect(fetchMock).not.toHaveBeenCalled();
-
-    vi.unstubAllGlobals();
   });
 });

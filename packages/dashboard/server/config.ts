@@ -2,35 +2,21 @@ import 'dotenv/config';
 import { resolve } from 'path';
 import { z } from 'zod';
 
+/**
+ * Dashboard-server-only configuration.
+ *
+ * Collector settings (feed year, poll interval, DB path, webhook URL) live in
+ * `collectorConfig` (`@election-night/collector`) — the collector runs
+ * in-process, so duplicating them here would create two sources of truth.
+ */
 const dashboardServerConfigSchema = z.object({
   wsPort: z.coerce.number().int().min(1).max(65535).default(3456),
   distDir: z
     .string()
     .default('./dist')
     .transform((v) => resolve(v)),
-  cachePath: z.string().default('.data/electorate_results.json'),
-  /**
-   * Election cycle this server is serving (`ELECTION_YEAR`). Used to reject a
-   * preloaded results cache from a different cycle. Optional: when unset, a
-   * tagged cache is still read but an untagged (pre-2026) one is accepted
-   * unverified.
-   */
-  electionYear: z.string().optional(),
   feedCachePath: z.string().default('.data/feed_events.json'),
   maxFeedEvents: z.coerce.number().int().min(1).default(200),
-  historyUpstream: z
-    .string()
-    .url()
-    .default('http://127.0.0.1:3459')
-    .describe(
-      'Base URL of the collector history REST API. The server never reads a SQLite DB — it always fetches /api/history/* from here. Default suits a co-located collector; point it at the collector in split deployments'
-    ),
-  clearToken: z
-    .string()
-    .optional()
-    .describe(
-      'When set, POST /api/clear requires this shared secret in the x-clear-token header (unset = open, as before)'
-    ),
 });
 
 export type DashboardServerConfig = z.infer<typeof dashboardServerConfigSchema>;
@@ -39,12 +25,8 @@ function loadDashboardServerConfig(): DashboardServerConfig {
   const parsed = dashboardServerConfigSchema.safeParse({
     wsPort: process.env.WS_PORT,
     distDir: process.env.DIST_DIR,
-    cachePath: process.env.CACHE_PATH,
-    electionYear: process.env.ELECTION_YEAR,
     feedCachePath: process.env.FEED_CACHE_PATH,
     maxFeedEvents: process.env.MAX_FEED_EVENTS,
-    historyUpstream: process.env.HISTORY_UPSTREAM,
-    clearToken: process.env.CLEAR_TOKEN,
   });
 
   if (!parsed.success) {

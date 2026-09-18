@@ -23,30 +23,29 @@ primary_region = "syd"
   port = 3456
   path = "/metrics"
 
-# SQLite history and the result/feed caches must survive restarts and deploys.
+# SQLite history and the feed-event cache must survive restarts and deploys.
 # Create once with: fly volumes create election_data --size 1 --region syd
 [[mounts]]
   source = "election_data"
   destination = "/data"
 
-# Single app, single machine: the dashboard server (public, :3456) and the
-# collector (loopback, :3459) run together from Dockerfile.app.
-# Set COLLECTOR_ENABLED=false to run the dashboard alone (PR previews do this
-# so they never poll the live feed).
+# One process: the dashboard server owns the collector loop in-process, so
+# there is no second port, no loopback Socket.io, and no history HTTP hop.
+# Set COLLECTOR_ENABLED=false to serve the last written snapshot without
+# polling (PR previews do this so they never hit the live feed).
 [env]
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
   COLLECTOR_ENABLED = "true"
   ELECTION_YEAR = "2023"
-  WS_URL = "ws://127.0.0.1:3456"
-  HISTORY_UPSTREAM = "http://127.0.0.1:3459"
+  # The feed is a CDN-cached static asset with max-age 30s, and a full cycle
+  # takes about a second, so polling faster than the CDN refreshes gains
+  # nothing.
+  POLL_INTERVAL_MS = "30000"
   DB_PATH = "/data/election_results.db"
-  RESULTS_CACHE_PATH = "/data/electorate_results.json"
-  CACHE_PATH = "/data/electorate_results.json"
   FEED_CACHE_PATH = "/data/feed_events.json"
 
-# 512mb gives the collector headroom alongside the dashboard server. Before
-# election night, bump to 1024 if needed:
+# Ample headroom for the single Node process on election night. Raise with:
 #   fly machine update <id> --memory 1024
 [[vm]]
   memory = "512mb"

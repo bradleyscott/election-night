@@ -76,7 +76,14 @@ for _ in $(seq 1 36); do
 done
 
 echo "==> /health"
-curl -sS --max-time 10 "$URL/health" || true
+HEALTH="$(curl -sS --max-time 10 "$URL/health" || true)"
+printf '%s\n' "$HEALTH"
+# The collector runs in-process, so /health carries its state.
+if printf '%s' "$HEALTH" | grep -q '"collector": *{ *"status": *"ok"'; then
+  echo "   collector status: ok"
+else
+  echo "WARNING: /health did not report the collector as ok — check the logs below" >&2
+fi
 echo
 echo "==> /ready"
 curl -sS --max-time 20 "$URL/ready" || true
@@ -93,7 +100,7 @@ pkill -f "flyctl logs --app $APP" 2>/dev/null || true
 
 echo
 echo "==> collector evidence"
-grep -E "SOURCE:|ELECTION_YEAR:|Loaded XML source|Finished with|Party votes|Top 3|fetch failed|HTTP [0-9]+|ERROR" "$LOG" | head -40 \
+grep -E "SOURCE:|ELECTION_YEAR:|Loaded XML source|Fetching election results|Finished with|Party votes|Top 3|Skipping snapshot write|fetch failed|HTTP [0-9]+|ERROR" "$LOG" | head -40 \
   || echo "   (no matching lines yet — check $LOG)"
 
 echo

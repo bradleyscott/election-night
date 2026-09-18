@@ -47,7 +47,7 @@ Options:
 Examples:
   # Replay the 2026 general election: 64 general + 7 Māori electorates
   npm run start:mock -- --year 2026
-  XML_FEED_BASE_URL=http://localhost:3457/ ELECTION_YEAR=2026 npm run start:collector
+  XML_FEED_BASE_URL=http://localhost:3457/ ELECTION_YEAR=2026 npm run start:server
 `);
   process.exit(0);
 }
@@ -240,8 +240,8 @@ function renderIndex(): string {
 <h1>Mock XML Election Results</h1>
 <p>Cycle: <strong>${ELECTION_YEAR}</strong> (${MOCK_ELECTORATES.length} electorates)</p>
 <p>Stage: <strong>${STAGE_NAMES[currentStage]}</strong> (${currentStage + 1}/${STAGES.length})</p>
-<p>Point the collector at this server:</p>
-<pre>XML_FEED_BASE_URL=http://localhost:${PORT}/ ELECTION_YEAR=${ELECTION_YEAR} npm run start:collector</pre>
+<p>Point the collector at this server (it runs inside the dashboard server):</p>
+<pre>XML_FEED_BASE_URL=http://localhost:${PORT}/ ELECTION_YEAR=${ELECTION_YEAR} npm run start:server</pre>
 <p>Advance: <code>curl -X POST http://localhost:${PORT}/advance</code></p>
 <p>Reset: <code>curl -X POST http://localhost:${PORT}/reset</code></p>
 <ul>

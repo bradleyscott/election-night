@@ -14,36 +14,34 @@ const collectorConfigSchema = z.object({
     .describe(
       'Full override for the XML feed base URL, must end with a trailing slash (e.g. a mock XML server); takes precedence over ELECTION_YEAR'
     ),
+  /**
+   * Whether this process polls the feed. The collector runs in-process with
+   * the dashboard server, so `false` turns the deployment into a
+   * dashboard-only node serving the last written snapshot (PR previews).
+   */
+  collectorEnabled: z
+    .boolean()
+    .default(true)
+    .describe('Run the in-process collector loop (default true)'),
   pollIntervalMs: z.coerce
     .number()
     .int()
     .min(1000)
-    .default(120_000)
-    .describe('Time between scrape polls'),
-  wsPort: z.coerce.number().int().min(1).max(65535).default(3456),
-  wsUrl: z.string().default('ws://localhost:3456'),
+    .default(30_000)
+    .describe(
+      'Time between polls. The feed is a cached static asset (max-age 30s) and a full cycle takes about a second, so polling more often than the CDN refreshes gains nothing'
+    ),
   concurrency: z.coerce.number().int().min(1).default(10),
   fetchTimeoutMs: z.coerce
     .number()
     .int()
     .min(1000)
-    .default(30_000)
-    .describe('Per-request HTTP timeout for XML feed fetches'),
-  fetchPacingMs: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .default(300)
-    .describe('Average delay between electorate fetches (jittered 0.5x-1.5x)'),
-  logLevel: z.coerce.number().int().min(0).max(3).default(3),
-  healthPort: z.coerce.number().int().min(1024).max(65535).default(3459),
-  dbPath: z.string().default('.data/election_results.db'),
-  resultsCachePath: z
-    .string()
-    .default('.data/electorate_results.json')
+    .default(5_000)
     .describe(
-      'JSON cache of the last cycle electorate results (webhook diff baseline)'
+      'Per-request HTTP timeout for XML feed fetches (responses are ~13ms; this is a hang guard, not a latency budget)'
     ),
+  logLevel: z.coerce.number().int().min(0).max(3).default(3),
+  dbPath: z.string().default('.data/election_results.db'),
   webhookUrl: z
     .string()
     .url()
@@ -51,8 +49,6 @@ const collectorConfigSchema = z.object({
     .or(z.literal(''))
     .transform((v) => (v ? v : undefined))
     .describe('Webhook URL for result events'),
-  electionSourcePath: z.string().optional(),
-  wsReconnectDelayMs: z.coerce.number().int().min(100).default(2_000),
 });
 
 export type CollectorConfig = z.infer<typeof collectorConfigSchema>;
@@ -61,19 +57,13 @@ function loadCollectorConfig(): CollectorConfig {
   const parsed = collectorConfigSchema.safeParse({
     electionYear: process.env.ELECTION_YEAR,
     xmlFeedBaseUrl: process.env.XML_FEED_BASE_URL,
+    collectorEnabled: booleanFromEnv(process.env.COLLECTOR_ENABLED),
     pollIntervalMs: process.env.POLL_INTERVAL_MS,
-    wsPort: process.env.WS_PORT,
-    wsUrl: process.env.WS_URL,
     concurrency: process.env.CONCURRENCY,
     fetchTimeoutMs: process.env.FETCH_TIMEOUT_MS,
-    fetchPacingMs: process.env.FETCH_PACING_MS,
     logLevel: process.env.LOG_LEVEL,
-    healthPort: process.env.HEALTH_PORT,
     dbPath: process.env.DB_PATH,
-    resultsCachePath: process.env.RESULTS_CACHE_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
-    electionSourcePath: process.env.ELECTION_SOURCE_PATH,
-    wsReconnectDelayMs: process.env.WS_RECONNECT_DELAY_MS,
   });
 
   if (!parsed.success) {
@@ -85,6 +75,12 @@ function loadCollectorConfig(): CollectorConfig {
   }
 
   return parsed.data;
+}
+
+/** `COLLECTOR_ENABLED=false` disables the loop; anything else leaves the default. */
+function booleanFromEnv(value: string | undefined): boolean | undefined {
+  if (value === undefined || value === '') return undefined;
+  return value !== 'false';
 }
 
 export const collectorConfig = loadCollectorConfig();

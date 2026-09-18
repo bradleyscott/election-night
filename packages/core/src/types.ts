@@ -155,6 +155,5 @@ export type MetricEvent =
       seconds: number;
       status: 'success' | 'partial' | 'error';
     }
-  | { metric: 'scrapeElectoratesTotal'; status: 'success' | 'error' | 'cached' }
-  | { metric: 'collectorSocketConnected'; connected: boolean }
+  | { metric: 'scrapeElectoratesTotal'; status: 'success' | 'error' | 'fallback' }
   | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' };
