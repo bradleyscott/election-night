@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -17,9 +17,12 @@ vi.mock('./logger.js', () => ({
 
 type Results = ElectorateResults & WithLeaders & WithMarginOfError;
 
-function makeResult(votes: number): Results {
+function makeResult(
+  votes: number,
+  electorateName = 'Test Electorate'
+): Results {
   return {
-    electorateName: 'Test Electorate',
+    electorateName,
     partyVotes: [
       { candidate: 'National Party', votes },
       { candidate: 'Labour Party', votes: Math.floor(votes * 0.9) },
@@ -54,8 +57,10 @@ describe('history-server', () => {
     dbPath = join(tmpDir, 'test.db');
     const { openDb, writeResults, closeDb } = await import('./db.js');
     openDb(dbPath);
-    writeResults([makeResult(5000)], [], []);
-    writeResults([makeResult(6000)], [], []);
+    // A DB holding both cycles, to prove history is scoped to one of them.
+    writeResults([makeResult(5000, 'Wellington Central')], [], [], '2023');
+    writeResults([makeResult(6000)], [], [], '2026');
+    writeResults([makeResult(7000)], [], [], '2026');
     closeDb();
   });
 
@@ -67,8 +72,8 @@ describe('history-server', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function start(): Promise<void> {
-    const handler = createHistoryHandler({ dbPath });
+  function start(electionYear?: string): Promise<void> {
+    const handler = createHistoryHandler({ dbPath, electionYear });
     server = http.createServer((req, res) => {
       if (!handler(req, res)) {
         res.writeHead(404);
@@ -84,19 +89,95 @@ describe('history-server', () => {
   }
 
   test('serves snapshots with no configuration (open by default)', async () => {
-    await start();
+    await start('2026');
     const res = await fetch(`${baseUrl}/history/snapshots`);
     expect(res.status).toBe(200);
     const metas = (await res.json()) as {
       snapshotId: number;
+      electionYear: string;
       startedAt: string;
     }[];
     expect(metas).toHaveLength(2);
+    expect(metas.every((m) => m.electionYear === '2026')).toBe(true);
     expect(metas[0]!.startedAt).toBeTruthy();
   });
 
+  test('excludes other cycles from the configured year', async () => {
+    await start('2023');
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    const metas = (await res.json()) as { electionYear: string }[];
+    expect(metas).toHaveLength(1);
+    expect(metas[0]!.electionYear).toBe('2023');
+  });
+
+  test('honours an explicit ?year= override', async () => {
+    await start('2026');
+    const res = await fetch(`${baseUrl}/history/snapshots?year=2023`);
+    const metas = (await res.json()) as { electionYear: string }[];
+    expect(metas).toHaveLength(1);
+    expect(metas[0]!.electionYear).toBe('2023');
+  });
+
+  /**
+   * Build a throwaway DB holding only the given cycle, to model a volume that
+   * has not yet seen the new cycle.
+   */
+  async function dbWithOnly2023(): Promise<string> {
+    const dir = mkdtempSync(join(tmpdir(), 'history-server-fresh-'));
+    const path = join(dir, 'fresh.db');
+    const { openDb, writeResults, closeDb } = await import('./db.js');
+    openDb(path);
+    writeResults([makeResult(4000)], [], [], '2023');
+    closeDb();
+    return path;
+  }
+
+  function requestJson(
+    handler: ReturnType<typeof createHistoryHandler>,
+    url: string
+  ): Promise<{ electionYear: string }[]> {
+    return new Promise((resolve) => {
+      const res = {
+        writeHead: () => {},
+        end: (body: string) => resolve(JSON.parse(body)),
+      } as unknown as import('node:http').ServerResponse;
+      handler(
+        { url, method: 'GET' } as import('node:http').IncomingMessage,
+        res
+      );
+    });
+  }
+
+  test('does not substitute another cycle when the configured year has no rows', async () => {
+    const legacyDb = await dbWithOnly2023();
+    const handler = createHistoryHandler({
+      dbPath: legacyDb,
+      electionYear: '2026',
+    });
+
+    // Nothing for 2026 yet: serve nothing rather than last cycle's results.
+    expect(await requestJson(handler, '/history/snapshots')).toEqual([]);
+    // The legacy rows are still reachable when asked for explicitly.
+    const legacy = await requestJson(handler, '/history/snapshots?year=2023');
+    expect(legacy).toHaveLength(1);
+    expect(legacy[0]!.electionYear).toBe('2023');
+
+    rmSync(dirname(legacyDb), { recursive: true, force: true });
+  });
+
+  test('falls back to the newest cycle in the DB when no year is configured', async () => {
+    const legacyDb = await dbWithOnly2023();
+    const handler = createHistoryHandler({ dbPath: legacyDb });
+
+    const metas = await requestJson(handler, '/history/snapshots');
+    rmSync(dirname(legacyDb), { recursive: true, force: true });
+
+    expect(metas).toHaveLength(1);
+    expect(metas[0]!.electionYear).toBe('2023');
+  });
+
   test('serves electorate history with candidates and party votes', async () => {
-    await start();
+    await start('2026');
     const res = await fetch(
       `${baseUrl}/history/electorate/${encodeURIComponent('Test Electorate')}`
     );
@@ -111,7 +192,7 @@ describe('history-server', () => {
   });
 
   test('serves party-vote history', async () => {
-    await start();
+    await start('2026');
     const res = await fetch(`${baseUrl}/history/party-votes`);
     expect(res.status).toBe(200);
     const history = (await res.json()) as { snapshotId: number }[];

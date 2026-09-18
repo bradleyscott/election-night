@@ -67,7 +67,8 @@ async function runOnce(): Promise<void> {
     writeResults(
       payload.electorateResults,
       payload.partyVote,
-      payload.partyLists
+      payload.partyLists,
+      collectorConfig.electionYear
     );
     await processResults(payload.electorateResults);
     cacheResults(payload.electorateResults);
@@ -126,6 +127,7 @@ async function main(): Promise<void> {
       collectorConfig.healthPort,
       createHistoryHandler({
         dbPath: collectorConfig.dbPath,
+        electionYear: collectorConfig.electionYear,
       })
     );
   } catch (err) {

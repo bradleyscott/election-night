@@ -132,7 +132,8 @@ describe('pipeline integration', () => {
     writeResults(
       payload.electorateResults,
       payload.partyVote,
-      payload.partyLists
+      payload.partyLists,
+      '2026'
     );
 
     const Database = (await import('better-sqlite3')).default;

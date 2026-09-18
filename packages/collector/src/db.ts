@@ -47,14 +47,20 @@ export function closeDb() {
 export function writeResults(
   results: Results[],
   partyVote: PartyVoteSummary[],
-  partyLists: PartyListEntry[]
+  partyLists: PartyListEntry[],
+  /**
+   * Election cycle this scrape belongs to. Stored on the snapshot so
+   * `/history/*` can scope itself to one cycle instead of blending whatever
+   * cycles happen to share the DB (the Fly deployment keeps it on a volume).
+   */
+  electionYear: string
 ) {
   log.info('Writing results to DB...');
 
   drizzleDb.transaction((tx) => {
     const { id: scrapeId } = tx
       .insert(schema.scrapeSnapshots)
-      .values({})
+      .values({ electionYear })
       .returning({ id: schema.scrapeSnapshots.id })
       .get();
 
@@ -90,10 +96,13 @@ export function writeResults(
           leadingCandidate: r.leaders.leadingCandidate,
           leadingParty: r.leaders.leadingCandidateParty,
           predictedWinner:
-            r.leaders.predictionStatus === 'projected' ? 3
-            : r.leaders.predictionStatus === 'likely' ? 2
-            : r.leaders.predictionStatus === 'leaning' ? 1
-            : 0,
+            r.leaders.predictionStatus === 'projected'
+              ? 3
+              : r.leaders.predictionStatus === 'likely'
+                ? 2
+                : r.leaders.predictionStatus === 'leaning'
+                  ? 1
+                  : 0,
           margin: r.leaders.margin,
           marginPct: r.leaders.marginPercent,
           secondCandidate: r.leaders.secondCandidate,

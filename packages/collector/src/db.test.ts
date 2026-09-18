@@ -110,23 +110,44 @@ describe('db', () => {
   test('writeResults inserts a scrape snapshot', async () => {
     const { writeResults } = await import('./db.js');
 
-    writeResults([makeResult()], [], []);
+    writeResults([makeResult()], [], [], '2026');
 
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
     const snapshots = conn
-      .prepare('SELECT id, started_at FROM scrape_snapshots')
-      .all() as { id: number; started_at: string }[];
+      .prepare('SELECT id, election_year, started_at FROM scrape_snapshots')
+      .all() as {
+      id: number;
+      election_year: string | null;
+      started_at: string;
+    }[];
     conn.close();
 
     expect(snapshots).toHaveLength(1);
+    expect(snapshots[0].election_year).toBe('2026');
     expect(snapshots[0].started_at).toBeTruthy();
+  });
+
+  test('records the election year on every snapshot so cycles stay separable', async () => {
+    const { writeResults } = await import('./db.js');
+
+    writeResults([makeResult()], [], [], '2023');
+    writeResults([makeResult()], [], [], '2026');
+
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const years = conn
+      .prepare('SELECT election_year FROM scrape_snapshots ORDER BY id')
+      .all() as { election_year: string }[];
+    conn.close();
+
+    expect(years.map((r) => r.election_year)).toEqual(['2023', '2026']);
   });
 
   test('writeResults stores electorate summary data', async () => {
     const { writeResults } = await import('./db.js');
     const result = makeResult();
-    writeResults([result], [], []);
+    writeResults([result], [], [], '2026');
 
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
@@ -167,7 +188,7 @@ describe('db', () => {
         predictionStatus: 'projected',
       },
     });
-    writeResults([result], [], []);
+    writeResults([result], [], [], '2026');
 
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
@@ -191,7 +212,7 @@ describe('db', () => {
   test('writeResults stores party vote summary with seats', async () => {
     const { writeResults } = await import('./db.js');
     const partyVote = makePartyVote();
-    writeResults([], [partyVote], []);
+    writeResults([], [partyVote], [], '2026');
 
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
@@ -222,7 +243,7 @@ describe('db', () => {
   test('writeResults stores party list data', async () => {
     const { writeResults } = await import('./db.js');
     const entry = makePartyList();
-    writeResults([], [], [entry]);
+    writeResults([], [], [entry], '2026');
 
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
