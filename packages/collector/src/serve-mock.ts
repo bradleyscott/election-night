@@ -2,20 +2,77 @@ import 'dotenv/config';
 import http from 'http';
 import arg from 'arg';
 import {
-  earlyCountResults,
-  midCountResults,
-  lateCountResults,
-  fullCountResults,
-  MOCK_ELECTORATES,
+  buildMockElectionSet,
+  DEFAULT_MOCK_ELECTION_YEAR,
+  isMockElectionYear,
+  MOCK_ELECTION_YEARS,
   MOCK_PARTIES,
+  type MockElectionYear,
 } from './synthetic-electorates.js';
 import type { ElectorateResults } from '@election-night/core/types';
 
+// ---- CLI ----
+//
+// Parsed before any feed data is built, because the electorate list (and
+// therefore every candidate, `e_no` and result) depends on the cycle.
+
+const parsed = arg(
+  {
+    '--port': Number,
+    '--stage': String,
+    '--auto-step': Number,
+    '--year': String,
+    '--help': Boolean,
+    '-p': '--port',
+    '-y': '--year',
+    '-h': '--help',
+  },
+  { permissive: true }
+);
+
+if (parsed['--help']) {
+  console.log(`
+Usage: tsx src/serve-mock.ts [options]
+
+Serves a mock version of the Electoral Commission XML feed.
+
+Options:
+  --port, -p <number>    Listen port (default: 3457)
+  --year, -y <year>      Election cycle to replay: ${MOCK_ELECTION_YEARS.join(', ')}
+                         (default: ${DEFAULT_MOCK_ELECTION_YEAR}, or MOCK_ELECTION_YEAR)
+  --stage <name>         Start stage: early, mid, late, full (default: early)
+  --auto-step <ms>       Auto-advance stage every N milliseconds
+  --help, -h             Show this message
+
+Examples:
+  # Replay the 2026 general election: 64 general + 7 Māori electorates
+  npm run start:mock -- --year 2026
+  XML_FEED_BASE_URL=http://localhost:3457/ ELECTION_YEAR=2026 npm run start:collector
+`);
+  process.exit(0);
+}
+
+const yearArg = parsed['--year'] ?? process.env.MOCK_ELECTION_YEAR;
+if (yearArg !== undefined && !isMockElectionYear(yearArg)) {
+  console.error(
+    `Unknown year "${yearArg}", valid: ${MOCK_ELECTION_YEARS.join(', ')}`
+  );
+  process.exit(1);
+}
+const ELECTION_YEAR: MockElectionYear = yearArg ?? DEFAULT_MOCK_ELECTION_YEAR;
+
+const PORT = parsed['--port'] || Number(process.env.MOCK_PORT) || 3457;
+
+// ---- Feed data for the selected cycle ----
+
+const { electorates: MOCK_ELECTORATES, stages } =
+  buildMockElectionSet(ELECTION_YEAR);
+
 const STAGES: ElectorateResults[][] = [
-  earlyCountResults,
-  midCountResults,
-  lateCountResults,
-  fullCountResults,
+  stages.early,
+  stages.mid,
+  stages.late,
+  stages.full,
 ];
 const STAGE_NAMES = ['early', 'mid', 'late', 'full'];
 
@@ -74,7 +131,6 @@ function buildNameToResults(): Map<string, ElectorateResults[]> {
 const resultsMap = buildNameToResults();
 
 // ---- XML serialization ----
-
 function escapeXml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -182,9 +238,10 @@ function renderIndex(): string {
 <head><meta charset="utf-8"><title>Mock XML Election Results</title></head>
 <body>
 <h1>Mock XML Election Results</h1>
+<p>Cycle: <strong>${ELECTION_YEAR}</strong> (${MOCK_ELECTORATES.length} electorates)</p>
 <p>Stage: <strong>${STAGE_NAMES[currentStage]}</strong> (${currentStage + 1}/${STAGES.length})</p>
 <p>Point the collector at this server:</p>
-<pre>XML_FEED_BASE_URL=http://localhost:${PORT}/ npm run start:collector</pre>
+<pre>XML_FEED_BASE_URL=http://localhost:${PORT}/ ELECTION_YEAR=${ELECTION_YEAR} npm run start:collector</pre>
 <p>Advance: <code>curl -X POST http://localhost:${PORT}/advance</code></p>
 <p>Reset: <code>curl -X POST http://localhost:${PORT}/reset</code></p>
 <ul>
@@ -199,36 +256,7 @@ ${links}
 </html>`;
 }
 
-// ---- CLI ----
-
-const parsed = arg(
-  {
-    '--port': Number,
-    '--stage': String,
-    '--auto-step': Number,
-    '--help': Boolean,
-    '-p': '--port',
-    '-h': '--help',
-  },
-  { permissive: true }
-);
-
-if (parsed['--help']) {
-  console.log(`
-Usage: tsx src/serve-mock.ts [options]
-
-Serves a mock version of the Electoral Commission XML feed.
-
-Options:
-  --port, -p <number>    Listen port (default: 3457)
-  --stage <name>         Start stage: early, mid, late, full (default: early)
-  --auto-step <ms>       Auto-advance stage every N milliseconds
-  --help, -h             Show this message
-`);
-  process.exit(0);
-}
-
-const PORT = parsed['--port'] || Number(process.env.MOCK_PORT) || 3457;
+// ---- CLI argument handling ----
 
 const stageArg = parsed['--stage'];
 if (stageArg) {
@@ -327,6 +355,7 @@ server.listen(PORT, () => {
   console.log(
     `Mock XML election results server listening on http://localhost:${PORT}`
   );
+  console.log(`Election cycle: ${ELECTION_YEAR}`);
   console.log(
     `Stage: ${STAGE_NAMES[currentStage]} (${currentStage + 1}/${STAGES.length})`
   );
