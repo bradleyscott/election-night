@@ -75,7 +75,8 @@ async function waitUntil(
 
 async function runCycle(
   source: unknown,
-  done: () => boolean
+  done: () => boolean,
+  onMetrics?: (events: unknown) => void
 ): Promise<number> {
   mockLoadSource.mockResolvedValue({
     source,
@@ -83,7 +84,7 @@ async function runCycle(
     partyListRecords: [],
   });
   const before = collectorState.cycleCount;
-  await startCollector();
+  await startCollector({ onMetrics });
   await waitUntil(() => collectorState.cycleCount > before && done());
   stopCollector();
   return before;
@@ -97,7 +98,6 @@ describe('collector loop', () => {
   });
 
   test('writes a snapshot and publishes when electorates are fetched', async () => {
-    const onResults = vi.fn<(p: ResultsPayload) => void>();
     const source = sourceReturning(async () => ({
       electorateName: 'Auckland Central',
       candidateVotes: [{ candidate: 'Alice', votes: 1000, party: 'Red Party' }],
@@ -113,7 +113,6 @@ describe('collector loop', () => {
     expect(collectorState.lastCycleOk).toBe(true);
     expect(collectorState.lastResultCount).toBe(1);
     expect(collectorState.lastVotesCounted).toBe(1000);
-    expect(onResults).not.toHaveBeenCalled(); // not wired in this run
     expect(mockProcessResults).toHaveBeenCalledTimes(1);
   });
 
@@ -161,5 +160,30 @@ describe('collector loop', () => {
 
     expect(onResults).toHaveBeenCalledTimes(1);
     expect(onResults.mock.calls[0]![0].electorateResults).toHaveLength(1);
+  });
+
+  /**
+   * Regression guard: the loop used to call `processResults` without the
+   * metrics callback, so `election_webhook_publishes_total` was never
+   * incremented — the metric existed but was always empty.
+   */
+  test('forwards onMetrics to processResults so webhook publishes are counted', async () => {
+    const onMetrics = vi.fn<(e: unknown) => void>();
+    const source = sourceReturning(async () => ({
+      electorateName: 'Auckland Central',
+      candidateVotes: [{ candidate: 'Alice', votes: 10, party: 'Red Party' }],
+      partyVotes: [{ candidate: 'Red Party', votes: 10 }],
+      votesCounted: 10,
+      votePercentageCounted: 0.1,
+    }));
+
+    await runCycle(
+      source,
+      () => collectorState.lastCycleFinishedAt !== null,
+      onMetrics
+    );
+
+    expect(mockProcessResults).toHaveBeenCalledTimes(1);
+    expect(mockProcessResults.mock.calls[0]![2]).toBe(onMetrics);
   });
 });

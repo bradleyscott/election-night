@@ -136,7 +136,7 @@ async function runOnce(
     collectorConfig.electionYear
   );
   // Diff against the previous snapshot before the next cycle overwrites it.
-  await processResults(payload.electorateResults, baseline);
+  await processResults(payload.electorateResults, baseline, options.onMetrics);
 
   collectorState.lastCycleFinishedAt = Date.now();
   collectorState.lastCycleOk = true;
