@@ -35,6 +35,12 @@ updates:
           - "vitest"
           - "tsx"
           - "drizzle-kit"
+        # Without this, major bumps get swept into the grouped PR — which is how
+        # tailwindcss 3 -> 4 arrived bundled with eleven unrelated patches. Majors
+        # are breaking by definition and need their own PR plus a migration.
+        update-types:
+          - "minor"
+          - "patch"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
