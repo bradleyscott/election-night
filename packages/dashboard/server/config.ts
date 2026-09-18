@@ -17,12 +17,6 @@ const dashboardServerConfigSchema = z.object({
     .transform((v) => resolve(v)),
   feedCachePath: z.string().default('.data/feed_events.json'),
   maxFeedEvents: z.coerce.number().int().min(1).default(200),
-  clearToken: z
-    .string()
-    .optional()
-    .describe(
-      'When set, POST /api/clear requires this shared secret in the x-clear-token header (unset = open, as before)'
-    ),
 });
 
 export type DashboardServerConfig = z.infer<typeof dashboardServerConfigSchema>;
@@ -33,7 +27,6 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     distDir: process.env.DIST_DIR,
     feedCachePath: process.env.FEED_CACHE_PATH,
     maxFeedEvents: process.env.MAX_FEED_EVENTS,
-    clearToken: process.env.CLEAR_TOKEN,
   });
 
   if (!parsed.success) {

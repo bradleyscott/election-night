@@ -8,7 +8,6 @@ import {
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import type { ResultsPayload, FeedEvent } from '@election-night/core/types';
-import { dashboardClientConfig } from '../config.js';
 
 type SocketContextValue = {
   socket: Socket | null;
@@ -31,7 +30,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [feedEvents, setFeedEvents] = useState<FeedEvent[]>([]);
 
   useEffect(() => {
-    const socket: Socket = io(dashboardClientConfig.wsUrl, {
+    // Same origin: the server serves this app and Socket.io on one port in
+    // every deployment (Vite proxies /socket.io during dev).
+    const socket: Socket = io({
       transports: ['websocket', 'polling'],
       reconnectionDelay: 5000,
       reconnectionDelayMax: 120_000,
@@ -44,17 +45,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     const onFeedHistory = (events: FeedEvent[]) => setFeedEvents(events);
     const onFeedUpdate = (newEvents: FeedEvent[]) =>
       setFeedEvents((prev) => [...newEvents, ...prev]);
-    const onClear = () => {
-      setResults(null);
-      setFeedEvents([]);
-    };
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('results_update', onResultsUpdate);
     socket.on('feed_history', onFeedHistory);
     socket.on('feed_update', onFeedUpdate);
-    socket.on('clear', onClear);
 
     return () => {
       socket.off('connect', onConnect);
@@ -62,7 +58,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       socket.off('results_update', onResultsUpdate);
       socket.off('feed_history', onFeedHistory);
       socket.off('feed_update', onFeedUpdate);
-      socket.off('clear', onClear);
       socket.disconnect();
       socketRef.current = null;
     };

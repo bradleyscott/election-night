@@ -40,8 +40,18 @@ function sendFile(
 /**
  * Serve the built Vite bundle with an SPA fallback for client-side routes.
  * (Health/ready/metrics have their own handlers — see health.ts.)
+ *
+ * Only GET/HEAD are served: this is a static file server, and answering a POST
+ * with a 200 and an HTML page (which is what the SPA fallback would do) makes a
+ * removed or mistyped endpoint look like it succeeded.
  */
 export function serveStatic(req: IncomingMessage, res: ServerResponse): void {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    res.end('Method not allowed');
+    return;
+  }
+
   const url = new URL(req.url!, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
 

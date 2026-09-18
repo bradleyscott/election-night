@@ -1,7 +1,4 @@
 export const dashboardClientConfig = {
-  wsUrl:
-    import.meta.env.VITE_WS_URL ??
-    `${window.location.protocol}//${window.location.host}`,
   /**
    * Pin the electorate boundary dataset to an election year, e.g. `2026`.
    * When unset the map picks the year whose electorate names best cover the

@@ -32,10 +32,6 @@ function readFeedEventsFromDisk(): FeedEvent[] {
   return [];
 }
 
-export function resetFeedState(): void {
-  feedEvents = [];
-}
-
 function saveFeedEvents(events: FeedEvent[]) {
   try {
     mkdirSync(dirname(FEED_CACHE_PATH), { recursive: true });

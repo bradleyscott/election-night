@@ -24,7 +24,6 @@ import {
   buildFeedEvents,
   currentFeedEvents,
   loadFeedEvents,
-  resetFeedState,
 } from './feed.js';
 import { withMutex, Mutex } from './mutex.js';
 import { collectorStatus } from './ready-check.js';
@@ -99,28 +98,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const url = req.url
     ? new URL(req.url, `http://${req.headers.host || 'localhost'}`)
     : null;
-
-  // POST /api/clear — reset feed state and notify all connected clients.
-  // Optionally guarded by a shared secret when CLEAR_TOKEN is configured.
-  if (req.method === 'POST' && url?.pathname === '/api/clear') {
-    if (
-      dashboardServerConfig.clearToken &&
-      req.headers['x-clear-token'] !== dashboardServerConfig.clearToken
-    ) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'invalid or missing x-clear-token' }));
-      return;
-    }
-    void withMutex(feedMutex, () => {
-      latestResults = null;
-      resetFeedState();
-      io.emit('clear');
-    }).then(() => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
-    });
-    return;
-  }
 
   if (url) {
     if (url.pathname === '/metrics') return serveMetrics(req, res);
