@@ -1,81 +1,37 @@
-# Collector-only image; run it wherever it has suitable network egress
-# (see the notes in README.md on datacenter-IP blocking).
+# Standalone collector image. Reads the Electoral Commission XML feed over
+# plain HTTPS and serves /health plus the unauthenticated /history/* REST API
+# on port 3459 that the dashboard server reads via HISTORY_UPSTREAM.
 #
-# Builds @election-night/core + the collector, installs the stealth Chromium,
-# and runs the scraper loop. Outbound-only except port 3459: the collector is
-# a Socket.io *client* (publishes results to the dashboard server) and
-# serves /health plus the unauthenticated /history/* REST API that the
-# dashboard server reads via HISTORY_UPSTREAM — see
-# packages/collector/src/history-server.ts.
+# No browser and no Chromium: the XML feed is a cached static asset that is
+# reachable from datacenter egress, so this image is small and can run
+# anywhere. See docs/deployment-simplification.md.
 #
-# Mirrors the root Dockerfile's build pattern (prebuilt better-sqlite3,
-# cloakbrowser install, tsx runtime) so what works in Fly CI works here.
+# The production Fly.io deployment runs the dashboard server and the collector
+# together from Dockerfile.app; this image is for running the collector alone.
 
 FROM node:22 AS builder
 WORKDIR /app
 
-ENV CLOAKBROWSER_CACHE_DIR=/app/.cloakbrowser
-ENV CLOAKBROWSER_AUTO_UPDATE=false
-
 # Workspace package.json files first for layer-cached npm ci.
 # npm ci validates every workspace listed in the root package.json against the
-# lockfile, so packages/dashboard/package.json must exist even though we never
-# build or ship the dashboard in this image.
+# lockfile, so packages/dashboard/package.json must exist even though this
+# image never builds or ships the dashboard.
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/collector/package.json packages/collector/
 COPY packages/dashboard/package.json packages/dashboard/
 
-RUN npm ci --ignore-scripts && \
-    npm rebuild better-sqlite3 && \
-    cd packages/collector && npx cloakbrowser install && cd /app
+RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
 
 COPY tsconfig.base.json tsconfig.json ./
 COPY packages/core/ packages/core/
 COPY packages/collector/ packages/collector/
-COPY csv/ csv/
 
 RUN npm run build:core
 
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CLOAKBROWSER_CACHE_DIR=/app/.cloakbrowser
-ENV CLOAKBROWSER_AUTO_UPDATE=false
-
-# Runtime deps for the stealth Chromium (same list as the root Dockerfile).
-RUN apt-get update && apt-get install -y \
-  wget \
-  ca-certificates \
-  fonts-liberation \
-  libasound2 \
-  libatk-bridge2.0-0 \
-  libatk1.0-0 \
-  libcairo2 \
-  libcups2 \
-  libdbus-1-3 \
-  libdrm2 \
-  libgbm1 \
-  libglib2.0-0 \
-  libgtk-3-0 \
-  libnspr4 \
-  libnss3 \
-  libpango-1.0-0 \
-  libpangocairo-1.0-0 \
-  libx11-6 \
-  libx11-xcb1 \
-  libxcb1 \
-  libxcomposite1 \
-  libxcursor1 \
-  libxdamage1 \
-  libxext6 \
-  libxfixes3 \
-  libxi6 \
-  libxrandr2 \
-  libxrender1 \
-  libxss1 \
-  --no-install-recommends \
-  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app /app
 
@@ -83,10 +39,7 @@ COPY --from=builder /app /app
 # rate limiting happens at the reverse proxy when exposed).
 EXPOSE 3459
 
-# Healthcheck: the state server on 3459 must answer (wget ships in this
-# image). Some orchestrators do not auto-restart unhealthy containers — the
-# restart policy recovers crashes; this check exists for stall visibility.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q -O - http://127.0.0.1:3459/health || exit 1
+  CMD node -e "fetch('http://127.0.0.1:3459/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["npx", "tsx", "/app/packages/collector/src/index.ts"]
