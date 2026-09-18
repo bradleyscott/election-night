@@ -10,7 +10,6 @@
     "build:core": "npm run build -w packages/core",
     "dev": "npm run build:core && npm run dev -w packages/dashboard",
     "build": "npm run build:core && npm run build -w packages/dashboard",
-    "start:collector": "npm run build:core && npm run start -w packages/collector",
     "start:server": "npm run build:core && npm run start -w packages/dashboard",
     "clear": "tsx packages/collector/src/clear.ts",
     "start:mock": "npm run build:core && tsx packages/collector/src/serve-mock.ts",

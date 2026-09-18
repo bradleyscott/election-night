@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  emitCollectorSocketConnected,
   emitScrapeDuration,
   emitScrapeElectorate,
   emitWebhookPublish,
@@ -20,16 +19,9 @@ describe('collector metric events', () => {
       metric: 'scrapeElectoratesTotal',
       status: 'error',
     });
-    expect(emitScrapeElectorate('cached')).toEqual({
+    expect(emitScrapeElectorate('fallback')).toEqual({
       metric: 'scrapeElectoratesTotal',
-      status: 'cached',
-    });
-  });
-
-  it('emits socket connection events', () => {
-    expect(emitCollectorSocketConnected(true)).toEqual({
-      metric: 'collectorSocketConnected',
-      connected: true,
+      status: 'fallback',
     });
   });
 

@@ -4,6 +4,7 @@ import type {
   ElectorateConfig,
   ElectorateResults,
   ElectionSource,
+  MetricEvent,
   PartyList,
   RawElectorateResults,
   ResultsPayload,
@@ -16,10 +17,6 @@ import {
   predictWinner,
 } from '@election-night/core/reducers';
 import { log } from './logger.js';
-import { sleep } from './util.js';
-import { collectorConfig } from './config.js';
-import { publishMetrics } from './ws-client.js';
-import { readResults } from './results.js';
 import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
 
 export type ScrapeCycleOptions = {
@@ -27,20 +24,39 @@ export type ScrapeCycleOptions = {
   configs: ElectorateConfig[];
   partyListRecords: PartyList[];
   concurrency: number;
+  /**
+   * The previous snapshot's results. Electorates that fail both the initial
+   * fetch and the retry pass fall back to their value here, so a transient
+   * failure does not blank an electorate out of the payload.
+   */
+  fallback?: ElectorateResults[];
+  /** Receives metric events; the dashboard server applies them to its registry. */
+  onMetrics?: (events: MetricEvent | MetricEvent[]) => void;
+};
+
+export type ScrapeCycleResult = {
+  payload: ResultsPayload;
+  /** Electorates fetched from the feed this cycle. */
+  fresh: number;
+  /** Electorates served from the previous snapshot after both attempts failed. */
+  fallback: number;
+  /** Electorates with no result at all (no fetch, no previous snapshot). */
+  failed: number;
+  total: number;
 };
 
 export async function scrapeCycle(
   options: ScrapeCycleOptions
-): Promise<ResultsPayload> {
-  const { source, configs, partyListRecords, concurrency } = options;
+): Promise<ScrapeCycleResult> {
+  const { source, configs, partyListRecords, concurrency, fallback, onMetrics } =
+    options;
   const limit = pLimit(concurrency);
 
-  async function fetchWithPacing(
+  type FetchResult = { raw: RawElectorateResults; config: ElectorateConfig };
+
+  async function fetchOne(
     electorateConfig: ElectorateConfig
-  ): Promise<{ raw: RawElectorateResults; config: ElectorateConfig }> {
-    // Gentle pacing between requests (jittered) so bursts don't trip
-    // rate limiting mid-cycle.
-    await sleep(collectorConfig.fetchPacingMs * (0.5 + Math.random()));
+  ): Promise<FetchResult> {
     const startedAt = performance.now();
     try {
       const raw = await source.fetchResults(electorateConfig);
@@ -55,47 +71,43 @@ export async function scrapeCycle(
     }
   }
 
-  log.info('Starting election results scraping...');
+  log.info('Fetching election results...');
   const start = performance.now();
 
-  const cachedResults = readResults();
-  const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
-
-  const settled = await Promise.allSettled(
-    configs.map((cfg) => limit(() => fetchWithPacing(cfg)))
+  const fallbackByName = new Map(
+    (fallback ?? []).map((r) => [r.electorateName, r])
   );
 
-  const failedIndexes: number[] = [];
-  settled.forEach((s, i) => {
-    if (s.status === 'rejected') failedIndexes.push(i);
-  });
+  const settled = await Promise.allSettled(
+    configs.map((cfg) => limit(() => fetchOne(cfg)))
+  );
 
-  // One retry pass over failures. Skipped entirely when nothing succeeded at
-  // all — retrying would just double the burn time while the feed is down.
-  type FetchResult = { raw: RawElectorateResults; config: ElectorateConfig };
+  // One retry pass over the failures. Failures are usually correlated (the
+  // feed is up or it is not), so a second pass is cheap and usually settles
+  // a transient blip.
+  const failedIndexes = settled
+    .map((s, i) => (s.status === 'rejected' ? i : -1))
+    .filter((i) => i >= 0);
+
   const retried = new Map<number, PromiseSettledResult<FetchResult>>();
-  const anySucceeded = settled.some((s) => s.status === 'fulfilled');
-  if (failedIndexes.length > 0 && anySucceeded) {
+  if (failedIndexes.length > 0) {
     log.info(`Retrying ${failedIndexes.length} failed electorates...`);
     const retryResults = await Promise.allSettled(
-      failedIndexes.map((i) => limit(() => fetchWithPacing(configs[i])))
+      failedIndexes.map((i) => limit(() => fetchOne(configs[i]!)))
     );
     failedIndexes.forEach((originalIndex, k) => {
-      retried.set(originalIndex, retryResults[k]);
+      retried.set(originalIndex, retryResults[k]!);
     });
-  } else if (failedIndexes.length > 0) {
-    log.warn(
-      `Skipping retry pass: ${failedIndexes.length} electorates failed and none succeeded (site likely still blocking)`
-    );
   }
 
   const results: ElectorateResults[] = [];
-  type ElectorateSource = 'fresh' | 'cached' | 'failed';
+  type ElectorateSource = 'fresh' | 'fallback' | 'failed';
   const electorateSources: ElectorateSource[] = [];
 
   for (let i = 0; i < settled.length; i++) {
-    const s = retried.get(i) ?? settled[i];
-    const cfg = configs[i];
+    const s = retried.get(i) ?? settled[i]!;
+    const cfg = configs[i]!;
+
     if (s.status === 'fulfilled') {
       const raw = s.value.raw;
       const electorateResults: ElectorateResults = {
@@ -108,44 +120,40 @@ export async function scrapeCycle(
       log.debug(
         `${electorateResults.electorateName}: ${electorateResults.candidateVotes.length} candidates, ${electorateResults.partyVotes.length} party entries, votesCounted=${electorateResults.votesCounted}, pct=${electorateResults.votePercentageCounted}`
       );
-      if (electorateResults.candidateVotes.length > 0) {
-        log.trace(
-          `${electorateResults.electorateName} top candidate: ${electorateResults.candidateVotes[0].candidate} (${electorateResults.candidateVotes[0].votes} votes)`
-        );
-        if (electorateResults.partyVotes.length > 0) {
-          log.trace(
-            `${electorateResults.electorateName} top party: ${electorateResults.partyVotes[0].candidate} (${electorateResults.partyVotes[0].votes} votes)`
-          );
-        }
-      }
       results.push(electorateResults);
       electorateSources.push('fresh');
+      continue;
+    }
+
+    const previous = fallbackByName.get(cfg.electorateName);
+    if (previous) {
+      log.warn(
+        `${cfg.electorateName}: fetch failed twice; reusing the previous snapshot's result`
+      );
+      results.push(previous);
+      electorateSources.push('fallback');
     } else {
-      const cached = cachedByName.get(cfg.electorateName);
-      if (cached) {
-        log.warn(
-          `${cfg.electorateName}: scrape failed (${s.reason}); using cached result from previous poll`
-        );
-        results.push(cached);
-        electorateSources.push('cached');
-      } else {
-        log.error(`Failed to scrape electorate`, s.reason);
-        electorateSources.push('failed');
-      }
+      log.error(`${cfg.electorateName}: no result available`, s.reason);
+      electorateSources.push('failed');
     }
   }
 
+  const fresh = electorateSources.filter((s) => s === 'fresh').length;
+  const fallbackCount = electorateSources.filter(
+    (s) => s === 'fallback'
+  ).length;
+  const failed = electorateSources.filter((s) => s === 'failed').length;
+
   const totalVotes = results.reduce((s, r) => s + (r.votesCounted || 0), 0);
   log.info(
-    `Finished with ${results.length}/${configs.length} electorates (total votes counted: ${totalVotes.toLocaleString()})`
+    `Finished with ${results.length}/${configs.length} electorates (${fresh} fresh, ${fallbackCount} reused; total votes counted: ${totalVotes.toLocaleString()})`
   );
-  if (results.length > 0) {
-    const zeroVoteElectorates = results.filter(
-      (r) => (r.votesCounted || 0) === 0
-    ).length;
-    if (zeroVoteElectorates > 0) {
-      log.warn(`${zeroVoteElectorates} electorates have 0 votes counted`);
-    }
+
+  const zeroVoteElectorates = results.filter(
+    (r) => (r.votesCounted || 0) === 0
+  ).length;
+  if (zeroVoteElectorates > 0) {
+    log.warn(`${zeroVoteElectorates} electorates have 0 votes counted`);
   }
 
   const withPredictions = results
@@ -190,28 +198,25 @@ export async function scrapeCycle(
   log.debug(`${totalListCandidates} list candidates above the cut`);
 
   const duration = (performance.now() - start) / 1000;
-  const freshCount = electorateSources.filter((s) => s === 'fresh').length;
   const status: 'success' | 'partial' | 'error' =
-    freshCount === configs.length
-      ? 'success'
-      : results.length > 0
-        ? 'partial'
-        : 'error';
-  const events = [emitScrapeDuration(duration, status)];
+    fresh === configs.length ? 'success' : results.length > 0 ? 'partial' : 'error';
+  const events: MetricEvent[] = [emitScrapeDuration(duration, status)];
+  const metricStatus: Record<ElectorateSource, 'success' | 'error' | 'fallback'> =
+    { fresh: 'success', fallback: 'fallback', failed: 'error' };
   for (const electorateSource of electorateSources) {
-    const electorateStatus =
-      electorateSource === 'fresh'
-        ? 'success'
-        : electorateSource === 'failed'
-          ? 'error'
-          : 'cached';
-    events.push(emitScrapeElectorate(electorateStatus));
+    events.push(emitScrapeElectorate(metricStatus[electorateSource]));
   }
-  publishMetrics(events);
+  onMetrics?.(events);
 
   return {
-    electorateResults: withPredictions,
-    partyVote,
-    partyLists,
+    payload: {
+      electorateResults: withPredictions,
+      partyVote,
+      partyLists,
+    },
+    fresh,
+    fallback: fallbackCount,
+    failed,
+    total: configs.length,
   };
 }

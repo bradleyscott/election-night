@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { unlinkSync, existsSync } from 'fs';
+import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
@@ -14,8 +14,6 @@ const TABLES_IN_ORDER = [
   'electorate_results',
   'scrape_snapshots',
 ];
-
-const CACHE_FILES = [resolve(process.cwd(), collectorConfig.resultsCachePath)];
 
 export async function runClear(): Promise<void> {
   const dbPath = resolve(process.cwd(), collectorConfig.dbPath);
@@ -78,16 +76,6 @@ export async function runClear(): Promise<void> {
     }
   } else {
     log.info(`No database found at ${dbPath}, skipping`);
-  }
-
-  // ── 2. Clear cache files ───────────────────────────────────────────
-  for (const cachePath of CACHE_FILES) {
-    if (existsSync(cachePath)) {
-      unlinkSync(cachePath);
-      log.info(`Deleted cache file: ${cachePath}`);
-    } else {
-      log.debug(`No cache file at ${cachePath}, skipping`);
-    }
   }
 
   log.info('=== Clear: completed ===');
