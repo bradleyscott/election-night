@@ -37,9 +37,9 @@ export const scrapeElectoratesTotal = new Counter({
   registers: [register],
 });
 
-export const collectorSocketConnected = new Gauge({
-  name: 'election_collector_socket_connected',
-  help: 'Whether the collector is connected to the dashboard server',
+export const collectorLastCycleOk = new Gauge({
+  name: 'election_collector_last_cycle_ok',
+  help: 'Whether the collector last completed a cycle successfully',
   registers: [register],
 });
 
@@ -51,7 +51,6 @@ export const webhookPublishesTotal = new Counter({
 });
 
 let lastCollectorMetricsAt = 0;
-const COLLECTOR_METRICS_STALE_MS = 60_000;
 
 export function applyMetricEvents(events: MetricEvent | MetricEvent[]): void {
   const arr = Array.isArray(events) ? events : [events];
@@ -63,21 +62,20 @@ export function applyMetricEvents(events: MetricEvent | MetricEvent[]): void {
       case 'scrapeElectoratesTotal':
         scrapeElectoratesTotal.inc({ status: event.status });
         break;
-      case 'collectorSocketConnected':
-        collectorSocketConnected.set(event.connected ? 1 : 0);
-        break;
       case 'webhookPublishesTotal':
         webhookPublishesTotal.inc({ status: event.status });
         break;
     }
   }
   lastCollectorMetricsAt = Date.now();
+  collectorLastCycleOk.set(1);
+}
+
+/** Timestamp of the last cycle that reported metrics, 0 when none has. */
+export function lastMetricEventAt(): number {
+  return lastCollectorMetricsAt;
 }
 
 export async function metricsResponse(): Promise<string> {
-  if (Date.now() - lastCollectorMetricsAt > COLLECTOR_METRICS_STALE_MS) {
-    collectorSocketConnected.set(0);
-  }
-
   return register.metrics();
 }

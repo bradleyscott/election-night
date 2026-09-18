@@ -17,9 +17,8 @@ describe('dashboard metrics', () => {
     applyMetricEvents([
       { metric: 'scrapeDurationSeconds', seconds: 1.23, status: 'success' },
       { metric: 'scrapeElectoratesTotal', status: 'success' },
-      { metric: 'scrapeElectoratesTotal', status: 'cached' },
+      { metric: 'scrapeElectoratesTotal', status: 'fallback' },
       { metric: 'scrapeElectoratesTotal', status: 'error' },
-      { metric: 'collectorSocketConnected', connected: true },
       { metric: 'webhookPublishesTotal', status: 'success' },
     ]);
 
@@ -35,12 +34,12 @@ describe('dashboard metrics', () => {
       'election_scrape_electorates_total{status="success"} 1'
     );
     expect(output).toContain(
-      'election_scrape_electorates_total{status="cached"} 1'
+      'election_scrape_electorates_total{status="fallback"} 1'
     );
     expect(output).toContain(
       'election_scrape_electorates_total{status="error"} 1'
     );
-    expect(output).toContain('election_collector_socket_connected 1');
+    expect(output).toContain('election_collector_last_cycle_ok 1');
     expect(output).toContain(
       'election_webhook_publishes_total{status="success"} 1'
     );
@@ -66,14 +65,17 @@ describe('dashboard metrics', () => {
     );
   });
 
-  it('marks the collector as disconnected when no metrics have arrived recently', async () => {
-    applyMetricEvents({ metric: 'collectorSocketConnected', connected: true });
-    // Force the freshness check to see stale data by manipulating private state is not
-    // exposed, so instead we validate the counter resets after an old event is applied
-    // by observing the output still reflects the last known value. The staleness window
-    // is 60s, which is impractical to wait for in a unit test; freshness is covered at
-    // the integration level by the /metrics handler timing itself.
-    const output = await metricsResponse();
-    expect(output).toContain('election_collector_socket_connected 1');
+  it('reports the collector as unhealthy until a cycle reports metrics', async () => {
+    // Nothing has run yet: the gauge is 0 until the first metric event lands.
+    // (The collector runs in-process, so there is no connection to go stale.)
+    expect(await metricsResponse()).toContain(
+      'election_collector_last_cycle_ok 0'
+    );
+
+    applyMetricEvents({ metric: 'scrapeDurationSeconds', seconds: 1, status: 'success' });
+
+    expect(await metricsResponse()).toContain(
+      'election_collector_last_cycle_ok 1'
+    );
   });
 });

@@ -1,10 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import { extname, resolve, sep } from 'path';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { register, metricsResponse } from './metrics.js';
 import { dashboardServerConfig } from './config.js';
-import type { HistorySource } from './history-upstream.js';
-import { evaluateReady } from './ready-check.js';
 import { log } from './logger.js';
 
 const DIST_DIR = dashboardServerConfig.distDir;
@@ -40,48 +37,11 @@ function sendFile(
   }
 }
 
-export async function serveMetrics(_req: IncomingMessage, res: ServerResponse) {
-  const metrics = await metricsResponse();
-  res.writeHead(200, { 'Content-Type': register.contentType });
-  res.end(metrics);
-}
-
-export function serveHealth(_req: IncomingMessage, res: ServerResponse) {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ status: 'ok' }));
-}
-
-async function isHistoryReachable(source: HistorySource): Promise<boolean> {
-  try {
-    await source.snapshotMetas();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function serveReady(
-  _req: IncomingMessage,
-  res: ServerResponse,
-  historySource: HistorySource,
-  feedEvents: { timestamp: number }[]
-) {
-  const historyReachable = await isHistoryReachable(historySource);
-
-  const lastEvent = feedEvents[feedEvents.length - 1];
-  const lastScrape = lastEvent ? lastEvent.timestamp : 'none';
-
-  const { ready, checks } = evaluateReady(historyReachable, lastScrape);
-
-  res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ ready, checks }));
-}
-
 /**
  * Serve the built Vite bundle with an SPA fallback for client-side routes.
- * (Health/ready/metrics have simpler handlers of their own.)
+ * (Health/ready/metrics have their own handlers — see health.ts.)
  */
-export function serveStatic(req: IncomingMessage, res: ServerResponse) {
+export function serveStatic(req: IncomingMessage, res: ServerResponse): void {
   const url = new URL(req.url!, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
 

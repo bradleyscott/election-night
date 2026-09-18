@@ -1,22 +1,23 @@
 import 'dotenv/config';
-import { existsSync, readFileSync } from 'fs';
-import { resolve } from 'path';
 import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import type { ResultsPayload, MetricEvent } from '@election-night/core/types';
-import { createHistorySource, type HistorySource } from './history-upstream.js';
+import type { ResultsPayload } from '@election-night/core/types';
+import {
+  collectorConfig,
+  collectorState,
+  createResultsDb,
+  startCollector,
+  stopCollector,
+  type ResultsDb,
+} from '@election-night/collector';
 import { dashboardServerConfig } from './config.js';
 import {
   applyMetricEvents,
   websocketClients,
   lastScrapeTimestampSeconds,
 } from './metrics.js';
-import {
-  serveHealth,
-  serveMetrics,
-  serveReady,
-  serveStatic,
-} from './static.js';
+import { serveHealth, serveMetrics, serveReady } from './health.js';
+import { serveStatic } from './static.js';
 import { serveApi } from './api.js';
 import {
   addFeedEvents,
@@ -26,111 +27,125 @@ import {
   resetFeedState,
 } from './feed.js';
 import { withMutex, Mutex } from './mutex.js';
-import {
-  describeCacheSkip,
-  extractCachedElectorates,
-} from './results-cache.js';
+import { collectorStatus } from './ready-check.js';
 import { log } from './logger.js';
 
-const {
-  wsPort: PORT,
-  cachePath: CACHE_PATH,
-  distDir: DIST_DIR,
-  maxFeedEvents: MAX_FEED_EVENTS,
-} = dashboardServerConfig;
+const { wsPort: PORT, distDir: DIST_DIR, maxFeedEvents: MAX_FEED_EVENTS } =
+  dashboardServerConfig;
+
+/**
+ * Snapshots are the only shared state between the collector and this server,
+ * so the server reads them straight from SQLite — the same file the in-process
+ * collector writes. There is no JSON results cache and no history HTTP hop.
+ */
+const resultsDb: ResultsDb = createResultsDb({
+  dbPath: collectorConfig.dbPath,
+  electionYear: collectorConfig.electionYear,
+});
 
 let latestResults: ResultsPayload | null = null;
 const feedMutex = new Mutex();
 
-function loadCachedResults() {
-  if (existsSync(CACHE_PATH)) {
-    let raw: string;
-    try {
-      raw = readFileSync(CACHE_PATH, 'utf-8');
-    } catch (err) {
-      log.error('Failed to read cached results:', err);
-      return;
-    }
-
-    const electorates = extractCachedElectorates(
-      raw,
-      dashboardServerConfig.electionYear
-    );
-    if (electorates) {
-      latestResults = {
-        electorateResults: electorates as ResultsPayload['electorateResults'],
-        partyVote: [],
-        partyLists: [],
-      };
-      log.info(`Loaded cached results from ${CACHE_PATH}`);
-      return;
-    }
-
-    // The cache is the collector's diff baseline, so it may be absent, from a
-    // different cycle, or written by an older version. None of those are worth
-    // failing over — the first scrape replaces it within a poll interval.
-    log.warn(
-      `Ignoring cached results at ${CACHE_PATH}: ${describeCacheSkip(raw, dashboardServerConfig.electionYear)}`
-    );
-  }
-  log.info('No cached results found, waiting for first scrape...');
+function collectorStatusNow() {
+  return collectorStatus({
+    enabled: collectorConfig.collectorEnabled,
+    cycleCount: collectorState.cycleCount,
+    lastCycleOk: collectorState.lastCycleOk,
+  });
 }
 
-const historySource: HistorySource = createHistorySource({
-  baseUrl: dashboardServerConfig.historyUpstream,
-});
+/** Rehydrate live state from the newest snapshot so the UI is populated on boot. */
+function seedFromLatestSnapshot(): void {
+  const latest = resultsDb.latestPayload();
+  if (!latest) {
+    log.info('No snapshot for this cycle yet, waiting for the first scrape...');
+    return;
+  }
+  latestResults = latest;
+  lastScrapeTimestampSeconds.set(Date.now() / 1000);
+  log.info(
+    `Loaded latest snapshot: ${latest.electorateResults.length} electorates, ${latest.partyVote.length} parties`
+  );
+}
 
-const server = createServer(
-  async (req: IncomingMessage, res: ServerResponse) => {
-    const url = req.url
-      ? new URL(req.url, `http://${req.headers.host || 'localhost'}`)
-      : null;
+/**
+ * Hand a freshly written payload to every connected client and generate feed
+ * events from the difference against the payload we last broadcast.
+ */
+function publishResults(payload: ResultsPayload): void {
+  withMutex(feedMutex, () => {
+    const previousResults = latestResults?.electorateResults ?? [];
+    latestResults = payload;
+    lastScrapeTimestampSeconds.set(Date.now() / 1000);
 
-    // POST /api/clear — reset feed state and notify all connected clients.
-    // Optionally guarded by a shared secret when CLEAR_TOKEN is configured.
-    if (req.method === 'POST' && url?.pathname === '/api/clear') {
-      if (
-        dashboardServerConfig.clearToken &&
-        req.headers['x-clear-token'] !== dashboardServerConfig.clearToken
-      ) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'invalid or missing x-clear-token' }));
-        return;
-      }
-      await withMutex(feedMutex, async () => {
-        latestResults = null;
-        resetFeedState();
-        historySource.clearCache();
-        io.emit('clear');
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
+    io.emit('results_update', payload);
+    log.info('Broadcast results to connected clients');
+
+    const rawEvents = buildFeedEvents(
+      previousResults,
+      payload.electorateResults
+    );
+    if (rawEvents.length === 0) return;
+
+    const newEvents = addFeedEvents(rawEvents);
+    if (newEvents.length > 0) {
+      log.info(`Generated ${newEvents.length} feed events`);
+      io.emit('feed_update', newEvents);
+    }
+  }).catch((err) => log.error('Failed to publish results:', err));
+}
+
+const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+  const url = req.url
+    ? new URL(req.url, `http://${req.headers.host || 'localhost'}`)
+    : null;
+
+  // POST /api/clear — reset feed state and notify all connected clients.
+  // Optionally guarded by a shared secret when CLEAR_TOKEN is configured.
+  if (req.method === 'POST' && url?.pathname === '/api/clear') {
+    if (
+      dashboardServerConfig.clearToken &&
+      req.headers['x-clear-token'] !== dashboardServerConfig.clearToken
+    ) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'invalid or missing x-clear-token' }));
       return;
     }
+    void withMutex(feedMutex, () => {
+      latestResults = null;
+      resetFeedState();
+      io.emit('clear');
+    }).then(() => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
+    });
+    return;
+  }
 
-    if (url) {
-      if (url.pathname === '/metrics') return serveMetrics(req, res);
-      if (url.pathname === '/health') return serveHealth(req, res);
-      if (url.pathname === '/ready')
-        return serveReady(req, res, historySource, currentFeedEvents());
-
-      try {
-        if (await serveApi(req, res, url, historySource)) return;
-      } catch (err) {
-        // History upstream unreachable and nothing cached — degrade to 502
-        // rather than crashing the server on an unhandled rejection.
-        log.error('API route failed:', err);
-        if (!res.headersSent) {
-          res.writeHead(502, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'history upstream unavailable' }));
-        }
-        return;
-      }
+  if (url) {
+    if (url.pathname === '/metrics') return serveMetrics(req, res);
+    if (url.pathname === '/health') {
+      return serveHealth(req, res, {
+        collector: collectorStatusNow(),
+        collectorState,
+        historyAvailable: resultsDb.isAvailable(),
+      });
+    }
+    if (url.pathname === '/ready') {
+      const feedEvents = currentFeedEvents();
+      const lastEvent = feedEvents[feedEvents.length - 1];
+      return serveReady(req, res, {
+        historyAvailable: resultsDb.isAvailable(),
+        collector: collectorStatusNow(),
+        lastScrape: lastEvent ? lastEvent.timestamp : 'none',
+      });
     }
 
-    serveStatic(req, res);
+    if (serveApi(req, res, url, resultsDb)) return;
   }
-);
+
+  serveStatic(req, res);
+});
 
 const io = new Server(server, {
   cors: { origin: '*' },
@@ -148,65 +163,70 @@ io.on('connection', (socket) => {
     socket.emit('feed_history', feedEvents);
   }
 
-  socket.on('results_update', (payload: ResultsPayload) => {
-    withMutex(feedMutex, async () => {
-      const previousResults = latestResults?.electorateResults ?? [];
-      latestResults = payload;
-      lastScrapeTimestampSeconds.set(Date.now() / 1000);
-      log.info('Received results update, broadcasting...');
-      socket.broadcast.emit('results_update', payload);
-
-      const rawEvents = buildFeedEvents(
-        previousResults,
-        payload.electorateResults
-      );
-      if (rawEvents.length === 0) return;
-
-      const newEvents = addFeedEvents(rawEvents);
-      if (newEvents.length > 0) {
-        log.info(`Generated ${newEvents.length} feed events`);
-        io.emit('feed_update', newEvents);
-      }
-    }).catch((err) => log.error('results_update handler failed:', err));
-  });
-
   socket.on('disconnect', () => {
     log.info(`Client disconnected: ${socket.id}`);
     websocketClients.set(io.engine.clientsCount);
   });
-
-  socket.on('metrics', (events: MetricEvent | MetricEvent[]) => {
-    applyMetricEvents(events);
-  });
 });
+
+async function start(): Promise<void> {
+  seedFromLatestSnapshot();
+  loadFeedEvents();
+
+  if (collectorConfig.collectorEnabled) {
+    try {
+      await startCollector({
+        onResults: publishResults,
+        onMetrics: applyMetricEvents,
+      });
+    } catch (err) {
+      // The UI still serves the last written snapshot, so a collector that
+      // cannot start must not take the server down.
+      log.error('Failed to start the collector:', err);
+      collectorState.lastError =
+        err instanceof Error ? err.message : String(err);
+    }
+  } else {
+    log.info('COLLECTOR_ENABLED=false — running the dashboard server only');
+  }
+}
 
 server.listen(PORT, () => {
   log.info('=== Dashboard Server Configuration ===');
-  log.info(`WS_PORT:           ${PORT}`);
-  log.info(`HISTORY_UPSTREAM:  ${dashboardServerConfig.historyUpstream}`);
-  log.info(`DIST_DIR:          ${DIST_DIR}`);
-  log.info(`CACHE_PATH:        ${resolve(CACHE_PATH)}`);
-  log.info(`MAX_FEED_EVENTS:   ${MAX_FEED_EVENTS}`);
-  log.info(`CWD:               ${process.cwd()}`);
+  log.info(`WS_PORT:            ${PORT}`);
+  log.info(`DIST_DIR:           ${DIST_DIR}`);
+  log.info(`DB_PATH:            ${collectorConfig.dbPath}`);
+  log.info(`ELECTION_YEAR:      ${collectorConfig.electionYear}`);
+  log.info(`COLLECTOR_ENABLED:  ${collectorConfig.collectorEnabled}`);
+  log.info(`FEED_CACHE_PATH:    ${dashboardServerConfig.feedCachePath}`);
+  log.info(`MAX_FEED_EVENTS:    ${MAX_FEED_EVENTS}`);
+  log.info(`CWD:                ${process.cwd()}`);
   log.info('======================================');
-  log.info(`Socket.io server running on http://localhost:${PORT}`);
-  loadCachedResults();
-  loadFeedEvents();
+  log.info(`Server running on http://localhost:${PORT}`);
+
+  void start();
 });
 
-process.on('SIGINT', () => {
+function shutdown(): void {
   log.info('Shutting down...');
+  stopCollector();
+  resultsDb.close();
+  io.close();
+  server.close();
+}
+
+process.on('SIGINT', () => {
+  shutdown();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  log.info('Shutting down...');
+  shutdown();
   process.exit(0);
 });
 
 export function stopDashboardServer(): void {
-  io.close();
-  server.close();
+  shutdown();
 }
 
 export { server, io };
