@@ -108,10 +108,10 @@ uncoloured electorates and clickable-but-empty polygons.
    snapshot, and `/history/*` filters to the active year — otherwise a DB or
    Fly volume still holding 2023 rows would blend two cycles in the Trends
    charts. Rows written before the column existed are backfilled to `2023`.
-   The JSON diff cache (`RESULTS_CACHE_PATH`) is likewise tagged with its
-   cycle: a cache from another cycle is ignored, so the first scrape of the
-   night no longer diffs against last election's finals and emits a burst of
-   bogus feed events.
+   The diff baseline is the newest snapshot **in the same cycle**, read from
+   SQLite. A cycle with no snapshots yet diffs against nothing, so the first
+   scrape of the night no longer diffs against last election's finals and emits
+   a burst of bogus feed events.
 
 6. **The mock server can replay 2026.** `npm run start:mock -- --year 2026`
    serves 64 general + 7 Māori electorates with the new names and the 2023 ones
@@ -119,8 +119,7 @@ uncoloured electorates and clickable-but-empty polygons.
 
    ```bash
    npm run start:mock -- --year 2026
-   XML_FEED_BASE_URL=http://localhost:3457/ ELECTION_YEAR=2026 npm run start:collector
-   npm run dev
+   XML_FEED_BASE_URL=http://localhost:3457/ ELECTION_YEAR=2026 npm run dev
    ```
 
    Te Pāti Māori wins the seven Māori electorates, so the replay exercises the
