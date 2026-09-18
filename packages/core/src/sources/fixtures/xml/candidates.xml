@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<candidates>
+    <candidate c_no="1">
+        <candidate_name>ALICE, Alison</candidate_name>
+        <electorate>1</electorate>
+        <party>10</party>
+        <list_no>1</list_no>
+    </candidate>
+    <candidate c_no="2">
+        <candidate_name>BOB, Robert</candidate_name>
+        <electorate>1</electorate>
+        <party>20</party>
+        <list_no>0</list_no>
+    </candidate>
+    <candidate c_no="3">
+        <candidate_name>CAROL, Caroline</candidate_name>
+        <electorate>0</electorate>
+        <party>10</party>
+        <list_no>2</list_no>
+    </candidate>
+    <candidate c_no="4">
+        <candidate_name>DAVE, David</candidate_name>
+        <electorate>2</electorate>
+        <party>20</party>
+        <list_no>1</list_no>
+    </candidate>
+</candidates>

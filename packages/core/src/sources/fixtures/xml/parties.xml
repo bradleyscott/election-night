@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<parties>
+    <party p_no="10">
+        <abbrev>RED</abbrev>
+        <short_name>Red Party</short_name>
+        <party_name>Red Party</party_name>
+        <registered>yes</registered>
+    </party>
+    <party p_no="20">
+        <abbrev>BLU</abbrev>
+        <short_name>Blue Party</short_name>
+        <party_name>Blue Party</party_name>
+        <registered>yes</registered>
+    </party>
+</parties>

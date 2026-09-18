@@ -26,15 +26,9 @@ function makeElectorate(
   };
 }
 
-const partyMap: Record<string, string | undefined> = {
-  Alice: 'Red Party',
-  Bob: 'Blue Party',
-  Carol: 'Green Party',
-};
-
 describe('predictWinner', () => {
   test('returns too-close and zero MoE when no votes have been counted', () => {
-    const r = calculateLead(makeElectorate({ votesCounted: 0 }), partyMap);
+    const r = calculateLead(makeElectorate({ votesCounted: 0 }));
     const predicted = predictWinner(r, 0.95);
 
     expect(predicted.marginOfError).toBe(0);
@@ -43,8 +37,7 @@ describe('predictWinner', () => {
 
   test('returns too-close and zero MoE when percentage counted is zero', () => {
     const r = calculateLead(
-      makeElectorate({ votesCounted: 1000, votePercentageCounted: 0 }),
-      partyMap
+      makeElectorate({ votesCounted: 1000, votePercentageCounted: 0 })
     );
     const predicted = predictWinner(r, 0.95);
 
@@ -53,7 +46,7 @@ describe('predictWinner', () => {
   });
 
   test('computes normally for valid partial counts', () => {
-    const r = calculateLead(makeElectorate(), partyMap);
+    const r = calculateLead(makeElectorate());
     const predicted = predictWinner(r, 0.95);
 
     expect(predicted.marginOfError).toBeGreaterThan(0);
@@ -61,10 +54,35 @@ describe('predictWinner', () => {
   });
 });
 
+describe('calculateLead party resolution', () => {
+  test('resolves the leading and second party from the candidate votes', () => {
+    const r = calculateLead(makeElectorate());
+
+    expect(r.leaders.leadingCandidate).toBe('Alice');
+    expect(r.leaders.leadingCandidateParty).toBe('Red Party');
+    expect(r.leaders.secondCandidate).toBe('Bob');
+    expect(r.leaders.secondCandidateParty).toBe('Blue Party');
+  });
+
+  test('leaves party undefined when the candidate has no party', () => {
+    const r = calculateLead(
+      makeElectorate({
+        candidateVotes: [
+          { candidate: 'Alice', votes: 4000, party: undefined },
+          { candidate: 'Bob', votes: 3000, party: undefined },
+        ],
+      })
+    );
+
+    expect(r.leaders.leadingCandidateParty).toBeUndefined();
+    expect(r.leaders.secondCandidateParty).toBeUndefined();
+  });
+});
+
 describe('calculatePartyVoteWithPercentages', () => {
   test('returns zero percentages and zero MoE when no votes counted', () => {
     const r = makeElectorate({ votesCounted: 0, votePercentageCounted: 0 });
-    const withLead = calculateLead(r, partyMap);
+    const withLead = calculateLead(r);
     const predicted = predictWinner(withLead, 0.95);
     const partyVote = calculatePartyVoteWithPercentages([predicted], 0.95);
 
@@ -93,8 +111,8 @@ describe('calculatePartyVoteWithPercentages', () => {
     });
 
     const withLead = [
-      predictWinner(calculateLead(valid, partyMap), 0.95),
-      predictWinner(calculateLead(invalid, partyMap), 0.95),
+      predictWinner(calculateLead(valid), 0.95),
+      predictWinner(calculateLead(invalid), 0.95),
     ];
 
     const partyVote = calculatePartyVoteWithPercentages(withLead, 0.95);

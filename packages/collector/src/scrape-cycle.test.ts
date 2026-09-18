@@ -1,17 +1,12 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { scrapeCycle } from './scrape-cycle.js';
-import type { BrowserContext } from 'playwright-core';
-import type { ElectionSource, ElectorateConfig } from '@election-night/core/types';
+import type {
+  ElectionSource,
+  ElectorateConfig,
+} from '@election-night/core/types';
 
-const mockGetElectoratePageHtml = vi.fn();
-const mockIsCloudflareChallenge = vi.fn();
 const mockReadResults = vi.fn();
 const mockPublishMetrics = vi.fn();
-
-vi.mock('./scraper.js', () => ({
-  getElectoratePageHtml: (...args: unknown[]) => mockGetElectoratePageHtml(...args),
-  isCloudflareChallenge: (...args: unknown[]) => mockIsCloudflareChallenge(...args),
-}));
 
 vi.mock('./results.js', () => ({
   readResults: () => mockReadResults(),
@@ -21,10 +16,19 @@ vi.mock('./ws-client.js', () => ({
   publishMetrics: (...args: unknown[]) => mockPublishMetrics(...args),
 }));
 
+function makeSource(
+  fetchResults: ElectionSource['fetchResults']
+): ElectionSource {
+  return {
+    getName: () => 'Test Source',
+    loadElectorates: vi.fn(),
+    loadPartyList: vi.fn(),
+    fetchResults,
+  };
+}
+
 describe('scrapeCycle', () => {
   beforeEach(() => {
-    mockGetElectoratePageHtml.mockReset();
-    mockIsCloudflareChallenge.mockReset();
     mockReadResults.mockReset();
     mockPublishMetrics.mockReset();
     mockReadResults.mockReturnValue([]);
@@ -34,79 +38,93 @@ describe('scrapeCycle', () => {
     vi.clearAllMocks();
   });
 
-  test('treats a Cloudflare challenge page as a failed fetch and falls back to cached results', async () => {
+  test('treats a fetch failure as a failed scrape and falls back to cached results', async () => {
     const config: ElectorateConfig = {
       electorateName: 'Auckland Central',
-      url: 'https://example.test/electorate-details-01.html',
+      url: 'https://example.test/e01/e01.xml',
     };
 
-    mockGetElectoratePageHtml.mockResolvedValue('<html>challenge</html>');
-    mockIsCloudflareChallenge.mockReturnValue(true);
-
-    const source: ElectionSource = {
-      getElectorateConfigs: () => [config],
-      parseRawResults: vi.fn().mockReturnValue({
-        electorateName: 'Auckland Central',
-        candidateVotes: [{ candidate: 'Alice', votes: 1000 }],
-        partyVotes: [{ candidate: 'Red Party', votes: 1000 }],
-        votesCounted: 1000,
-        votePercentageCounted: 0.5,
-      }),
-    };
+    const source = makeSource(
+      vi.fn().mockRejectedValue(new Error('fetch failed'))
+    );
 
     const payload = await scrapeCycle({
-      context: {} as BrowserContext,
       source,
       configs: [config],
-      candidateRecords: [],
-      partyMap: {},
       partyListRecords: [],
       concurrency: 1,
     });
 
-    expect(mockGetElectoratePageHtml).toHaveBeenCalledWith(
-      expect.anything(),
-      config
-    );
-    expect(source.parseRawResults).not.toHaveBeenCalled();
+    expect(source.fetchResults).toHaveBeenCalledWith(config);
     expect(payload.electorateResults).toHaveLength(0);
   });
 
-  test('parses real pages that are not challenge pages', async () => {
+  test('parses results returned by the source', async () => {
     const config: ElectorateConfig = {
       electorateName: 'Auckland Central',
-      url: 'https://example.test/electorate-details-01.html',
+      url: 'https://example.test/e01/e01.xml',
     };
 
-    mockGetElectoratePageHtml.mockResolvedValue('<html>real results</html>');
-    mockIsCloudflareChallenge.mockReturnValue(false);
-
-    const source: ElectionSource = {
-      getElectorateConfigs: () => [config],
-      parseRawResults: vi.fn().mockReturnValue({
+    const source = makeSource(
+      vi.fn().mockResolvedValue({
         electorateName: 'Auckland Central',
-        candidateVotes: [{ candidate: 'Alice', votes: 1000 }],
+        candidateVotes: [
+          { candidate: 'Alice', votes: 1000, party: 'Red Party' },
+        ],
         partyVotes: [{ candidate: 'Red Party', votes: 1000 }],
         votesCounted: 1000,
         votePercentageCounted: 0.5,
-      }),
-    };
+      })
+    );
 
     const payload = await scrapeCycle({
-      context: {} as BrowserContext,
       source,
       configs: [config],
-      candidateRecords: [{ Name: 'Alice', Party: 'Red Party' }],
-      partyMap: { Alice: 'Red Party' },
       partyListRecords: [],
       concurrency: 1,
     });
 
-    expect(source.parseRawResults).toHaveBeenCalledWith(
-      '<html>real results</html>',
-      config
-    );
+    expect(source.fetchResults).toHaveBeenCalledWith(config);
     expect(payload.electorateResults).toHaveLength(1);
-    expect(payload.electorateResults[0].electorateName).toBe('Auckland Central');
+    expect(payload.electorateResults[0].electorateName).toBe(
+      'Auckland Central'
+    );
+    expect(payload.electorateResults[0].candidateVotes[0].party).toBe(
+      'Red Party'
+    );
+  });
+
+  test('attributes the leading candidate party from the candidate itself', async () => {
+    const config: ElectorateConfig = {
+      electorateName: 'Auckland Central',
+      url: 'https://example.test/e01/e01.xml',
+    };
+
+    const source = makeSource(
+      vi.fn().mockResolvedValue({
+        electorateName: 'Auckland Central',
+        candidateVotes: [
+          { candidate: 'Alice', votes: 1000, party: 'Red Party' },
+          { candidate: 'Bob', votes: 500, party: 'Blue Party' },
+        ],
+        partyVotes: [{ candidate: 'Red Party', votes: 1000 }],
+        votesCounted: 1500,
+        votePercentageCounted: 0.5,
+      })
+    );
+
+    const payload = await scrapeCycle({
+      source,
+      configs: [config],
+      partyListRecords: [],
+      concurrency: 1,
+    });
+
+    expect(payload.electorateResults[0].leaders.leadingCandidateParty).toBe(
+      'Red Party'
+    );
+    expect(payload.electorateResults[0].leaders.secondCandidateParty).toBe(
+      'Blue Party'
+    );
   });
 });

@@ -84,97 +84,67 @@ describe('pipeline integration', () => {
     }
   }, 30_000);
 
-  test(
-    'collector scrapes mock server, dashboard receives update, and DB snapshot is written',
-    async () => {
-      const { loadCsvData } = await import('./csv-data.js');
-      const { NzElectionResultsSource } = await import(
-        '@election-night/core/sources/nz-election-results'
-      );
-      const { launch } = await import('cloakbrowser');
-      const { scrapeCycle } = await import('./scrape-cycle.js');
-      const { openDb, closeDb, writeResults } = await import('./db.js');
+  test('collector reads the mock XML feed, dashboard receives update, and DB snapshot is written', async () => {
+    const { NzElectionXmlSource } =
+      await import('@election-night/core/sources');
+    const { scrapeCycle } = await import('./scrape-cycle.js');
+    const { openDb, closeDb, writeResults } = await import('./db.js');
 
-      const {
-        candidateRecords,
-        partyListRecords,
-        electorateNames,
-        partyMap,
-      } = loadCsvData();
+    const source = new NzElectionXmlSource({
+      baseUrl: `http://localhost:${mockPort}/`,
+    });
+    const configs = await source.loadElectorates();
+    const partyListRecords = await source.loadPartyList();
 
-      const source = new NzElectionResultsSource({
-        baseUrl: `http://localhost:${mockPort}`,
-        electorateNames,
-        verbose: false,
-      });
-      const configs = source.getElectorateConfigs();
+    openDb(dbPath);
 
-      openDb(dbPath);
+    const payload = await scrapeCycle({
+      source,
+      configs,
+      partyListRecords,
+      concurrency: 5,
+    });
 
-      const browser = await launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-        ],
-      });
-      const context = await browser.newContext();
+    expect(payload.electorateResults.length).toBeGreaterThan(0);
+    expect(payload.partyVote.length).toBeGreaterThan(0);
+    expect(payload.partyLists.length).toBeGreaterThan(0);
 
-      const payload = await scrapeCycle({
-        context,
-        source,
-        configs,
-        candidateRecords,
-        partyMap,
-        partyListRecords,
-        concurrency: 5,
-      });
+    const clientSocket = io(`ws://localhost:${dashboardPort}`, {
+      transports: ['websocket', 'polling'],
+    });
+    const updatePromise = waitForSocketEvent<ResultsPayload>(
+      clientSocket,
+      'results_update'
+    );
 
-      await context.close();
-      await browser.close();
+    const collectorSocket = io(`ws://localhost:${dashboardPort}`, {
+      transports: ['websocket', 'polling'],
+    });
+    await waitForSocketEvent(collectorSocket, 'connect');
+    collectorSocket.emit('results_update', payload);
 
-      expect(payload.electorateResults.length).toBeGreaterThan(0);
-      expect(payload.partyVote.length).toBeGreaterThan(0);
+    const update = await updatePromise;
+    expect(update.electorateResults.length).toBe(
+      payload.electorateResults.length
+    );
+    expect(update.partyVote.length).toBe(payload.partyVote.length);
 
-      const clientSocket = io(`ws://localhost:${dashboardPort}`, {
-        transports: ['websocket', 'polling'],
-      });
-      const updatePromise = waitForSocketEvent<ResultsPayload>(
-        clientSocket,
-        'results_update'
-      );
+    writeResults(
+      payload.electorateResults,
+      payload.partyVote,
+      payload.partyLists
+    );
 
-      const collectorSocket = io(`ws://localhost:${dashboardPort}`, {
-        transports: ['websocket', 'polling'],
-      });
-      await waitForSocketEvent(collectorSocket, 'connect');
-      collectorSocket.emit('results_update', payload);
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const snapshots = conn.prepare('SELECT id FROM scrape_snapshots').all() as {
+      id: number;
+    }[];
+    conn.close();
+    expect(snapshots.length).toBe(1);
 
-      const update = await updatePromise;
-      expect(update.electorateResults.length).toBe(
-        payload.electorateResults.length
-      );
-      expect(update.partyVote.length).toBe(payload.partyVote.length);
-
-      writeResults(
-        payload.electorateResults,
-        payload.partyVote,
-        payload.partyLists
-      );
-
-      const Database = (await import('better-sqlite3')).default;
-      const conn = new Database(dbPath);
-      const snapshots = conn
-        .prepare('SELECT id FROM scrape_snapshots')
-        .all() as { id: number }[];
-      conn.close();
-      expect(snapshots.length).toBe(1);
-
-      clientSocket.disconnect();
-      collectorSocket.disconnect();
-      closeDb();
-    },
-    120_000
-  );
+    clientSocket.disconnect();
+    collectorSocket.disconnect();
+    closeDb();
+  }, 120_000);
 });

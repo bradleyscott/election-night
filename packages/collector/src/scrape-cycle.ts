@@ -1,4 +1,3 @@
-import type { BrowserContext } from 'playwright-core';
 import pLimit from 'p-limit';
 import { config } from '@election-night/core/config';
 import type {
@@ -6,6 +5,7 @@ import type {
   ElectorateResults,
   ElectionSource,
   PartyList,
+  RawElectorateResults,
   ResultsPayload,
 } from '@election-night/core/types';
 import {
@@ -16,7 +16,6 @@ import {
   predictWinner,
 } from '@election-night/core/reducers';
 import { log } from './logger.js';
-import { getElectoratePageHtml, isCloudflareChallenge } from './scraper.js';
 import { sleep } from './util.js';
 import { collectorConfig } from './config.js';
 import { publishMetrics } from './ws-client.js';
@@ -24,11 +23,8 @@ import { readResults } from './results.js';
 import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
 
 export type ScrapeCycleOptions = {
-  context: BrowserContext;
   source: ElectionSource;
   configs: ElectorateConfig[];
-  candidateRecords: Record<string, string>[];
-  partyMap: Record<string, string | undefined>;
   partyListRecords: PartyList[];
   concurrency: number;
 };
@@ -36,31 +32,19 @@ export type ScrapeCycleOptions = {
 export async function scrapeCycle(
   options: ScrapeCycleOptions
 ): Promise<ResultsPayload> {
-  const {
-    context,
-    source,
-    configs,
-    candidateRecords,
-    partyMap,
-    partyListRecords,
-    concurrency,
-  } = options;
+  const { source, configs, partyListRecords, concurrency } = options;
   const limit = pLimit(concurrency);
 
   async function fetchWithPacing(
-    context: BrowserContext,
     electorateConfig: ElectorateConfig
-  ): Promise<{ html: string; config: ElectorateConfig }> {
+  ): Promise<{ raw: RawElectorateResults; config: ElectorateConfig }> {
     // Gentle pacing between requests (jittered) so bursts don't trip
-    // Cloudflare rate limiting mid-cycle.
+    // rate limiting mid-cycle.
     await sleep(collectorConfig.fetchPacingMs * (0.5 + Math.random()));
     const startedAt = performance.now();
     try {
-      const html = await getElectoratePageHtml(context, electorateConfig);
-      if (isCloudflareChallenge(html, electorateConfig.url)) {
-        throw new Error('Cloudflare challenge page detected');
-      }
-      return { html, config: electorateConfig };
+      const raw = await source.fetchResults(electorateConfig);
+      return { raw, config: electorateConfig };
     } catch (reason) {
       const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
       const detail = reason instanceof Error ? reason.message : String(reason);
@@ -78,7 +62,7 @@ export async function scrapeCycle(
   const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   const settled = await Promise.allSettled(
-    configs.map((cfg) => limit(() => fetchWithPacing(context, cfg)))
+    configs.map((cfg) => limit(() => fetchWithPacing(cfg)))
   );
 
   const failedIndexes: number[] = [];
@@ -86,21 +70,15 @@ export async function scrapeCycle(
     if (s.status === 'rejected') failedIndexes.push(i);
   });
 
-  // One retry pass over failures once the browser context is warm (the
-  // Cloudflare challenge is solved by then and cf_clearance is in the jar).
-  // Skipped entirely when nothing succeeded at all — retrying would just
-  // double the burn time while the site is still blocking the IP.
-  const retried = new Map<
-    number,
-    PromiseSettledResult<{ html: string; config: ElectorateConfig }>
-  >();
+  // One retry pass over failures. Skipped entirely when nothing succeeded at
+  // all — retrying would just double the burn time while the feed is down.
+  type FetchResult = { raw: RawElectorateResults; config: ElectorateConfig };
+  const retried = new Map<number, PromiseSettledResult<FetchResult>>();
   const anySucceeded = settled.some((s) => s.status === 'fulfilled');
   if (failedIndexes.length > 0 && anySucceeded) {
     log.info(`Retrying ${failedIndexes.length} failed electorates...`);
     const retryResults = await Promise.allSettled(
-      failedIndexes.map((i) =>
-        limit(() => fetchWithPacing(context, configs[i]))
-      )
+      failedIndexes.map((i) => limit(() => fetchWithPacing(configs[i])))
     );
     failedIndexes.forEach((originalIndex, k) => {
       retried.set(originalIndex, retryResults[k]);
@@ -119,14 +97,11 @@ export async function scrapeCycle(
     const s = retried.get(i) ?? settled[i];
     const cfg = configs[i];
     if (s.status === 'fulfilled') {
-      const raw = source.parseRawResults(s.value.html, s.value.config);
+      const raw = s.value.raw;
       const electorateResults: ElectorateResults = {
         electorateName: raw.electorateName,
         partyVotes: raw.partyVotes,
-        candidateVotes: raw.candidateVotes.map((cv) => ({
-          ...cv,
-          party: candidateRecords.find((r) => r.Name === cv.candidate)?.Party,
-        })),
+        candidateVotes: raw.candidateVotes,
         votesCounted: raw.votesCounted,
         votePercentageCounted: raw.votePercentageCounted,
       };
@@ -174,9 +149,7 @@ export async function scrapeCycle(
   }
 
   const withPredictions = results
-    .map((x) =>
-      calculateLead({ ...x, candidateVotes: [...x.candidateVotes] }, partyMap)
-    )
+    .map((x) => calculateLead({ ...x, candidateVotes: [...x.candidateVotes] }))
     .map((x) => predictWinner(x, config.predictionConfidence));
 
   const partyVote = calculatePartyVoteWithSeats(

@@ -1,45 +1,185 @@
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { parse } from 'csv-parse/sync';
 import {
   generatePartialResults,
   type SyntheticElectorate,
 } from './synthetic-data.js';
 import type { ElectorateResults } from '@election-night/core/types';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const CSV_CANDIDATES = readFileSync(
-  resolve(__dirname, '../../../csv/candidates.csv'),
-  'utf-8'
-);
-const candidateRecords = parse(CSV_CANDIDATES, { columns: true }) as Record<
-  string,
-  string
->[];
-
 type CandidateInfo = { name: string; party?: string };
 
-const electorateCandidates = new Map<string, CandidateInfo[]>();
-for (const rec of candidateRecords) {
-  const name = rec.Name;
-  const electorate = rec.Electorate;
-  const party = rec.Party === 'Independent' ? undefined : rec.Party;
-  const list = electorateCandidates.get(electorate) ?? [];
-  list.push({ name, party });
-  electorateCandidates.set(electorate, list);
+/** Parties used by the mock. `abbrev` is used when serializing mock XML. */
+export const MOCK_PARTIES: { name: string; abbrev: string }[] = [
+  { name: 'National Party', abbrev: 'NAT' },
+  { name: 'Labour Party', abbrev: 'LAB' },
+  { name: 'Green Party', abbrev: 'GP' },
+  { name: 'ACT New Zealand', abbrev: 'ACT' },
+  { name: 'New Zealand First Party', abbrev: 'NZF' },
+  { name: 'Te Pāti Māori', abbrev: 'TPM' },
+  { name: 'The Opportunities Party (TOP)', abbrev: 'TOP' },
+];
+
+const ELECTORATE_NAMES: string[] = [
+  'Auckland Central',
+  'Banks Peninsula',
+  'Bay of Plenty',
+  'Botany',
+  'Christchurch Central',
+  'Christchurch East',
+  'Coromandel',
+  'Dunedin',
+  'East Coast',
+  'East Coast Bays',
+  'Epsom',
+  'Hamilton East',
+  'Hamilton West',
+  'Hutt South',
+  'Ilam',
+  'Invercargill',
+  'Kaikōura',
+  'Kaipara ki Mahurangi',
+  'Kelston',
+  'Mana',
+  'Māngere',
+  'Manurewa',
+  'Maungakiekie',
+  'Mt Albert',
+  'Mt Roskill',
+  'Napier',
+  'Nelson',
+  'New Lynn',
+  'New Plymouth',
+  'North Shore',
+  'Northcote',
+  'Northland',
+  'Ōhāriu',
+  'Ōtaki',
+  'Pakuranga',
+  'Palmerston North',
+  'Panmure-Ōtāhuhu',
+  'Papakura',
+  'Port Waikato',
+  'Rangitata',
+  'Rangitīkei',
+  'Remutaka',
+  'Rongotai',
+  'Rotorua',
+  'Selwyn',
+  'Southland',
+  'Taieri',
+  'Takanini',
+  'Tāmaki',
+  'Taranaki-King Country',
+  'Taupō',
+  'Tauranga',
+  'Te Atatū',
+  'Tukituki',
+  'Upper Harbour',
+  'Waikato',
+  'Waimakariri',
+  'Wairarapa',
+  'Waitaki',
+  'Wellington Central',
+  'West Coast-Tasman',
+  'Whanganui',
+  'Whangaparāoa',
+  'Whāngārei',
+  'Wigram',
+  'Hauraki-Waikato',
+  'Ikaroa-Rāwhiti',
+  'Tāmaki Makaurau',
+  'Te Tai Hauāuru',
+  'Te Tai Tokerau',
+  'Te Tai Tonga',
+  'Waiariki',
+];
+
+const SURNAMES = [
+  'SMITH',
+  'JOHNSON',
+  'WILLIAMS',
+  'BROWN',
+  'JONES',
+  'MILLER',
+  'DAVIS',
+  'WILSON',
+  'TAYLOR',
+  'MOORE',
+  'ANDERSON',
+  'THOMAS',
+  'JACKSON',
+  'WHITE',
+  'HARRIS',
+  'MARTIN',
+  'THOMPSON',
+  'GARCIA',
+  'MARTINEZ',
+  'ROBINSON',
+  'CLARK',
+  'LEWIS',
+  'WALKER',
+  'HALL',
+  'YOUNG',
+  'KING',
+  'WRIGHT',
+  'SCOTT',
+  'GREEN',
+  'BAKER',
+];
+
+const GIVEN_NAMES = [
+  'Alex',
+  'Bailey',
+  'Cameron',
+  'Dana',
+  'Eden',
+  'Frankie',
+  'Gray',
+  'Harper',
+  'Indigo',
+  'Jamie',
+  'Kai',
+  'Logan',
+  'Mackenzie',
+  'Nova',
+  'Oakley',
+  'Parker',
+  'Quinn',
+  'Riley',
+  'Sage',
+  'Taylor',
+  'Uma',
+  'Val',
+  'Wren',
+  'Xan',
+  'Yuki',
+  'Zoe',
+];
+
+/** Deterministic, collision-free within the first 780 candidates. */
+function mockCandidateName(n: number): string {
+  const surname = SURNAMES[n % SURNAMES.length];
+  const given =
+    GIVEN_NAMES[Math.floor(n / SURNAMES.length) % GIVEN_NAMES.length];
+  const cycle = Math.floor(n / (SURNAMES.length * GIVEN_NAMES.length));
+  return `${surname}${cycle > 0 ? ` ${cycle + 1}` : ''}, ${given}`;
 }
 
+export const MOCK_ELECTORATES: { name: string; candidates: CandidateInfo[] }[] =
+  ELECTORATE_NAMES.map((name, i) => {
+    const candidates: CandidateInfo[] = MOCK_PARTIES.map((party, k) => ({
+      name: mockCandidateName(i * 10 + k),
+      party: party.name,
+    }));
+    candidates.push({ name: mockCandidateName(i * 10 + 7) });
+    if (i % 3 === 0) candidates.push({ name: mockCandidateName(i * 10 + 8) });
+    return { name, candidates };
+  });
+
+const electorateCandidates = new Map<string, CandidateInfo[]>(
+  MOCK_ELECTORATES.map((e) => [e.name, e.candidates])
+);
+
 function getElectorateNames(): string[] {
-  const csv = readFileSync(
-    resolve(__dirname, '../../../csv/electorates.csv'),
-    'utf-8'
-  );
-  return csv
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return [...ELECTORATE_NAMES];
 }
 
 type VotePattern = {
@@ -383,10 +523,7 @@ function buildSyntheticElectorate(
       ([party, weight]) => ({ party, weight })
     );
 
-    const partyTotalWeight = partyWeights.reduce(
-      (s, pw) => s + pw.weight,
-      0
-    );
+    const partyTotalWeight = partyWeights.reduce((s, pw) => s + pw.weight, 0);
 
     for (const pw of partyWeights) {
       partyVoteMap.set(
@@ -401,9 +538,7 @@ function buildSyntheticElectorate(
     }
   }
 
-  const sortedParties = [...partyVoteMap.entries()].sort(
-    (a, b) => b[1] - a[1]
-  );
+  const sortedParties = [...partyVoteMap.entries()].sort((a, b) => b[1] - a[1]);
 
   return {
     name: electorateName,
@@ -431,26 +566,36 @@ function generateAtPct(
   return results;
 }
 
-const earlyPct = () => [0.85, 0.75, 0.40, 0.20, 0.15, 0.35, 0.15, 0.40, 0.15, 0.10, 0.25];
+const earlyPct = () => [
+  0.85, 0.75, 0.4, 0.2, 0.15, 0.35, 0.15, 0.4, 0.15, 0.1, 0.25,
+];
 
-const midPct = () => [0.95, 0.85, 0.65, 0.45, 0.40, 0.60, 0.40, 0.65, 0.40, 0.35, 0.50];
+const midPct = () => [
+  0.95, 0.85, 0.65, 0.45, 0.4, 0.6, 0.4, 0.65, 0.4, 0.35, 0.5,
+];
 
-const latePct = () => [1.0, 0.95, 0.95, 0.80, 0.75, 0.90, 0.75, 0.90, 0.85, 0.80, 0.85];
+const latePct = () => [
+  1.0, 0.95, 0.95, 0.8, 0.75, 0.9, 0.75, 0.9, 0.85, 0.8, 0.85,
+];
 
 const fullPct = () => [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
 const electorates = getElectorateNames();
 const assignments = assignElectorates(electorates);
 
-export const earlyCountResults = generateAtPct(assignments, (_, i) =>
-  earlyPct()[i]
+export const earlyCountResults = generateAtPct(
+  assignments,
+  (_, i) => earlyPct()[i]
 );
-export const midCountResults = generateAtPct(assignments, (_, i) =>
-  midPct()[i]
+export const midCountResults = generateAtPct(
+  assignments,
+  (_, i) => midPct()[i]
 );
-export const lateCountResults = generateAtPct(assignments, (_, i) =>
-  latePct()[i]
+export const lateCountResults = generateAtPct(
+  assignments,
+  (_, i) => latePct()[i]
 );
-export const fullCountResults = generateAtPct(assignments, (_, i) =>
-  fullPct()[i]
+export const fullCountResults = generateAtPct(
+  assignments,
+  (_, i) => fullPct()[i]
 );
