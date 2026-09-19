@@ -250,7 +250,7 @@
     },
     {
       "title": "Votes counted",
-      "description": "Total votes counted across all electorates, latest cycle.",
+      "description": "Total votes counted across all electorates, latest cycle. Formatted with locale grouping so the exact count is visible rather than abbreviated to \"3M\".",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -272,7 +272,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "locale"
         },
         "overrides": []
       },
