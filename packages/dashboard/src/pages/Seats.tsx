@@ -36,12 +36,6 @@ function AnimatedStat({
   );
 }
 
-function shortNumber(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1) + 'K';
-  return n.toLocaleString();
-}
-
 function SuccessfulCandidates({
   electorateResults,
   partyLists,
@@ -293,7 +287,6 @@ export default function Seats() {
             <AnimatedStat
               label="Votes cast"
               value={Math.round(totalVotesEstimate)}
-              format={shortNumber}
               delay={3}
             />
             <div
@@ -306,7 +299,9 @@ export default function Seats() {
                 {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
               </div>
               <div className="text-xs sm:text-xs text-muted-foreground mt-1">
-                {totalVotesCounted > 0 ? shortNumber(totalVotesCounted) + ' votes' : ''}
+                {totalVotesCounted > 0
+                  ? totalVotesCounted.toLocaleString() + ' votes'
+                  : ''}
               </div>
             </div>
           </div>

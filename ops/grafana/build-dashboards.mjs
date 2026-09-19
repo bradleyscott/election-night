@@ -282,9 +282,10 @@ const overview = dashboard({
     }),
     stat({
       title: 'Votes counted',
-      description: 'Total votes counted across all electorates, latest cycle.',
+      description:
+        'Total votes counted across all electorates, latest cycle. Formatted with locale grouping so the exact count is visible rather than abbreviated to "3M".',
       expr: `election_votes_counted`,
-      unit: 'short',
+      unit: 'locale',
       decimals: 0,
       thresholds: [green(null)],
     }),

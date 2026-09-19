@@ -22,6 +22,21 @@ describe('Seats page', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
+  test('shows the exact counted vote total, not an abbreviated one', () => {
+    render(
+      <BrowserRouter>
+        <MockSocketProvider results={mockResults} connected>
+          <Seats />
+        </MockSocketProvider>
+      </BrowserRouter>
+    );
+
+    // 25,000 counted votes must read as the full number (was "25K").
+    expect(
+      screen.getByText(`${(25000).toLocaleString()} votes`)
+    ).toBeInTheDocument();
+  });
+
   test('renders waiting state when no results are available', () => {
     render(
       <BrowserRouter>
