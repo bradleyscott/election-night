@@ -62,4 +62,4 @@ jobs:
       - name: Deploy to Fly
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl deploy --remote-only --image-label "main-${{ github.sha }}"
+        run: flyctl deploy --remote-only --image-label "main-${{ github.sha }}" --build-arg GIT_SHA=${{ github.sha }}

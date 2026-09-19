@@ -1,0 +1,18 @@
+# Loads the committed dashboard JSON into Grafana. With the managed Grafana at
+# fly-metrics.net these are imported instead (see ../README.md); this file is
+# for a self-hosted Grafana that mounts ops/grafana/dashboards at
+# /var/lib/grafana/dashboards.
+apiVersion: 1
+
+providers:
+  - name: election-night
+    orgId: 1
+    folder: Election Night
+    folderUid: election-night
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

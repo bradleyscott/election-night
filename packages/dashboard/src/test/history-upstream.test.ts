@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createHistorySource } from '../../server/history-upstream.js';
+import { register } from '../../server/metrics.js';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -103,9 +104,11 @@ describe('history source (collector REST API client)', () => {
   });
 
   it('clearCache drops cached values', async () => {
-    const fetchMock = vi.fn().mockImplementation(() =>
-      Promise.resolve(jsonResponse(200, [{ snapshotId: 1 }]))
-    );
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse(200, [{ snapshotId: 1 }]))
+      );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const source = createHistorySource({
@@ -128,5 +131,56 @@ describe('history source (collector REST API client)', () => {
       baseUrl: 'https://history.example.com',
     });
     await expect(source.snapshotMetas()).rejects.toThrow('responded 500');
+  });
+
+  it('records upstream and cache events', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, []));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    register.resetMetrics();
+
+    const source = createHistorySource({
+      baseUrl: 'https://history.example.com',
+      cacheTtlMs: 60_000,
+    });
+    await source.snapshotMetas(); // miss + ok
+    await source.snapshotMetas(); // hit
+
+    const output = await register.metrics();
+    expect(output).toContain(
+      'election_history_cache_events_total{result="miss"} 1'
+    );
+    expect(output).toContain(
+      'election_history_cache_events_total{result="hit"} 1'
+    );
+    expect(output).toContain(
+      'election_history_upstream_requests_total{route="/history/snapshots",outcome="ok"} 1'
+    );
+    expect(output).toContain(
+      'election_history_upstream_request_duration_seconds_count{route="/history/snapshots"} 1'
+    );
+  });
+
+  it('records a stale serve when the upstream fails after a cached response', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, [{ snapshotId: 1 }]))
+      .mockRejectedValueOnce(new Error('refused'));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    register.resetMetrics();
+
+    const source = createHistorySource({
+      baseUrl: 'https://history.example.com',
+      cacheTtlMs: 0,
+    });
+    await source.snapshotMetas();
+    await source.snapshotMetas(); // upstream down → stale cache served
+
+    const output = await register.metrics();
+    expect(output).toContain(
+      'election_history_upstream_requests_total{route="/history/snapshots",outcome="stale_served"} 1'
+    );
+    expect(output).toContain(
+      'election_history_cache_events_total{result="stale"} 1'
+    );
   });
 });

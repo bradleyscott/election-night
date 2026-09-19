@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import type { FeedEvent } from '@election-night/core/types';
 import { dashboardServerConfig } from './config.js';
-import { feedEventsTotal } from './metrics.js';
+import { feedEventsTotal, feedEventsStored } from './metrics.js';
 import { log } from './logger.js';
 
 export { buildFeedEvents } from './feed-events.js';
@@ -19,6 +19,7 @@ export function currentFeedEvents(): FeedEvent[] {
 /** Load persisted feed events from disk into module state. */
 export function loadFeedEvents(): void {
   feedEvents = readFeedEventsFromDisk();
+  feedEventsStored.set(feedEvents.length);
 }
 
 function readFeedEventsFromDisk(): FeedEvent[] {
@@ -34,6 +35,7 @@ function readFeedEventsFromDisk(): FeedEvent[] {
 
 export function resetFeedState(): void {
   feedEvents = [];
+  feedEventsStored.set(0);
 }
 
 function saveFeedEvents(events: FeedEvent[]) {
@@ -54,6 +56,7 @@ export function addFeedEvents(events: FeedEvent[]): FeedEvent[] {
   const newEvents = events.filter((e) => !existingIds.has(e.id));
   if (newEvents.length === 0) return newEvents;
   feedEvents = [...feedEvents, ...newEvents].slice(-MAX_FEED_EVENTS);
+  feedEventsStored.set(feedEvents.length);
   newEvents.forEach((event) => feedEventsTotal.inc({ type: event.type }));
   saveFeedEvents(feedEvents);
   return newEvents;

@@ -149,12 +149,56 @@ export type FeedEvent = {
 
 // ---- Metrics ----
 
+/** Bounded failure classes for `election_electorate_fetch_errors_total`. */
+export type ElectorateFetchErrorReason =
+  'timeout' | 'http' | 'parse' | 'network';
+
+/**
+ * Application-tier metric events.
+ *
+ * The collector records every one of these in its own registry (scraped from
+ * the collector's `/metrics`) and additionally publishes them to the dashboard
+ * server over Socket.io. The push is a best-effort mirror and a liveness
+ * heartbeat — the server timestamps receipt as
+ * `election_collector_metrics_last_received_timestamp_seconds` but does **not**
+ * re-register the series, so a metric is only ever exposed by one process.
+ */
 export type MetricEvent =
   | {
       metric: 'scrapeDurationSeconds';
       seconds: number;
       status: 'success' | 'partial' | 'error';
     }
-  | { metric: 'scrapeElectoratesTotal'; status: 'success' | 'error' | 'cached' }
+  | {
+      metric: 'scrapeElectoratesTotal';
+      outcome: 'success' | 'error' | 'cached';
+    }
   | { metric: 'collectorSocketConnected'; connected: boolean }
-  | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' };
+  | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' }
+  | {
+      metric: 'electorateFetchDurationSeconds';
+      seconds: number;
+      outcome: 'success' | 'error';
+    }
+  | {
+      metric: 'electorateFetchErrorsTotal';
+      reason: ElectorateFetchErrorReason;
+    }
+  | { metric: 'scrapeRetriedElectorates'; count: number }
+  | {
+      metric: 'votesCounted';
+      total: number;
+      reporting: number;
+      electorates: number;
+    }
+  | {
+      metric: 'webhookPublishDurationSeconds';
+      seconds: number;
+      status: 'success' | 'error';
+    }
+  | { metric: 'snapshotWritesTotal'; status: 'success' | 'error' }
+  | {
+      metric: 'dbWriteDurationSeconds';
+      seconds: number;
+      status: 'success' | 'error';
+    };

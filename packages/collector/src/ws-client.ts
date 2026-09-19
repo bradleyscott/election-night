@@ -51,6 +51,8 @@ export function connectWs(url: string) {
   socket.on('disconnect', (reason) => {
     log.warn(`Socket.io disconnected: ${reason}`);
     health.socketConnected = false;
+    // Record locally — the socket is down, so there is nothing to publish to.
+    emitCollectorSocketConnected(false);
   });
 }
 

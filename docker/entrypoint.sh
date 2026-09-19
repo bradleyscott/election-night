@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Entrypoint for the combined dashboard + collector image (Option A).
+# Entrypoint for the combined dashboard + collector image.
 #
 # Runs the dashboard server (public, port 3456) and the collector (loopback,
 # port 3459) in one machine so the two can talk over localhost with no

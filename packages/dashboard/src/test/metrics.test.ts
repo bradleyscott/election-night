@@ -1,10 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  applyMetricEvents,
+  buildInfo,
+  collectorMetricsLastReceived,
+  feedEventsStored,
   feedEventsTotal,
+  historyCacheEvents,
+  historyUpstreamDuration,
+  historyUpstreamTotal,
+  httpRequestDuration,
+  httpRequestsTotal,
   lastScrapeTimestampSeconds,
   metricsResponse,
+  noteCollectorHeartbeat,
   register,
+  socketMessagesTotal,
   websocketClients,
 } from '../../server/metrics.js';
 
@@ -13,44 +22,29 @@ describe('dashboard metrics', () => {
     register.resetMetrics();
   });
 
-  it('applies collector metric events and exposes them in Prometheus format', async () => {
-    applyMetricEvents([
-      { metric: 'scrapeDurationSeconds', seconds: 1.23, status: 'success' },
-      { metric: 'scrapeElectoratesTotal', status: 'success' },
-      { metric: 'scrapeElectoratesTotal', status: 'cached' },
-      { metric: 'scrapeElectoratesTotal', status: 'error' },
-      { metric: 'collectorSocketConnected', connected: true },
-      { metric: 'webhookPublishesTotal', status: 'success' },
-    ]);
-
-    const output = await metricsResponse();
-
-    expect(output).toContain(
-      'election_scrape_duration_seconds_sum{status="success"} 1.23'
-    );
-    expect(output).toContain(
-      'election_scrape_duration_seconds_count{status="success"} 1'
-    );
-    expect(output).toContain(
-      'election_scrape_electorates_total{status="success"} 1'
-    );
-    expect(output).toContain(
-      'election_scrape_electorates_total{status="cached"} 1'
-    );
-    expect(output).toContain(
-      'election_scrape_electorates_total{status="error"} 1'
-    );
-    expect(output).toContain('election_collector_socket_connected 1');
-    expect(output).toContain(
-      'election_webhook_publishes_total{status="success"} 1'
-    );
-  });
-
-  it('tracks dashboard-only gauges directly', async () => {
+  it('exposes server-owned gauges and counters in Prometheus format', async () => {
     websocketClients.set(5);
     lastScrapeTimestampSeconds.set(1234567890);
+    feedEventsStored.set(42);
     feedEventsTotal.inc({ type: 'leader_change' });
     feedEventsTotal.inc({ type: 'result_updated' });
+    socketMessagesTotal.inc({ direction: 'out', event: 'feed_update' });
+    httpRequestsTotal.inc({
+      method: 'GET',
+      route: '/api/history/snapshots',
+      status_code: '200',
+    });
+    httpRequestDuration.observe(
+      { method: 'GET', route: '/api/history/snapshots' },
+      0.02
+    );
+    historyCacheEvents.inc({ result: 'hit' });
+    historyUpstreamTotal.inc({
+      route: '/history/snapshots',
+      outcome: 'ok',
+    });
+    historyUpstreamDuration.observe({ route: '/history/snapshots' }, 0.01);
+    buildInfo.set({ version: 'test', revision: 'abc123' }, 1);
 
     const output = await metricsResponse();
 
@@ -58,22 +52,54 @@ describe('dashboard metrics', () => {
     expect(output).toContain(
       'election_last_scrape_timestamp_seconds 1234567890'
     );
+    expect(output).toContain('election_feed_events_stored 42');
     expect(output).toContain(
       'election_feed_events_total{type="leader_change"} 1'
     );
     expect(output).toContain(
-      'election_feed_events_total{type="result_updated"} 1'
+      'election_socket_messages_total{direction="out",event="feed_update"} 1'
+    );
+    expect(output).toContain(
+      'election_http_requests_total{method="GET",route="/api/history/snapshots",status_code="200"} 1'
+    );
+    expect(output).toContain(
+      'election_http_request_duration_seconds_count{method="GET",route="/api/history/snapshots"} 1'
+    );
+    expect(output).toContain(
+      'election_history_cache_events_total{result="hit"} 1'
+    );
+    expect(output).toContain(
+      'election_history_upstream_requests_total{route="/history/snapshots",outcome="ok"} 1'
+    );
+    expect(output).toContain(
+      'election_history_upstream_request_duration_seconds_count{route="/history/snapshots"} 1'
+    );
+    expect(output).toContain(
+      'election_build_info{version="test",revision="abc123"} 1'
     );
   });
 
-  it('marks the collector as disconnected when no metrics have arrived recently', async () => {
-    applyMetricEvents({ metric: 'collectorSocketConnected', connected: true });
-    // Force the freshness check to see stale data by manipulating private state is not
-    // exposed, so instead we validate the counter resets after an old event is applied
-    // by observing the output still reflects the last known value. The staleness window
-    // is 60s, which is impractical to wait for in a unit test; freshness is covered at
-    // the integration level by the /metrics handler timing itself.
+  it('records the collector heartbeat timestamp on demand', async () => {
+    collectorMetricsLastReceived.set(0);
+    noteCollectorHeartbeat();
+
     const output = await metricsResponse();
-    expect(output).toContain('election_collector_socket_connected 1');
+    const match = output.match(
+      /^election_collector_metrics_last_received_timestamp_seconds (\d+(?:\.\d+)?)$/m
+    );
+    expect(match).not.toBeNull();
+    expect(Number(match![1])).toBeGreaterThan(0);
+  });
+
+  it('scrapes without any collector events (no staleness side effects)', async () => {
+    const output = await metricsResponse();
+    expect(output).toContain('election_websocket_clients_connected');
+  });
+
+  it('does not expose collector-owned series from the server', async () => {
+    const output = await metricsResponse();
+    expect(output).not.toContain('election_scrape_duration_seconds');
+    expect(output).not.toContain('election_scrape_electorates_total');
+    expect(output).not.toContain('election_webhook_publishes_total');
   });
 });

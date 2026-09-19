@@ -2,8 +2,10 @@ import pLimit from 'p-limit';
 import { config } from '@election-night/core/config';
 import type {
   ElectorateConfig,
+  ElectorateFetchErrorReason,
   ElectorateResults,
   ElectionSource,
+  MetricEvent,
   PartyList,
   RawElectorateResults,
   ResultsPayload,
@@ -20,7 +22,14 @@ import { sleep } from './util.js';
 import { collectorConfig } from './config.js';
 import { publishMetrics } from './ws-client.js';
 import { readResults } from './results.js';
-import { emitScrapeDuration, emitScrapeElectorate } from './metrics.js';
+import {
+  emitElectorateFetchDuration,
+  emitElectorateFetchError,
+  emitScrapeDuration,
+  emitScrapeElectorate,
+  emitScrapeRetries,
+  emitVotesCounted,
+} from './metrics.js';
 
 export type ScrapeCycleOptions = {
   source: ElectionSource;
@@ -29,11 +38,49 @@ export type ScrapeCycleOptions = {
   concurrency: number;
 };
 
+/**
+ * Bucket a fetch failure into the bounded `reason` label. Messages come from
+ * `fetch` (network), the XML source (HTTP status / parse) or AbortSignal
+ * (timeout), so match on all three rather than trusting a single error type.
+ */
+export function classifyFetchError(
+  reason: unknown
+): ElectorateFetchErrorReason {
+  const name = reason instanceof Error ? reason.name : '';
+  const message = reason instanceof Error ? reason.message : String(reason);
+  const lower = message.toLowerCase();
+
+  if (
+    name === 'TimeoutError' ||
+    name === 'AbortError' ||
+    lower.includes('timed out') ||
+    lower.includes('timeout')
+  ) {
+    return 'timeout';
+  }
+  if (/\b[45]\d\d\b/.test(message) || lower.includes('http')) {
+    return 'http';
+  }
+  if (
+    name === 'SyntaxError' ||
+    lower.includes('parse') ||
+    lower.includes('xml') ||
+    lower.includes('unexpected token')
+  ) {
+    return 'parse';
+  }
+  return 'network';
+}
+
 export async function scrapeCycle(
   options: ScrapeCycleOptions
 ): Promise<ResultsPayload> {
   const { source, configs, partyListRecords, concurrency } = options;
   const limit = pLimit(concurrency);
+
+  // Metrics for work that happens inside the fetch stage, collected here and
+  // published with the rest of the cycle's events.
+  const cycleEvents: MetricEvent[] = [];
 
   async function fetchWithPacing(
     electorateConfig: ElectorateConfig
@@ -44,12 +91,20 @@ export async function scrapeCycle(
     const startedAt = performance.now();
     try {
       const raw = await source.fetchResults(electorateConfig);
+      cycleEvents.push(
+        emitElectorateFetchDuration(
+          (performance.now() - startedAt) / 1000,
+          'success'
+        )
+      );
       return { raw, config: electorateConfig };
     } catch (reason) {
-      const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
+      const elapsedSeconds = (performance.now() - startedAt) / 1000;
+      cycleEvents.push(emitElectorateFetchDuration(elapsedSeconds, 'error'));
+      cycleEvents.push(emitElectorateFetchError(classifyFetchError(reason)));
       const detail = reason instanceof Error ? reason.message : String(reason);
       log.error(
-        `${electorateConfig.electorateName}: fetch failed after ${elapsed}s (${detail})`
+        `${electorateConfig.electorateName}: fetch failed after ${elapsedSeconds.toFixed(1)}s (${detail})`
       );
       throw reason;
     }
@@ -88,6 +143,11 @@ export async function scrapeCycle(
       `Skipping retry pass: ${failedIndexes.length} electorates failed and none succeeded (site likely still blocking)`
     );
   }
+  cycleEvents.push(
+    emitScrapeRetries(
+      failedIndexes.length > 0 && anySucceeded ? failedIndexes.length : 0
+    )
+  );
 
   const results: ElectorateResults[] = [];
   type ElectorateSource = 'fresh' | 'cached' | 'failed';
@@ -197,7 +257,12 @@ export async function scrapeCycle(
       : results.length > 0
         ? 'partial'
         : 'error';
-  const events = [emitScrapeDuration(duration, status)];
+  const reporting = results.filter((r) => (r.votesCounted || 0) > 0).length;
+  const events: MetricEvent[] = [
+    emitScrapeDuration(duration, status),
+    emitVotesCounted(totalVotes, reporting, configs.length),
+    ...cycleEvents,
+  ];
   for (const electorateSource of electorateSources) {
     const electorateStatus =
       electorateSource === 'fresh'

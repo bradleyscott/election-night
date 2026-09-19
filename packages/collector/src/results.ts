@@ -12,7 +12,7 @@ import {
 } from '@election-night/core/diff';
 import { fetchWithRetry } from './retry.js';
 import { publishMetrics } from './ws-client.js';
-import { emitWebhookPublish } from './metrics.js';
+import { emitWebhookPublish, emitWebhookPublishDuration } from './metrics.js';
 import { collectorConfig } from './config.js';
 import { log } from './logger.js';
 
@@ -113,6 +113,7 @@ export async function sendWebhook(
     diff,
   };
 
+  const startedAt = performance.now();
   try {
     await fetchWithRetry(
       url,
@@ -125,9 +126,17 @@ export async function sendWebhook(
       },
       { maxAttempts: 3, baseDelayMs: 500 }
     );
-    publishMetrics(emitWebhookPublish('success'));
+    const seconds = (performance.now() - startedAt) / 1000;
+    publishMetrics([
+      emitWebhookPublish('success'),
+      emitWebhookPublishDuration(seconds, 'success'),
+    ]);
   } catch (e) {
-    publishMetrics(emitWebhookPublish('error'));
+    const seconds = (performance.now() - startedAt) / 1000;
+    publishMetrics([
+      emitWebhookPublish('error'),
+      emitWebhookPublishDuration(seconds, 'error'),
+    ]);
     log.error(
       `Webhook POST failed for ${event} on ${result.electorateName} after retries`,
       e

@@ -1,4 +1,4 @@
-# Combined production image (Option A): dashboard server + collector in one
+# Combined production image: dashboard server + collector in one
 # machine. The collector polls the Electoral Commission XML feed over plain
 # HTTPS (no browser, no residential egress required) and talks to the
 # dashboard server over loopback:
@@ -7,7 +7,7 @@
 #   HISTORY_UPSTREAM=http://127.0.0.1:3459
 #
 # Only port 3456 is public. SQLite and the caches live on a mounted volume
-# (see fly.toml). See docs/deployment-simplification.md.
+# (see fly.toml).
 
 FROM node:22 AS builder
 WORKDIR /app
@@ -42,6 +42,10 @@ FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Build revision for `election_build_info` (correlates graphs with deploys).
+ARG GIT_SHA="unknown"
+ENV GIT_SHA=$GIT_SHA
+
 RUN apt-get update && apt-get install -y --no-install-recommends bash \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /data
@@ -49,5 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends bash \
 COPY --from=builder /app /app
 COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 
-EXPOSE 3456
+# 3456: dashboard server (public). 3459: collector health/metrics/history
+# (loopback in production; also scraped by Fly's metrics collector).
+EXPOSE 3456 3459
 CMD ["bash", "/app/docker/entrypoint.sh"]
