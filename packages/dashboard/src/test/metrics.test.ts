@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   buildInfo,
   collectorMetricsLastReceived,
+  collectorMetricsReachable,
   feedEventsStored,
   feedEventsTotal,
   historyCacheEvents,
@@ -10,9 +11,10 @@ import {
   httpRequestDuration,
   httpRequestsTotal,
   lastScrapeTimestampSeconds,
-  metricsResponse,
+  mergeMetrics,
   noteCollectorHeartbeat,
   register,
+  serverMetrics,
   socketMessagesTotal,
   websocketClients,
 } from '../../server/metrics.js';
@@ -44,9 +46,10 @@ describe('dashboard metrics', () => {
       outcome: 'ok',
     });
     historyUpstreamDuration.observe({ route: '/history/snapshots' }, 0.01);
+    collectorMetricsReachable.set(1);
     buildInfo.set({ version: 'test', revision: 'abc123' }, 1);
 
-    const output = await metricsResponse();
+    const output = await serverMetrics();
 
     expect(output).toContain('election_websocket_clients_connected 5');
     expect(output).toContain(
@@ -74,6 +77,7 @@ describe('dashboard metrics', () => {
     expect(output).toContain(
       'election_history_upstream_request_duration_seconds_count{route="/history/snapshots"} 1'
     );
+    expect(output).toContain('election_collector_metrics_reachable 1');
     expect(output).toContain(
       'election_build_info{version="test",revision="abc123"} 1'
     );
@@ -83,7 +87,7 @@ describe('dashboard metrics', () => {
     collectorMetricsLastReceived.set(0);
     noteCollectorHeartbeat();
 
-    const output = await metricsResponse();
+    const output = await serverMetrics();
     const match = output.match(
       /^election_collector_metrics_last_received_timestamp_seconds (\d+(?:\.\d+)?)$/m
     );
@@ -92,14 +96,51 @@ describe('dashboard metrics', () => {
   });
 
   it('scrapes without any collector events (no staleness side effects)', async () => {
-    const output = await metricsResponse();
+    const output = await serverMetrics();
     expect(output).toContain('election_websocket_clients_connected');
   });
 
-  it('does not expose collector-owned series from the server', async () => {
-    const output = await metricsResponse();
+  it('does not expose collector-owned series from the server alone', async () => {
+    const output = await serverMetrics();
     expect(output).not.toContain('election_scrape_duration_seconds');
     expect(output).not.toContain('election_scrape_electorates_total');
-    expect(output).not.toContain('election_webhook_publishes_total');
+    expect(output).not.toContain('election_votes_counted');
+  });
+});
+
+describe('mergeMetrics', () => {
+  const serverText =
+    '# HELP election_build_info Build metadata; value is always 1\n' +
+    '# TYPE election_build_info gauge\n' +
+    'election_build_info{version="dev",revision="abc"} 1\n' +
+    '# HELP election_websocket_clients_connected Number of connected dashboard clients\n' +
+    '# TYPE election_websocket_clients_connected gauge\n' +
+    'election_websocket_clients_connected 3\n';
+
+  const collectorText =
+    '# HELP election_votes_counted Total votes counted\n' +
+    '# TYPE election_votes_counted gauge\n' +
+    'election_votes_counted 846000\n' +
+    '# HELP election_build_info Build metadata; value is always 1\n' +
+    '# TYPE election_build_info gauge\n' +
+    'election_build_info{version="dev",revision="abc"} 1\n';
+
+  it('appends the collector exposition to the server exposition', () => {
+    const merged = mergeMetrics(serverText, collectorText);
+    expect(merged).toContain('election_websocket_clients_connected 3');
+    expect(merged).toContain('election_votes_counted 846000');
+  });
+
+  it('drops the collector copy of a duplicated family so Prometheus can parse it', () => {
+    const merged = mergeMetrics(serverText, collectorText);
+    const helpLines = merged
+      .split('\n')
+      .filter((l) => l.startsWith('# HELP election_build_info'));
+    expect(helpLines).toHaveLength(1);
+    expect(merged.match(/^election_build_info\{/gm)).toHaveLength(1);
+  });
+
+  it('returns the server exposition unchanged when the collector is empty', () => {
+    expect(mergeMetrics(serverText, '')).toBe(serverText);
   });
 });
