@@ -1,0 +1,27 @@
+# Grafana provisioning for the Election Night dashboards.
+#
+# This mirrors Fly.io's managed Prometheus as a Grafana data source. Fly
+# publishes a Prometheus-compatible endpoint at
+# https://api.fly.io/prometheus/<org-slug>/ (see docs/observability.md §7).
+#
+# Replace REPLACE_ORG_SLUG and REPLACE_TOKEN, or configure the data source in
+# the Grafana UI instead. `flyctl orgs list` gives the org slug;
+# `fly tokens create readonly` gives a read-only token.
+#
+# Token schemes:
+#   FlyV1 <token>     tokens created with `fly tokens create`
+#   Bearer <token>    tokens from `flyctl auth token`
+apiVersion: 1
+
+datasources:
+  - name: Fly Prometheus
+    type: prometheus
+    access: proxy
+    url: https://api.fly.io/prometheus/REPLACE_ORG_SLUG/
+    isDefault: true
+    editable: true
+    jsonData:
+      httpHeaderName1: Authorization
+      timeInterval: 15s
+    secureJsonData:
+      httpHeaderValue1: FlyV1 REPLACE_TOKEN

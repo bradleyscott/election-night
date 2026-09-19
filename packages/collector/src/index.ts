@@ -6,7 +6,13 @@ import type {
 } from '@election-night/core/types';
 import { log } from './logger.js';
 import { openDb, closeDb, writeResults } from './db.js';
-import { connectWs, publishResults, disconnectWs } from './ws-client.js';
+import {
+  connectWs,
+  publishResults,
+  publishMetrics,
+  disconnectWs,
+} from './ws-client.js';
+import { emitSnapshotWrite } from './metrics.js';
 import { cacheResults, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
@@ -64,12 +70,26 @@ async function runOnce(): Promise<void> {
       concurrency: CONCURRENCY,
     });
 
-    writeResults(
-      payload.electorateResults,
-      payload.partyVote,
-      payload.partyLists,
-      collectorConfig.electionYear
-    );
+    const writeStartedAt = performance.now();
+    try {
+      writeResults(
+        payload.electorateResults,
+        payload.partyVote,
+        payload.partyLists,
+        collectorConfig.electionYear
+      );
+      publishMetrics(
+        emitSnapshotWrite(
+          (performance.now() - writeStartedAt) / 1000,
+          'success'
+        )
+      );
+    } catch (err) {
+      publishMetrics(
+        emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'error')
+      );
+      throw err;
+    }
     await processResults(payload.electorateResults);
     cacheResults(payload.electorateResults);
     publishResults(payload);

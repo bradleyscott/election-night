@@ -3,14 +3,19 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import type { ResultsPayload, MetricEvent } from '@election-night/core/types';
+import type { ResultsPayload } from '@election-night/core/types';
 import { createHistorySource, type HistorySource } from './history-upstream.js';
 import { dashboardServerConfig } from './config.js';
 import {
-  applyMetricEvents,
-  websocketClients,
+  httpRequestDuration,
+  httpRequestsTotal,
   lastScrapeTimestampSeconds,
+  noteCollectorHeartbeat,
+  setBuildInfo,
+  socketMessagesTotal,
+  websocketClients,
 } from './metrics.js';
+import { routeLabel } from './routes.js';
 import {
   serveHealth,
   serveMetrics,
@@ -38,6 +43,11 @@ const {
   distDir: DIST_DIR,
   maxFeedEvents: MAX_FEED_EVENTS,
 } = dashboardServerConfig;
+
+setBuildInfo(
+  process.env.APP_VERSION ?? 'dev',
+  process.env.GIT_SHA ?? 'unknown'
+);
 
 let latestResults: ResultsPayload | null = null;
 const feedMutex = new Mutex();
@@ -86,6 +96,23 @@ const server = createServer(
       ? new URL(req.url, `http://${req.headers.host || 'localhost'}`)
       : null;
 
+    // Per-route RED metrics. `finish` fires once the response is complete, so
+    // `statusCode` is final by then.
+    const startedAt = process.hrtime.bigint();
+    res.on('finish', () => {
+      const method = req.method ?? 'GET';
+      const route = routeLabel(url?.pathname ?? '/');
+      httpRequestsTotal.inc({
+        method,
+        route,
+        status_code: String(res.statusCode),
+      });
+      httpRequestDuration.observe(
+        { method, route },
+        Number(process.hrtime.bigint() - startedAt) / 1e9
+      );
+    });
+
     // POST /api/clear — reset feed state and notify all connected clients.
     // Optionally guarded by a shared secret when CLEAR_TOKEN is configured.
     if (req.method === 'POST' && url?.pathname === '/api/clear') {
@@ -102,6 +129,7 @@ const server = createServer(
         resetFeedState();
         historySource.clearCache();
         io.emit('clear');
+        socketMessagesTotal.inc({ direction: 'out', event: 'clear' });
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', message: 'Feed cleared' }));
@@ -142,19 +170,23 @@ io.on('connection', (socket) => {
 
   if (latestResults) {
     socket.emit('results_update', latestResults);
+    socketMessagesTotal.inc({ direction: 'out', event: 'results_update' });
   }
   const feedEvents = currentFeedEvents();
   if (feedEvents.length > 0) {
     socket.emit('feed_history', feedEvents);
+    socketMessagesTotal.inc({ direction: 'out', event: 'feed_history' });
   }
 
   socket.on('results_update', (payload: ResultsPayload) => {
+    socketMessagesTotal.inc({ direction: 'in', event: 'results_update' });
     withMutex(feedMutex, async () => {
       const previousResults = latestResults?.electorateResults ?? [];
       latestResults = payload;
       lastScrapeTimestampSeconds.set(Date.now() / 1000);
       log.info('Received results update, broadcasting...');
       socket.broadcast.emit('results_update', payload);
+      socketMessagesTotal.inc({ direction: 'out', event: 'results_update' });
 
       const rawEvents = buildFeedEvents(
         previousResults,
@@ -166,6 +198,7 @@ io.on('connection', (socket) => {
       if (newEvents.length > 0) {
         log.info(`Generated ${newEvents.length} feed events`);
         io.emit('feed_update', newEvents);
+        socketMessagesTotal.inc({ direction: 'out', event: 'feed_update' });
       }
     }).catch((err) => log.error('results_update handler failed:', err));
   });
@@ -175,8 +208,9 @@ io.on('connection', (socket) => {
     websocketClients.set(io.engine.clientsCount);
   });
 
-  socket.on('metrics', (events: MetricEvent | MetricEvent[]) => {
-    applyMetricEvents(events);
+  socket.on('metrics', () => {
+    socketMessagesTotal.inc({ direction: 'in', event: 'metrics' });
+    noteCollectorHeartbeat();
   });
 });
 

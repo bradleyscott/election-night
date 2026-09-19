@@ -9,7 +9,11 @@ to it. Amend intentionally — the file is the rule.
 - Theme · catalog: Newsprint (printed edition — grey-white stock, press ink,
   masthead red; not warm book-paper browns)
 - Axes · grey-white newsprint / high-contrast serif display / masthead red
-- Colour mode · follows OS `prefers-color-scheme` (no hardcoded `dark` class)
+- Colour mode · manual toggle, persisted in `localStorage`
+  (`election-night:theme`). **Light is the default** and the OS
+  `prefers-color-scheme` is deliberately ignored. `ThemeToggle` adds/removes the
+  `dark` class on `<html>`; an inline `<head>` script applies a saved choice
+  before first paint so there is no flash.
 
 ## Tokens (canonical · `packages/dashboard/src/styles/index.css` is the source of truth)
 ```css

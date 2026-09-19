@@ -30,6 +30,7 @@ fi
 REGION="${FLY_REGION:-syd}"
 ORG="${FLY_ORG:-personal}"
 YEAR="${ELECTION_YEAR:-2023}"
+GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 if [ "$MODE" = "destroy" ]; then
   echo "==> destroying $APP"
@@ -55,6 +56,7 @@ flyctl deploy \
   --app "$APP" \
   --remote-only \
   --ha=false \
+  --build-arg "GIT_SHA=$GIT_SHA" \
   --env "ELECTION_YEAR=$YEAR"
 
 echo "==> ensuring a public IP"
@@ -80,6 +82,10 @@ curl -sS --max-time 10 "$URL/health" || true
 echo
 echo "==> /ready"
 curl -sS --max-time 20 "$URL/ready" || true
+echo
+
+echo "==> /metrics (dashboard server series)"
+curl -sS --max-time 10 "$URL/metrics" | grep -E '^election_(http_requests_total|build_info|collector_metrics_last_received_timestamp_seconds)' || true
 echo
 
 echo "==> capturing 90s of logs to check the XML cycle"
