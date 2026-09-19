@@ -19,16 +19,14 @@ primary_region = "syd"
     path = "/health"
     protocol = "http"
 
-# Custom application metrics. Fly scrapes each target every 15s into its
-# managed Prometheus. The dashboard server owns HTTP/socket/feed/history
-# metrics; the collector owns scrape/cycle/webhook/DB metrics.
-[[metrics]]
+# Application metrics. Fly scrapes exactly ONE metrics endpoint per process —
+# multiple [[metrics]] sections only apply across Fly process groups, which are
+# separate Machines. So the dashboard server's /metrics merges the collector's
+# registry over loopback (COLLECTOR_METRICS_URL, defaulting to
+# <HISTORY_UPSTREAM>/metrics). The collector still serves /metrics on :3459 for
+# that merge and for standalone deployments.
+[metrics]
   port = 3456
-  path = "/metrics"
-
-# The collector's health port (loopback in the combined image).
-[[metrics]]
-  port = 3459
   path = "/metrics"
 
 # SQLite history and the result/feed caches must survive restarts and deploys.

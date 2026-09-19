@@ -13,13 +13,14 @@ progress.
 
 The system runs as one Fly.io app with two processes: the dashboard server
 (public, `:3456`) and the collector (loopback, `:3459`). Each owns a Prometheus
-registry and serves `GET /metrics`; Fly scrapes both.
+registry; Fly scrapes the server's endpoint, which merges the collector's.
 
 ## 1. Current instrumentation
 
 Two registries, so no series has two sources.
 
-**Dashboard server** — `packages/dashboard/server/metrics.ts`, scraped on `:3456`:
+**Dashboard server** — `packages/dashboard/server/metrics.ts`, served on
+`:3456` (the single Fly scrape target):
 
 | Metric                                                       | Type      | Labels                           |
 | ------------------------------------------------------------ | --------- | -------------------------------- |
@@ -28,6 +29,7 @@ Two registries, so no series has two sources.
 | `election_feed_events_stored`                                | Gauge     | —                                |
 | `election_last_scrape_timestamp_seconds`                     | Gauge     | —                                |
 | `election_collector_metrics_last_received_timestamp_seconds` | Gauge     | —                                |
+| `election_collector_metrics_reachable`                       | Gauge     | —                                |
 | `election_socket_messages_total`                             | Counter   | `direction`, `event`             |
 | `election_http_requests_total`                               | Counter   | `method`, `route`, `status_code` |
 | `election_http_request_duration_seconds`                     | Histogram | `method`, `route`                |
@@ -36,7 +38,8 @@ Two registries, so no series has two sources.
 | `election_history_cache_events_total`                        | Counter   | `result`                         |
 | `election_build_info`                                        | Gauge     | `version`, `revision`            |
 
-**Collector** — `packages/collector/src/metrics.ts`, scraped on `:3459`:
+**Collector** — `packages/collector/src/metrics.ts`, served on `:3459` and
+merged into the server's `/metrics` (see below):
 
 | Metric                                       | Type      | Labels                |
 | -------------------------------------------- | --------- | --------------------- |
@@ -67,11 +70,22 @@ Bounded label values:
 Histogram buckets are `0.05…120s` for cycles and `0.005…5s` for fetches,
 webhooks and DB writes.
 
-**How the two processes connect.** The collector still publishes each event over
-Socket.io, but only as a best-effort mirror and heartbeat: the server records
-receipt as `election_collector_metrics_last_received_timestamp_seconds` and does
-**not** re-register the series. If the socket drops, the collector's own
-`/metrics` still exposes the truth.
+**How the two processes connect.** Fly scrapes exactly one metrics endpoint per
+process — multiple `[[metrics]]` sections in `fly.toml` only apply across Fly
+_process groups_, which are separate Machines
+([community.fly.io/t/26251](https://community.fly.io/t/multiple-metrics-entries-without-process-groups/26251)).
+So `GET /metrics` on the server pulls the collector's exposition over loopback
+(`COLLECTOR_METRICS_URL`, default `<HISTORY_UPSTREAM>/metrics`,
+`packages/dashboard/server/collector-metrics.ts`) and appends it, dropping the
+collector's duplicate `election_build_info` family so the body has one HELP/TYPE
+line per family. `election_collector_metrics_reachable` is 1 when that merge
+succeeded on the last scrape and 0 otherwise; if the collector is unreachable
+the endpoint still serves the server's own series.
+
+The collector also publishes each event over Socket.io, but only as a
+best-effort heartbeat: the server records receipt as
+`election_collector_metrics_last_received_timestamp_seconds` and does **not**
+re-register the series.
 
 ## 2. Best practices this assessment uses
 
@@ -143,19 +157,19 @@ receipt as `election_collector_metrics_last_received_timestamp_seconds` and does
 
 ### 3.2 Gaps found, and how they were resolved
 
-| Severity | Gap                                                           | Resolution                                                                                                                                                                                                                         |
-| -------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0       | Collector metrics were pushed and lossy; it had no `/metrics` | The collector owns a registry and serves `/metrics` on `:3459`; `fly.toml` declares it as a second `[[metrics]]` target. The Socket.io push is now a heartbeat mirror only.                                                        |
-| P0       | No progress/datasource gauges                                 | `election_votes_counted`, `election_electorates_reporting`, `election_electorates_total` are emitted every cycle.                                                                                                                  |
-| P1       | No history-upstream or cache metrics                          | `election_history_upstream_requests_total{route,outcome}`, `..._duration_seconds{route}` and `election_history_cache_events_total{result}`; `outcome="stale_served"` is the app-tier signal that the collector became unreachable. |
-| P1       | No per-route HTTP metrics                                     | `election_http_requests_total` and `election_http_request_duration_seconds`, labelled with route templates via `routes.ts`.                                                                                                        |
-| P1       | Staleness was inferred by a hard-coded 60s hack               | Replaced by `election_collector_metrics_last_received_timestamp_seconds`, updated on every collector heartbeat; alert on its age.                                                                                                  |
-| P1       | The `status` label meant two different things                 | Electorate fetches now use `outcome` (`success`/`cached`/`error`); only cycle/webhook/DB metrics use `status`.                                                                                                                     |
-| P1       | No per-electorate fetch latency or error reason               | `election_electorate_fetch_duration_seconds{outcome}` and `election_electorate_fetch_errors_total{reason}`, plus `election_scrape_retried_electorates`.                                                                            |
-| P2       | Histogram buckets had nothing below 500ms                     | Cycle buckets now `0.05…120s`; fetch/webhook/DB buckets `0.005…5s`.                                                                                                                                                                |
-| P2       | No build/version metric                                       | `election_build_info{version,revision}` on both processes, fed by `APP_VERSION` / `GIT_SHA` at build time.                                                                                                                         |
-| P2       | Feed retention was unobservable                               | `election_feed_events_stored`, to compare against `MAX_FEED_EVENTS`.                                                                                                                                                               |
-| P2       | No committed dashboards                                       | `ops/grafana/` holds three generator-built dashboards plus provisioning.                                                                                                                                                           |
+| Severity | Gap                                                           | Resolution                                                                                                                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0       | Collector metrics were pushed and lossy; it had no `/metrics` | The collector owns a registry and serves `/metrics` on `:3459`. Fly scrapes only one endpoint per process, so the server's `/metrics` merges it over loopback (`election_collector_metrics_reachable` tracks that hop). The Socket.io push is now a heartbeat mirror only. |
+| P0       | No progress/datasource gauges                                 | `election_votes_counted`, `election_electorates_reporting`, `election_electorates_total` are emitted every cycle.                                                                                                                                                          |
+| P1       | No history-upstream or cache metrics                          | `election_history_upstream_requests_total{route,outcome}`, `..._duration_seconds{route}` and `election_history_cache_events_total{result}`; `outcome="stale_served"` is the app-tier signal that the collector became unreachable.                                         |
+| P1       | No per-route HTTP metrics                                     | `election_http_requests_total` and `election_http_request_duration_seconds`, labelled with route templates via `routes.ts`.                                                                                                                                                |
+| P1       | Staleness was inferred by a hard-coded 60s hack               | Replaced by `election_collector_metrics_last_received_timestamp_seconds`, updated on every collector heartbeat; alert on its age.                                                                                                                                          |
+| P1       | The `status` label meant two different things                 | Electorate fetches now use `outcome` (`success`/`cached`/`error`); only cycle/webhook/DB metrics use `status`.                                                                                                                                                             |
+| P1       | No per-electorate fetch latency or error reason               | `election_electorate_fetch_duration_seconds{outcome}` and `election_electorate_fetch_errors_total{reason}`, plus `election_scrape_retried_electorates`.                                                                                                                    |
+| P2       | Histogram buckets had nothing below 500ms                     | Cycle buckets now `0.05…120s`; fetch/webhook/DB buckets `0.005…5s`.                                                                                                                                                                                                        |
+| P2       | No build/version metric                                       | `election_build_info{version,revision}` on both processes, fed by `APP_VERSION` / `GIT_SHA` at build time.                                                                                                                                                                 |
+| P2       | Feed retention was unobservable                               | `election_feed_events_stored`, to compare against `MAX_FEED_EVENTS`.                                                                                                                                                                                                       |
+| P2       | No committed dashboards                                       | `ops/grafana/` holds three generator-built dashboards plus provisioning.                                                                                                                                                                                                   |
 
 ### 3.3 Still open
 
@@ -192,14 +206,18 @@ collector (:3459)         ─┘
   classification (`classifyFetchError`), retry count, and votes/reporting gauges.
 - `packages/collector/src/results.ts`, `index.ts` — webhook duration and
   snapshot-write/db-write timing.
-- `packages/dashboard/server/metrics.ts` — server registry and
-  `noteCollectorHeartbeat()`.
+- `packages/dashboard/server/collector-metrics.ts` — pulls and merges the
+  collector exposition into `GET /metrics` (the single Fly scrape target).
+- `packages/dashboard/server/metrics.ts` — server registry,
+  `noteCollectorHeartbeat()`, `mergeMetrics()`.
+- `packages/dashboard/server/config.ts` — `COLLECTOR_METRICS_URL`, derived from
+  `HISTORY_UPSTREAM` by default.
 - `packages/dashboard/server/routes.ts` — bounded route labels.
 - `packages/dashboard/server/index.ts` — HTTP timing on `res.on('finish')` and
   socket message counters.
 - `packages/dashboard/server/history-upstream.ts` — upstream/cache instrumentation.
 - `packages/dashboard/server/feed.ts` — stored-events gauge.
-- `fly.toml` — two `[[metrics]]` scrape targets.
+- `fly.toml` — the single `[metrics]` scrape target (`:3456`).
 - `ops/grafana/` — dashboards, generator and provisioning.
 
 ## 5. Grafana dashboards
@@ -243,6 +261,7 @@ rules against the Fly Prometheus data source (§7).
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------- |
 | Pipeline stalled                  | `time() - election_last_scrape_timestamp_seconds > 3 * $POLL` OR `time() - election_collector_metrics_last_received_timestamp_seconds > 3 * $POLL` | 2m  | critical |
 | Collector disconnected            | `election_collector_socket_connected == 0`                                                                                                         | 5m  | critical |
+| Collector metrics merge failing   | `election_collector_metrics_reachable == 0`                                                                                                        | 5m  | warning  |
 | Electorate fetch error ratio high | `sum(rate(election_scrape_electorates_total{outcome="error"}[10m])) / sum(rate(election_scrape_electorates_total[10m])) > 0.1`                     | 10m | warning  |
 | Data going stale (serving cache)  | `sum(rate(election_scrape_electorates_total{outcome="cached"}[10m])) > 0`                                                                          | 15m | warning  |
 | Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket[15m]))) > 60`                                                  | 15m | warning  |
@@ -266,9 +285,12 @@ Fly's machine dashboards to find the cause.
 Fly.io already runs the collection tier, so there is no Prometheus to deploy and
 no scrape config to write.
 
-- **Scraping is automatic.** Fly scrapes every `[[metrics]]` section of
-  `fly.toml` — currently `:3456` (dashboard server) and `:3459` (collector) —
-  every 15s into its managed Prometheus (VictoriaMetrics-backed).
+- **Scraping is automatic, but one endpoint per process.** Fly scrapes the
+  `[metrics]` section of `fly.toml` (`:3456`) every 15s into its managed
+  Prometheus (VictoriaMetrics-backed). Multiple `[[metrics]]` sections are only
+  honoured across Fly _process groups_ (separate Machines), which is why the
+  collector's registry is merged into that one endpoint rather than scraped
+  directly.
 - **Query endpoint.** `https://api.fly.io/prometheus/<org-slug>/` with an
   `Authorization: Bearer <token>` (or `FlyV1 <token>`) header.
 - **Dashboards.** A preconfigured Grafana instance lives at

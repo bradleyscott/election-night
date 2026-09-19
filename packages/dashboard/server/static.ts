@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import { extname, resolve, sep } from 'path';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { register, metricsResponse } from './metrics.js';
+import { register } from './metrics.js';
+import { collectMetricsBody } from './collector-metrics.js';
 import { dashboardServerConfig } from './config.js';
 import type { HistorySource } from './history-upstream.js';
 import { evaluateReady } from './ready-check.js';
@@ -41,7 +42,7 @@ function sendFile(
 }
 
 export async function serveMetrics(_req: IncomingMessage, res: ServerResponse) {
-  const metrics = await metricsResponse();
+  const metrics = await collectMetricsBody();
   res.writeHead(200, { 'Content-Type': register.contentType });
   res.end(metrics);
 }

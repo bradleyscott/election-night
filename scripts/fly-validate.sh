@@ -84,8 +84,18 @@ echo "==> /ready"
 curl -sS --max-time 20 "$URL/ready" || true
 echo
 
-echo "==> /metrics (dashboard server series)"
-curl -sS --max-time 10 "$URL/metrics" | grep -E '^election_(http_requests_total|build_info|collector_metrics_last_received_timestamp_seconds)' || true
+echo "==> /metrics (server series + merged collector series)"
+# The collector metrics only appear after its first cycle, so retry briefly.
+for _ in $(seq 1 12); do
+  METRICS="$(curl -sS --max-time 10 "$URL/metrics" || true)"
+  if printf '%s' "$METRICS" | grep -q '^election_votes_counted'; then break; fi
+  sleep 5
+done
+printf '%s\n' "$METRICS" | grep -E '^election_(http_requests_total|build_info|collector_metrics_reachable|votes_counted)' || true
+if ! printf '%s' "$METRICS" | grep -q '^election_votes_counted'; then
+  echo "ERROR: collector metrics were not merged into /metrics" >&2
+  exit 1
+fi
 echo
 
 echo "==> capturing 90s of logs to check the XML cycle"

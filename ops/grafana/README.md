@@ -6,13 +6,20 @@ inventory, the best-practice assessment and the alert definitions live in
 
 ## Where the data comes from
 
-Fly.io scrapes the metrics itself — there is no Prometheus to run:
+Fly.io scrapes the metrics itself — there is no Prometheus to run — but it
+scrapes **one endpoint per process**, so `fly.toml` declares a single `[metrics]`
+target:
 
-- `fly.toml` declares two `[[metrics]]` targets, both every 15s:
-  - **:3456** — dashboard server metrics (HTTP, sockets, feed, history upstream,
-    collector liveness).
-  - **:3459** — collector metrics (scrape cycles, per-electorate fetches,
-    webhooks, SQLite writes, count progress).
+- **:3456** — the dashboard server. Its `/metrics` merges the collector's
+  registry over loopback (`COLLECTOR_METRICS_URL`, default
+  `<HISTORY_UPSTREAM>/metrics`) and appends it to its own HTTP, socket, feed and
+  history-upstream series. Fly has no way to scrape `:3459` directly
+  ([community.fly.io/t/26251](https://community.fly.io/t/multiple-metrics-entries-without-process-groups/26251)).
+
+`election_collector_metrics_reachable` is 1 when that merge succeeded on the last
+scrape and 0 otherwise, so a broken collector shows up rather than silently
+dropping its series.
+
 - The series land in Fly's managed Prometheus at
   `https://api.fly.io/prometheus/<org-slug>/` (~15 day retention). Machine
   metrics (`fly_instance_*`, `fly_edge_*`, `fly_volume_*`) are published

@@ -50,6 +50,18 @@ export const collectorMetricsLastReceived = new Gauge({
   registers: [register],
 });
 
+/**
+ * Whether `GET /metrics` reached and merged the collector's registry on the last
+ * scrape. Fly scrapes exactly one metrics endpoint per process, so the
+ * collector's series are pulled through this server rather than scraped
+ * directly — this gauge is how you alert on that hop breaking.
+ */
+export const collectorMetricsReachable = new Gauge({
+  name: 'election_collector_metrics_reachable',
+  help: "1 when the collector's metrics were merged on the last scrape (or merging is disabled), 0 when the collector was unreachable",
+  registers: [register],
+});
+
 export const socketMessagesTotal = new Counter({
   name: 'election_socket_messages_total',
   help: 'Socket.io messages handled by the dashboard server',
@@ -118,12 +130,50 @@ export function setBuildInfo(version: string, revision: string): void {
 const startedAtSeconds = Date.now() / 1000;
 lastScrapeTimestampSeconds.set(startedAtSeconds);
 collectorMetricsLastReceived.set(startedAtSeconds);
+// 0 until the first successful merge, so an unreachable collector is visible
+// immediately rather than as an absent series.
+collectorMetricsReachable.set(0);
 
 /** Called whenever the collector publishes anything over Socket.io. */
 export function noteCollectorHeartbeat(): void {
   collectorMetricsLastReceived.set(Date.now() / 1000);
 }
 
-export async function metricsResponse(): Promise<string> {
+/** The metrics owned by this process, without the collector merge. */
+export async function serverMetrics(): Promise<string> {
   return register.metrics();
+}
+
+/** Drop a whole metric family (HELP, TYPE and samples) from an exposition. */
+function stripMetricFamily(text: string, name: string): string {
+  return text
+    .split('\n')
+    .filter(
+      (line) =>
+        !line.startsWith(`# HELP ${name}`) &&
+        !line.startsWith(`# TYPE ${name}`) &&
+        !line.startsWith(`${name} `) &&
+        !line.startsWith(`${name}{`)
+    )
+    .join('\n');
+}
+
+/**
+ * Merge the collector's registry into this process's exposition.
+ *
+ * Prometheus rejects a body with a duplicate HELP/TYPE line for the same metric
+ * family, and both processes expose `election_build_info`, so the collector's
+ * copy is dropped. Both run the same image, and the collector's own `/metrics`
+ * still serves its copy for standalone deployments.
+ */
+export function mergeMetrics(
+  serverText: string,
+  collectorText: string
+): string {
+  const collector = stripMetricFamily(
+    collectorText,
+    'election_build_info'
+  ).trim();
+  if (!collector) return serverText;
+  return `${serverText.trimEnd()}\n${collector}\n`;
 }

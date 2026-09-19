@@ -25,6 +25,18 @@ const dashboardServerConfigSchema = z.object({
     .describe(
       'Base URL of the collector history REST API. The server never reads a SQLite DB — it always fetches /api/history/* from here. Default suits a co-located collector; point it at the collector in split deployments'
     ),
+  /**
+   * Fly scrapes exactly one metrics endpoint per process, so `GET /metrics` on
+   * the server merges the collector's registry over loopback. Unset derives it
+   * from `HISTORY_UPSTREAM` (the collector's health port also serves /metrics);
+   * set it to an empty string to disable the merge.
+   */
+  collectorMetricsUrl: z
+    .string()
+    .optional()
+    .describe(
+      'URL of the collector application metrics merged into GET /metrics. Defaults to <HISTORY_UPSTREAM>/metrics; set empty to disable'
+    ),
   clearToken: z
     .string()
     .optional()
@@ -44,6 +56,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     feedCachePath: process.env.FEED_CACHE_PATH,
     maxFeedEvents: process.env.MAX_FEED_EVENTS,
     historyUpstream: process.env.HISTORY_UPSTREAM,
+    collectorMetricsUrl: process.env.COLLECTOR_METRICS_URL,
     clearToken: process.env.CLEAR_TOKEN,
   });
 
@@ -55,7 +68,14 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     process.exit(1);
   }
 
-  return parsed.data;
+  const config = parsed.data;
+  config.collectorMetricsUrl =
+    config.collectorMetricsUrl === ''
+      ? undefined
+      : (config.collectorMetricsUrl ??
+        `${config.historyUpstream.replace(/\/+$/, '')}/metrics`);
+
+  return config;
 }
 
 export const dashboardServerConfig = loadDashboardServerConfig();
