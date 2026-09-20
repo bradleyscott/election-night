@@ -30,13 +30,21 @@
       "types": "./dist/history.d.ts",
       "default": "./dist/history.js"
     },
+    "./electorate-names": {
+      "types": "./dist/electorate-names.d.ts",
+      "default": "./dist/electorate-names.js"
+    },
+    "./electorate-successions": {
+      "types": "./dist/electorate-successions.d.ts",
+      "default": "./dist/electorate-successions.js"
+    },
+    "./election-results-service": {
+      "types": "./dist/election-results-service.d.ts",
+      "default": "./dist/election-results-service.js"
+    },
     "./sources": {
       "types": "./dist/sources/index.d.ts",
       "default": "./dist/sources/index.js"
-    },
-    "./sources/nz-election-results": {
-      "types": "./dist/sources/nz-election-results.d.ts",
-      "default": "./dist/sources/nz-election-results.js"
     }
   },
   "files": [

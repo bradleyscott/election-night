@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
-import { useElectorateHistory } from '../hooks/useVoteHistory.js';
+import {
+  useElectorateHistory,
+  usePriorWinners,
+} from '../hooks/useVoteHistory.js';
 import { ElectorateSearch } from '../components/ElectorateSearch.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateDetail } from '../components/ElectorateDetail.js';
@@ -43,6 +46,20 @@ export default function Electorates() {
     : null;
 
   const { data: historyData } = useElectorateHistory(selectedName);
+  // Prior winners are only worth fetching once a seat is open: the collector
+  // derives them lazily from the archive on first request.
+  const {
+    data: prior,
+    unavailable: priorUnavailable,
+    loading: priorLoading,
+  } = usePriorWinners(!!selectedName);
+
+  const priorWinners = useMemo(() => {
+    if (!selectedName || !prior) return [];
+    return prior.years.flatMap((year) =>
+      year.winners.filter((w) => w.electorateName === selectedName)
+    );
+  }, [prior, selectedName]);
 
   if (!electorates.length) {
     return (
@@ -119,6 +136,8 @@ export default function Electorates() {
             showPartyVote={showPartyVote}
             onTogglePartyVote={setShowPartyVote}
             historyData={historyData}
+            priorWinners={priorLoading ? undefined : priorWinners}
+            priorUnavailable={priorUnavailable}
           />
         )}
       </div>

@@ -13,6 +13,10 @@ export function routeLabel(pathname: string): string {
   }
   if (pathname === '/api/history/party-votes')
     return '/api/history/party-votes';
+  if (pathname === '/api/history/prior-winners')
+    return '/api/history/prior-winners';
+  if (pathname.startsWith('/api/history/results/'))
+    return '/api/history/results/:year';
   if (pathname === '/health') return '/health';
   if (pathname === '/ready') return '/ready';
   if (pathname === '/metrics') return '/metrics';

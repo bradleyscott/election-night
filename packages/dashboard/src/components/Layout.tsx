@@ -10,6 +10,7 @@ const navItems = [
   { to: '/', label: 'Seats' },
   { to: '/electorates', label: 'Electorates' },
   { to: '/close-calls', label: 'Close Calls' },
+  { to: '/flipped', label: 'Flipped' },
   { to: '/feed', label: 'Feed' },
   { to: '/trends', label: 'Trends' },
   { to: '/parties', label: 'Party lists' },

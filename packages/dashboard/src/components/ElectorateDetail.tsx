@@ -1,5 +1,6 @@
 import { ElectorateStats } from './ElectorateStats.js';
 import { ElectorateResultsTable } from './ElectorateResultsTable.js';
+import { PastWinners } from './PastWinners.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
 import { cn } from '../lib/utils.js';
 import type {
@@ -8,7 +9,10 @@ import type {
   WithMarginOfError,
   VotingResults,
 } from '@election-night/core/types';
-import type { ElectorateHistoryPoint } from '../lib/history-types.js';
+import type {
+  ElectorateHistoryPoint,
+  PriorWinner,
+} from '../lib/history-types.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
@@ -17,11 +21,16 @@ export function ElectorateDetail({
   showPartyVote,
   onTogglePartyVote,
   historyData,
+  priorWinners,
+  priorUnavailable,
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
   onTogglePartyVote: (showPartyVote: boolean) => void;
   historyData: ElectorateHistoryPoint[] | null;
+  /** This seat's prior-cycle winners, newest first; empty when none apply. */
+  priorWinners?: PriorWinner[];
+  priorUnavailable?: boolean;
 }) {
   const leadingPartyVote = [...result.partyVotes].sort(
     (a, b) => b.votes - a.votes
@@ -68,10 +77,15 @@ export function ElectorateDetail({
         leadingPartyVote={leadingPartyVote ?? null}
       />
 
-      <ElectorateResultsTable
-        result={result}
-        showPartyVote={showPartyVote}
-      />
+      <ElectorateResultsTable result={result} showPartyVote={showPartyVote} />
+
+      {priorWinners !== undefined && (
+        <PastWinners
+          winners={priorWinners}
+          unavailable={priorUnavailable ?? false}
+          currentLeaderParty={result.leaders.leadingCandidateParty}
+        />
+      )}
 
       {historyData && historyData.length > 1 && (
         <VoteHistoryChart

@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
+import type { ElectionResultsService } from '@election-night/core/election-results-service';
 import { log } from './logger.js';
 
 /**
@@ -9,6 +10,11 @@ import { log } from './logger.js';
  * data: the dashboard server never opens a SQLite DB, it always fetches
  * from here — co-located processes over loopback, split deployments over
  * TLS via a reverse proxy.
+ *
+ * Two routes are not DB queries: `/history/results/:year` and
+ * `/history/prior-winners` are answered from the in-memory
+ * `ElectionResultsService` (the live cycle's latest scrape plus archived
+ * cycles fetched lazily from the configured connector).
  *
  * The data is public election results, so the endpoints are unauthenticated.
  * Rate limiting is deliberately not implemented here — it belongs at the
@@ -24,6 +30,11 @@ export interface HistoryHandlerOptions {
    * charts. Requests may override it with `?year=YYYY`.
    */
   electionYear?: string;
+  /**
+   * Serves `/history/results/:year` and `/history/prior-winners` from memory.
+   * Absent in tests and any embedding that only wants the DB-backed routes.
+   */
+  resultsService?: ElectionResultsService;
 }
 
 let db: Database.Database | null = null;
@@ -199,7 +210,7 @@ function getPartyVoteHistory(
 export function createHistoryHandler(
   options: HistoryHandlerOptions
 ): (req: IncomingMessage, res: ServerResponse) => boolean {
-  const { dbPath, electionYear } = options;
+  const { dbPath, electionYear, resultsService } = options;
 
   return (req, res) => {
     const url = req.url ?? '';
@@ -209,13 +220,50 @@ export function createHistoryHandler(
       return true;
     }
 
+    const [pathname, query] = url.split('?');
+
+    // Year-scoped results and prior winners are held in memory by the results
+    // service (historical cycles are immutable; the live cycle is pushed in by
+    // the scrape loop), so they are answered without touching the DB. The
+    // handler stays synchronous: the response is written when the fetch (on
+    // first request for a cycle, a couple of seconds) settles.
+    if (resultsService) {
+      if (pathname === '/history/prior-winners') {
+        resultsService.getPriorWinners().then(
+          (prior) => sendJson(res, 200, prior),
+          (err) => {
+            log.error('Prior winners lookup failed', err);
+            sendJson(res, 500, { error: 'query failed' });
+          }
+        );
+        return true;
+      }
+
+      const resultsMatch = pathname!.match(/^\/history\/results\/(\d{4})$/);
+      if (resultsMatch) {
+        const requested = resultsMatch[1]!;
+        resultsService.getResults(requested).then(
+          (results) =>
+            results
+              ? sendJson(res, 200, results)
+              : sendJson(res, 404, {
+                  error: `no results available for ${requested}`,
+                }),
+          (err) => {
+            log.error(`Results lookup failed for ${requested}`, err);
+            sendJson(res, 500, { error: 'query failed' });
+          }
+        );
+        return true;
+      }
+    }
+
     const handle = getDb(dbPath);
     if (!handle) {
       sendJson(res, 503, { error: 'database not available yet' });
       return true;
     }
 
-    const [pathname, query] = url.split('?');
     const requestedYear = new URLSearchParams(query ?? '').get('year');
     const year = resolveElectionYear(handle, requestedYear, electionYear);
     if (!year) {

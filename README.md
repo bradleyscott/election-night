@@ -13,11 +13,14 @@ This started as a project for a 2023 election night party — the goal was to av
   - Parliament seat grid and party vote breakdown
   - Electorate list with map, search, and per-electorate detail pages
   - "Close Calls" view
+  - "Flipped" view — seats held by one party last election that a different party is leading now, with the previous holder's margin of victory ([notes](docs/prior-election-results.md))
+  - Past winners per electorate, back to the oldest archived cycle
   - Live feed / commentary timeline
   - Trends page with historical charts
 - **Real-time** — Socket.io broadcasts results from the collector to all connected web clients instantly.
 - **Metrics** — both processes expose application-tier Prometheus metrics (`GET /metrics`): the dashboard server covers scrape freshness, socket delivery, feed state and the history API; the collector covers per-cycle timing, per-electorate fetch outcomes, webhooks and count progress. Fly.io scrapes both and adds machine metrics. Grafana dashboards are version-controlled in `ops/grafana/`; see [`docs/observability.md`](docs/observability.md) for the inventory, the best-practice assessment, and the dashboard and alert specs.
 - **History API** — Electorate and party-vote history endpoints, served by the dashboard server from the collector's history REST API over HTTP (the server itself never opens a database).
+- **Prior election results** — The collector derives any earlier cycle from the same XML archive on demand (`/history/results/:year`, `/history/prior-winners`), matched to today's electorates through a checked-in rename table so a merged or split seat is never given someone else's member. Historical cycles are cached in memory and never persisted; see [`docs/prior-election-results.md`](docs/prior-election-results.md).
 - **Webhook notifications** — Configurable webhooks for new predictions, updated results, and leader changes (e.g., smart home integrations). A built-in webhook logger is available for local testing.
 - **Persistence** — SQLite database via Drizzle ORM caches results for crash recovery and historical tracking; JSON caches and feed events are written to disk.
 - **Mock server** — A built-in mock XML feed server that serves evolving results for development and testing.
@@ -44,7 +47,9 @@ election-night/
 │  XML feed poll  │  results +  │  Socket.io server  │
 │   SQLite        │  feed events│  + static files    │
 │  /history/*     │ <────────── │  + /api/history/*  │
-└─────────────────┘  history    └────────────────────┘
+│  + results by   │  history    │                    │
+│    year (mem)   │             │                    │
+└─────────────────┘             └────────────────────┘
                                          │
                                  broadcast to
                                          │
@@ -161,12 +166,26 @@ npm run dev
 
 Set `ELECTION_YEAR=2026` too (not just the mock flag): it tags snapshots with the cycle, so the 2026 replay does not mix into 2023 history, and the dashboard's map picks the 2026 boundaries to match. Advance stages with the `curl` calls above to watch counts, predictions, and seat totals move.
 
+## Prior election results
+
+`/flipped` and the **Past winners** table on an electorate page are fed by the collector's results service, which fetches any earlier cycle from the same XML archive on demand, caches it in memory, and matches its seats to today's electorates through a checked-in rename table. Only seats that continued under the same electoral area are compared — a seat created by a merge or split has no prior holder and is left out rather than given a guess.
+
+The mock feed replays a single cycle, so a run pointed at it reports prior results unavailable by design. To exercise these pages, use the real archive:
+
+```bash
+ELECTION_YEAR=2023 npm run start:collector   # prior cycles 2020 and 2017
+npm run dev
+```
+
+See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the contract, the comparability rule and its sources, and the design captures in [`docs/mockups/`](docs/mockups/).
+
 ## Environment Variables
 
 | Variable                | Default                         | Description                                                                                                                                                                                                                                                      |
 | ----------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ELECTION_YEAR`         | `2023`                          | Election year for the XML feed; builds `https://electionresults.govt.nz/electionresults_<year>/xml/`. Also tags stored snapshots and the results cache with the cycle, so history and diffs never mix two elections.                                             |
-| `XML_FEED_BASE_URL`     | —                               | Full override for the XML feed base URL (must end with `/`); takes precedence over `ELECTION_YEAR`. Point this at the mock server.                                                                                                                               |
+| `XML_FEED_BASE_URL`     | —                               | Full override for the XML feed base URL (must end with `/`); takes precedence over `ELECTION_YEAR`. Point this at the mock server. Because the mock serves one cycle, prior-election results are reported unavailable when it is set.                            |
+| `PRIOR_ELECTION_YEAR`   | previous cycle                  | Cycle the Flipped page compares against. Unset uses the newest prior cycle the archive resolves (the preceding election). Older cycles are still fetched for the per-electorate past-winners table.                                                              |
 | `POLL_INTERVAL_MS`      | `120000`                        | Time between feed polls                                                                                                                                                                                                                                          |
 | `CONCURRENCY`           | `10`                            | Parallel electorate fetches                                                                                                                                                                                                                                      |
 | `FETCH_TIMEOUT_MS`      | `30000`                         | Per-request HTTP timeout for XML feed fetches                                                                                                                                                                                                                    |

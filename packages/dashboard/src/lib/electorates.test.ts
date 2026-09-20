@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import boundaryManifest from '../../public/boundaries/index.json';
+import { ELECTORATE_RENAMES } from '@election-night/core/electorate-successions';
 import {
   BOUNDARY_MANIFEST_PATH,
   MAORI_ELECTORATES,
@@ -218,6 +219,51 @@ describe('boundary datasets on disk', () => {
     expect(boundaryGeoJsonPath(choice.year!, 'general')).toBe(
       '/boundaries/2026/general-electorates.geojson'
     );
+  });
+});
+
+/**
+ * The rename table drives prior-winner matching (`electorate-successions.ts`),
+ * so a name that does not exist in the cycle it claims to belong to would
+ * silently drop or mis-attribute a seat. Check every entry against the
+ * boundary manifests actually shipped. The 2020 boundaries applied to both the
+ * 2020 and 2023 elections, so 2020's names are the 2023 manifest's names.
+ */
+describe('electorate rename table matches the boundaries on disk', () => {
+  // The 2020 boundaries applied to both the 2020 and 2023 elections, so the
+  // 2023 manifest is the 2020 cycle's name list. 2017 names are not shipped,
+  // so for the 2017→2020 step only the destination and the disappearance of
+  // the old name are checkable.
+  const namesFor = (year: string) =>
+    new Set(
+      year === '2026'
+        ? (shipped.years['2026']?.general ?? [])
+        : (shipped.years['2023']?.general ?? [])
+    );
+
+  test('every rename lands on a name that exists in its cycle', () => {
+    for (const [year, renames] of Object.entries(ELECTORATE_RENAMES)) {
+      const target = namesFor(year);
+      for (const { from, to } of renames) {
+        expect(target.has(to), `${year}: ${to} (from ${from})`).toBe(true);
+      }
+    }
+  });
+
+  test('the old name is gone from the cycle the rename lands in', () => {
+    for (const [year, renames] of Object.entries(ELECTORATE_RENAMES)) {
+      const target = namesFor(year);
+      for (const { from } of renames) {
+        expect(target.has(from), `${year}: ${from} should be gone`).toBe(false);
+      }
+    }
+  });
+
+  test('renames that land in 2026 come from names 2023 actually had', () => {
+    const general2023 = namesFor('2023');
+    for (const { from } of ELECTORATE_RENAMES['2026'] ?? []) {
+      expect(general2023.has(from), `2026 rename source ${from}`).toBe(true);
+    }
   });
 });
 

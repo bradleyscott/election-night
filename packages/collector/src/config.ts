@@ -52,6 +52,12 @@ const collectorConfigSchema = z.object({
     .transform((v) => (v ? v : undefined))
     .describe('Webhook URL for result events'),
   electionSourcePath: z.string().optional(),
+  priorElectionYear: z
+    .string()
+    .optional()
+    .describe(
+      'Cycle prior-winner comparisons default to. Unset = the newest prior cycle that resolves (the immediately preceding election); historical cycles are still probed for the past-winners table'
+    ),
   wsReconnectDelayMs: z.coerce.number().int().min(100).default(2_000),
 });
 
@@ -73,6 +79,7 @@ function loadCollectorConfig(): CollectorConfig {
     resultsCachePath: process.env.RESULTS_CACHE_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,
+    priorElectionYear: process.env.PRIOR_ELECTION_YEAR,
     wsReconnectDelayMs: process.env.WS_RECONNECT_DELAY_MS,
   });
 

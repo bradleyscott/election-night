@@ -19,6 +19,8 @@
 import type {
   ElectorateHistoryPoint,
   PartyVoteHistoryPoint,
+  PriorWinnersResponse,
+  ResultsForYear,
   SnapshotMeta,
 } from '@election-night/core/history';
 import {
@@ -27,12 +29,22 @@ import {
   historyUpstreamTotal,
 } from './metrics.js';
 
-export type { ElectorateHistoryPoint, PartyVoteHistoryPoint, SnapshotMeta };
+export type {
+  ElectorateHistoryPoint,
+  PartyVoteHistoryPoint,
+  PriorWinnersResponse,
+  ResultsForYear,
+  SnapshotMeta,
+};
 
 export interface HistorySource {
   snapshotMetas(): Promise<SnapshotMeta[]>;
   electorateHistory(name: string): Promise<ElectorateHistoryPoint[]>;
   partyVoteHistory(): Promise<PartyVoteHistoryPoint[]>;
+  /** Winners of every prior cycle the collector could derive, matched to the current cycle. */
+  priorWinners(): Promise<PriorWinnersResponse | null>;
+  /** Results for a nominated year, or null when that year cannot be served. */
+  resultsForYear(year: string): Promise<ResultsForYear | null>;
   clearCache(): void;
 }
 
@@ -51,7 +63,11 @@ export function createHistorySource(options: {
   const ttlMs = options.cacheTtlMs ?? 10_000;
   const cache = new Map<string, CacheEntry>();
 
-  async function fetchJson<T>(path: string, route: string): Promise<T> {
+  async function fetchJson<T>(
+    path: string,
+    route: string,
+    options: { allowMissing?: boolean } = {}
+  ): Promise<T | null> {
     const cached = cache.get(path);
     if (cached && cached.expiresAt > Date.now()) {
       historyCacheEvents.inc({ result: 'hit' });
@@ -90,7 +106,14 @@ export function createHistorySource(options: {
     if (res.status === 503) {
       // Collector hasn't created the DB yet — treat as empty, not an error.
       historyUpstreamTotal.inc({ route, outcome: 'ok' });
-      return [] as T;
+      return null;
+    }
+    if (res.status === 404 && options.allowMissing) {
+      // A year the collector cannot serve (no archive that far back). Not an
+      // error and deliberately not cached: the collector retries these years
+      // in its loop, so caching a miss would pin the UI to an empty state.
+      historyUpstreamTotal.inc({ route, outcome: 'ok' });
+      return null;
     }
     if (!res.ok) {
       // Proxy-level errors (rate limiting, bad gateway): serve stale if we
@@ -111,15 +134,39 @@ export function createHistorySource(options: {
     return value;
   }
 
+  const emptyOnMissing = async <T>(work: () => Promise<T[] | null>): Promise<T[]> =>
+    (await work()) ?? [];
+
   return {
-    snapshotMetas: () => fetchJson('/history/snapshots', '/history/snapshots'),
+    snapshotMetas: () =>
+      emptyOnMissing(() =>
+        fetchJson<SnapshotMeta[]>('/history/snapshots', '/history/snapshots')
+      ),
     electorateHistory: (name) =>
-      fetchJson(
-        `/history/electorate/${encodeURIComponent(name)}`,
-        '/history/electorate/:name'
+      emptyOnMissing(() =>
+        fetchJson<ElectorateHistoryPoint[]>(
+          `/history/electorate/${encodeURIComponent(name)}`,
+          '/history/electorate/:name'
+        )
       ),
     partyVoteHistory: () =>
-      fetchJson('/history/party-votes', '/history/party-votes'),
+      emptyOnMissing(() =>
+        fetchJson<PartyVoteHistoryPoint[]>(
+          '/history/party-votes',
+          '/history/party-votes'
+        )
+      ),
+    priorWinners: () =>
+      fetchJson<PriorWinnersResponse>(
+        '/history/prior-winners',
+        '/history/prior-winners'
+      ),
+    resultsForYear: (year) =>
+      fetchJson<ResultsForYear>(
+        `/history/results/${year}`,
+        '/history/results/:year',
+        { allowMissing: true }
+      ),
     clearCache: () => cache.clear(),
   };
 }
