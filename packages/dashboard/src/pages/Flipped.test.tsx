@@ -179,12 +179,18 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    // The prior cycle's majority, labelled with what its share is of…
+    // The prior cycle's majority, and tonight's lead in the same units…
     expect(screen.getByText('2,311')).toBeInTheDocument();
-    expect(screen.getByText('9.2% of votes cast')).toBeInTheDocument();
-    // …beside tonight's lead, likewise labelled.
+    expect(screen.getByText('9.2%')).toBeInTheDocument();
     expect(screen.getByText('5,000')).toBeInTheDocument();
-    expect(screen.getByText('10.0% of votes counted')).toBeInTheDocument();
+    expect(screen.getByText('10.0%')).toBeInTheDocument();
+    // …with the percentage left bare. "10.0% of votes counted" reads as count
+    // progress, not as a lead, so the denominator is explained once in the
+    // footnote instead.
+    expect(screen.queryByText(/of votes|of counted/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Percentages are each margin as a share of the vote/)
+    ).toBeInTheDocument();
   });
 
   test('sorts by share of the vote, not raw votes', async () => {

@@ -30,11 +30,11 @@ scale.
 `/flipped` against the live cycle. 25 of 65 comparable general seats had changed
 hands by the time of the capture, ordered by the current leader's share of the
 vote. Note the **2020 margin** column — the previous holder's majority of
-victory, labelled as such — beside tonight's lead: both percentages say what
-they are a share of (`of votes cast` for the completed cycle, `of counted` for
-tonight). The only year references are the ones that carry information (the
-page kicker and the two comparison column headers); everything else is
-relative, so a different prior cycle reads correctly.
+victory — beside tonight's lead, each as votes with the share of the vote
+beneath. The percentages are deliberately bare (the footnote defines them once):
+`27.0% of votes counted` reads as count progress rather than a lead. The only
+year references are the ones that carry information (the page kicker and the two
+comparison column headers), so a different prior cycle reads correctly.
 
 Every margin of error reads `±0.0%` because the 2023 archive is a *final*
 result (100% of places counted), not a partial count; the same page on election

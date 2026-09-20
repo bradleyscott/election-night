@@ -148,12 +148,6 @@ export default function Flipped() {
         </div>
       </div>
 
-      <p className="max-w-3xl text-sm text-muted-foreground">
-        Seats won by one party at the previous election that another party is
-        leading now, strongest lead first. Seats created or redrawn by a merge
-        or split have no comparable history and are not listed.
-      </p>
-
       {priorLoading ? (
         <WaitingState variant="compact" context="electorates" />
       ) : priorError || !primaryYear ? (
@@ -238,8 +232,7 @@ export default function Flipped() {
                           {winner.majority.toLocaleString()}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          {(winner.majorityPercent * 100).toFixed(1)}% of votes
-                          cast
+                          {(winner.majorityPercent * 100).toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-3 py-2 sm:py-3">
@@ -258,7 +251,7 @@ export default function Flipped() {
                           {l.margin.toLocaleString()}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          {(l.marginPercent * 100).toFixed(1)}% of votes counted
+                          {(l.marginPercent * 100).toFixed(1)}%
                         </span>
                       </td>
                       <td className="hidden px-3 py-2 text-right tabular-nums font-bold text-muted-foreground sm:table-cell sm:py-3">
@@ -288,10 +281,8 @@ export default function Flipped() {
           </div>
 
           <p className="border-t px-3 py-2 text-xs text-muted-foreground sm:px-4">
-            Each percentage is the figure above it as a share of votes — counted
-            so far for tonight&apos;s lead, all votes cast for the completed
-            earlier cycle. MoE ± is the error band on the current lead at 95%
-            confidence.
+            Percentages are each margin as a share of the vote. MoE ± is the 95%
+            error band on the current lead.
           </p>
         </div>
       )}
