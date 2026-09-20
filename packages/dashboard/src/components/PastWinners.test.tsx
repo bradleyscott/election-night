@@ -40,8 +40,11 @@ describe('PastWinners', () => {
     expect(screen.getByText('2023')).toBeInTheDocument();
     expect(screen.getByText('2017')).toBeInTheDocument();
     expect(screen.getAllByText('HIPKINS, Chris')).toHaveLength(2);
+    // The votes are labelled as a majority, and the percentage says what it is
+    // a share of — neither is left for the reader to infer.
+    expect(screen.getAllByText('Majority')).toHaveLength(2);
     expect(screen.getByText('8,000')).toBeInTheDocument();
-    expect(screen.getByText('30.0%')).toBeInTheDocument();
+    expect(screen.getByText('30.0% of votes cast')).toBeInTheDocument();
   });
 
   test('marks the cycle the seat changed hands in', () => {
@@ -77,7 +80,7 @@ describe('PastWinners', () => {
     );
 
     expect(
-      screen.getByText(/Prior election results are unavailable/)
+      screen.getByText(/Previous elections could not be fetched/)
     ).toBeInTheDocument();
   });
 
@@ -90,6 +93,6 @@ describe('PastWinners', () => {
       />
     );
 
-    expect(screen.getByText(/No comparable prior holder/)).toBeInTheDocument();
+    expect(screen.getByText(/No comparable past winner/)).toBeInTheDocument();
   });
 });

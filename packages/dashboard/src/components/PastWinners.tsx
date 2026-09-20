@@ -32,13 +32,13 @@ export function PastWinners({
 
       {unavailable ? (
         <p className="px-3 py-3 text-sm text-muted-foreground sm:px-4">
-          Prior election results are unavailable — previous cycles could not be
-          fetched.
+          Previous elections could not be fetched, so this seat&apos;s past
+          winners are unavailable.
         </p>
       ) : winners.length === 0 ? (
         <p className="px-3 py-3 text-sm text-muted-foreground sm:px-4">
-          No comparable prior holder: this seat was created or redrawn since the
-          last comparable election.
+          No comparable past winner. This seat was created or redrawn at a
+          boundary review, so earlier results cover a different area.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -74,11 +74,14 @@ export function PastWinners({
                       </div>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums sm:px-4">
+                      <span className="font-label text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        Majority
+                      </span>{' '}
                       <span className="font-bold">
                         {w.majority.toLocaleString()}
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        {(w.majorityPercent * 100).toFixed(1)}%
+                        {(w.majorityPercent * 100).toFixed(1)}% of votes cast
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right sm:px-4">
@@ -93,10 +96,6 @@ export function PastWinners({
               })}
             </tbody>
           </table>
-          <p className="border-t px-3 py-2 text-xs text-muted-foreground sm:px-4">
-            Majority is the winner&apos;s lead over the runner-up. Only cycles
-            where this electorate continued under the same area are shown.
-          </p>
         </div>
       )}
     </div>

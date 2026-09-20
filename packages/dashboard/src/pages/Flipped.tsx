@@ -69,7 +69,9 @@ export default function Flipped() {
     [electorates, priorByElectorate, showMaori]
   );
 
-  // …of which these changed hands. Clearest leads first.
+  // …of which these changed hands, strongest lead first. Sorted by share of
+  // the vote rather than raw votes so a 1,000-vote lead in a small electorate
+  // does not outrank a larger one in a big city seat.
   const flipped = useMemo(
     () =>
       comparable
@@ -79,7 +81,9 @@ export default function Flipped() {
             (electorate.leaders.leadingCandidateParty ?? null)
         )
         .sort(
-          (a, b) => b.electorate.leaders.margin - a.electorate.leaders.margin
+          (a, b) =>
+            b.electorate.leaders.marginPercent -
+            a.electorate.leaders.marginPercent
         ),
     [comparable]
   );
@@ -145,17 +149,17 @@ export default function Flipped() {
       </div>
 
       <p className="max-w-3xl text-sm text-muted-foreground">
-        Seats whose {primaryYear ?? 'previous'} winner is not the candidate
-        leading tonight. Seats created or redrawn by a merge or split have no
-        honest historical comparison and are not listed.
+        Seats won by one party at the previous election that another party is
+        leading now, strongest lead first. Seats created or redrawn by a merge
+        or split have no comparable history and are not listed.
       </p>
 
       {priorLoading ? (
         <WaitingState variant="compact" context="electorates" />
       ) : priorError || !primaryYear ? (
         <Notice title="Prior results unavailable">
-          The last election&apos;s results could not be fetched, so seats cannot
-          be compared. This page fills in once the archive is reachable.
+          Previous election results could not be fetched, so seats cannot be
+          compared. This page fills in once the archive is reachable.
         </Notice>
       ) : flipped.length === 0 ? (
         <Notice title={`No seats have changed hands since ${primaryYear}`}>
@@ -168,9 +172,6 @@ export default function Flipped() {
             <span className="kicker">
               {visible.length} of {comparable.length} seats
               {query.trim() ? ' matching' : ''}
-            </span>
-            <span className="kicker hidden sm:inline">
-              Held {primaryYear} → leading now
             </span>
           </div>
 
@@ -237,7 +238,8 @@ export default function Flipped() {
                           {winner.majority.toLocaleString()}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          {(winner.majorityPercent * 100).toFixed(1)}%
+                          {(winner.majorityPercent * 100).toFixed(1)}% of votes
+                          cast
                         </span>
                       </td>
                       <td className="px-3 py-2 sm:py-3">
@@ -256,7 +258,7 @@ export default function Flipped() {
                           {l.margin.toLocaleString()}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          {(l.marginPercent * 100).toFixed(1)}% of counted
+                          {(l.marginPercent * 100).toFixed(1)}% of votes counted
                         </span>
                       </td>
                       <td className="hidden px-3 py-2 text-right tabular-nums font-bold text-muted-foreground sm:table-cell sm:py-3">
@@ -286,8 +288,9 @@ export default function Flipped() {
           </div>
 
           <p className="border-t px-3 py-2 text-xs text-muted-foreground sm:px-4">
-            Lead is the margin over the second-placed candidate, with the margin
-            of error on that lead. MoE ± is the polling error band at 95%
+            Each percentage is the figure above it as a share of votes — counted
+            so far for tonight&apos;s lead, all votes cast for the completed
+            earlier cycle. MoE ± is the error band on the current lead at 95%
             confidence.
           </p>
         </div>

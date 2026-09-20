@@ -28,9 +28,13 @@ scale.
 ### `flipped-page` (`.html` / `.png`)
 
 `/flipped` against the live cycle. 25 of 65 comparable general seats had changed
-hands by the time of the capture. Note the **2020 margin** column — the
-previous holder's majority of victory — beside tonight's lead and margin of
-error.
+hands by the time of the capture, ordered by the current leader's share of the
+vote. Note the **2020 margin** column — the previous holder's majority of
+victory, labelled as such — beside tonight's lead: both percentages say what
+they are a share of (`of votes cast` for the completed cycle, `of counted` for
+tonight). The only year references are the ones that carry information (the
+page kicker and the two comparison column headers); everything else is
+relative, so a different prior cycle reads correctly.
 
 Every margin of error reads `±0.0%` because the 2023 archive is a *final*
 result (100% of places counted), not a partial count; the same page on election
@@ -41,10 +45,11 @@ winner" rather than the "Too close to call" a partial count produces.
 
 An electorate page (`Banks Peninsula`) with the **Past winners** panel below the
 results table. Two cycles resolved: 2020 (McLellan, Labour, majority 13,156) and
-2017 (Dyson, Labour, majority 7,916). Both carry a FLIPPED chip because National
-leads the seat now, and the 2017 row is labelled `as Port Hills` — the seat that
-name's area became — so the comparison is auditable rather than taken on trust.
+2017 (Dyson, Labour, majority 7,916), each labelled `Majority` with its share of
+votes cast beneath. Both carry a FLIPPED chip because National leads the seat
+now, and the 2017 row is labelled `as Port Hills` — the seat that name's area
+became — so the comparison is auditable rather than taken on trust.
 
 Seats with no comparable prior holder (created by a merge or split, or new)
-show a one-line explanation instead of a table. See
+replace the table with a one-line explanation. See
 [`../prior-election-results.md`](../prior-election-results.md).

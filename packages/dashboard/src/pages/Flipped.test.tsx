@@ -19,20 +19,22 @@ function electorate(
   party: string,
   candidate: string,
   margin: number,
-  status: 'projected' | 'leaning' | 'too-close'
+  status: 'projected' | 'leaning' | 'too-close',
+  votesCounted = 25_000
 ): ElectorateResult {
+  const leading = Math.round(votesCounted * 0.6);
   return {
     electorateName: name,
     candidateVotes: [
-      { candidate, party, votes: 12_000 },
+      { candidate, party, votes: leading },
       {
         candidate: 'Someone Else',
         party: 'Green Party',
-        votes: 12_000 - margin,
+        votes: leading - margin,
       },
     ],
-    partyVotes: [{ candidate: party, votes: 12_000 }],
-    votesCounted: 25_000,
+    partyVotes: [{ candidate: party, votes: leading }],
+    votesCounted,
     votePercentageCounted: 0.8,
     leaders: {
       leadingCandidate: candidate,
@@ -40,7 +42,7 @@ function electorate(
       secondCandidate: 'Someone Else',
       secondCandidateParty: 'Green Party',
       margin,
-      marginPercent: margin / 25_000,
+      marginPercent: margin / votesCounted,
       predictionStatus: status,
     },
     marginOfError: 0.02,
@@ -49,8 +51,18 @@ function electorate(
 
 const liveResults: ResultsPayload = {
   electorateResults: [
-    electorate('Ōtāhuhu', 'ACT New Zealand', 'TURAI, Hana', 1_234, 'too-close'),
-    electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_500, 'projected'),
+    // 5,000 in a big seat is only 10.0% — the raw-vote leader, but not the
+    // biggest share, which is what the list sorts on.
+    electorate(
+      'Ōtāhuhu',
+      'ACT New Zealand',
+      'TURAI, Hana',
+      5_000,
+      'too-close',
+      50_000
+    ),
+    // Smaller raw lead (4,000) but the bigger share (16.0%).
+    electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_000, 'projected'),
     electorate(
       'Remutaka',
       'Labour Party',
@@ -167,12 +179,52 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    // 2023 majority for the seat that has since changed hands…
+    // The prior cycle's majority, labelled with what its share is of…
     expect(screen.getByText('2,311')).toBeInTheDocument();
-    expect(screen.getByText('9.2%')).toBeInTheDocument();
-    // …alongside tonight's lead.
-    expect(screen.getByText('1,234')).toBeInTheDocument();
-    expect(screen.getByText('4.9% of counted')).toBeInTheDocument();
+    expect(screen.getByText('9.2% of votes cast')).toBeInTheDocument();
+    // …beside tonight's lead, likewise labelled.
+    expect(screen.getByText('5,000')).toBeInTheDocument();
+    expect(screen.getByText('10.0% of votes counted')).toBeInTheDocument();
+  });
+
+  test('sorts by share of the vote, not raw votes', async () => {
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    // Kapiti's 4,000 is a bigger share (16.0%) than Ōtāhuhu's 5,000 (10.0%).
+    const rows = screen.getAllByRole('button', { name: /^View details for/ });
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Kapiti'),
+      expect.stringContaining('Ōtāhuhu'),
+    ]);
+  });
+
+  test('states the comparison year from the data, not a fixed year', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          currentYear: '2026',
+          primaryYear: '2017',
+          years: priorWinners.years.map((year) => ({
+            ...year,
+            year: '2017',
+            winners: year.winners.map((w) => ({ ...w, year: '2017' })),
+          })),
+        }),
+        { status: 200 }
+      )
+    );
+
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    expect(
+      screen.getByText('Seats changing hands since 2017')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Held 2017')).toBeInTheDocument();
+    expect(screen.getByText('2017 margin')).toBeInTheDocument();
+    // Nothing may hardcode the cycle the dev feed happens to use.
+    expect(screen.queryByText(/2020/)).not.toBeInTheDocument();
   });
 
   test('names the prior electorate when the seat has been renamed', async () => {
