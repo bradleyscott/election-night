@@ -46,9 +46,13 @@ winner" rather than the "Too close to call" a partial count produces.
 An electorate page (`Banks Peninsula`) with the **Past winners** panel below the
 results table. Two cycles resolved: 2020 (McLellan, Labour, majority 13,156) and
 2017 (Dyson, Labour, majority 7,916), each labelled `Majority` with its share of
-votes cast beneath. Both carry a FLIPPED chip because National leads the seat
-now, and the 2017 row is labelled `as Port Hills` — the seat that name's area
-became — so the comparison is auditable rather than taken on trust.
+votes cast beneath. The 2017 row is labelled `as Port Hills` — the seat that
+name's area became — so the comparison is auditable rather than taken on trust.
+
+The panel deliberately says nothing about who is leading tonight: past results
+stand on their own, and a "flipped" marker against a partial count would be a
+verdict the count has not reached. Saying so is the Flipped page's job, where
+the lead and its margin of error sit beside the claim.
 
 Seats with no comparable prior holder (created by a merge or split, or new)
 replace the table with a one-line explanation. See

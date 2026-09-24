@@ -29,13 +29,7 @@ const winners: PriorWinner[] = [
 
 describe('PastWinners', () => {
   test('lists each prior cycle with winner, party and majority', () => {
-    render(
-      <PastWinners
-        winners={winners}
-        unavailable={false}
-        currentLeaderParty="Labour Party"
-      />
-    );
+    render(<PastWinners winners={winners} unavailable={false} />);
 
     expect(screen.getByText('2023')).toBeInTheDocument();
     expect(screen.getByText('2017')).toBeInTheDocument();
@@ -47,37 +41,24 @@ describe('PastWinners', () => {
     expect(screen.getByText('30.0% of votes cast')).toBeInTheDocument();
   });
 
-  test('marks the cycle the seat changed hands in', () => {
-    render(
-      <PastWinners
-        winners={winners}
-        unavailable={false}
-        currentLeaderParty="Labour Party"
-      />
-    );
-
-    // 2023 was Labour and still is; 2017 was National, so that one flipped.
-    expect(screen.getAllByText('Flipped')).toHaveLength(1);
-  });
-
   test('names the seat as it was called in that cycle', () => {
-    render(
-      <PastWinners
-        winners={winners}
-        unavailable={false}
-        currentLeaderParty="Labour Party"
-      />
-    );
+    render(<PastWinners winners={winners} unavailable={false} />);
 
     expect(
       screen.getByText('National Party · as Rimutaka')
     ).toBeInTheDocument();
   });
 
+  test('makes no claim about tonight', () => {
+    render(<PastWinners winners={winners} unavailable={false} />);
+
+    // Past results stand on their own: the panel does not know (and must not
+    // assert) which party is leading the current, partial count.
+    expect(screen.queryByText(/Flipped/i)).not.toBeInTheDocument();
+  });
+
   test('says when no prior cycle could be fetched', () => {
-    render(
-      <PastWinners winners={[]} unavailable currentLeaderParty="Labour Party" />
-    );
+    render(<PastWinners winners={[]} unavailable />);
 
     expect(
       screen.getByText(/Previous elections could not be fetched/)
@@ -85,13 +66,7 @@ describe('PastWinners', () => {
   });
 
   test('explains a seat with no comparable prior holder', () => {
-    render(
-      <PastWinners
-        winners={[]}
-        unavailable={false}
-        currentLeaderParty="Labour Party"
-      />
-    );
+    render(<PastWinners winners={[]} unavailable={false} />);
 
     expect(screen.getByText(/No comparable past winner/)).toBeInTheDocument();
   });

@@ -83,7 +83,6 @@ export function ElectorateDetail({
         <PastWinners
           winners={priorWinners}
           unavailable={priorUnavailable ?? false}
-          currentLeaderParty={result.leaders.leadingCandidateParty}
         />
       )}
 

@@ -9,17 +9,21 @@ import type { PriorWinner } from '../lib/history-types.js';
  * holder of this electorate, never a neighbouring seat's member. Where the
  * seat carried a different name in that cycle it is named — a comparison a
  * reader can audit rather than take on trust.
+ *
+ * Deliberately says nothing about who is leading tonight. Marking a past
+ * result as "flipped" would assert a verdict against the current count, which
+ * on election night is partial and can still change hands back; the flip view
+ * is its own page, where the lead and its margin of error sit beside the
+ * claim.
  */
 export function PastWinners({
   winners,
   unavailable,
-  currentLeaderParty,
 }: {
   /** This electorate's prior winners, newest cycle first. Empty when none. */
   winners: PriorWinner[];
   /** The collector could not derive any prior cycle. */
   unavailable: boolean;
-  currentLeaderParty: string | undefined;
 }) {
   return (
     <div className="border">
@@ -44,56 +48,44 @@ export function PastWinners({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <tbody>
-              {winners.map((w) => {
-                const flipped =
-                  (w.party ?? null) !== (currentLeaderParty ?? null);
-                return (
-                  <tr
-                    key={`${w.year}-${w.electorateName}`}
-                    className="border-b last:border-0"
-                  >
-                    <td className="whitespace-nowrap px-3 py-2 font-label text-xs font-semibold tabular-nums text-muted-foreground sm:px-4">
-                      {w.year}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <div
-                          className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
-                          style={{
-                            backgroundColor:
-                              partyColors[w.party ?? ''] || '#666',
-                          }}
-                        />
-                        <span className="font-semibold">{w.candidate}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {w.party ?? 'Unknown'}
-                        {w.priorElectorateName
-                          ? ` · as ${w.priorElectorateName}`
-                          : ''}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums sm:px-4">
-                      <span className="font-label text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                        Majority
-                      </span>{' '}
-                      <span className="font-bold">
-                        {w.majority.toLocaleString()}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {(w.majorityPercent * 100).toFixed(1)}% of votes cast
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right sm:px-4">
-                      {flipped && (
-                        <span className="chip-print chip-print--red">
-                          Flipped
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {winners.map((w) => (
+                <tr
+                  key={`${w.year}-${w.electorateName}`}
+                  className="border-b last:border-0"
+                >
+                  <td className="whitespace-nowrap px-3 py-2 font-label text-xs font-semibold tabular-nums text-muted-foreground sm:px-4">
+                    {w.year}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
+                        style={{
+                          backgroundColor: partyColors[w.party ?? ''] || '#666',
+                        }}
+                      />
+                      <span className="font-semibold">{w.candidate}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {w.party ?? 'Unknown'}
+                      {w.priorElectorateName
+                        ? ` · as ${w.priorElectorateName}`
+                        : ''}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums sm:px-4">
+                    <span className="font-label text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Majority
+                    </span>{' '}
+                    <span className="font-bold">
+                      {w.majority.toLocaleString()}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {(w.majorityPercent * 100).toFixed(1)}% of votes cast
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

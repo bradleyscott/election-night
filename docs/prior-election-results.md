@@ -8,7 +8,8 @@ are served by one mechanism, `ElectionResultsService` in
   party leading tonight, with the previous holder's margin of victory beside
   tonight's lead and margin of error.
 - **Past winners** on the electorate page lists the winner of each earlier cycle
-  the archive still serves, marking the cycle a seat last changed hands.
+  the archive still serves. It states only finished results: no claim about who
+  is leading tonight, which on a partial count is not a verdict yet.
 
 ## The service
 
