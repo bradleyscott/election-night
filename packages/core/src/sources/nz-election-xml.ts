@@ -101,12 +101,19 @@ export class NzElectionXmlSource implements ElectionSource {
     // Keep every value as a string: numeric IDs (`party`, `electorate`,
     // `list_no`, `p_no`, `c_no`) must not be coerced to numbers or the
     // string-keyed lookups below will miss. Votes are converted explicitly.
+    //
+    // `htmlEntities` decodes numeric character references, which the live feed
+    // uses for apostrophes (`O&#39;CONNOR, Simon`) where the 2017 and 2020
+    // archives use the named form (`O&apos;CONNOR`). Without it the parser
+    // leaves the reference intact and the name reaches the dashboard — table,
+    // map label and chart legend — rendered literally as "O&#39;CONNOR".
     this.parser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: '',
       parseTagValue: false,
       parseAttributeValue: false,
       trimValues: true,
+      htmlEntities: true,
     });
   }
 
