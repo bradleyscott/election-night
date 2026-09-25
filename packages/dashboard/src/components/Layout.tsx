@@ -1,6 +1,8 @@
 import { type ReactNode, useState, useMemo, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { formatPollsCountdown } from '@election-night/core/polls-close';
 import { cn } from '../lib/utils.js';
+import { usePollsClose } from '../hooks/usePollsClose.js';
 import Logo from './Logo.js';
 import LiveIndicator from './LiveIndicator.js';
 import ThemeToggle from './ThemeToggle.js';
@@ -16,6 +18,52 @@ const navItems = [
   { to: '/parties', label: 'Party lists' },
 ];
 
+/**
+ * The dateline's right-hand value. Before polls close it counts down to
+ * 7:00pm; on election night it becomes the counting state; for an archived
+ * cycle (or when the server cannot say when polls close) it falls back to the
+ * plain clock, which is all that can honestly be shown.
+ */
+function DatelineValue({ now }: { now: Date }) {
+  const { phase, countdown, closesAt } = usePollsClose();
+
+  if (phase === 'counting') {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-bold text-brand">
+        <span
+          className="inline-block h-1.5 w-1.5 rounded-full bg-brand animate-pulse-live"
+          aria-hidden="true"
+        />
+        Polls closed · counting
+      </span>
+    );
+  }
+
+  if (phase === 'upcoming' && countdown && closesAt) {
+    return (
+      <time dateTime={closesAt.toISOString()} className="tabular-nums">
+        Polls close in {formatPollsCountdown(countdown)}
+      </time>
+    );
+  }
+
+  return (
+    <span className="tabular-nums tracking-normal">
+      {now.toLocaleDateString('en-NZ', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      })}{' '}
+      ·{' '}
+      {now.toLocaleTimeString('en-NZ', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })}
+    </span>
+  );
+}
+
 function Dateline() {
   const [now, setNow] = useState(() => new Date());
 
@@ -27,19 +75,7 @@ function Dateline() {
   return (
     <div className="hidden sm:flex items-center justify-between gap-4 text-[11px] uppercase tracking-[0.09em] text-muted-foreground border-b border-border py-1.5 font-label">
       <span>NZ General Election</span>
-      <span className="tabular-nums tracking-normal">
-        {now.toLocaleDateString('en-NZ', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-        })}{' '}
-        ·{' '}
-        {now.toLocaleTimeString('en-NZ', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        })}
-      </span>
+      <DatelineValue now={now} />
     </div>
   );
 }
@@ -145,7 +181,12 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
       </header>
 
-      <main className={cn('max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8', showSidebar && 'lg:pr-80')}>
+      <main
+        className={cn(
+          'max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8',
+          showSidebar && 'lg:pr-80'
+        )}
+      >
         {children}
       </main>
       {showSidebar && (

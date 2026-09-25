@@ -66,6 +66,24 @@ to it. Amend intentionally — the file is the rule.
 - Silent — one reveal primitive (`fade-in-up` stagger), no bounce, no parallax
 - Reduced-motion fallback · ≤150 ms opacity crossfade (global media query)
 
+## Masthead
+The masthead is the front page's flag: masthead rule, wordmark, nav, live
+state, and the dateline strip beneath them.
+- The dateline runs `NZ General Election` on the left and the distance to
+  polls close on the right — `Polls close in 4h 12m`, counting down to seconds
+  inside the final hour. It is a less idle thing to glance at than a clock.
+- Once the doors shut (7:00pm on election day) the strip switches to
+  `● Polls closed · counting` in masthead red — the same dot and pulse as
+  `LiveIndicator`. Counting stops being a claim after election night, so a
+  past cycle falls back to the plain date and time, as does a cycle with no
+  known close instant or an unreachable server.
+- The close instants live in `packages/core/src/polls-close.ts`, derived from
+  `ELECTION_YEAR`; the server publishes them on `GET /api/config` so a new
+  cycle needs no frontend rebuild. The countdown runs off the server's clock,
+  not the visitor's.
+- Set in Inter, uppercase, tabular numerals, muted — masthead red only for the
+  counting state.
+
 ## Exports
 `packages/dashboard/src/styles/index.css` is the source of truth (HSL
 shadcn-compatible variables + utility layer). Tailwind config mirrors fonts,

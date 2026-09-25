@@ -5,5 +5,6 @@ export * from './diff.js';
 export * from './history.js';
 export * from './electorate-names.js';
 export * from './electorate-successions.js';
+export * from './polls-close.js';
 export * from './election-results-service.js';
 export * from './sources/index.js';

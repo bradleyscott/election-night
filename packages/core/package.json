@@ -38,6 +38,10 @@
       "types": "./dist/electorate-successions.d.ts",
       "default": "./dist/electorate-successions.js"
     },
+    "./polls-close": {
+      "types": "./dist/polls-close.d.ts",
+      "default": "./dist/polls-close.js"
+    },
     "./election-results-service": {
       "types": "./dist/election-results-service.d.ts",
       "default": "./dist/election-results-service.js"

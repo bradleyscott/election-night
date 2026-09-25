@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import type { ResultsPayload } from '@election-night/core/types';
+import { buildRuntimeConfig } from '@election-night/core/polls-close';
 import { createHistorySource, type HistorySource } from './history-upstream.js';
 import { dashboardServerConfig } from './config.js';
 import {
@@ -138,6 +139,15 @@ const server = createServer(
 
     if (url) {
       if (url.pathname === '/metrics') return serveMetrics(req, res);
+      // Runtime facts the SPA cannot know at build time (the cycle it is
+      // serving, and when polls close for that cycle). Cheap and upstream-free.
+      if (url.pathname === '/api/config') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify(buildRuntimeConfig(dashboardServerConfig.electionYear))
+        );
+        return;
+      }
       if (url.pathname === '/health') return serveHealth(req, res);
       if (url.pathname === '/ready')
         return serveReady(req, res, historySource, currentFeedEvents());

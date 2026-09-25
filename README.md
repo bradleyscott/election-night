@@ -10,6 +10,7 @@ This started as a project for a 2023 election night party — the goal was to av
 - **Race calling** — Predicts winners per electorate with confidence levels (`too-close`, `leaning`, `likely`, `projected`) using statistical margin analysis.
 - **Seat projections** — Allocates list seats via the Sainte-Laguë method to project the final parliament makeup.
 - **Interactive web dashboard** — Built with React, Vite, Leaflet, Recharts, and Tailwind, dressed as a printed-edition newsroom broadsheet (see `design.md`). Includes:
+  - A masthead countdown to polls close (7:00pm on election day), which becomes `Polls closed · counting` on the night
   - Parliament seat grid and party vote breakdown
   - Electorate list with map, search, and per-electorate detail pages
   - "Close Calls" view
@@ -183,7 +184,7 @@ See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the c
 
 | Variable                | Default                         | Description                                                                                                                                                                                                                                                      |
 | ----------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ELECTION_YEAR`         | `2023`                          | Election year for the XML feed; builds `https://electionresults.govt.nz/electionresults_<year>/xml/`. Also tags stored snapshots and the results cache with the cycle, so history and diffs never mix two elections.                                             |
+| `ELECTION_YEAR`         | `2023`                          | Election year for the XML feed; builds `https://electionresults.govt.nz/electionresults_<year>/xml/`. Also tags stored snapshots and the results cache with the cycle, so history and diffs never mix two elections. Also selects the masthead's polls-close instant ([`packages/core/src/polls-close.ts`](packages/core/src/polls-close.ts), published on `GET /api/config`); a cycle with no listed instant shows the plain clock. |
 | `XML_FEED_BASE_URL`     | —                               | Full override for the XML feed base URL (must end with `/`); takes precedence over `ELECTION_YEAR`. Point this at the mock server. Because the mock serves one cycle, prior-election results are reported unavailable when it is set.                            |
 | `PRIOR_ELECTION_YEAR`   | previous cycle                  | Cycle the Flipped page compares against. Unset uses the newest prior cycle the archive resolves (the preceding election). Older cycles are still fetched for the per-electorate past-winners table.                                                              |
 | `POLL_INTERVAL_MS`      | `120000`                        | Time between feed polls                                                                                                                                                                                                                                          |
@@ -231,6 +232,8 @@ Fly scrapes the dashboard server's `/metrics` on `:3456` every 15s into its mana
 The collector polls a cached static XML asset (`cache-control: public, max-age=30`) that is reachable from datacenter egress, so it does **not** need residential egress or a proxy. The two processes ship in one app; the collector also remains independently runnable via `Dockerfile.collector` if a split deployment is ever needed.
 
 #### Election-night caveats
+
+- **The masthead counts down to the served cycle's polls close.** Before the close it counts down; on the night it reads `Polls closed · counting`; any other time (an archived cycle, or no cycle) it falls back to the plain date and time instead of implying a live count. A local run on the default `ELECTION_YEAR=2023` therefore shows the clock — use `ELECTION_YEAR=2026` to see the countdown.
 
 - **Poll no faster than the feed's cache TTL.** The 6/6 reachability result for the XML feed was measured on a static, cacheable feed. During live counting the files update every ~10s; polling faster than `cache-control: max-age` (30s) mostly hits the Cloudflare cache and risks heavier origin fetching. Keep `POLL_INTERVAL_MS` at or above the TTL on the night.
 - **The media feed is a different host.** `media.election.net.nz` (live/preliminary media feed) may be more protected than `electionresults.govt.nz/electionresults_{YEAR}/xml/`; this project only reads the latter.
