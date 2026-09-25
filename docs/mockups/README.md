@@ -44,10 +44,10 @@ winner" rather than the "Too close to call" a partial count produces.
 ### `electorate-past-winners` (`.html` / `.png`)
 
 An electorate page (`Banks Peninsula`) with the **Past winners** panel below the
-results table. Two cycles resolved: 2020 (McLellan, Labour, majority 13,156) and
-2017 (Dyson, Labour, majority 7,916), each labelled `Majority` with its share of
-votes cast beneath. The 2017 row is labelled `as Port Hills` — the seat that
-name's area became — so the comparison is auditable rather than taken on trust.
+results table. Two cycles resolved: 2020 (McLellan, Labour, `13,156 vote margin`)
+and 2017 (Dyson, Labour, `7,916 vote margin`), each followed by its share of
+votes cast. The 2017 row is labelled `as Port Hills` — the seat that name's area
+became — so the comparison is auditable rather than taken on trust.
 
 The panel deliberately says nothing about who is leading tonight: past results
 stand on their own, and a "flipped" marker against a partial count would be a
@@ -57,3 +57,11 @@ the lead and its margin of error sit beside the claim.
 Seats with no comparable prior holder (created by a merge or split, or new)
 replace the table with a one-line explanation. See
 [`../prior-election-results.md`](../prior-election-results.md).
+
+### `flipped-page-mobile` (`.html` / `.png`)
+
+The same page at 390px wide (deviceScaleFactor 2, mobile emulation). Below the
+`sm` breakpoint the table keeps three columns — electorate, held, now leading —
+and folds the numbers into them (`majority 2,392 · 5.9%`, `leads 11,192 ·
+27.0%`), dropping the margin, MoE and status columns. The lead stays visible
+without horizontal scrolling, which is the point of the page.

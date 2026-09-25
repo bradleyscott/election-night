@@ -34,9 +34,10 @@ describe('PastWinners', () => {
     expect(screen.getByText('2023')).toBeInTheDocument();
     expect(screen.getByText('2017')).toBeInTheDocument();
     expect(screen.getAllByText('HIPKINS, Chris')).toHaveLength(2);
-    // The votes are labelled as a majority, and the percentage says what it is
-    // a share of — neither is left for the reader to infer.
-    expect(screen.getAllByText('Majority')).toHaveLength(2);
+    // The value is labelled with what it is — a margin in votes — and the
+    // percentage says what it is a share of, rather than leaving both to be
+    // inferred.
+    expect(screen.getAllByText('vote margin')).toHaveLength(2);
     expect(screen.getByText('8,000')).toBeInTheDocument();
     expect(screen.getByText('30.0% of votes cast')).toBeInTheDocument();
   });

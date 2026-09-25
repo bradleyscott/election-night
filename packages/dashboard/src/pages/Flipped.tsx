@@ -179,11 +179,20 @@ export default function Flipped() {
                     {primaryYear} margin
                   </Th>
                   <Th align="left">Now leading</Th>
-                  <Th align="right">Lead</Th>
+                  {/* Below sm the numbers are folded into the two comparison
+                      columns (see the row cells), so only the margin, MoE and
+                      status columns drop out — the lead stays visible. */}
+                  <Th align="right" className="hidden sm:table-cell">
+                    Lead
+                  </Th>
                   <Th align="right" className="hidden sm:table-cell">
                     MoE
                   </Th>
-                  <Th align="right">Status</Th>
+                  {/* Status and MoE are qualifiers, not part of the
+                      comparison, so they go first. */}
+                  <Th align="right" className="hidden sm:table-cell">
+                    Status
+                  </Th>
                 </tr>
               </thead>
               <tbody>
@@ -208,12 +217,12 @@ export default function Flipped() {
                       )}
                       style={{ animationDelay: `${i * 0.03}s` }}
                     >
-                      <td className="px-3 py-2 font-semibold sm:py-3">
+                      <td className="px-2 py-2 font-semibold sm:px-3 sm:py-3">
                         <span className="transition-colors hover:underline">
                           {electorate.electorateName}
                         </span>
                       </td>
-                      <td className="px-3 py-2 sm:py-3">
+                      <td className="px-2 py-2 sm:px-3 sm:py-3">
                         <div className="flex items-center gap-1.5">
                           <PartyDot party={winner.party} />
                           <span className="font-semibold">
@@ -226,8 +235,12 @@ export default function Flipped() {
                             ? ` · as ${winner.priorElectorateName}`
                             : ''}
                         </div>
+                        <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
+                          majority {winner.majority.toLocaleString()} ·{' '}
+                          {(winner.majorityPercent * 100).toFixed(1)}%
+                        </div>
                       </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell sm:py-3">
+                      <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell sm:px-3 sm:py-3">
                         <span className="font-bold">
                           {winner.majority.toLocaleString()}
                         </span>
@@ -235,7 +248,7 @@ export default function Flipped() {
                           {(winner.majorityPercent * 100).toFixed(1)}%
                         </span>
                       </td>
-                      <td className="px-3 py-2 sm:py-3">
+                      <td className="px-2 py-2 sm:px-3 sm:py-3">
                         <div className="flex items-center gap-1.5">
                           <PartyDot party={l.leadingCandidateParty} />
                           <span className="font-semibold">
@@ -245,8 +258,12 @@ export default function Flipped() {
                         <div className="text-xs text-muted-foreground">
                           {l.leadingCandidateParty ?? 'Unknown'}
                         </div>
+                        <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
+                          leads {l.margin.toLocaleString()} ·{' '}
+                          {(l.marginPercent * 100).toFixed(1)}%
+                        </div>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums sm:py-3">
+                      <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell sm:px-3 sm:py-3">
                         <span className="font-bold">
                           {l.margin.toLocaleString()}
                         </span>
@@ -254,10 +271,10 @@ export default function Flipped() {
                           {(l.marginPercent * 100).toFixed(1)}%
                         </span>
                       </td>
-                      <td className="hidden px-3 py-2 text-right tabular-nums font-bold text-muted-foreground sm:table-cell sm:py-3">
+                      <td className="hidden px-2 py-2 text-right tabular-nums font-bold text-muted-foreground sm:table-cell sm:px-3 sm:py-3">
                         ±{(electorate.marginOfError * 100).toFixed(1)}%
                       </td>
-                      <td className="px-3 py-2 text-right sm:py-3">
+                      <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
                         <span
                           className={cn(
                             'chip-print',

@@ -74,11 +74,11 @@ export function PastWinners({
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums sm:px-4">
-                    <span className="font-label text-[0.625rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                      Majority
-                    </span>{' '}
                     <span className="font-bold">
                       {w.majority.toLocaleString()}
+                    </span>{' '}
+                    <span className="text-xs text-muted-foreground">
+                      vote margin
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       {(w.majorityPercent * 100).toFixed(1)}% of votes cast

@@ -248,6 +248,12 @@ describe('Flipped page', () => {
     await screen.findByText('Ōtāhuhu');
     expect(screen.getByText('Too close to call')).toBeInTheDocument();
     expect(screen.getByText('Likely winner')).toBeInTheDocument();
+
+    // The qualifier columns drop out on narrow screens so the four columns
+    // that make the comparison stay readable.
+    expect(screen.getByText('Status')).toHaveClass('hidden', 'sm:table-cell');
+    expect(screen.getByText('MoE')).toHaveClass('hidden', 'sm:table-cell');
+    expect(screen.getByText('Held 2023')).not.toHaveClass('hidden');
   });
 
   test('counts flips against the seats that are comparable', async () => {
