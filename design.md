@@ -79,8 +79,9 @@ state, and the dateline strip beneath them.
   known close instant or an unreachable server.
 - The close instants live in `packages/core/src/polls-close.ts`, derived from
   `ELECTION_YEAR`; the server publishes them on `GET /api/config` so a new
-  cycle needs no frontend rebuild. The countdown runs off the server's clock,
-  not the visitor's.
+  cycle needs no frontend rebuild. The countdown runs off the visitor's clock,
+  not the server's: a server clock that is wrong would put every visitor hours
+  out, while a wrong device clock only affects the person holding it.
 - Set in Inter, uppercase, tabular numerals, muted — masthead red only for the
   counting state.
 

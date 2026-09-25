@@ -29,12 +29,16 @@ function parseInstant(iso: string | null | undefined): Date | null {
 /**
  * Counts down to polls close for the cycle the server is serving.
  *
- * The instant comes from the server (`GET /api/config`), so a new cycle needs
- * no frontend rebuild — only `ELECTION_YEAR`. The server also reports its own
- * clock, and the countdown runs off that rather than the device clock: a
- * laptop an hour out would otherwise count down to the wrong time on the one
- * night it matters. When the year has no known close instant the state is
- * `unknown` and callers fall back to the plain clock.
+ * The close instant comes from the server (`GET /api/config`), so a new cycle
+ * needs no frontend rebuild — only `ELECTION_YEAR`. The "now" side is the
+ * visitor's own clock, not the server's: visitors' devices are NTP-synced, and
+ * a server whose clock is wrong would otherwise put every visitor hours out on
+ * the one night the countdown matters (a Fly machine in this project's own
+ * deployment ran ten hours slow until it was restarted). A wrong device clock
+ * then only affects the person holding that device, which is also true of every
+ * other time in the app — feed timestamps are compared against the local clock
+ * too. When the year has no known close instant the state is `unknown` and
+ * callers fall back to the plain clock.
  */
 export function usePollsClose(): PollsCloseState {
   const { data } = useApi<RuntimeConfig>('/api/config');
@@ -44,17 +48,9 @@ export function usePollsClose(): PollsCloseState {
     [data?.pollsCloseAt]
   );
 
-  const skewMs = useMemo(() => {
-    const serverTime = parseInstant(data?.serverTime);
-    return serverTime ? serverTime.getTime() - Date.now() : 0;
-  }, [data?.serverTime]);
-
   const [nowMs, setNowMs] = useState(() => Date.now());
 
-  // `nowMs` stays on the raw device clock; the server-clock correction is
-  // applied at read time so it holds from the first render after the config
-  // lands, not only after the first tick.
-  const now = new Date(nowMs + skewMs);
+  const now = new Date(nowMs);
   const remainingMs = closesAt ? closesAt.getTime() - now.getTime() : null;
   const tickMs =
     remainingMs !== null && remainingMs > 0

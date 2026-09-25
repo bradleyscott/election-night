@@ -89,10 +89,12 @@ describe('masthead dateline', () => {
     expect(screen.getByText(/counting/i)).toBeInTheDocument();
   });
 
-  test('runs off the server clock, not a device clock that is wrong', async () => {
-    // The browser believes it is an hour later than it is.
-    vi.setSystemTime(new Date('2026-11-07T03:00:00Z'));
-    mockConfig({ serverTime: '2026-11-07T02:00:00.000Z' });
+  test('follows the visitor clock, not a server clock that is wrong', async () => {
+    // The server reports a clock ten hours slow (as a Fly machine in this
+    // project did): the countdown must follow the device, or every visitor is
+    // hours out on the one night it matters.
+    vi.setSystemTime(new Date('2026-11-07T02:00:00Z'));
+    mockConfig({ serverTime: '2026-11-06T16:00:00.000Z' });
 
     renderLayout();
     await flush();

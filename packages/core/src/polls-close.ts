@@ -114,16 +114,20 @@ export function formatPollsCountdown(countdown: PollsCountdown): string {
 
 /**
  * Runtime facts the frontend cannot know at build time, served on
- * `GET /api/config`. `serverTime` lets the client correct for a device clock
- * that is wrong — a countdown read off a laptop an hour out would be worse
- * than no countdown.
+ * `GET /api/config`.
  */
 export type RuntimeConfig = {
   /** Election cycle the server is serving, or null when `ELECTION_YEAR` is unset. */
   electionYear: string | null;
   /** When polls close for that cycle (ISO 8601, UTC), or null when unknown. */
   pollsCloseAt: string | null;
-  /** The server's clock at response time (ISO 8601, UTC). */
+  /**
+   * The server's clock at response time (ISO 8601, UTC). Diagnostics only —
+   * the countdown runs off the visitor's clock, because a server clock that is
+   * wrong would put every visitor hours out, while a wrong device clock only
+   * affects the person holding that device. This field is what makes such a
+   * skew visible.
+   */
   serverTime: string;
 };
 
