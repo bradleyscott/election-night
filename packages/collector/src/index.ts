@@ -5,14 +5,20 @@ import type {
   PartyList,
 } from '@election-night/core/types';
 import { log } from './logger.js';
-import { openDb, closeDb, writeResults } from './db.js';
+import { openDb, closeDb, writeResults, pruneSnapshots, compactDatabase } from './db.js';
 import {
   connectWs,
   publishResults,
   publishMetrics,
   disconnectWs,
 } from './ws-client.js';
-import { emitSnapshotWrite } from './metrics.js';
+import { emitSnapshotWrite, recordDiskUsage } from './metrics.js';
+import {
+  describeSweep,
+  effectiveKeepHours,
+  sampleDisk,
+  shouldSweep,
+} from './retention.js';
 import { cacheResults, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
@@ -32,7 +38,12 @@ const {
   wsUrl: WS_URL,
   concurrency: CONCURRENCY,
   dbPath,
+  retentionHours: RETENTION_HOURS,
+  retentionSweepMs: RETENTION_SWEEP_MS,
 } = collectorConfig;
+
+/** When the last retention sweep ran; null until the first one. */
+let lastSweepAt: number | null = null;
 
 let partyListRecords: PartyList[] = [];
 let source: ElectionSource;
@@ -47,6 +58,9 @@ function logConfiguration(): void {
   log.info(`ELECTION_YEAR:    ${collectorConfig.electionYear}`);
   log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
   log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
+  log.info(
+    `RETENTION_HOURS:  ${RETENTION_HOURS > 0 ? `${RETENTION_HOURS} (prune older snapshots on startup and every ${Math.round(RETENTION_SWEEP_MS / 1000)}s)` : 'disabled (keep every snapshot)'}`
+  );
   log.info(`CONCURRENCY:      ${collectorConfig.concurrency}`);
   log.info(`FETCH_TIMEOUT_MS: ${collectorConfig.fetchTimeoutMs}`);
   log.info(`FETCH_PACING_MS:  ${collectorConfig.fetchPacingMs}`);
@@ -69,6 +83,9 @@ async function runOnce(): Promise<void> {
   health.cycleCount += 1;
   health.lastCycleStartedAt = Date.now();
   health.lastError = null;
+  // Sample the volume before this cycle writes to it, so a full disk is
+  // visible in the metrics ahead of the write that fails because of it.
+  recordDiskUsage(dbPath);
 
   try {
     const payload = await scrapeCycle({
@@ -113,6 +130,44 @@ async function runOnce(): Promise<void> {
   }
 }
 
+/**
+ * Prune expired snapshots and hand the freed pages back to the filesystem.
+ *
+ * Runs between cycles (never during a scrape, so it never competes for the
+ * database with a write) and is bounded work: the window only moves forward,
+ * so a sweep deletes at most one sweep interval's worth of snapshots.
+ */
+function retentionSweep(now = Date.now()): void {
+  if (RETENTION_HOURS <= 0) return;
+
+  const disk = sampleDisk(dbPath);
+  const keepHours = effectiveKeepHours(RETENTION_HOURS, disk);
+  const interval = RETENTION_SWEEP_MS;
+
+  // A volume below the threshold sweeps immediately, regardless of schedule.
+  if (keepHours >= RETENTION_HOURS && !shouldSweep(lastSweepAt, now, interval)) {
+    return;
+  }
+  lastSweepAt = now;
+
+  try {
+    const { deletedSnapshots } = pruneSnapshots(keepHours);
+    const freedPages = compactDatabase();
+    if (deletedSnapshots > 0 || freedPages > 0) {
+      log.info(
+        describeSweep({
+          deletedSnapshots,
+          freedPages,
+          keepHours,
+          underPressure: keepHours < RETENTION_HOURS,
+        })
+      );
+    }
+  } catch (err) {
+    log.error('Retention sweep failed', err);
+  }
+}
+
 async function loopRun(): Promise<void> {
   try {
     await runOnce();
@@ -127,6 +182,7 @@ async function loopRun(): Promise<void> {
   void resultsService.warmPriorYears().catch((err) => {
     log.warn('Prior-year warm-up failed', err);
   });
+  retentionSweep();
   setTimeout(loopRun, POLL_INTERVAL_MS);
 }
 
@@ -157,6 +213,27 @@ async function main(): Promise<void> {
   } catch (err) {
     log.error('Failed to open database', err);
     process.exit(1);
+  }
+
+  // Retention: keep the volume bounded before the first write of this process.
+  // Failure is not fatal — an unprunable database (a full volume) still needs
+  // the collector to run and report why it cannot write.
+  try {
+    const pruned = pruneSnapshots(RETENTION_HOURS);
+    const freedPages = compactDatabase();
+    lastSweepAt = Date.now();
+    if (pruned.deletedSnapshots > 0 || freedPages > 0) {
+      log.info(
+        describeSweep({
+          deletedSnapshots: pruned.deletedSnapshots,
+          freedPages,
+          keepHours: RETENTION_HOURS,
+          underPressure: false,
+        })
+      );
+    }
+  } catch (err) {
+    log.error('Retention prune failed', err);
   }
 
   connectWs(WS_URL);

@@ -1,4 +1,7 @@
+import { statfsSync } from 'fs';
+import { dirname, resolve } from 'path';
 import { Counter, Gauge, Histogram, Registry } from 'prom-client';
+import { log } from './logger.js';
 import type {
   ElectorateFetchErrorReason,
   MetricEvent,
@@ -115,6 +118,29 @@ export const buildInfo = new Gauge({
   registers: [collectorRegister],
 });
 
+/**
+ * Size and free space of the filesystem holding the SQLite database.
+ *
+ * SQLite reports a full disk only when a write fails (`SQLITE_FULL`), which is
+ * too late to be useful: the collector then cannot record anything, so the
+ * site serves nothing and the failure is only visible as an empty page. These
+ * two series are the leading indicator, and the pair is what makes it a
+ * ratio rather than a magic number.
+ */
+export const diskSizeBytes = new Gauge({
+  name: 'election_disk_size_bytes',
+  help: 'Size of the filesystem holding the SQLite database',
+  labelNames: ['path'],
+  registers: [collectorRegister],
+});
+
+export const diskAvailableBytes = new Gauge({
+  name: 'election_disk_available_bytes',
+  help: 'Bytes free on the filesystem holding the SQLite database',
+  labelNames: ['path'],
+  registers: [collectorRegister],
+});
+
 buildInfo.set(
   {
     version: process.env.APP_VERSION ?? 'dev',
@@ -206,4 +232,39 @@ export function emitSnapshotWrite(
     { metric: 'snapshotWritesTotal', status },
     { metric: 'dbWriteDurationSeconds', seconds, status },
   ];
+}
+
+/**
+ * Samples the filesystem holding the database. Returns null for in-memory
+ * databases (tests) and for a path that cannot be sampled — callers decide
+ * what to do with an unknown value rather than being handed a fake zero.
+ */
+export function sampleDiskUsage(
+  dbPath: string
+): { path: string; size: number; available: number } | null {
+  if (dbPath === ':memory:') return null;
+  const path = resolve(dirname(dbPath));
+  try {
+    const stats = statfsSync(path);
+    return {
+      path,
+      size: stats.blocks * stats.bsize,
+      available: stats.bavail * stats.bsize,
+    };
+  } catch (err) {
+    // A metrics sample must never take the collector down.
+    log.warn(`Could not sample disk usage for ${path}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Publishes the disk sample. Called once per cycle so the value is current
+ * when a write fails.
+ */
+export function recordDiskUsage(dbPath: string): void {
+  const sample = sampleDiskUsage(dbPath);
+  if (!sample) return;
+  diskSizeBytes.set({ path: sample.path }, sample.size);
+  diskAvailableBytes.set({ path: sample.path }, sample.available);
 }

@@ -502,10 +502,26 @@ const collector = dashboard({
     timeseries({
       title: 'Volume used',
       description:
-        'Fly volume utilisation for the SQLite DB and caches (platform metric).',
-      targets: [target(`fly_volume_used_pct`, '{{app}}')],
+        'SQLite volume utilisation. `fly_volume_used_pct` is the platform metric; the app-tier series (from the collector sampling the DB filesystem) also works off Fly and is what the low-space alert uses.',
+      targets: [
+        target(`fly_volume_used_pct`, '{{app}} (platform)'),
+        target(
+          `100 * (1 - election_disk_available_bytes / election_disk_size_bytes)`,
+          '{{path}} (collector)',
+          'B'
+        ),
+      ],
       unit: 'percent',
       thresholds: [green(null), yellow(80), red(95)],
+    }),
+    stat({
+      title: 'DB write failures (1h)',
+      description:
+        'Snapshot writes that failed. Normally 0; non-zero means the collector fetched results it could not record — a full volume reports SQLITE_FULL here first, before anything else in the pipeline looks wrong.',
+      expr: `sum(increase(election_snapshot_writes_total{status="error"}[1h]))`,
+      unit: 'short',
+      decimals: 0,
+      thresholds: [green(0), red(1)],
     }),
     timeseries({
       title: 'Webhook publishes',

@@ -26,6 +26,9 @@ type PartyListEntry = PartyList & WithAdjustedRank;
 let sqliteDb: Database.Database;
 let drizzleDb: ReturnType<typeof drizzle<typeof schema>>;
 
+/** `PRAGMA auto_vacuum` value for incremental auto-vacuum (SQLite's "2"). */
+const INCREMENTAL_AUTO_VACUUM = 2;
+
 export function openDb(dbPath: string): void {
   if (dbPath !== ':memory:') {
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -33,11 +36,17 @@ export function openDb(dbPath: string): void {
   sqliteDb = new Database(dbPath);
   if (dbPath !== ':memory:') {
     sqliteDb.pragma('journal_mode = WAL');
+    // Ask for incremental auto-vacuum before the migrations create anything:
+    // on an empty database the setting takes effect immediately, so the
+    // storage can be reclaimed later with `compactDatabase()` without a
+    // full-file rewrite. See enableIncrementalVacuum() for existing files.
+    sqliteDb.pragma('auto_vacuum = INCREMENTAL');
   }
   drizzleDb = drizzle(sqliteDb, { schema });
   migrate(drizzleDb, {
     migrationsFolder: resolve(__dirname, '../drizzle'),
   });
+  if (dbPath !== ':memory:') enableIncrementalVacuum();
 }
 
 export function closeDb() {
@@ -162,4 +171,163 @@ export function writeResults(
 
     log.info(`DB write complete (scrape #${scrapeId})`);
   });
+}
+
+// ---- Retention -----------------------------------------------------------
+
+/** Child tables keyed by `scrape_id`, deleted before the snapshot row itself. */
+const SNAPSHOT_CHILD_TABLES = [
+  'electorate_results',
+  'electorate_summary',
+  'party_vote_results',
+  'party_vote_summary',
+  'party_lists',
+] as const;
+
+/**
+ * Snapshots deleted per transaction. Small on purpose: the WAL has to hold the
+ * whole batch, and the interesting case is a volume that is nearly full, where
+ * one large `DELETE` fails with `SQLITE_FULL` and frees nothing. Batching with
+ * a checkpoint between keeps the WAL bounded so pruning can always make
+ * progress. There is no auto-vacuum, so freed pages go to the freelist and are
+ * reused by the next scrape rather than returned to the filesystem.
+ */
+const PRUNE_BATCH = 100;
+
+export type PruneResult = {
+  deletedSnapshots: number;
+  /** True when a batch hit an error (e.g. a full volume) and pruning stopped. */
+  stoppedEarly: boolean;
+};
+
+/**
+ * Delete snapshots (and their child rows) older than `keepHours`.
+ *
+ * The newest snapshot is always kept, so a deployment that has lain idle for
+ * longer than the window still has something to serve. `keepHours <= 0`
+ * disables pruning entirely.
+ */
+export function pruneSnapshots(
+  keepHours: number,
+  batchSize: number = PRUNE_BATCH
+): PruneResult {
+  if (!Number.isFinite(keepHours) || keepHours <= 0) {
+    return { deletedSnapshots: 0, stoppedEarly: false };
+  }
+
+  const cutoff = `-${Math.floor(keepHours)} hours`;
+  const selectBatch = sqliteDb.prepare(
+    `select id from scrape_snapshots
+      where started_at < datetime('now', ?)
+        and id < (select max(id) from scrape_snapshots)
+      order by id
+      limit ?`
+  );
+  const deleteChildren = SNAPSHOT_CHILD_TABLES.map((table) =>
+    sqliteDb.prepare(`delete from ${table} where scrape_id in (select value from json_each(?))`)
+  );
+  const deleteSnapshots = sqliteDb.prepare(
+    'delete from scrape_snapshots where id in (select value from json_each(?))'
+  );
+
+  const deleteBatch = sqliteDb.transaction((ids: string) => {
+    for (const del of deleteChildren) del.run(ids);
+    deleteSnapshots.run(ids);
+  });
+
+  let deletedSnapshots = 0;
+  for (;;) {
+    const ids = (selectBatch.all(cutoff, batchSize) as { id: number }[]).map(
+      (row) => row.id
+    );
+    if (ids.length === 0) return { deletedSnapshots, stoppedEarly: false };
+
+    try {
+      deleteBatch(JSON.stringify(ids));
+    } catch (err) {
+      log.error(`Retention: could not prune ${ids.length} snapshot(s)`, err);
+      return { deletedSnapshots, stoppedEarly: true };
+    }
+    deletedSnapshots += ids.length;
+
+    try {
+      sqliteDb.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (err) {
+      // Busy (another connection is reading); the WAL will be checkpointed
+      // automatically later. Not a reason to abandon pruning.
+      log.debug('Retention: WAL checkpoint skipped', err);
+    }
+  }
+}
+
+/**
+ * Turn on incremental auto-vacuum, which is what makes `compactDatabase()`
+ * able to hand pages back to the filesystem.
+ *
+ * A database created by `openDb` already has the setting. A database created
+ * before this existed carries `auto_vacuum = NONE` in its header, and SQLite
+ * only adopts the new mode after a `VACUUM` — which rewrites the whole file and
+ * therefore needs free space, so on a nearly-full volume this fails and is
+ * logged rather than thrown: the collector must still start and report why it
+ * cannot write.
+ */
+export function enableIncrementalVacuum(): boolean {
+  if (sqliteDb.pragma('auto_vacuum', { simple: true }) === INCREMENTAL_AUTO_VACUUM) {
+    return true;
+  }
+
+  sqliteDb.pragma('auto_vacuum = INCREMENTAL');
+  const tables = (
+    sqliteDb
+      .prepare("select count(*) c from sqlite_master where type = 'table'")
+      .get() as { c: number }
+  ).c;
+
+  if (tables > 0) {
+    try {
+      sqliteDb.exec('VACUUM');
+    } catch (err) {
+      log.warn(
+        'Could not enable incremental auto-vacuum (VACUUM failed); pruning will recycle pages but the file will not shrink',
+        err
+      );
+      return false;
+    }
+  }
+
+  const mode = sqliteDb.pragma('auto_vacuum', { simple: true });
+  if (mode !== INCREMENTAL_AUTO_VACUUM) {
+    log.warn(`Incremental auto-vacuum not enabled (auto_vacuum = ${mode})`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Return up to `maxPages` free pages at the end of the file to the filesystem,
+ * then checkpoint the WAL so the on-disk size is visible immediately.
+ *
+ * Incremental auto-vacuum can only truncate free pages that sit *after* the
+ * last live page — interior holes are left for new rows to reuse — so this can
+ * legitimately free nothing even with a large freelist. Returns the number of
+ * pages (of `page_size` bytes) actually returned.
+ */
+export function compactDatabase(maxPages = 4096): number {
+  if (sqliteDb.pragma('auto_vacuum', { simple: true }) !== INCREMENTAL_AUTO_VACUUM) {
+    return 0;
+  }
+  const before = sqliteDb.pragma('freelist_count', { simple: true }) as number;
+  if (before === 0) return 0;
+
+  sqliteDb.pragma(`incremental_vacuum(${maxPages})`);
+
+  const after = sqliteDb.pragma('freelist_count', { simple: true }) as number;
+  if (after < before) {
+    try {
+      sqliteDb.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (err) {
+      log.debug('Compaction: WAL checkpoint skipped', err);
+    }
+  }
+  return before - after;
 }

@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import {
   buildInfo,
   collectorRegister,
@@ -12,6 +15,7 @@ import {
   emitVotesCounted,
   emitWebhookPublish,
   emitWebhookPublishDuration,
+  recordDiskUsage,
 } from './metrics.js';
 
 describe('collector metric events', () => {
@@ -136,5 +140,48 @@ describe('collector metric events', () => {
     expect(await collectorRegister.metrics()).toContain(
       'election_collector_socket_connected 0'
     );
+  });
+});
+
+describe('disk usage metric', () => {
+  beforeEach(() => {
+    collectorRegister.resetMetrics();
+  });
+
+  async function diskValues() {
+    const series = await collectorRegister.getMetricsAsJSON();
+    return {
+      size: series.find((s) => s.name === 'election_disk_size_bytes')?.values ?? [],
+      free:
+        series.find((s) => s.name === 'election_disk_available_bytes')?.values ??
+        [],
+    };
+  }
+
+  it('exposes size and free space for the database volume as a ratio', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'en-metrics-'));
+    recordDiskUsage(join(dir, 'election_results.db'));
+
+    const { size, free } = await diskValues();
+    const sampled = size.find((v) => v.labels.path === dir);
+    const sampledFree = free.find((v) => v.labels.path === dir);
+
+    expect(sampled?.value).toBeGreaterThan(0);
+    expect(sampledFree?.value).toBeGreaterThanOrEqual(0);
+    expect(sampledFree?.value).toBeLessThan(sampled?.value as number);
+  });
+
+  it('skips in-memory databases, which have no volume to run out of', async () => {
+    const before = await diskValues();
+    recordDiskUsage(':memory:');
+    expect(await diskValues()).toEqual(before);
+  });
+
+  it('never throws when the path cannot be sampled', async () => {
+    const before = await diskValues();
+    expect(() =>
+      recordDiskUsage('/nonexistent-volume-xyz/db.sqlite')
+    ).not.toThrow();
+    expect(await diskValues()).toEqual(before);
   });
 });

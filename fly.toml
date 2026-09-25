@@ -44,6 +44,14 @@ primary_region = "syd"
   DIST_DIR = "/app/packages/dashboard/dist"
   COLLECTOR_ENABLED = "true"
   ELECTION_YEAR = "2023"
+  # 30 minutes while this app replays the finished 2023 archive: every 2 minutes
+  # is 720 cycles/day and ~140 MB/day on the 1 GB volume, and the archive does
+  # not change. Drop this to 30000-120000 for a live count.
+  POLL_INTERVAL_MS = "1800000"
+  # Keep a day of snapshots; pruning runs on startup. Without it the volume
+  # fills, SQLite starts failing every write with SQLITE_FULL, and the site
+  # serves nothing (see docs/observability.md §6 for the alerts).
+  RETENTION_HOURS = "24"
   WS_URL = "ws://127.0.0.1:3456"
   HISTORY_UPSTREAM = "http://127.0.0.1:3459"
   DB_PATH = "/data/election_results.db"

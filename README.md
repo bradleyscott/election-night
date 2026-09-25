@@ -197,6 +197,8 @@ See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the c
 | `WS_URL`                | `ws://localhost:3456`           | Socket.io server URL (for the collector); loopback in the combined deployment                                                                                                                                                                                    |
 | `WS_RECONNECT_DELAY_MS` | `2000`                          | Delay before reconnecting to the Socket.io server                                                                                                                                                                                                                |
 | `DB_PATH`               | `.data/election_results.db`     | Collector: SQLite database path (the dashboard server never opens a DB)                                                                                                                                                                                          |
+| `RETENTION_HOURS`       | `24`                            | Collector: hours of snapshots to keep, enforced on startup and then every `RETENTION_SWEEP_MS`, oldest first (the newest snapshot is always kept; `0` keeps everything). This is what bounds the database: without it the volume fills, SQLite fails every write with `SQLITE_FULL`, and the site serves nothing while the collector keeps fetching. |
+| `RETENTION_SWEEP_MS`    | `900000`                        | Collector: how often the running process prunes and compacts. `0` prunes only at startup, which is not enough for a process that runs for weeks. |
 | `RESULTS_CACHE_PATH`    | `.data/electorate_results.json` | Collector: JSON cache of the current cycle's electorate results, used as the webhook diff baseline. Tagged with `ELECTION_YEAR` — a cache from another cycle is ignored rather than diffed against. In the combined image this is the same file as `CACHE_PATH`. |
 | `ELECTION_SOURCE_PATH`  | —                               | Path to a custom source adapter module implementing `ElectionSource`                                                                                                                                                                                             |
 | `WEBHOOK_URL`           | —                               | Single webhook URL for all events. Payload includes an `event` field (`result_updated`, `prediction_changed`, `leader_change`, or `count_completed`) plus the full electorate result and a `diff` describing what changed.                                       |
@@ -266,6 +268,32 @@ fly volumes create election_data --size 1 --region syd
 ```
 
 State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
+
+### Keeping the volume from filling
+
+Every cycle writes a full snapshot, so an unbounded database grows with the poll
+rate — about 140 MB/day at the 2-minute default, which fills a 1 GB volume in a
+week. Two things keep it bounded, because production runs for weeks at a time:
+
+- **Continuous retention.** `RETENTION_HOURS` (default 24) is enforced on
+  startup and then swept every `RETENTION_SWEEP_MS` (default 15 minutes) for the
+  life of the process. A volume that drops below 5% free abandons the configured
+  window for one hour's worth of history: a database that cannot be written
+  serves nothing at all, so shedding old snapshots is the better failure.
+- **Compaction.** The database runs with incremental auto-vacuum, so each sweep
+  hands the pages it freed back to the filesystem rather than only recycling
+  them. Without this the file keeps the high-water mark of its busiest period
+  forever, and a single busy night would leave it permanently near full.
+
+When a volume does fill despite that, the failure is quiet and misleading: the
+collector keeps fetching results successfully and every SQLite write fails with
+`SQLITE_FULL`, so the dashboard has nothing to serve and pages show "awaiting
+results" rather than an error. Recovery needs free space — a `DELETE` needs WAL
+space too, so pruning in place on a 100% full volume cannot work (`fly volumes
+extend` is the way out, after which the retention window brings the steady state
+back to roughly 150 MB). Watch `election_disk_available_bytes /
+election_disk_size_bytes` and `election_snapshot_writes_total{status="error"}`;
+both have alert rules in `docs/observability.md` §6.
 
 To validate the image and the XML feed on a throwaway app before promoting it:
 

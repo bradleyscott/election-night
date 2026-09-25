@@ -38,6 +38,22 @@ const collectorConfigSchema = z.object({
   logLevel: z.coerce.number().int().min(0).max(3).default(3),
   healthPort: z.coerce.number().int().min(1024).max(65535).default(3459),
   dbPath: z.string().default('.data/election_results.db'),
+  retentionHours: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(24)
+    .describe(
+      'Hours of snapshots to keep. Pruned on startup and then swept periodically, oldest first, always keeping the newest snapshot. 0 keeps everything — but nothing else bounds the database, so a long-running deployment will fill its volume and every write will then fail with SQLITE_FULL'
+    ),
+  retentionSweepMs: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(900_000)
+    .describe(
+      'How often the running collector prunes and compacts (ms). 0 prunes only at startup, which is not enough for a process that runs for weeks'
+    ),
   resultsCachePath: z
     .string()
     .default('.data/electorate_results.json')
@@ -76,6 +92,8 @@ function loadCollectorConfig(): CollectorConfig {
     logLevel: process.env.LOG_LEVEL,
     healthPort: process.env.HEALTH_PORT,
     dbPath: process.env.DB_PATH,
+    retentionHours: process.env.RETENTION_HOURS,
+    retentionSweepMs: process.env.RETENTION_SWEEP_MS,
     resultsCachePath: process.env.RESULTS_CACHE_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,
