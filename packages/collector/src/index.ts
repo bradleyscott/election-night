@@ -17,6 +17,7 @@ import { cacheResults, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
+import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
 import { createHistoryHandler, closeHistoryDb } from './history-server.js';
 
@@ -37,6 +38,8 @@ let partyListRecords: PartyList[] = [];
 let source: ElectionSource;
 let electorateConfigs: ElectorateConfig[] = [];
 
+const resultsService = createResultsService();
+
 function logConfiguration(): void {
   log.info('=== Collector Configuration ===');
   log.info(`DB_PATH:          ${collectorConfig.dbPath}`);
@@ -50,6 +53,11 @@ function logConfiguration(): void {
   log.info(`LOG_LEVEL:        ${collectorConfig.logLevel}`);
   log.info(`HEALTH_PORT:      ${collectorConfig.healthPort}`);
   log.info(`Electorates:      ${electorateConfigs.length}`);
+  log.info(
+    `Prior cycles:     ${resultsService.getPriorYears().join(', ') || 'none'}`
+  );
+  if (collectorConfig.priorElectionYear)
+    log.info(`PRIOR_ELECTION_YEAR: ${collectorConfig.priorElectionYear}`);
   if (collectorConfig.webhookUrl)
     log.info(`WEBHOOK_URL:      ${collectorConfig.webhookUrl}`);
   if (collectorConfig.electionSourcePath)
@@ -92,6 +100,7 @@ async function runOnce(): Promise<void> {
     }
     await processResults(payload.electorateResults);
     cacheResults(payload.electorateResults);
+    resultsService.setLiveResults(payload);
     publishResults(payload);
     health.lastCycleFinishedAt = Date.now();
     health.lastCycleOk = true;
@@ -112,6 +121,12 @@ async function loopRun(): Promise<void> {
     health.lastCycleOk = false;
     health.lastError = err instanceof Error ? err.message : String(err);
   }
+  // Retry any archived cycle that failed earlier, so a blip at startup does
+  // not leave prior results unavailable until the next deploy. Cached cycles
+  // return immediately, so this is a no-op once they are in.
+  void resultsService.warmPriorYears().catch((err) => {
+    log.warn('Prior-year warm-up failed', err);
+  });
   setTimeout(loopRun, POLL_INTERVAL_MS);
 }
 
@@ -133,6 +148,10 @@ async function main(): Promise<void> {
 
   logConfiguration();
 
+  resultsService.setCurrentElectorates(
+    electorateConfigs.map((c) => c.electorateName)
+  );
+
   try {
     openDb(dbPath);
   } catch (err) {
@@ -148,6 +167,7 @@ async function main(): Promise<void> {
       createHistoryHandler({
         dbPath: collectorConfig.dbPath,
         electionYear: collectorConfig.electionYear,
+        resultsService,
       })
     );
   } catch (err) {

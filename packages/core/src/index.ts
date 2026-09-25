@@ -3,4 +3,7 @@ export * from './config.js';
 export * from './reducers.js';
 export * from './diff.js';
 export * from './history.js';
+export * from './electorate-names.js';
+export * from './electorate-successions.js';
+export * from './election-results-service.js';
 export * from './sources/index.js';

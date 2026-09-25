@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
 import { partyColors } from '../lib/constants.js';
+import {
+  predictionStatusClass,
+  predictionStatusLabel,
+} from '../lib/prediction-status.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -144,32 +148,14 @@ function StatCard({
 }
 
 function StatusCard({ status }: { status: string | null | undefined }) {
-  const statusClass =
-    status === 'projected'
-      ? 'text-green-700 dark:text-green-400'
-      : status === 'likely'
-      ? 'text-green-700 dark:text-green-400'
-      : status === 'leaning'
-      ? 'text-orange-700 dark:text-orange-400'
-      : 'text-amber-700 dark:text-amber-400';
-
-  const statusText =
-    status === 'projected' || status === 'likely'
-      ? 'Likely winner'
-      : status === 'leaning'
-      ? 'Leaning'
-      : status === 'too-close'
-      ? 'Too close to call'
-      : 'Too close to call';
-
   return (
     <div className="border p-3 sm:p-4">
       <div className="kicker mb-1">Status</div>
       <div>
         <span
-          className={`font-display font-bold text-xl sm:text-2xl tracking-tight ${statusClass}`}
+          className={`font-display font-bold text-xl sm:text-2xl tracking-tight ${predictionStatusClass(status)}`}
         >
-          {statusText}
+          {predictionStatusLabel(status)}
         </span>
       </div>
     </div>

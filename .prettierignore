@@ -2,3 +2,7 @@ node_modules/
 build/
 package-lock.json
 coverage/
+
+# Design captures: real rendered DOM saved verbatim. Reformatting them would
+# make the next capture show a spurious diff.
+docs/mockups/

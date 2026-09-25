@@ -10,6 +10,8 @@ import type {
   WithMarginOfError,
 } from '@election-night/core/types';
 import { createHistoryHandler } from './history-server.js';
+import type { ElectionResultsService } from '@election-night/core/election-results-service';
+import type { PriorWinnersResponse } from '@election-night/core/history';
 
 vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -72,8 +74,16 @@ describe('history-server', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  function start(electionYear?: string): Promise<void> {
-    const handler = createHistoryHandler({ dbPath, electionYear });
+  function start(
+    electionYear?: string,
+    resultsService?: ElectionResultsService,
+    path = dbPath
+  ): Promise<void> {
+    const handler = createHistoryHandler({
+      dbPath: path,
+      electionYear,
+      resultsService,
+    });
     server = http.createServer((req, res) => {
       if (!handler(req, res)) {
         res.writeHead(404);
@@ -210,5 +220,72 @@ describe('history-server', () => {
     await start();
     const res = await fetch(`${baseUrl}/other`);
     expect(res.status).toBe(404);
+  });
+
+  describe('results service routes', () => {
+    const priorWinners: PriorWinnersResponse = {
+      currentYear: '2026',
+      primaryYear: '2023',
+      years: [
+        {
+          year: '2023',
+          winners: [
+            {
+              electorateName: 'Remutaka',
+              priorElectorateName: null,
+              year: '2023',
+              candidate: 'JONES, Mary',
+              party: 'Labour Party',
+              votes: 20_000,
+              majority: 3_000,
+              majorityPercent: 0.15,
+            },
+          ],
+        },
+      ],
+    };
+
+    function stubResults(
+      results: Record<string, unknown>
+    ): ElectionResultsService {
+      return {
+        getResults: async (year: string) => results[year] ?? null,
+        getPriorWinners: async () => priorWinners,
+      } as unknown as ElectionResultsService;
+    }
+
+    test('serves prior winners from the results service', async () => {
+      await start('2026', stubResults({}));
+      const res = await fetch(`${baseUrl}/history/prior-winners`);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(priorWinners);
+    });
+
+    test('serves an archived cycle as final', async () => {
+      const results = {
+        year: '2023',
+        final: true,
+        electorateResults: [],
+        partyVote: [],
+        partyLists: [],
+      };
+      await start('2026', stubResults({ '2023': results }));
+
+      const res = await fetch(`${baseUrl}/history/results/2023`);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(results);
+    });
+
+    test('404s — not an empty 200 — for a year it cannot serve', async () => {
+      await start('2026', stubResults({}));
+      const res = await fetch(`${baseUrl}/history/results/2014`);
+      expect(res.status).toBe(404);
+    });
+
+    test('answers without a database, since results are held in memory', async () => {
+      await start('2026', stubResults({}), join(tmpDir, 'never-created.db'));
+      const res = await fetch(`${baseUrl}/history/prior-winners`);
+      expect(res.status).toBe(200);
+    });
   });
 });

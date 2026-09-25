@@ -1,0 +1,67 @@
+# Design captures
+
+These are not hand-drawn mockups. Each pair is a capture of the **running
+application** — the real components, the real stylesheet, real results — so what
+is reviewed here is what ships.
+
+## How they were produced
+
+```bash
+# 1. Build the shared package and the dashboard bundle
+npm run build:core && npm run build -w packages/dashboard
+
+# 2. Live cycle from the Commission's 2023 archive (the 2026 feed is not
+#    published yet), which makes 2020 and 2017 the prior cycles.
+ELECTION_YEAR=2023 npm run start:collector
+(cd packages/dashboard && npm start)
+
+# 3. Drive headless Chrome over CDP: navigate, wait for the rendered marker,
+#    then save document.documentElement.outerHTML and Page.captureScreenshot.
+```
+
+The HTML files have the built stylesheet inlined so they open standalone; the
+Google Fonts `<link>` is left intact. The PNGs are the same render at viewport
+scale.
+
+## What each shows
+
+### `flipped-page` (`.html` / `.png`)
+
+`/flipped` against the live cycle. 25 of 65 comparable general seats had changed
+hands by the time of the capture, ordered by the current leader's share of the
+vote. Note the **2020 margin** column — the previous holder's majority of
+victory — beside tonight's lead, each as votes with the share of the vote
+beneath. The percentages are deliberately bare (the footnote defines them once):
+`27.0% of votes counted` reads as count progress rather than a lead. The only
+year references are the ones that carry information (the page kicker and the two
+comparison column headers), so a different prior cycle reads correctly.
+
+Every margin of error reads `±0.0%` because the 2023 archive is a *final*
+result (100% of places counted), not a partial count; the same page on election
+night shows the real polling band. The same reason makes every row "Likely
+winner" rather than the "Too close to call" a partial count produces.
+
+### `electorate-past-winners` (`.html` / `.png`)
+
+An electorate page (`Banks Peninsula`) with the **Past winners** panel below the
+results table. Two cycles resolved: 2020 (McLellan, Labour, `13,156 vote margin`)
+and 2017 (Dyson, Labour, `7,916 vote margin`), each followed by its share of
+votes cast. The 2017 row is labelled `as Port Hills` — the seat that name's area
+became — so the comparison is auditable rather than taken on trust.
+
+The panel deliberately says nothing about who is leading tonight: past results
+stand on their own, and a "flipped" marker against a partial count would be a
+verdict the count has not reached. Saying so is the Flipped page's job, where
+the lead and its margin of error sit beside the claim.
+
+Seats with no comparable prior holder (created by a merge or split, or new)
+replace the table with a one-line explanation. See
+[`../prior-election-results.md`](../prior-election-results.md).
+
+### `flipped-page-mobile` (`.html` / `.png`)
+
+The same page at 390px wide (deviceScaleFactor 2, mobile emulation). Below the
+`sm` breakpoint the table keeps three columns — electorate, held, now leading —
+and folds the numbers into them (`majority 2,392 · 5.9%`, `leads 11,192 ·
+27.0%`), dropping the margin, MoE and status columns. The lead stays visible
+without horizontal scrolling, which is the point of the page.

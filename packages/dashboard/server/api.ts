@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { HistorySource } from './history-upstream.js';
 
-function sendJson(res: ServerResponse, body: unknown): void {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
+function sendJson(res: ServerResponse, body: unknown, status = 200): void {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(body));
 }
 
@@ -36,6 +36,33 @@ export async function serveApi(
   // GET /api/history/party-votes — return party vote totals over time
   if (pathname === '/api/history/party-votes') {
     sendJson(res, await historySource.partyVoteHistory());
+    return true;
+  }
+
+  // GET /api/history/prior-winners — winners of prior cycles, matched to the
+  // current cycle's electorates. 503 when the collector could not derive any
+  // (no archive reachable, or a connector that only serves the live cycle).
+  if (pathname === '/api/history/prior-winners') {
+    const prior = await historySource.priorWinners();
+    if (prior) {
+      sendJson(res, prior);
+    } else {
+      sendJson(res, { error: 'prior results unavailable' }, 503);
+    }
+    return true;
+  }
+
+  // GET /api/history/results/:year — results for any nominated cycle, live or
+  // archived, from the collector's results service.
+  const resultsMatch = pathname.match(/^\/api\/history\/results\/(\d{4})$/);
+  if (resultsMatch) {
+    const year = resultsMatch[1];
+    const results = await historySource.resultsForYear(year);
+    if (results) {
+      sendJson(res, results);
+    } else {
+      sendJson(res, { error: `no results available for ${year}` }, 404);
+    }
     return true;
   }
 

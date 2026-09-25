@@ -1,9 +1,11 @@
 import sainteLague from 'sainte-lague';
 import jstat from 'jstat';
+import { config } from './config.js';
 import {
   ElectorateResults,
   PartyList,
   PredictionStatus,
+  ResultsPayload,
   VotingResults,
   WithLeaders,
   WithMarginOfError,
@@ -293,6 +295,39 @@ function calculatePartyList(
   return withCutDistance;
 }
 
+/**
+ * The whole reduction, raw electorate results + party lists → the payload the
+ * dashboard consumes.
+ *
+ * Shared by the live scrape loop and by `ElectionResultsService` when it
+ * fetches an archived cycle, so a historical year goes through exactly the
+ * same leaders, margin-of-error and seat maths as the live one.
+ */
+function buildResultsPayload(
+  results: ElectorateResults[],
+  partyListRecords: PartyList[],
+  confidence: number = config.predictionConfidence
+): ResultsPayload {
+  const withPredictions = results
+    .map((x) => calculateLead({ ...x, candidateVotes: [...x.candidateVotes] }))
+    .map((x) => predictWinner(x, confidence));
+
+  const partyVote = calculatePartyVoteWithSeats(
+    calculatePartyVoteWithPercentages(withPredictions, confidence),
+    withPredictions
+  );
+
+  return {
+    electorateResults: withPredictions,
+    partyVote,
+    partyLists: calculatePartyList(
+      withPredictions,
+      partyVote,
+      partyListRecords
+    ),
+  };
+}
+
 export {
   calculateLead,
   predictWinner,
@@ -300,4 +335,5 @@ export {
   calculatePartyVoteWithPercentages,
   calculatePartyVoteWithSeats,
   calculatePartyList,
+  buildResultsPayload,
 };

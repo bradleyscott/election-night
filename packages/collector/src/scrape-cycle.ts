@@ -1,5 +1,4 @@
 import pLimit from 'p-limit';
-import { config } from '@election-night/core/config';
 import type {
   ElectorateConfig,
   ElectorateFetchErrorReason,
@@ -10,13 +9,7 @@ import type {
   RawElectorateResults,
   ResultsPayload,
 } from '@election-night/core/types';
-import {
-  calculateLead,
-  calculatePartyList,
-  calculatePartyVoteWithPercentages,
-  calculatePartyVoteWithSeats,
-  predictWinner,
-} from '@election-night/core/reducers';
+import { buildResultsPayload } from '@election-night/core/reducers';
 import { log } from './logger.js';
 import { sleep } from './util.js';
 import { collectorConfig } from './config.js';
@@ -208,23 +201,11 @@ export async function scrapeCycle(
     }
   }
 
-  const withPredictions = results
-    .map((x) => calculateLead({ ...x, candidateVotes: [...x.candidateVotes] }))
-    .map((x) => predictWinner(x, config.predictionConfidence));
-
-  const partyVote = calculatePartyVoteWithSeats(
-    calculatePartyVoteWithPercentages(
-      withPredictions,
-      config.predictionConfidence
-    ),
-    withPredictions
-  );
-
-  const partyLists = calculatePartyList(
-    withPredictions,
+  const {
+    electorateResults: withPredictions,
     partyVote,
-    partyListRecords
-  );
+    partyLists,
+  } = buildResultsPayload(results, partyListRecords);
 
   const totalSeats = partyVote.reduce((s, p) => s + p.seats, 0);
   const partiesInParliament = partyVote.filter((p) => p.seats > 0).length;
