@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { usePriorWinners } from '../hooks/useVoteHistory.js';
 import { Toggle } from '../components/Toggle.js';
+import { Pagination } from '../components/Pagination.js';
 import { WaitingState } from '../components/WaitingState.js';
 import { partyColors } from '../lib/constants.js';
 import {
@@ -25,6 +26,9 @@ type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
 
+/** Rows per page, matching the Close Calls table. */
+const PAGE_SIZE = 10;
+
 /**
  * Seats held by one party after the last election that a different party is
  * leading now.
@@ -46,6 +50,7 @@ export default function Flipped() {
 
   const [showMaori, setShowMaori] = useState(false);
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
 
@@ -97,6 +102,19 @@ export default function Flipped() {
       normalizeElectorateName(electorate.electorateName).includes(term)
     );
   }, [flipped, query]);
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const pageRows = visible.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Narrowing the list starts at the first page again, but a results push
+  // that merely re-renders the table must not move the reader.
+  useEffect(() => {
+    setPage(0);
+  }, [query, showMaori]);
+
+  useEffect(() => {
+    if (page >= totalPages) setPage(0);
+  }, [totalPages, page]);
 
   if (!electorates.length) {
     return (
@@ -180,23 +198,21 @@ export default function Flipped() {
                   </Th>
                   <Th align="left">Now leading</Th>
                   {/* Below sm the numbers are folded into the two comparison
-                      columns (see the row cells), so only the margin, MoE and
-                      status columns drop out — the lead stays visible. */}
+                      columns (see the row cells), so only the margin and
+                      status columns drop out — the lead, with its error band,
+                      stays visible. */}
                   <Th align="right" className="hidden sm:table-cell">
                     Lead
                   </Th>
-                  <Th align="right" className="hidden sm:table-cell">
-                    MoE
-                  </Th>
-                  {/* Status and MoE are qualifiers, not part of the
-                      comparison, so they go first. */}
+                  {/* Status is a qualifier, not part of the comparison, so it
+                      goes last. */}
                   <Th align="right" className="hidden sm:table-cell">
                     Status
                   </Th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map(({ electorate, prior: winner }, i) => {
+                {pageRows.map(({ electorate, prior: winner }, i) => {
                   const l = electorate.leaders;
                   return (
                     <tr
@@ -260,19 +276,21 @@ export default function Flipped() {
                         </div>
                         <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
                           leads {l.margin.toLocaleString()} ·{' '}
-                          {(l.marginPercent * 100).toFixed(1)}%
+                          {(l.marginPercent * 100).toFixed(1)}% ±
+                          {(electorate.marginOfError * 100).toFixed(1)}%
                         </div>
                       </td>
+                      {/* The lead share and its 95% error band are both in
+                          the same units (share of the votes counted), so
+                          they belong in one column — “10.0% ±2.0%”. */}
                       <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell sm:px-3 sm:py-3">
                         <span className="font-bold">
                           {l.margin.toLocaleString()}
                         </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {(l.marginPercent * 100).toFixed(1)}%
+                        <span className="block whitespace-nowrap text-xs text-muted-foreground">
+                          {(l.marginPercent * 100).toFixed(1)}% ±
+                          {(electorate.marginOfError * 100).toFixed(1)}%
                         </span>
-                      </td>
-                      <td className="hidden px-2 py-2 text-right tabular-nums font-bold text-muted-foreground sm:table-cell sm:px-3 sm:py-3">
-                        ±{(electorate.marginOfError * 100).toFixed(1)}%
                       </td>
                       <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
                         <span
@@ -297,9 +315,11 @@ export default function Flipped() {
             )}
           </div>
 
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
           <p className="border-t px-3 py-2 text-xs text-muted-foreground sm:px-4">
-            Percentages are each margin as a share of the vote. MoE ± is the 95%
-            error band on the current lead.
+            Percentages are each margin as a share of the votes counted. The ±
+            on the lead is the 95% error band on that share.
           </p>
         </div>
       )}

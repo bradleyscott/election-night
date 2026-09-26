@@ -183,13 +183,17 @@ describe('Flipped page', () => {
     expect(screen.getByText('2,311')).toBeInTheDocument();
     expect(screen.getByText('9.2%')).toBeInTheDocument();
     expect(screen.getByText('5,000')).toBeInTheDocument();
-    expect(screen.getByText('10.0%')).toBeInTheDocument();
+    // The lead is a share of the votes counted — not the count progress (the
+    // fixture counts 80%) — carrying its 95% error band in the same units.
+    expect(screen.getByText('10.0% ±2.0%')).toBeInTheDocument();
     // …with the percentage left bare. "10.0% of votes counted" reads as count
     // progress, not as a lead, so the denominator is explained once in the
     // footnote instead.
     expect(screen.queryByText(/of votes|of counted/)).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Percentages are each margin as a share of the vote/)
+      screen.getByText(
+        /Percentages are each margin as a share of the votes counted/
+      )
     ).toBeInTheDocument();
   });
 
@@ -252,7 +256,10 @@ describe('Flipped page', () => {
     // The qualifier columns drop out on narrow screens so the four columns
     // that make the comparison stay readable.
     expect(screen.getByText('Status')).toHaveClass('hidden', 'sm:table-cell');
-    expect(screen.getByText('MoE')).toHaveClass('hidden', 'sm:table-cell');
+    // The error band is folded into the lead column, so there is no MoE column
+    // to qualify — the two are the same kind of number.
+    expect(screen.queryByText('MoE')).toBeNull();
+    expect(screen.getByText('Lead')).toHaveClass('hidden', 'sm:table-cell');
     expect(screen.getByText('Held 2023')).not.toHaveClass('hidden');
   });
 
@@ -275,6 +282,83 @@ describe('Flipped page', () => {
     expect(screen.getByText('Ōtāhuhu')).toBeInTheDocument();
     expect(screen.queryByText('Kapiti')).not.toBeInTheDocument();
     expect(screen.getByText('1 of 3 seats matching')).toBeInTheDocument();
+  });
+
+  test('paginates long lists ten rows at a time', async () => {
+    const names = Array.from(
+      { length: 12 },
+      (_, i) => `Seat ${String(i + 1).padStart(2, '0')}`
+    );
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          currentYear: '2026',
+          primaryYear: '2023',
+          years: [
+            {
+              year: '2023',
+              winners: names.map((name) => ({
+                electorateName: name,
+                priorElectorateName: null,
+                year: '2023',
+                candidate: 'INCUMBENT, Ana',
+                party: 'Labour Party',
+                votes: 15_000,
+                majority: 1_234,
+                majorityPercent: 0.1,
+              })),
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    render(
+      <BrowserRouter>
+        <MockSocketProvider
+          results={{
+            electorateResults: names.map((name, i) =>
+              electorate(
+                name,
+                'National Party',
+                `CANDIDATE ${i}`,
+                1_000 + i,
+                'leaning'
+              )
+            ),
+            partyVote: [],
+            partyLists: [],
+          }}
+          connected
+        >
+          <Flipped />
+        </MockSocketProvider>
+      </BrowserRouter>
+    );
+
+    await screen.findByText('Seat 12');
+    // The count describes the whole list, not the page on screen.
+    expect(screen.getByText('12 of 12 seats')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: /^View details for/ })
+    ).toHaveLength(10);
+    // Sorted by share of the vote, so the smallest lead is on page two.
+    expect(screen.queryByText('Seat 01')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(
+      screen.getAllByRole('button', { name: /^View details for/ })
+    ).toHaveLength(2);
+    expect(screen.getByText('Seat 01')).toBeInTheDocument();
+
+    // Narrowing the list starts over at the first page.
+    fireEvent.change(screen.getByLabelText('Search flipped seats'), {
+      target: { value: 'seat 12' },
+    });
+    expect(screen.getByText('Seat 12')).toBeInTheDocument();
+    expect(screen.queryByText('Seat 02')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
   });
 
   test('splits general and Māori seats', async () => {

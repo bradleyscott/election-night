@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { partyColors } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
+import { Pagination } from './Pagination.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -141,48 +142,7 @@ export function ElectorateRacesView({
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-1 mt-4">
-          <button
-            onClick={() => setPage(Math.max(0, page - 1))}
-            disabled={page === 0}
-            className={cn(
-              'px-3 py-1 text-sm font-label font-semibold transition-colors border',
-              page === 0
-                ? 'text-muted-foreground/40 border-muted/50 cursor-default'
-                : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            Prev
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              className={cn(
-                'w-8 h-8 text-sm font-label font-semibold transition-colors border',
-                i === page
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/40'
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-            disabled={page === totalPages - 1}
-            className={cn(
-              'px-3 py-1 text-sm font-label font-semibold transition-colors border',
-              page === totalPages - 1
-                ? 'text-muted-foreground/40 border-muted/50 cursor-default'
-                : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }
