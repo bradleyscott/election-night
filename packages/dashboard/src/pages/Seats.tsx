@@ -298,11 +298,6 @@ export default function Seats() {
               <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
                 {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
               </div>
-              <div className="text-xs sm:text-xs text-muted-foreground mt-1">
-                {totalVotesCounted > 0
-                  ? totalVotesCounted.toLocaleString() + ' votes'
-                  : ''}
-              </div>
             </div>
           </div>
 

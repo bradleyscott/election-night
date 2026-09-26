@@ -22,7 +22,7 @@ describe('Seats page', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  test('shows the exact counted vote total, not an abbreviated one', () => {
+  test('shows the counted percentage without repeating the raw vote count', () => {
     render(
       <BrowserRouter>
         <MockSocketProvider results={mockResults} connected>
@@ -31,10 +31,9 @@ describe('Seats page', () => {
       </BrowserRouter>
     );
 
-    // 25,000 counted votes must read as the full number (was "25K").
-    expect(
-      screen.getByText(`${(25000).toLocaleString()} votes`)
-    ).toBeInTheDocument();
+    // 95% counted; the raw count lives in the "Votes cast" stat above.
+    expect(screen.getByText('95.0%')).toBeInTheDocument();
+    expect(screen.queryByText(`${(25000).toLocaleString()} votes`)).toBeNull();
   });
 
   test('renders waiting state when no results are available', () => {
