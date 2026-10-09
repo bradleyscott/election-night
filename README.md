@@ -287,7 +287,7 @@ docker run -p 3459:3459 -v election_data:/data election-night-collector
 fly volumes create election_data --size 1 --region syd
 ```
 
-State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
+State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml`, where high-severity advisories in production dependencies block the deploy and dev-only ones are reported without blocking). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
 
 ### Keeping the volume from filling
 
