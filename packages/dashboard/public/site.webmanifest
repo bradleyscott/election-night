@@ -4,8 +4,8 @@
   "description": "Real-time NZ general election results tracker with live seat projections, electorate maps, and party vote breakdowns.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0f",
-  "theme_color": "#0a0a0f",
+  "background_color": "#f7f4eb",
+  "theme_color": "#f7f4eb",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,7 +20,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

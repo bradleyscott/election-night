@@ -14,6 +14,7 @@ Compact instructions for working in this repo. When in doubt, trust executable c
 
 - The dashboard's locked design system lives in `design.md` (genre: editorial / Newsprint printed-edition: Playfair Display + Crimson Pro + Inter + IBM Plex Mono, hairline panels, masthead red accent, OS colour mode). The token source of truth is `packages/dashboard/src/styles/index.css` (shadcn-compatible HSL vars + `pagehead` / `chip-print` / `stat-grid` utilities). Follow it when touching dashboard UI; amendments go in `design.md`, not in per-page hacks.
 - `docs/mockups/` holds design captures of the running application (real DOM + inlined stylesheet + PNG), not hand-drawn mockups — see `docs/mockups/README.md` for how they were produced. Prefer capturing the real page over drawing one.
+- Install icons are generated, never hand-resized. `scripts/generate-icons.mjs` lays the wide logo mark into one square canvas and renders `favicon.svg`, `favicon.ico`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and `apple-touch-icon.png` from it; the maskable variant stays inside Android's 80% safe circle. Rasterising the wide mark straight to a square filename is what made the splash screen squash the mascot, so `packages/dashboard/src/lib/app-icons.test.ts` reads the shipped files and asserts each is square and the size `site.webmanifest` declares. The manifest's `background_color` is the icon fill so Android's mask edge is invisible.
 
 ## Quick commands
 
@@ -88,6 +89,7 @@ npm run fmt           # prettier --write .
 - `packages/dashboard/src/lib/prediction-status.ts` — the single mapping from prediction status to label and colour, shared by the electorate stat strip, Close Calls and Flipped.
 - `packages/dashboard/public/boundaries/<year>/{general,maori}-electorates.geojson` — electorate boundary geometry, one directory per election cycle, plus a generated `index.json` manifest of electorate names per year. `packages/dashboard/src/lib/electorates.ts` holds the name normalisation and year-selection logic; `ElectorateMap.tsx` consumes both.
 - `scripts/fetch-electorate-boundaries.mjs` — regenerates the boundary files from Stats NZ's public ArcGIS feature services (no API key) and rebuilds the manifest. Run it when a cycle's boundaries change.
+- `scripts/generate-icons.mjs` — regenerates the install icons from one square canvas (see the design-system note above). Needs Inkscape or ImageMagick; it refuses to write a clipped artwork box or an undeclared size.
 
 ## Architecture notes that aren't obvious from filenames
 
@@ -128,6 +130,7 @@ npm run fmt           # prettier --write .
 - `packages/core/src/electorate-successions.test.ts` covers rename resolution (including composition across cycles and spelling-only changes) and asserts every entry maps one name to a different name exactly once. `packages/dashboard/src/lib/electorates.test.ts` checks the table against the shipped boundary manifests: destinations exist in their cycle, the old names are gone, and 2026 renames start from names 2023 actually had.
 - `packages/core/src/election-results-service.test.ts` covers caching, single-flight, retry backoff, the stop-at-the-first-gap walk, rename matching, and that an unserviceable year reports `null` rather than another cycle's results.
 - `packages/dashboard/src/lib/electorates.test.ts` asserts against the boundaries actually shipped in `public/boundaries/` — that 2026 has 64 general + 7 Māori electorates, that the new and renamed names are present and the abolished ones are gone, and that `MAORI_ELECTORATES` still matches every year's manifest (the seven Māori electorate names are unchanged between 2023 and 2026, which is what makes a static set safe).
+- `packages/dashboard/src/lib/app-icons.test.ts` reads the shipped icons rather than fixtures: every manifest icon is a square PNG of the size it declares, the maskable icon is a separate padded file, the `.ico` frames are square, `favicon.svg` has a square viewBox, and the manifest's splash colour matches the icon fill.
 - `packages/collector/src/pipeline.test.ts` runs the full collector → Socket.io → dashboard → SQLite path against the mock XML server.
 - No special setup or services required; tests are self-contained.
 
@@ -148,4 +151,4 @@ npm run fmt           # prettier --write .
 - Production is a **single Fly.io app** (`fly.toml` + `Dockerfile.app`): the dashboard server (public, `:3456`) and the collector (loopback, `:3459`) run together from `docker/entrypoint.sh`. The collector talks to the server over loopback (`WS_URL=ws://127.0.0.1:3456`, `HISTORY_UPSTREAM=http://127.0.0.1:3459`). SQLite and the caches live on the `/data` volume.
 - The collector polls a cached static XML asset that is reachable from datacenter egress, so it no longer needs a residential connection or proxy. `Dockerfile.collector` remains for running the collector standalone.
 - PR previews use `fly.preview.toml` (no volume, `COLLECTOR_ENABLED=false`) so they never poll the live feed.
-- CI: `.github/workflows/deploy.yml` deploys `main` to Fly, gated on `checks.yml` (lint/typecheck/test) and `security.yml`; `preview.yml` deploys per-PR preview apps.
+- CI: `.github/workflows/deploy.yml` deploys `main` to Fly, gated on `checks.yml` (lint/typecheck/test) and `security.yml`; `preview.yml` deploys per-PR preview apps. `security.yml`'s Dependency Audit blocks on high-severity advisories in _production_ dependencies (`npm audit --omit=dev`) and runs the full audit with `continue-on-error`, because the residual dev-only chain under `tailwindcss` 3 is rooted in `braces`, which has no fixed release — 3.0.3 is the newest version published and the advisory covers `<=3.0.3`. Move the full audit back to being the gate once braces ships a fix or the dashboard moves to Tailwind 4.

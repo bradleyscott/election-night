@@ -98,6 +98,7 @@ npm run dev
 | `npm run clear`                                | Truncate the SQLite database and delete the JSON results cache |
 | `npm run log:webhooks`                         | Start a local webhook receiver on port 3458                    |
 | `node scripts/fetch-electorate-boundaries.mjs` | Re-fetch official electorate boundaries (see below)            |
+| `node scripts/generate-icons.mjs`              | Regenerate the app icons from one square master                |
 | `npm test`                                     | Run Vitest test suite                                          |
 | `npm run lint`                                 | ESLint all packages                                            |
 | `npm run typecheck`                            | TypeScript type checking for core, collector, and dashboard    |
@@ -127,6 +128,25 @@ node scripts/fetch-electorate-boundaries.mjs --year 2026 --check
 The script rebuilds `public/boundaries/index.json` (the name manifest used for
 year selection) after writing, and drops the geometry into the minimal shape the
 map needs. Data: Stats NZ, CC BY 4.0.
+
+### App icons
+
+The logo is a wide mark — the mascot plus two ballot flags — and every platform
+that shows it crops to a square: the home screen, the Android and iOS splash
+screens, the browser tab. Rasterising the wide mark straight to a square
+filename ships a non-square file that the OS stretches, which is how the splash
+screen ended up showing a squashed mascot. `scripts/generate-icons.mjs` lays the
+artwork into one square canvas instead and renders every size from it, keeping
+the maskable variant inside Android's 80% safe circle:
+
+```bash
+# Rewrites favicon.svg, favicon.ico, the manifest PNGs and apple-touch-icon.png
+# (needs Inkscape or ImageMagick on PATH)
+node scripts/generate-icons.mjs
+```
+
+Commit the regenerated files. `packages/dashboard/src/lib/app-icons.test.ts`
+asserts each shipped icon is square and the size `site.webmanifest` declares.
 
 ### Mock server
 
@@ -267,7 +287,7 @@ docker run -p 3459:3459 -v election_data:/data election-night-collector
 fly volumes create election_data --size 1 --region syd
 ```
 
-State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml` audits). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
+State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml`, where high-severity advisories in production dependencies block the deploy and dev-only ones are reported without blocking). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
 
 ### Keeping the volume from filling
 
