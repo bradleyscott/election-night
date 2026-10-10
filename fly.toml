@@ -43,10 +43,13 @@ primary_region = "syd"
   NODE_ENV = "production"
   DIST_DIR = "/app/packages/dashboard/dist"
   COLLECTOR_ENABLED = "true"
-  ELECTION_YEAR = "2023"
-  # 30 minutes while this app replays the finished 2023 archive: every 2 minutes
-  # is 720 cycles/day and ~140 MB/day on the 1 GB volume, and the archive does
-  # not change. Drop this to 30000-120000 for a live count.
+  ELECTION_YEAR = "2026"
+  # 30 minutes while the 2026 feed is not published yet: the Electoral
+  # Commission's XML endpoint 404s until results start flowing, so a live
+  # cadence here would be ~720 failed fetches/day and would leave the
+  # fetch-failure metric permanently red — the exact signal we need to trust on
+  # election night. Bump to 120000 once the feed appears, and to 30000 for the
+  # final hour (see README "Switching to a new cycle").
   POLL_INTERVAL_MS = "1800000"
   # Keep a day of snapshots; pruning runs on startup. Without it the volume
   # fills, SQLite starts failing every write with SQLITE_FULL, and the site

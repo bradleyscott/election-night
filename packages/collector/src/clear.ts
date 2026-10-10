@@ -15,7 +15,18 @@ const TABLES_IN_ORDER = [
   'scrape_snapshots',
 ];
 
-const CACHE_FILES = [resolve(process.cwd(), collectorConfig.resultsCachePath)];
+const CACHE_FILES = [
+  resolve(process.cwd(), collectorConfig.resultsCachePath),
+  // The dashboard server's feed-events cache (its `FEED_CACHE_PATH`). In the
+  // combined deployment it sits on the same volume, and "clear" has to mean
+  // "no feed history left" — otherwise the server preloads the previous
+  // cycle's events on the next boot. The default mirrors the dashboard
+  // server's config, which owns this variable.
+  resolve(
+    process.cwd(),
+    process.env.FEED_CACHE_PATH ?? '.data/feed_events.json'
+  ),
+];
 
 export async function runClear(): Promise<void> {
   const dbPath = resolve(process.cwd(), collectorConfig.dbPath);
