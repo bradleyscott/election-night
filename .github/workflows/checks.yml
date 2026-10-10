@@ -27,3 +27,9 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --run
+      # The production image (Dockerfile.app) runs `vite build` and bundles the
+      # server with esbuild, and neither was covered here. A dependency bump that
+      # broke the dashboard build was therefore green on every check while main
+      # could no longer produce a deployable image (tailwindcss 3 -> 4 in #85).
+      - run: npm run build
+      - run: npx esbuild packages/dashboard/server/index.ts --bundle --platform=node --format=cjs --outfile=/tmp/server.cjs --external:bufferutil --external:utf-8-validate
