@@ -307,10 +307,13 @@ staged rather than switched in one step:
 | Results flowing        | `120000` (2 min)   | The normal live cadence.                                                                                                                                    |
 | Final hour             | `30000` (30 s)     | The count is moving fastest and the feed is the bottleneck.                                                                                                 |
 
-While the feed 404s the collector logs one failed cycle per interval and writes
-nothing — a failed fetch never reaches `writeResults`, so no snapshot row is
-inserted — and the site shows its "awaiting results" state with the countdown and
-the new cycle's boundaries. The map needs no build-time pin: with no results,
+While the feed 404s the collector stays up and logs one failed cycle per
+interval, writing nothing: the reference-data load is retried on every poll and a
+failed fetch never reaches `writeResults`, so no snapshot row is inserted. It must
+never exit here — the entrypoint tears the machine down when the collector dies
+(`wait -n`), so an unpublished feed would crash-loop the whole app, dashboard
+included, until Fly's restart budget ran out. The site shows its "awaiting
+results" state with the countdown and the new cycle's boundaries. The map needs no build-time pin: with no results,
 `selectBoundaryYear` falls back to the newest boundary dataset.
 
 Wipe the previous cycle's state **after** the switch has deployed, never before:

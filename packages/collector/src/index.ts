@@ -5,7 +5,13 @@ import type {
   PartyList,
 } from '@election-night/core/types';
 import { log } from './logger.js';
-import { openDb, closeDb, writeResults, pruneSnapshots, compactDatabase } from './db.js';
+import {
+  openDb,
+  closeDb,
+  writeResults,
+  pruneSnapshots,
+  compactDatabase,
+} from './db.js';
 import {
   connectWs,
   publishResults,
@@ -46,7 +52,7 @@ const {
 let lastSweepAt: number | null = null;
 
 let partyListRecords: PartyList[] = [];
-let source: ElectionSource;
+let source: ElectionSource | null = null;
 let electorateConfigs: ElectorateConfig[] = [];
 
 const resultsService = createResultsService();
@@ -54,7 +60,7 @@ const resultsService = createResultsService();
 function logConfiguration(): void {
   log.info('=== Collector Configuration ===');
   log.info(`DB_PATH:          ${collectorConfig.dbPath}`);
-  log.info(`SOURCE:           ${source.getName()}`);
+  log.info(`SOURCE:           ${source?.getName() ?? 'not loaded'}`);
   log.info(`ELECTION_YEAR:    ${collectorConfig.electionYear}`);
   log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
   log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
@@ -79,7 +85,40 @@ function logConfiguration(): void {
   log.info('=============================');
 }
 
-async function runOnce(): Promise<void> {
+/**
+ * Load the reference data a scrape needs (candidates, parties, electorates).
+ *
+ * A failure here must never be fatal. The feed for the next cycle 404s until
+ * results are published, and any upstream blip on election night fails the same
+ * way — and the entrypoint treats the collector exiting as a reason to tear the
+ * whole machine down, so exiting here would take the dashboard with it and
+ * crash-loop the app. Returning null skips this cycle; the next poll retries.
+ */
+async function ensureSource(): Promise<ElectionSource | null> {
+  if (source) return source;
+
+  try {
+    const loaded = await loadSource();
+    source = loaded.source;
+    electorateConfigs = loaded.configs;
+    partyListRecords = loaded.partyListRecords;
+    resultsService.setCurrentElectorates(
+      electorateConfigs.map((c) => c.electorateName)
+    );
+    logConfiguration();
+    return source;
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    health.lastError = `election source unavailable: ${reason}`;
+    log.warn(
+      `Election source unavailable for ${collectorConfig.electionYear} (${reason}). ` +
+        `The feed may not be published yet; retrying in ${Math.round(POLL_INTERVAL_MS / 1000)}s`
+    );
+    return null;
+  }
+}
+
+async function runOnce(current: ElectionSource): Promise<void> {
   health.cycleCount += 1;
   health.lastCycleStartedAt = Date.now();
   health.lastError = null;
@@ -89,7 +128,7 @@ async function runOnce(): Promise<void> {
 
   try {
     const payload = await scrapeCycle({
-      source,
+      source: current,
       configs: electorateConfigs,
       partyListRecords,
       concurrency: CONCURRENCY,
@@ -145,7 +184,10 @@ function retentionSweep(now = Date.now()): void {
   const interval = RETENTION_SWEEP_MS;
 
   // A volume below the threshold sweeps immediately, regardless of schedule.
-  if (keepHours >= RETENTION_HOURS && !shouldSweep(lastSweepAt, now, interval)) {
+  if (
+    keepHours >= RETENTION_HOURS &&
+    !shouldSweep(lastSweepAt, now, interval)
+  ) {
     return;
   }
   lastSweepAt = now;
@@ -170,7 +212,16 @@ function retentionSweep(now = Date.now()): void {
 
 async function loopRun(): Promise<void> {
   try {
-    await runOnce();
+    const current = await ensureSource();
+    if (current) {
+      await runOnce(current);
+    } else {
+      // Sample the volume on every poll even while the feed is missing, so the
+      // disk metrics (and with them the heartbeat Fly records from the socket)
+      // keep flowing and "up but with nothing to report" is distinguishable
+      // from "collector is gone".
+      recordDiskUsage(dbPath);
+    }
   } catch (err) {
     log.error('Election night cycle failed', err);
     health.lastCycleOk = false;
@@ -191,22 +242,8 @@ process.on('unhandledRejection', (reason) => {
 });
 
 async function main(): Promise<void> {
-  try {
-    ({
-      source,
-      configs: electorateConfigs,
-      partyListRecords,
-    } = await loadSource());
-  } catch (err) {
-    log.error('Failed to load election source', err);
-    process.exit(1);
-  }
-
-  logConfiguration();
-
-  resultsService.setCurrentElectorates(
-    electorateConfigs.map((c) => c.electorateName)
-  );
+  // Deliberately not fatal: `ensureSource` reports why and the loop retries.
+  await ensureSource();
 
   try {
     openDb(dbPath);
