@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design comp — Kapiti electorate page with P(winner)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .hero { display: grid; grid-template-columns: 1.25fr .95fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 22px; }
+  .hero > div { background: var(--panel); padding: 22px 24px; }
+  .verdict { font-family: 'Playfair Display', Georgia, serif; font-size: 54px; line-height: .95; letter-spacing: -.02em; margin: 6px 0 2px; }
+  .verdict small { font-family: Inter, system-ui, sans-serif; font-size: 13px; letter-spacing: .01em; color: var(--muted); margin-left: 8px; }
+  .stack { display: flex; height: 18px; overflow: hidden; margin-top: 14px; border: 1px solid rgba(33,29,23,.1); }
+  .stack > i { height: 100%; }
+  .why { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-top: 14px; }
+  .why .n { font-family: 'IBM Plex Mono', monospace; font-size: 24px; line-height: 1; }
+  .why .l { font-family: Inter, system-ui, sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+  .probcell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .pbar { width: 62px; height: 7px; background: #e7e2d6; position: relative; }
+  .pbar > i { position: absolute; inset: 0 auto 0 0; }
+  .leader td { background: rgba(33,29,23,.035); }
+  .place-list { display: grid; gap: 0; }
+  .place-list .p { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(210,204,192,.6); }
+  .place-list .p:last-child { border-bottom: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="name">election-night.live</span>
+    <span class="right">
+      <span class="kicker">Live</span>
+      <span class="mono" style="font-size:12px">7 Nov 2026 · 9:58pm</span>
+    </span>
+  </div>
+
+  <div class="pagehead">
+    <div>
+      <div class="kicker">General seat · 2026 · 26 of 38 batches counted</div>
+      <h1>Kapiti</h1>
+    </div>
+    <div class="meta">
+      New seat for 2026 — Ōtaki, Mana and Ōhāriu<br>
+      18,204 of about 27,600 votes counted<br>
+      <span style="color:var(--red);font-weight:600">updates every 30 seconds</span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="kicker">Who wins Kapiti</div>
+      <div class="verdict" id="verdict">Labour 62%</div>
+      <div class="tiny">Probability over 20,000 simulated finishes · 26 of 38 batches in</div>
+
+      <div class="stack" id="stack"></div>
+      <div id="stackLegend" style="margin-top:8px"></div>
+
+      <div class="hr"></div>
+      <div class="tiny">
+        <b>Not a projection of the official result.</b> Special votes are counted after the night and can still change the seat.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="section-title" style="font-size:18px;margin-bottom:10px">Why 62%</h2>
+      <div class="why">
+        <div>
+          <div class="n">412</div>
+          <div class="l">margin now<br>Labour ahead</div>
+        </div>
+        <div>
+          <div class="n">12</div>
+          <div class="l">batches still<br>to report</div>
+        </div>
+        <div>
+          <div class="n">4,180</div>
+          <div class="l">ballot papers<br>issued there</div>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <p class="tiny" style="line-height:1.6">
+        The margin is 412 but up to 4,180 papers are still out, so the seat is inside the
+        outstanding vote — the model reads the reported batches, weights the ones still to come
+        by their issued papers, and counts how often Labour finishes ahead.
+      </p>
+      <div class="split" style="margin-top:10px"><span class="tiny">Method</span><span class="tiny mono">seat-probability-model.md</span></div>
+    </div>
+  </div>
+
+  <div class="grid cols-2">
+    <div>
+      <h2 class="section-title">Candidates</h2>
+      <p class="section-sub">Votes as counted, and the share of the 20,000 finishes each candidate wins.</p>
+      <table>
+        <thead>
+          <tr><th>Candidate</th><th>Party</th><th class="r">Votes</th><th class="r">Share</th><th class="r">Win chance</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div>
+      <h2 class="section-title">Still to report</h2>
+      <p class="section-sub">Batches not yet in the feed. Sizes are the papers issued at those places.</p>
+      <div class="place-list" id="places"></div>
+      <div class="note">
+        Advance votes cast outside Kapiti count toward Kapiti too, so the batches still to
+        arrive include places that do not appear on this seat's map.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid cols-2-even">
+    <div>
+      <h2 class="section-title">The seat</h2>
+      <p class="section-sub">Filled: batch reported. Hollow: still out. 64 general electorates, 2026 boundaries.</p>
+      <svg id="map" class="map" role="img" aria-label="Kapiti electorate with reported and outstanding voting places"></svg>
+    </div>
+    <div>
+      <h2 class="section-title">Across the night</h2>
+      <p class="section-sub">How the probability has moved since counting began.</p>
+      <svg id="trend" viewBox="0 0 420 150" style="width:100%;height:auto">
+        <line x1="0" y1="15" x2="420" y2="15" stroke="#d2ccc0" stroke-width="1"/>
+        <line x1="0" y1="75" x2="420" y2="75" stroke="#d2ccc0" stroke-width="1" stroke-dasharray="2 3"/>
+        <line x1="0" y1="135" x2="420" y2="135" stroke="#d2ccc0" stroke-width="1"/>
+        <text x="4" y="12" font-family="Inter" font-size="9" fill="#6d675d">100%</text>
+        <text x="4" y="72" font-family="Inter" font-size="9" fill="#6d675d">50%</text>
+        <text x="4" y="132" font-family="Inter" font-size="9" fill="#6d675d">0%</text>
+        <path d="M0,120 C40,118 60,112 90,104 C120,96 140,70 175,58 C210,46 235,40 265,38 C300,36 330,40 360,42 L420,44"
+              fill="none" stroke="#d82a20" stroke-width="2"/>
+        <circle cx="360" cy="42" r="3.5" fill="#d82a20"/>
+        <text x="370" y="38" font-family="IBM Plex Mono" font-size="11" fill="#211d17">62%</text>
+      </svg>
+      <div class="legendline" style="margin-top:2px">
+        <span><i style="width:14px;height:2px;background:#d82a20"></i>Labour</span>
+        <span>from 5% counted (when the model starts) to now</span>
+      </div>
+      <p class="tiny" style="margin-top:10px;line-height:1.6">
+        The jump at 21:10 is the first advance-vote batches landing, which lean differently from
+        the election-day booths already counted.
+      </p>
+    </div>
+  </div>
+
+  <p class="foot">
+    Source: Electoral Commission XML media feed. Candidate names, parties and vote order from
+    <span class="mono">e20/e20.xml</span>; batch counts from the files present under
+    <span class="mono">e20/votingplaces/</span>; place names and coordinates from
+    <span class="mono">votingplaces.xml</span>. Probabilities are illustrative for this comp.
+  </p>
+</div>
+
+<script src="assets/nz-map.js"></script>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const PARTY = {
+    'Labour Party': '#d82a20',
+    'National Party': '#00529f',
+    'Green Party': '#098137',
+    'New Zealand First Party': '#333333',
+    'Opportunity Party': '#f2b705',
+    'Progressive Party of Aotearoa New Zealand': '#6b7280',
+    NAP: '#8a8478',
+  };
+  const candidates = [
+    { name: 'HANDFORD, Sophie', party: 'Labour Party', votes: 8_240, share: 0.453, win: 0.62 },
+    { name: 'COSTLEY, Tim', party: 'National Party', votes: 7_828, share: 0.430, win: 0.31 },
+    { name: 'WILLIS, Melody', party: 'Green Party', votes: 947, share: 0.052, win: 0.04 },
+    { name: 'GAYLOR, Penny', party: 'New Zealand First Party', votes: 611, share: 0.034, win: 0.02 },
+    { name: 'SNG, Chee Khiang (CK)', party: 'Opportunity Party', votes: 302, share: 0.017, win: 0.01 },
+    { name: 'WALKER, Michael', party: 'Progressive Party of Aotearoa New Zealand', votes: 168, share: 0.009, win: 0.00 },
+    { name: 'GOODE, Richard', party: 'NAP', votes: 108, share: 0.006, win: 0.00 },
+  ];
+
+  const colour = (p) => PARTY[p] || '#8a8478';
+  const pct = (n) => `${(n * 100).toFixed(1)}%`;
+  const fmt = (n) => n.toLocaleString('en-NZ');
+
+  // Stacked probability bar + legend
+  document.getElementById('stack').innerHTML = candidates
+    .filter((c) => c.win > 0)
+    .map((c) => `<i style="width:${c.win * 100}%;background:${colour(c.party)}" title="${c.party} ${Math.round(c.win * 100)}%"></i>`)
+    .join('');
+  document.getElementById('stackLegend').innerHTML = candidates
+    .filter((c) => c.win >= 0.01)
+    .map((c) => `<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-family:Inter,system-ui,sans-serif;font-size:10.5px;color:var(--muted)"><i class="dot" style="background:${colour(c.party)}"></i>${c.party.replace(' Party', '')} ${Math.round(c.win * 100)}%</span>`)
+    .join('');
+
+  // Candidate table
+  const body = document.querySelector('tbody');
+  body.innerHTML = candidates.map((c, i) => `
+    <tr class="${i === 0 ? 'leader' : ''}">
+      <td>${c.name}</td>
+      <td><span class="dot" style="background:${colour(c.party)}"></span> <span class="tiny" style="font-size:11px">${c.party.replace(' Party', '')}</span></td>
+      <td class="r mono">${fmt(c.votes)}</td>
+      <td class="r mono">${pct(c.share)}</td>
+      <td class="r">
+        <div class="probcell">
+          <span class="mono">${Math.round(c.win * 100)}%</span>
+          <span class="pbar"><i style="width:${c.win * 100}%;background:${colour(c.party)}"></i></span>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  // Outstanding places: real names for electorate 20, illustrative sizes
+  const local = NZ_MAP.places.filter((p) => p.e === 20);
+  const outstanding = local.slice(0, 6);
+  document.getElementById('places').innerHTML = outstanding.map((p, i) => `
+    <div class="p">
+      <span style="font-size:14.5px">${p.a.split(',').slice(0, 2).join(',')}</span>
+      <span class="mono tiny">${[412, 388, 341, 296, 274, 231][i]} papers</span>
+    </div>`).join('');
+
+  // Map: zoom to the Kapiti polygon
+  const map = document.getElementById('map');
+  const seat = NZ_MAP.electorates.find((e) => e.name === 'Kapiti');
+  map.setAttribute('viewBox', NZ_MAP.viewBox);
+  for (const e of NZ_MAP.electorates) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', e.d);
+    p.setAttribute('class', 'seat');
+    p.setAttribute('fill', e.name === 'Kapiti' ? '#e6e0d0' : '#f0ece0');
+    if (e.name !== 'Kapiti') p.setAttribute('opacity', '0.45');
+    map.appendChild(p);
+  }
+  // Reported vs outstanding places on the seat
+  local.forEach((p, i) => {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+    const reported = i % 5 !== 0;
+    c.setAttribute('r', 0.0045);
+    if (reported) { c.setAttribute('fill', '#d82a20'); }
+    else { c.setAttribute('fill', 'none'); c.setAttribute('stroke', 'rgba(33,29,23,.6)'); c.setAttribute('stroke-width', '0.9'); c.setAttribute('vector-effect', 'non-scaling-stroke'); }
+    map.appendChild(c);
+  });
+  // Zoom using the Kapiti path's bounding box
+  const probe = document.createElementNS(NS, 'path');
+  probe.setAttribute('d', seat.d);
+  map.appendChild(probe);
+  const bb = probe.getBBox();
+  const pad = Math.max(bb.width, bb.height) * 0.06;
+  map.setAttribute('viewBox', `${bb.x - pad} ${bb.y - pad} ${bb.width + pad * 2} ${bb.height + pad * 2}`);
+  map.setAttribute('style', 'max-height:400px');
+  probe.remove();
+</script>
+</body>
+</html>
