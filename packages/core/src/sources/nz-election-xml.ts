@@ -10,6 +10,19 @@ import type {
 
 const DEFAULT_YEAR = '2023';
 
+/**
+ * The Commission publishes the cycle being counted on a bare, cycle-less media
+ * feed, and files each finished cycle on the archive host under its year. The
+ * old `electionresults.govt.nz/electionresults_{year}/xml/` paths stopped
+ * serving XML when the results site was rebuilt for 2026, so neither the live
+ * cycle nor the archives are reachable there any more.
+ */
+const LIVE_MEDIA_FEED_URL = 'https://media.election.net.nz/xml/';
+const ARCHIVE_HOST = 'https://archive.electionresults.govt.nz';
+
+/** First cycle served by the live media feed rather than an archive. */
+const FIRST_LIVE_MEDIA_CYCLE = 2026;
+
 export type NzElectionXmlSourceOptions = {
   /** Election year, e.g. '2020', '2023', '2026'. */
   year?: string;
@@ -62,7 +75,11 @@ function buildBaseUrl(options: NzElectionXmlSourceOptions): string {
     return withTrailingSlash(options.baseUrl);
   }
   const year = options.year ?? DEFAULT_YEAR;
-  return `https://electionresults.govt.nz/electionresults_${year}/xml/`;
+  const numericYear = Number(year);
+  if (Number.isFinite(numericYear) && numericYear >= FIRST_LIVE_MEDIA_CYCLE) {
+    return LIVE_MEDIA_FEED_URL;
+  }
+  return `${ARCHIVE_HOST}/electionresults_${year}/xml/`;
 }
 
 function makeFetch(timeoutMs: number) {

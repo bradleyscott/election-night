@@ -85,7 +85,11 @@ export function diffFacts(diff: ElectorateDiff): DiffFacts {
       diff.currentPredictionStatus === 'projected');
 
   return {
-    isFirstResult: diff.previousVotesCounted === null,
+    // A baseline where nothing had been counted yet is not a result: the feed
+    // publishes every electorate with zero votes before election night, so the
+    // first real count would otherwise read as a leader change in every seat.
+    isFirstResult:
+      diff.previousVotesCounted === null || diff.previousVotesCounted === 0,
     leaderChanged: diff.leaderChanged,
     votesChanged:
       diff.previousVotesCounted === null ||

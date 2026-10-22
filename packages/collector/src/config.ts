@@ -6,7 +6,7 @@ const collectorConfigSchema = z.object({
     .string()
     .default('2023')
     .describe(
-      'Election year for the XML feed, e.g. 2020, 2023, 2026. Builds https://electionresults.govt.nz/electionresults_<year>/xml/'
+      'Election year for the XML feed, e.g. 2020, 2023, 2026. 2026 and later read the live media feed at https://media.election.net.nz/xml/; earlier cycles read https://archive.electionresults.govt.nz/electionresults_<year>/xml/'
     ),
   xmlFeedBaseUrl: z
     .string()

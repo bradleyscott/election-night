@@ -3,6 +3,7 @@ import {
   calculateLead,
   predictWinner,
   calculatePartyVoteWithPercentages,
+  buildResultsPayload,
 } from './reducers.js';
 import type { ElectorateResults } from './types.js';
 
@@ -121,5 +122,39 @@ describe('calculatePartyVoteWithPercentages', () => {
     expect(red).toBeDefined();
     expect(red!.marginOfError).toBeGreaterThan(0);
     expect(red!.percentage).toBeCloseTo(4000 / 7000, 6);
+  });
+});
+
+describe('buildResultsPayload before any vote is counted', () => {
+  // The live feed publishes every electorate file with zero votes ahead of
+  // election night. Sainte-Laguë has no quotients to allocate from when every
+  // party has zero votes, and used to throw — killing the collector's cycle
+  // against a feed that was not actually broken.
+  test('allocates no seats and does not throw on an all-zero count', () => {
+    const zeroed = [
+      makeElectorate({
+        electorateName: 'Auckland Central',
+        votesCounted: 0,
+        votePercentageCounted: 0,
+        partyVotes: [
+          { candidate: 'Red Party', votes: 0 },
+          { candidate: 'Blue Party', votes: 0 },
+        ],
+        candidateVotes: [
+          { candidate: 'Alice', votes: 0, party: 'Red Party' },
+          { candidate: 'Bob', votes: 0, party: 'Blue Party' },
+        ],
+      }),
+    ];
+
+    const payload = buildResultsPayload(zeroed, []);
+
+    expect(payload.partyVote).toHaveLength(2);
+    for (const party of payload.partyVote) {
+      expect(party.seats).toBe(0);
+      expect(party.electorateSeats).toBe(0);
+      expect(party.listSeats).toBe(0);
+      expect(party.percentage).toBe(0);
+    }
   });
 });

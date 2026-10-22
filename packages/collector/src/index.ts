@@ -134,6 +134,32 @@ async function runOnce(current: ElectionSource): Promise<void> {
       concurrency: CONCURRENCY,
     });
 
+    const votesCounted = payload.electorateResults.reduce(
+      (sum, r) => sum + (r.votesCounted || 0),
+      0
+    );
+
+    // A scrape where nothing has been counted yet is the ballot, not a result.
+    // The feed publishes every electorate with zero votes ahead of election
+    // night, so recording it would fill the timeline with flat zero snapshots
+    // and — worse — become the diff baseline that the first real count is
+    // measured against, turning every seat into a spurious "leader change" at
+    // 7pm. Publish the payload and refresh the results cache (the dashboard
+    // preloads it, and a stale cache from an earlier shape must not outlive the
+    // first good scrape) but keep the zero count out of history and the feed.
+    if (votesCounted === 0) {
+      cacheResults(payload.electorateResults);
+      resultsService.setLiveResults(payload);
+      publishResults(payload);
+      health.lastCycleFinishedAt = Date.now();
+      health.lastCycleOk = true;
+      health.lastVotesCounted = 0;
+      log.info(
+        'No votes counted yet — holding the results timeline until the first count arrives'
+      );
+      return;
+    }
+
     const writeStartedAt = performance.now();
     try {
       writeResults(
