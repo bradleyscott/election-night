@@ -25,7 +25,7 @@ import {
   sampleDisk,
   shouldSweep,
 } from './retention.js';
-import { cacheResults, processResults } from './results.js';
+import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { scrapeCycle } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
@@ -56,6 +56,8 @@ let source: ElectionSource | null = null;
 let electorateConfigs: ElectorateConfig[] = [];
 
 const resultsService = createResultsService();
+
+health.electionYear = collectorConfig.electionYear;
 
 function logConfiguration(): void {
   log.info('=== Collector Configuration ===');
@@ -102,6 +104,7 @@ async function ensureSource(): Promise<ElectionSource | null> {
     source = loaded.source;
     electorateConfigs = loaded.configs;
     partyListRecords = loaded.partyListRecords;
+    health.source = source.getName();
     resultsService.setCurrentElectorates(
       electorateConfigs.map((c) => c.electorateName)
     );
@@ -149,6 +152,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
     // first good scrape) but keep the zero count out of history and the feed.
     if (votesCounted === 0) {
       cacheResults(payload.electorateResults);
+      health.cacheYear = cacheCycle();
       resultsService.setLiveResults(payload);
       publishResults(payload);
       health.lastCycleFinishedAt = Date.now();
@@ -182,6 +186,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
     }
     await processResults(payload.electorateResults);
     cacheResults(payload.electorateResults);
+    health.cacheYear = cacheCycle();
     resultsService.setLiveResults(payload);
     publishResults(payload);
     health.lastCycleFinishedAt = Date.now();

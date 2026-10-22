@@ -61,6 +61,37 @@ async function isHistoryReachable(source: HistorySource): Promise<boolean> {
   }
 }
 
+/**
+ * What the collector actually loaded, as opposed to what this server was
+ * configured with. The 2026 launch left production publishing 2023 data while
+ * `/api/config` happily reported 2026; the only way to tell was to dump a
+ * Socket.io frame. Surfacing the source name and the diff-cache cycle here makes
+ * "wrong feed", "stale cache" and "no feed yet" distinguishable at a glance.
+ */
+async function collectorIdentity(): Promise<{
+  source: string | null;
+  cacheYear: string | null;
+  electionYear: string | null;
+}> {
+  const empty = { source: null, cacheYear: null, electionYear: null };
+  try {
+    const base = dashboardServerConfig.historyUpstream.replace(/\/+$/, '');
+    const res = await fetch(`${base}/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) return empty;
+    const body = (await res.json()) as Record<string, unknown>;
+    return {
+      source: typeof body.source === 'string' ? body.source : null,
+      cacheYear: typeof body.cacheYear === 'string' ? body.cacheYear : null,
+      electionYear:
+        typeof body.electionYear === 'string' ? body.electionYear : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 export async function serveReady(
   _req: IncomingMessage,
   res: ServerResponse,
@@ -68,6 +99,7 @@ export async function serveReady(
   feedEvents: { timestamp: number }[]
 ) {
   const historyReachable = await isHistoryReachable(historySource);
+  const collector = await collectorIdentity();
 
   const lastEvent = feedEvents[feedEvents.length - 1];
   const lastScrape = lastEvent ? lastEvent.timestamp : 'none';
@@ -75,7 +107,7 @@ export async function serveReady(
   const { ready, checks } = evaluateReady(historyReachable, lastScrape);
 
   res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ ready, checks }));
+  res.end(JSON.stringify({ ready, checks: { ...checks, ...collector } }));
 }
 
 /**

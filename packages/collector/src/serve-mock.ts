@@ -165,6 +165,102 @@ function renderElectoratesXml(): string {
   return `${xmlDeclaration()}\n<electorates>\n${electorates}\n</electorates>\n`;
 }
 
+/**
+ * `election.xml`, the national count and seat table the real feed publishes.
+ *
+ * The mock has to invent seats — it is synthetic data — but it does so here,
+ * in the fixture, and not in the collector: the product reads seat numbers off
+ * the feed and never derives them.
+ */
+function renderElectionXml(): string {
+  const stage = STAGES[currentStage];
+  const votes = new Map<string, number>();
+  const electorateSeats = new Map<string, number>();
+  let totalVotesCast = 0;
+  let electoratesFinal = 0;
+
+  for (const result of stage) {
+    totalVotesCast += result.votesCounted;
+    if (result.votesCounted > 0) electoratesFinal += 1;
+    for (const party of result.partyVotes) {
+      votes.set(party.candidate, (votes.get(party.candidate) ?? 0) + party.votes);
+    }
+    const leader = [...result.candidateVotes].sort((a, b) => b.votes - a.votes)[0];
+    if (leader?.party && result.votesCounted > 0) {
+      electorateSeats.set(
+        leader.party,
+        (electorateSeats.get(leader.party) ?? 0) + 1
+      );
+    }
+  }
+
+  const totalPartyVotes = [...votes.values()].reduce((sum, v) => sum + v, 0);
+  const listSeats = new Map<string, number>();
+  if (totalPartyVotes > 0) {
+    const eligible = [...votes.entries()].filter(
+      ([party, v]) =>
+        v / totalPartyVotes >= 0.05 || (electorateSeats.get(party) ?? 0) > 0
+    );
+    const quotients = eligible.map(([party, v]) => ({
+      party,
+      exact: (v / totalPartyVotes) * 120,
+    }));
+    let allocated = 0;
+    for (const q of quotients) {
+      const base = Math.floor(q.exact);
+      listSeats.set(q.party, base);
+      allocated += base;
+    }
+    const remainders = quotients
+      .map((q) => ({ party: q.party, remainder: q.exact - Math.floor(q.exact) }))
+      .sort((a, b) => b.remainder - a.remainder);
+    for (let i = 0; allocated < 120 && remainders.length > 0; i++, allocated++) {
+      const { party } = remainders[i % remainders.length]!;
+      listSeats.set(party, (listSeats.get(party) ?? 0) + 1);
+    }
+  }
+
+  const rows = MOCK_PARTIES.map((party, i) => {
+    const list = listSeats.get(party.name) ?? 0;
+    const electorates = electorateSeats.get(party.name) ?? 0;
+    return `    <party p_no="${i + 1}">
+        <votes>${votes.get(party.name) ?? 0}</votes>
+        <percent_votes>${totalPartyVotes > 0 ? (((votes.get(party.name) ?? 0) / totalPartyVotes) * 100).toFixed(2) : '0'}</percent_votes>
+        <party_seats>${list}</party_seats>
+        <candidate_seats>${electorates}</candidate_seats>
+        <total_seats>${Math.max(list + electorates, electorates)}</total_seats>
+    </party>`;
+  }).join('\n');
+
+  const percentFinal =
+    MOCK_ELECTORATES.length > 0
+      ? ((electoratesFinally(stage) / MOCK_ELECTORATES.length) * 100).toFixed(2)
+      : '0.00';
+
+  return `${xmlDeclaration()}
+<election updated="${new Date().toISOString()}">
+    <statistics>
+        <total_voting_places_counted>${stage.length}</total_voting_places_counted>
+        <percent_voting_places_counted>${percentFinal}</percent_voting_places_counted>
+        <total_votes_cast>${totalVotesCast}</total_votes_cast>
+        <percent_votes_cast>${percentFinal}</percent_votes_cast>
+        <total_electorates_final>${electoratesFinal}</total_electorates_final>
+        <percent_electorates_final>${percentFinal}</percent_electorates_final>
+        <total_minimal_votes>0</total_minimal_votes>
+        <total_special_votes>0</total_special_votes>
+        <total_registered_parties>${MOCK_PARTIES.length}</total_registered_parties>
+    </statistics>
+    <partystatus>
+${rows}
+    </partystatus>
+</election>
+`;
+}
+
+function electoratesFinally(stage: ElectorateResults[]): number {
+  return stage.filter((r) => (r.votePercentageCounted ?? 0) >= 1).length;
+}
+
 function renderCandidatesXml(): string {
   const body = candidates
     .map(
@@ -319,6 +415,11 @@ const server = http.createServer((req, res) => {
 
   if (path === '/electorates.xml') {
     sendXml(res, renderElectoratesXml());
+    return;
+  }
+
+  if (path === '/election.xml') {
+    sendXml(res, renderElectionXml());
     return;
   }
 

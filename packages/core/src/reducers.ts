@@ -1,8 +1,8 @@
-import sainteLague from 'sainte-lague';
 import jstat from 'jstat';
 import { config } from './config.js';
 import {
   ElectorateResults,
+  NationalStatus,
   PartyList,
   PredictionStatus,
   ResultsPayload,
@@ -182,76 +182,33 @@ function calculatePartyVoteWithPercentages(
   }));
 }
 
-function calculateElectorateWinSeats(
-  electorateVotes: (ElectorateResults & WithLeaders)[]
-): Record<string, number> {
-  return electorateVotes.reduce(
-    (acc, r) => {
-      const party = r.leaders.leadingCandidateParty;
-      if (!party) return acc;
-      if (!acc[party]) {
-        acc[party] = 1;
-        return acc;
-      }
-      acc[party] += 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-}
-
-function calculatePartyVoteWithSeats(
+/**
+ * Attach the Commission's own seat allocation to each party's vote row.
+ *
+ * Seats are not ours to derive: `election.xml` publishes list, electorate and
+ * total seats per party, including the threshold rule and any overhang, and it
+ * is the same table the results website renders. The only thing we add is the
+ * margin of error, which is a property of the count, not of the seat rules.
+ */
+function buildPartyVoteWithSeats(
   partyVotes: (VotingResults & WithPercentages)[],
-  electorateVotes: (ElectorateResults & WithLeaders)[]
-): (VotingResults & WithSeats)[] {
-  // An electorate with no counted votes has no winner: before the first count
-  // (and for each seat until its own count lands) `calculateLead` still names a
-  // leader from an all-zero field, which would hand out real seats and party
-  // eligibility on no votes at all.
-  const countedElectorates = electorateVotes.filter(
-    (x) => (x.votesCounted || 0) > 0
-  );
-  const partiesWithElectorateWins = Array.from(
-    new Set(countedElectorates.map((x) => x.leaders.leadingCandidateParty))
-  ).filter((p): p is string => !!p);
-  const electorateSeats = calculateElectorateWinSeats(countedElectorates);
-
-  const eligibleResults = partyVotes.filter(
-    (x) =>
-      x.percentage >= 0.05 || partiesWithElectorateWins.includes(x.candidate)
-  );
-
-  const resultsMap = eligibleResults.reduce(
-    (map, { candidate, votes }) => {
-      const updated = { ...map };
-      updated[candidate] = votes;
-      return updated;
-    },
-    {} as Record<string, number>
-  );
-  const eligibleVotes = Object.values(resultsMap).reduce((s, v) => s + v, 0);
-  // Sainte-Laguë allocates seats from a table of quotients, and an all-zero
-  // vote table has no quotients to allocate from: the library throws rather
-  // than returning an empty entitlement. Before any vote is counted (the feed
-  // publishes zeroed electorate files ahead of election night) and in the first
-  // moments after polls close, nobody has seats yet.
-  const entitlement =
-    eligibleVotes > 0 ? sainteLague(resultsMap, 120, { draw: true }) : {};
-
-  return partyVotes.map((x) => {
-    const electorates = electorateSeats[x.candidate] || 0;
-    const allocated = entitlement[x.candidate] || 0;
-    // Overhang: if a party wins more electorates than its proportional entitlement,
-    // it keeps all electorates and the parliament grows (no compensatory seats).
-    const totalSeats = Math.max(allocated, electorates);
-    const listSeats = totalSeats - electorates;
-    return {
-      ...x,
-      seats: totalSeats,
-      electorateSeats: electorates,
-      listSeats,
-    };
-  });
+  status: NationalStatus
+): (VotingResults & WithPercentages & WithSeats)[] {
+  const byParty = new Map(partyVotes.map((x) => [x.candidate, x]));
+  return status.parties
+    .map((p) => {
+      const aggregate = byParty.get(p.party);
+      return {
+        candidate: p.party,
+        votes: p.votes,
+        percentage: aggregate?.percentage ?? 0,
+        marginOfError: aggregate?.marginOfError ?? 0,
+        seats: p.totalSeats,
+        electorateSeats: p.electorateSeats,
+        listSeats: p.listSeats,
+      };
+    })
+    .sort((a, b) => b.votes - a.votes || a.candidate.localeCompare(b.candidate));
 }
 
 function getElectorateWinners(
@@ -317,15 +274,16 @@ function calculatePartyList(
 function buildResultsPayload(
   results: ElectorateResults[],
   partyListRecords: PartyList[],
+  nationalStatus: NationalStatus,
   confidence: number = config.predictionConfidence
 ): ResultsPayload {
   const withPredictions = results
     .map((x) => calculateLead({ ...x, candidateVotes: [...x.candidateVotes] }))
     .map((x) => predictWinner(x, confidence));
 
-  const partyVote = calculatePartyVoteWithSeats(
+  const partyVote = buildPartyVoteWithSeats(
     calculatePartyVoteWithPercentages(withPredictions, confidence),
-    withPredictions
+    nationalStatus
   );
 
   return {
@@ -344,7 +302,7 @@ export {
   predictWinner,
   predictionStatusFromRatio,
   calculatePartyVoteWithPercentages,
-  calculatePartyVoteWithSeats,
+  buildPartyVoteWithSeats,
   calculatePartyList,
   buildResultsPayload,
 };

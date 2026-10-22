@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<election updated="2026-11-08T02:14:00">
+    <statistics>
+        <total_voting_places_counted>2600</total_voting_places_counted>
+        <percent_voting_places_counted>96.8</percent_voting_places_counted>
+        <total_votes_cast>2300000</total_votes_cast>
+        <percent_votes_cast>77.7</percent_votes_cast>
+        <total_electorates_final>68</total_electorates_final>
+        <percent_electorates_final>94.44</percent_electorates_final>
+        <total_minimal_votes>0</total_minimal_votes>
+        <total_special_votes>0</total_special_votes>
+        <total_registered_parties>17</total_registered_parties>
+    </statistics>
+    <partystatus>
+        <party p_no="10">
+            <votes>900000</votes>
+            <percent_votes>39.13</percent_votes>
+            <party_seats>4</party_seats>
+            <candidate_seats>18</candidate_seats>
+            <total_seats>22</total_seats>
+        </party>
+        <party p_no="20">
+            <votes>700000</votes>
+            <percent_votes>30.43</percent_votes>
+            <party_seats>15</party_seats>
+            <candidate_seats>9</candidate_seats>
+            <total_seats>24</total_seats>
+        </party>
+    </partystatus>
+</election>

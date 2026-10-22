@@ -59,6 +59,29 @@ function makeArchive(
       loadElectorates: async (): Promise<ElectorateConfig[]> =>
         data.electorates.map((name) => ({ electorateName: name, url: name })),
       loadPartyList: async () => PARTY_LIST,
+      loadNationalStatus: async () => {
+        const seats = new Map<string, number>();
+        for (const name of data.electorates) {
+          const party = data.winners?.[name] ?? 'Labour Party';
+          seats.set(party, (seats.get(party) ?? 0) + 1);
+        }
+        return {
+          parties: [...seats.entries()].map(([party, count]) => ({
+            party,
+            votes: count * 12_000,
+            listSeats: 0,
+            electorateSeats: count,
+            totalSeats: count,
+          })),
+          totalVotesCast: data.electorates.length * 21_000,
+          percentVotesCast: 100,
+          totalElectoratesFinal: data.electorates.length,
+          percentElectoratesFinal: 100,
+          totalMinimalVotes: 0,
+          totalSpecialVotes: 0,
+          updated: null,
+        };
+      },
       fetchResults: async (config) => {
         fetches.push(`${year}:${config.electorateName}`);
         if (failing.has(year)) {

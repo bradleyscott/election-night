@@ -201,11 +201,14 @@ export async function scrapeCycle(
     }
   }
 
+  // The Commission's own seat table, re-read every cycle: seats move as counts
+  // land, so this is deliberately not part of the memoized reference data.
+  const nationalStatus = await source.loadNationalStatus();
   const {
     electorateResults: withPredictions,
     partyVote,
     partyLists,
-  } = buildResultsPayload(results, partyListRecords);
+  } = buildResultsPayload(results, partyListRecords, nationalStatus);
 
   const totalSeats = partyVote.reduce((s, p) => s + p.seats, 0);
   const partiesInParliament = partyVote.filter((p) => p.seats > 0).length;

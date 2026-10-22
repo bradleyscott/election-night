@@ -3,7 +3,34 @@ import { scrapeCycle } from './scrape-cycle.js';
 import type {
   ElectionSource,
   ElectorateConfig,
+  NationalStatus,
 } from '@election-night/core/types';
+
+const NATIONAL_STATUS: NationalStatus = {
+  parties: [
+    {
+      party: 'Red Party',
+      votes: 1000,
+      listSeats: 0,
+      electorateSeats: 1,
+      totalSeats: 1,
+    },
+    {
+      party: 'Blue Party',
+      votes: 500,
+      listSeats: 0,
+      electorateSeats: 0,
+      totalSeats: 0,
+    },
+  ],
+  totalVotesCast: 1500,
+  percentVotesCast: 50,
+  totalElectoratesFinal: 1,
+  percentElectoratesFinal: 100,
+  totalMinimalVotes: 0,
+  totalSpecialVotes: 0,
+  updated: null,
+};
 
 const mockReadResults = vi.fn();
 const mockPublishMetrics = vi.fn();
@@ -23,6 +50,7 @@ function makeSource(
     getName: () => 'Test Source',
     loadElectorates: vi.fn(),
     loadPartyList: vi.fn(),
+    loadNationalStatus: vi.fn(async () => NATIONAL_STATUS),
     fetchResults,
   };
 }

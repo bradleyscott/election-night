@@ -2,7 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import type {
   ElectorateConfig,
   ElectionSource,
+  NationalStatus,
   PartyList,
+  PartyStatus,
   RawElectorateResults,
   VotingResults,
   WithParty,
@@ -58,6 +60,15 @@ type XmlParty = {
 type XmlElectorate = {
   e_no: string;
   electorate_name: string;
+};
+
+type XmlPartyStatus = {
+  p_no: string;
+  votes: string;
+  percent_votes: string;
+  party_seats: string;
+  candidate_seats: string;
+  total_seats: string;
 };
 
 /** fast-xml-parser returns a single object instead of an array for one child. */
@@ -146,6 +157,14 @@ export class NzElectionXmlSource implements ElectionSource {
   async loadPartyList(): Promise<PartyList[]> {
     await this.ensureLoaded();
     return this.partyList;
+  }
+
+  async loadNationalStatus(): Promise<NationalStatus> {
+    // The party map comes from the memoized reference data; election.xml
+    // itself is re-read every poll because seats change as counts land.
+    await this.ensureLoaded();
+    const parsed = await this.fetchXml('election.xml');
+    return this.parseNationalStatus(parsed);
   }
 
   async fetchResults(config: ElectorateConfig): Promise<RawElectorateResults> {
@@ -245,6 +264,54 @@ export class NzElectionXmlSource implements ElectionSource {
       return a.listRank - b.listRank;
     });
     this.partyList = list;
+  }
+
+  /**
+   * `election.xml` is the Commission's own national count: party vote and the
+   * seat allocation that follows from it. Nothing downstream re-derives seats.
+   */
+  private parseNationalStatus(parsed: unknown): NationalStatus {
+    const root = (
+      parsed as {
+        election?: {
+          statistics?: Record<string, string>;
+          partystatus?: { party?: unknown };
+        };
+      }
+    ).election;
+    if (!root) {
+      throw new Error('election.xml has no <election> root');
+    }
+
+    const parties: PartyStatus[] = [];
+    for (const item of toArray<XmlPartyStatus>(root.partystatus?.party)) {
+      const party = this.partyMap.get(item.p_no);
+      if (!party) continue;
+      const numbers = {
+        votes: Number(item.votes),
+        listSeats: Number(item.party_seats),
+        electorateSeats: Number(item.candidate_seats),
+        totalSeats: Number(item.total_seats),
+      };
+      if (Object.values(numbers).some((n) => !Number.isFinite(n))) continue;
+      parties.push({ party: party.short_name, ...numbers });
+    }
+
+    const stats = root.statistics ?? {};
+    const num = (key: string): number => Number(stats[key] ?? 0) || 0;
+    const updated = (parsed as { election?: { updated?: string } }).election
+      ?.updated;
+
+    return {
+      parties,
+      totalVotesCast: num('total_votes_cast'),
+      percentVotesCast: num('percent_votes_cast'),
+      totalElectoratesFinal: num('total_electorates_final'),
+      percentElectoratesFinal: num('percent_electorates_final'),
+      totalMinimalVotes: num('total_minimal_votes'),
+      totalSpecialVotes: num('total_special_votes'),
+      updated: updated ?? null,
+    };
   }
 
   private parseElectorateXml(

@@ -56,6 +56,48 @@ describe('NzElectionXmlSource', () => {
     });
   });
 
+  test('reads the national count and seat table from election.xml', async () => {
+    const source = createSource();
+    const status = await source.loadNationalStatus();
+
+    expect(status.parties).toEqual([
+      {
+        party: 'Red Party',
+        votes: 900000,
+        listSeats: 4,
+        electorateSeats: 18,
+        totalSeats: 22,
+      },
+      {
+        party: 'Blue Party',
+        votes: 700000,
+        listSeats: 15,
+        electorateSeats: 9,
+        totalSeats: 24,
+      },
+    ]);
+    expect(status.totalVotesCast).toBe(2300000);
+    expect(status.percentVotesCast).toBe(77.7);
+    expect(status.totalElectoratesFinal).toBe(68);
+    expect(status.updated).toBe('2026-11-08T02:14:00');
+  });
+
+  test('re-reads election.xml on every poll so seats follow the count', async () => {
+    const calls: string[] = [];
+    const source = new NzElectionXmlSource({
+      baseUrl: BASE_URL,
+      fetch: (url) => {
+        calls.push(url.slice(BASE_URL.length));
+        return fixtureFetch(url);
+      },
+    });
+
+    await source.loadNationalStatus();
+    await source.loadNationalStatus();
+
+    expect(calls.filter((c) => c === 'election.xml')).toHaveLength(2);
+  });
+
   test('fetches reference data only once across concurrent loads', async () => {
     const calls: string[] = [];
     const source = new NzElectionXmlSource({

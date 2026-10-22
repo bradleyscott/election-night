@@ -147,7 +147,31 @@ describe('buildResultsPayload before any vote is counted', () => {
       }),
     ];
 
-    const payload = buildResultsPayload(zeroed, []);
+    const payload = buildResultsPayload(zeroed, [], {
+      parties: [
+        {
+          party: 'Red Party',
+          votes: 0,
+          listSeats: 0,
+          electorateSeats: 0,
+          totalSeats: 0,
+        },
+        {
+          party: 'Blue Party',
+          votes: 0,
+          listSeats: 0,
+          electorateSeats: 0,
+          totalSeats: 0,
+        },
+      ],
+      totalVotesCast: 0,
+      percentVotesCast: 0,
+      totalElectoratesFinal: 0,
+      percentElectoratesFinal: 0,
+      totalMinimalVotes: 0,
+      totalSpecialVotes: 0,
+      updated: null,
+    });
 
     expect(payload.partyVote).toHaveLength(2);
     for (const party of payload.partyVote) {
