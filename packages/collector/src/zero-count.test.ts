@@ -104,6 +104,28 @@ const REFERENCE: Record<string, string> = {
     <candidate c_no="2"><votes>0</votes></candidate>
   </candidatevotes>
 </electorate>`,
+  // The real feed publishes the seat table alongside the zeroed electorates.
+  'election.xml': `<?xml version="1.0" encoding="UTF-8"?>
+<election updated="2026-10-22T15:19:30">
+  <statistics>
+    <total_voting_places_counted>0</total_voting_places_counted>
+    <percent_voting_places_counted>0.0</percent_voting_places_counted>
+    <total_votes_cast>0</total_votes_cast>
+    <percent_votes_cast>0.0</percent_votes_cast>
+    <total_electorates_final>0</total_electorates_final>
+    <percent_electorates_final>0.00</percent_electorates_final>
+  </statistics>
+  <partystatus>
+    <party p_no="10">
+      <votes>0</votes><percent_votes>0</percent_votes>
+      <party_seats>0</party_seats><candidate_seats>0</candidate_seats><total_seats>0</total_seats>
+    </party>
+    <party p_no="11">
+      <votes>0</votes><percent_votes>0</percent_votes>
+      <party_seats>0</party_seats><candidate_seats>0</candidate_seats><total_seats>0</total_seats>
+    </party>
+  </partystatus>
+</election>`,
 };
 
 async function waitForHealth(

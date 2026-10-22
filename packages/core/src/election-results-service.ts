@@ -285,9 +285,10 @@ export class ElectionResultsService {
       `Fetching ${year} election results from ${source.getName()}`
     );
     try {
-      const [configs, partyList] = await Promise.all([
+      const [configs, partyList, nationalStatus] = await Promise.all([
         source.loadElectorates(),
         source.loadPartyList(),
+        source.loadNationalStatus(),
       ]);
 
       const raw = await mapWithConcurrency(
@@ -303,7 +304,8 @@ export class ElectionResultsService {
 
       const payload = buildResultsPayload(
         raw.map(toElectorateResults),
-        partyList
+        partyList,
+        nationalStatus
       );
       this.cache.set(year, payload);
       this.onLog(

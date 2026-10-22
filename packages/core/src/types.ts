@@ -70,6 +70,31 @@ export type ResultsPayload = {
   partyLists: (PartyList & WithAdjustedRank)[];
 };
 
+/**
+ * One party's national status, exactly as the Commission publishes it in
+ * `election.xml`. The seat split is theirs, not ours: `party_seats` is list
+ * seats, `candidate_seats` electorate seats, `total_seats` their sum.
+ */
+export type PartyStatus = {
+  party: string;
+  votes: number;
+  listSeats: number;
+  electorateSeats: number;
+  totalSeats: number;
+};
+
+/** The national count from `election.xml`: party status plus turnout. */
+export type NationalStatus = {
+  parties: PartyStatus[];
+  totalVotesCast: number;
+  percentVotesCast: number;
+  totalElectoratesFinal: number;
+  percentElectoratesFinal: number;
+  totalMinimalVotes: number;
+  totalSpecialVotes: number;
+  updated: string | null;
+};
+
 // ---- Swappable Source Adapter ----
 
 export interface ElectorateConfig {
@@ -93,8 +118,14 @@ export interface ElectionSource {
   /** Load party list rankings needed for list-MP calculations. */
   loadPartyList(): Promise<PartyList[]>;
   /**
+   * The Commission's national count and seat allocation (`election.xml`).
+   * Seat numbers are authoritative: the feed publishes list, electorate and
+   * total seats per party, so nothing downstream re-derives them.
+   */
+  loadNationalStatus(): Promise<NationalStatus>;
+  /**
    * Fetch and parse results for a single electorate. Implementations must set
-   * `party` on each candidate vote so downstream seat calculations work.
+   * `party` on each candidate vote so downstream calculations work.
    */
   fetchResults(config: ElectorateConfig): Promise<RawElectorateResults>;
 }

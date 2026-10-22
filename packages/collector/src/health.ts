@@ -14,6 +14,12 @@ export interface CollectorHealthState {
   socketConnected: boolean;
   socketUrl: string | null;
   lastPublishAt: number | null;
+  /** Cycle the collector was configured for (`ELECTION_YEAR`). */
+  electionYear: string | null;
+  /** Source the collector actually loaded, including its base URL. */
+  source: string | null;
+  /** Cycle tag on the results cache, or null when there is no usable cache. */
+  cacheYear: string | null;
 }
 
 export const health: CollectorHealthState = {
@@ -27,6 +33,9 @@ export const health: CollectorHealthState = {
   socketConnected: false,
   socketUrl: null,
   lastPublishAt: null,
+  electionYear: null,
+  source: null,
+  cacheYear: null,
 };
 
 /**

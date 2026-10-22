@@ -36,6 +36,18 @@ type CachedResults = {
 
 let electorateResults: Results[];
 
+/**
+ * Cycle tag of the cache the collector is currently relying on — written by
+ * `cacheResults` or read from disk — so `/health` can say which election the
+ * diff baseline belongs to. The 2026 rebuild left production serving 2023 data
+ * with no way to see why; this is the field that would have answered it.
+ */
+let cachedYear: string | null = null;
+
+export function cacheCycle(): string | null {
+  return cachedYear;
+}
+
 function parseCache(raw: string): CachedResults | null {
   let parsed: unknown;
   try {
@@ -59,6 +71,7 @@ function parseCache(raw: string): CachedResults | null {
 
 export function cacheResults(toCache: Results[]) {
   electorateResults = toCache;
+  cachedYear = collectorConfig.electionYear;
   const payload: CachedResults = {
     electionYear: collectorConfig.electionYear,
     results: toCache,
@@ -94,6 +107,7 @@ export function readResults(): Results[] {
     );
     return [];
   }
+  cachedYear = cached.electionYear;
   return cached.results;
 }
 

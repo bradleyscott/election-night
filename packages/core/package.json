@@ -59,7 +59,6 @@
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.1",
-    "jstat": "^1.9.6",
-    "sainte-lague": "^3.0.0"
+    "jstat": "^1.9.6"
   }
 }
