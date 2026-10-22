@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design comp — Count progress</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="name">election-night.live</span>
+    <span class="right">
+      <span class="kicker">Live</span>
+      <span class="mono" style="font-size:12px">7 Nov 2026 · 9:42pm</span>
+    </span>
+  </div>
+
+  <div class="pagehead">
+    <div>
+      <div class="kicker">Count progress · voting places</div>
+      <h1>Where the count has reached</h1>
+    </div>
+    <div class="meta">
+      1,842 of 2,686 places counted<br>
+      41 of 71 electorates final<br>
+      <span style="color:var(--red);font-weight:600">updates every 30 seconds</span>
+    </div>
+  </div>
+
+  <p class="lede">Every voting place in the country, one dot. Filled where that place's count has been entered; hollow where it hasn't. <em>Mobile teams and care-home visits have no coordinates — they are counted in the totals, not on the map.</em></p>
+
+  <div class="grid cols-2">
+    <div>
+      <svg id="map" class="map" style="max-height:900px;width:auto;margin:0 auto" role="img" aria-label="Map of New Zealand electorates with one dot per voting place"></svg>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--nat)"></i>National</span>
+        <span><i class="dot" style="background:var(--lab)"></i>Labour</span>
+        <span><i class="dot" style="background:var(--grn)"></i>Green</span>
+        <span><i class="dot" style="background:var(--act)"></i>ACT</span>
+        <span><i class="dot" style="background:var(--nzf)"></i>NZ First</span>
+        <span><i class="dot" style="background:var(--tpm)"></i>Te Pāti Māori</span>
+        <span><i class="dot" style="border:1.2px solid rgba(33,29,23,.55);background:none"></i>not yet counted</span>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="section-title">Count</h2>
+      <p class="section-sub">Released progressively; targets are 50% of places by 10pm and 95% by 11.30pm.</p>
+
+      <div class="stat">1,842<small>/ 2,686 places</small></div>
+      <div class="bar" style="margin:10px 0 4px"><i style="width:68.6%"></i></div>
+      <div class="split tiny"><span>68.6% of voting places</span><span>target 50% by 10pm</span></div>
+
+      <div class="hr"></div>
+
+      <div class="stat">1,312,908<small>votes counted</small></div>
+      <div class="split tiny" style="margin-top:4px"><span>45.8% of enrolled electors</span><span>3,633,546 enrolled</span></div>
+
+      <div class="hr"></div>
+
+      <h2 class="section-title" style="font-size:18px">Slowest to report</h2>
+      <table>
+        <thead><tr><th>Electorate</th><th class="r">Places</th><th class="r">Counted</th></tr></thead>
+        <tbody>
+          <tr><td>Te Tai Tokerau</td><td class="r mono">38</td><td class="r mono">11</td></tr>
+          <tr><td>Ikaroa-Rāwhiti</td><td class="r mono">41</td><td class="r mono">14</td></tr>
+          <tr><td>Waiariki</td><td class="r mono">44</td><td class="r mono">17</td></tr>
+          <tr><td>Tāmaki Makaurau</td><td class="r mono">49</td><td class="r mono">21</td></tr>
+          <tr><td>Te Tai Tonga</td><td class="r mono">52</td><td class="r mono">24</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">Māori electorates lag the general seats early — their voting places are spread across the largest geographies, so the count arrives later, not slower per voter.</div>
+    </div>
+  </div>
+
+  <p class="foot">
+    Source: Electoral Commission XML media feed, <span class="mono">votingplaces.xml</span> and
+    <span class="mono">e{NN}/votingplaces/</span>. Dot position is the voting place's published latitude and longitude;
+    <b>2,524 of 2,686 places have coordinates</b> (94%). The remaining 162 are mobile teams and care-home visits,
+    which carry no location — they are counted in the totals and left off the map rather than placed at a guess.
+  </p>
+</div>
+
+<script src="assets/nz-map.js"></script>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const map = document.getElementById('map');
+  map.setAttribute('viewBox', NZ_MAP.viewBox);
+  const palette = ['#00529f', '#d82a20', '#098137', '#d4a900', '#333333', '#111111'];
+
+  for (const seat of NZ_MAP.electorates) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', seat.d);
+    p.setAttribute('class', 'seat');
+    map.appendChild(p);
+  }
+
+  // Deterministic pseudo-data: about two thirds counted, colour by leading party.
+  const reportedFraction = 0.686;
+  const places = NZ_MAP.places;
+  const counted = Math.round(places.length * reportedFraction);
+  places.forEach((place, i) => {
+    const reported = i < counted || (i * 7919) % 100 < reportedFraction * 100;
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', place.x);
+    c.setAttribute('cy', place.y);
+    c.setAttribute('r', reported ? 0.026 : 0.022);
+    if (reported) {
+      c.setAttribute('fill', palette[(place.e * 31 + i) % palette.length]);
+      c.setAttribute('opacity', '0.9');
+    } else {
+      c.setAttribute('class', 'place pending');
+    }
+    map.appendChild(c);
+  });
+</script>
+</body>
+</html>
