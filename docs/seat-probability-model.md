@@ -148,11 +148,47 @@ Per poll, per seat, 20,000 draws:
 Seed the generator from the scrape timestamp so every client sees identical
 numbers and the result is reproducible in tests.
 
-Cost is negligible: 71 seats × ~50 batches × 20,000 draws is a few hundred
-milliseconds in Node, run once per scrape in the collector and shipped in the
-payload.
+### 5. What it costs, measured
 
-### 5. Outputs, per seat
+`scripts/bench-seat-sim.mjs` runs three implementations of the same job at the
+real shape — 71 seats, 40 outstanding batches, 7 candidates, 20,000 draws per
+seat:
+
+| Implementation | Per seat | All 71 seats | 600 polls (5h at 30s) |
+| --- | --- | --- | --- |
+| Full multinomial per batch | 288 ms | 20.5 s | 3.4 hours |
+| Per batch, leader vs challenger only | 115 ms | 8.2 s | 82 minutes |
+| Aggregate Beta + size distribution | 1.9 ms | 0.13 s | 1.3 minutes |
+
+The naive design — a full multinomial over every candidate for every batch —
+is an order of magnitude too slow for a 30-second poll. Two things make the
+cost disappear without changing the model:
+
+1. **Seats settle.** A seat past the Tier 1 bound needs no simulation at all, so
+   the number of simulated seats falls through the night, from 71 at 7.30pm to a
+   handful by midnight.
+2. **Fewer draws suffice.** Display rounds to 5%, and the Monte Carlo standard
+   error at 4,000 draws is under one percentage point (`√(p(1−p)/n)` ≈ 0.8% at
+   p = 0.5). 20,000 is only needed for the margin percentiles.
+
+Recommended shape: **per batch, leader vs challenger, 4,000 draws, unsettled
+seats only** — roughly 1.5 s per poll across all 71 seats, under a second once
+most seats have settled, on a machine like the one measured here. On a
+`shared-cpu-1x` Fly machine expect two to three times that. Ship
+`election_seat_sim_duration_seconds` as a histogram and alert if it approaches
+the poll interval, because that is the one thing that would silently slip a
+poll.
+
+The aggregate variant (C) is 60× cheaper again but its result depends on the
+Beta prior matching the seat, which the per-batch version learns from the data.
+Keep C as a documented fallback for a constrained host, not as the default.
+
+The backtest is a batch job, not a request path: sampling 2020 and 2023 finals
+down to partial coverage at 2,000 draws is a few minutes per full pass, so it
+belongs in CI (nightly), not in the unit test suite.
+
+
+### 6. Outputs, per seat
 
 ```
 {
