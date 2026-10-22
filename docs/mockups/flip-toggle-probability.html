@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design comp — Probability / margin toggle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  .toggle { display: inline-flex; border: 1px solid var(--rule-strong); }
+  .toggle button {
+    font-family: Inter, system-ui, sans-serif; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; padding: 6px 12px;
+    background: none; border: 0; color: var(--ink); cursor: pointer;
+  }
+  .toggle button + button { border-left: 1px solid var(--rule-strong); }
+  .toggle button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .row {
+    display: grid; grid-template-columns: 1.05fr 1.5fr .85fr; gap: 22px;
+    align-items: center; padding: 16px 0; border-bottom: 1px solid var(--rule);
+  }
+  .row:last-child { border-bottom: 0; }
+  .seat { font-family: 'Playfair Display', Georgia, serif; font-size: 21px; line-height: 1.15; }
+  .seat .kicker { display: block; margin-bottom: 3px; }
+  .fig { font-family: 'IBM Plex Mono', monospace; font-size: 26px; line-height: 1; letter-spacing: -.02em; text-align: right; }
+  .fig small { display: block; font-family: Inter, system-ui, sans-serif; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+  .bar { height: 16px; background: #e7e2d6; position: relative; overflow: hidden; }
+  .bar > i { position: absolute; inset: 0 auto 0 0; }
+  .axis { position: relative; height: 44px; }
+  .axis .rule { position: absolute; left: 0; right: 0; top: 20px; height: 1px; background: var(--rule); }
+  .axis .zero { position: absolute; top: 12px; bottom: 12px; width: 1px; background: var(--rule-strong); }
+  .axis .band { position: absolute; top: 16px; height: 9px; background: rgba(156,58,42,.28); }
+  .axis .mid { position: absolute; top: 13px; height: 15px; width: 2px; background: var(--red); }
+  .axis .now { position: absolute; top: 8px; height: 25px; width: 2px; background: var(--ink); }
+  .axis .lbl { position: absolute; top: 30px; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); }
+  .legendline { display: flex; gap: 16px; flex-wrap: wrap; font-family: Inter, system-ui, sans-serif; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+  .legendline i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+  .prob-legend span { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; font-family: Inter, system-ui, sans-serif; font-size: 10.5px; color: var(--muted); }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="name">election-night.live</span>
+    <span class="right"><span class="kicker">Live</span><span class="mono" style="font-size:12px">10:18pm</span></span>
+  </div>
+
+  <div class="pagehead">
+    <div>
+      <div class="kicker">Close seats · same draws, two views</div>
+      <h1>Can it still flip?</h1>
+    </div>
+    <div style="text-align:right">
+      <div class="kicker" style="margin-bottom:6px">Show</div>
+      <div class="toggle" role="group" aria-label="Show probability or margin range">
+        <button id="btn-prob" aria-pressed="true">Probability</button>
+        <button id="btn-margin" aria-pressed="false">Margin range</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="lede">Every seat below is the same 20,000 simulated finishes, read two ways: the chance each candidate wins, or where the final margin lands. <em>Settled seats show the arithmetic that settles them; seats without enough count to model say so.</em></p>
+
+  <div class="grid" style="grid-template-columns:1fr">
+    <div id="rows"></div>
+    <div style="padding-top:14px">
+      <div id="caption" class="foot"></div>
+    </div>
+  </div>
+
+  <p class="foot">
+    Both views come from one simulation per seat: 20,000 draws over the batches still to report, seeded from the scrape so every client sees identical numbers.
+    The band is the 10th–90th percentile of the final margin; the tick is tonight's margin. <b>Special votes are counted after the night and can still change a seat that is settled here.</b>
+  </p>
+</div>
+
+<script>
+  const seats = [
+    {
+      name: 'Kapiti', kicker: 'General seat · 26 of 38 batches',
+      leader: 'Labour', challenger: 'National', margin: 412,
+      p: { Labour: 0.62, National: 0.38 },
+      band: { p10: -140, p50: 390, p90: 1_180 }, state: 'projected',
+      counted: 0.68,
+    },
+    {
+      name: 'Banks Peninsula', kicker: 'General seat · 18 of 44 batches',
+      leader: 'National', challenger: 'Labour', margin: 640,
+      p: { National: 0.81, Labour: 0.19 },
+      band: { p10: -60, p50: 705, p90: 1_640 }, state: 'projected',
+      counted: 0.41,
+    },
+    {
+      name: 'Auckland Central', kicker: 'General seat · 61 of 69 batches',
+      leader: 'Labour', challenger: 'Green', margin: 3_120,
+      p: { Labour: 0.97, Green: 0.03 },
+      band: { p10: 2_760, p50: 3_180, p90: 3_610 }, state: 'projected',
+      counted: 0.88,
+    },
+    {
+      name: 'Glendene', kicker: 'General seat · 38 of 41 batches',
+      leader: 'National', challenger: 'Labour', margin: 1_948,
+      p: { National: 1, Labour: 0 }, band: null, state: 'settled',
+      counted: 0.93,
+    },
+    {
+      name: 'Te Tai Tonga', kicker: 'Māori seat · 7 of 52 batches',
+      leader: 'Labour', challenger: 'Te Pāti Māori', margin: 96,
+      p: null, band: null, state: 'not-meaningful',
+      counted: 0.13,
+    },
+  ];
+
+  const PARTY = { Labour: '#d82a20', National: '#00529f', Green: '#098137', 'Te Pāti Māori': '#111111' };
+  const fmt = (n) => n.toLocaleString('en-NZ');
+  const signed = (n) => (n > 0 ? `+${fmt(n)}` : fmt(n));
+
+  function probView(s) {
+    const [a, b] = Object.entries(s.p);
+    return `
+      <div class="bar" style="height:16px">
+        <i style="width:${a[1] * 100}%;background:${PARTY[a[0]] || '#333'}"></i>
+        <i style="left:${a[1] * 100}%;width:${b[1] * 100}%;background:${PARTY[b[0]] || '#8a8478'}"></i>
+      </div>
+      <div class="prob-legend" style="margin-top:6px">
+        <span><i class="dot" style="background:${PARTY[a[0]] || '#333'}"></i>${a[0]} ${Math.round(a[1] * 100)}%</span>
+        <span><i class="dot" style="background:${PARTY[b[0]] || '#8a8478'}"></i>${b[0]} ${Math.round(b[1] * 100)}%</span>
+      </div>`;
+  }
+
+  function marginView(s) {
+    const { p10, p50, p90 } = s.band;
+    const lo = Math.min(0, p10), hi = Math.max(0, p90);
+    const span = hi - lo || 1;
+    const pos = (v) => ((v - lo) / span) * 100;
+    return `
+      <div class="axis">
+        <div class="rule"></div>
+        <div class="zero" style="left:${pos(0)}%"></div>
+        <div class="band" style="left:${pos(p10)}%;width:${pos(p90) - pos(p10)}%"></div>
+        <div class="mid" style="left:${pos(p50)}%"></div>
+        <div class="now" style="left:${pos(s.margin)}%"></div>
+        <div class="lbl" style="left:${pos(p10)}%;transform:translateX(-50%)">${signed(p10)}</div>
+        <div class="lbl" style="left:${pos(p90)}%;transform:translateX(-50%)">${signed(p90)}</div>
+      </div>
+      <div class="legendline">
+        <span><i style="width:16px;height:9px;background:rgba(156,58,42,.28)"></i>10–90% of finishes</span>
+        <span><i style="width:2px;height:11px;background:var(--ink)"></i>now ${signed(s.margin)}</span>
+        <span><i style="width:2px;height:11px;background:var(--red)"></i>midpoint ${signed(p50)}</span>
+      </div>`;
+  }
+
+  function render(view) {
+    document.getElementById('btn-prob').setAttribute('aria-pressed', String(view === 'prob'));
+    document.getElementById('btn-margin').setAttribute('aria-pressed', String(view === 'margin'));
+
+    document.getElementById('rows').innerHTML = seats.map((s) => {
+      let middle, right, chip;
+      if (s.state === 'settled') {
+        middle = view === 'prob'
+          ? `<div class="bar"><i style="width:100%;background:${PARTY[s.leader]}"></i></div>
+             <div class="prob-legend" style="margin-top:6px"><span><i class="dot" style="background:${PARTY[s.leader]}"></i>${s.leader} 100%</span></div>`
+          : `<div class="axis"><div class="rule"></div><div class="zero" style="left:0%"></div>
+             <div class="band" style="left:0%;width:100%;background:rgba(33,29,23,.10)"></div>
+             <div class="now" style="left:0%"></div><div class="lbl" style="left:0%;transform:translateX(-50%)">0</div>
+             <div class="lbl" style="left:100%;transform:none;text-align:right">${signed(s.margin)}</div></div>
+             <div class="legendline"><span><i style="width:16px;height:9px;background:rgba(33,29,23,.10)"></i>everything left is inside the margin</span></div>`;
+        right = `<div class="fig">${fmt(s.margin)}<small>margin · settled</small></div>`;
+      } else if (s.state === 'not-meaningful') {
+        middle = `<div class="bar"><i style="width:100%;background:repeating-linear-gradient(90deg,#ddd6c6 0 6px,#e9e4d6 6px 12px)"></i></div>
+                  <div class="legendline"><span>not enough count to model</span></div>`;
+        right = `<div class="fig muted">—<small>13% counted</small></div>`;
+      } else {
+        middle = view === 'prob' ? probView(s) : marginView(s);
+        const top = Object.entries(s.p).sort((x, y) => y[1] - x[1])[0];
+        right = view === 'prob'
+          ? `<div class="fig">${Math.round(top[1] * 100)}%<small>${top[0]} to win</small></div>`
+          : `<div class="fig">${signed(s.margin)}<small>now · midpoint ${signed(s.band.p50)}</small></div>`;
+      }
+
+      chip = s.state === 'settled' ? '<span class="chip ink">settled</span>'
+        : s.state === 'not-meaningful' ? '<span class="chip hollow">waiting</span>'
+        : Math.round((view === 'prob' ? Math.max(...Object.values(s.p)) : 1) * 100) >= 95
+          ? '<span class="chip red">likely</span>' : '<span class="chip hollow">live</span>';
+
+      return `<div class="row">
+        <div>
+          <div class="seat"><span class="kicker">${s.kicker}</span>${s.name}</div>
+          <div style="margin-top:6px">${chip} <span class="tiny">${s.leader} leads by ${fmt(s.margin)}</span></div>
+        </div>
+        <div>${middle}</div>
+        <div>${right}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('caption').innerHTML = view === 'prob'
+      ? '<b>Probability view.</b> Each bar is P(winner) over the same draws; seats below 5% counted are suppressed rather than shown at 50/50.'
+      : '<b>Margin view.</b> The band is where the final margin lands in 90% of draws; the black tick is where the count stands now. A band that crosses zero means the seat can change hands.';
+  }
+
+  document.getElementById('btn-prob').addEventListener('click', () => render('prob'));
+  document.getElementById('btn-margin').addEventListener('click', () => render('margin'));
+
+  const initial = 'prob';
+  render(initial);
+</script>
+</body>
+</html>
