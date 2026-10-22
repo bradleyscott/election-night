@@ -204,10 +204,17 @@ function calculatePartyVoteWithSeats(
   partyVotes: (VotingResults & WithPercentages)[],
   electorateVotes: (ElectorateResults & WithLeaders)[]
 ): (VotingResults & WithSeats)[] {
+  // An electorate with no counted votes has no winner: before the first count
+  // (and for each seat until its own count lands) `calculateLead` still names a
+  // leader from an all-zero field, which would hand out real seats and party
+  // eligibility on no votes at all.
+  const countedElectorates = electorateVotes.filter(
+    (x) => (x.votesCounted || 0) > 0
+  );
   const partiesWithElectorateWins = Array.from(
-    new Set(electorateVotes.map((x) => x.leaders.leadingCandidateParty))
+    new Set(countedElectorates.map((x) => x.leaders.leadingCandidateParty))
   ).filter((p): p is string => !!p);
-  const electorateSeats = calculateElectorateWinSeats(electorateVotes);
+  const electorateSeats = calculateElectorateWinSeats(countedElectorates);
 
   const eligibleResults = partyVotes.filter(
     (x) =>
@@ -222,10 +229,14 @@ function calculatePartyVoteWithSeats(
     },
     {} as Record<string, number>
   );
+  const eligibleVotes = Object.values(resultsMap).reduce((s, v) => s + v, 0);
+  // Sainte-Laguë allocates seats from a table of quotients, and an all-zero
+  // vote table has no quotients to allocate from: the library throws rather
+  // than returning an empty entitlement. Before any vote is counted (the feed
+  // publishes zeroed electorate files ahead of election night) and in the first
+  // moments after polls close, nobody has seats yet.
   const entitlement =
-    Object.keys(resultsMap).length > 0
-      ? sainteLague(resultsMap, 120, { draw: true })
-      : {};
+    eligibleVotes > 0 ? sainteLague(resultsMap, 120, { draw: true }) : {};
 
   return partyVotes.map((x) => {
     const electorates = electorateSeats[x.candidate] || 0;

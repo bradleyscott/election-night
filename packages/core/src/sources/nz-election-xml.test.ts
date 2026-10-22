@@ -23,6 +23,39 @@ function createSource() {
 }
 
 describe('NzElectionXmlSource', () => {
+  describe('feed base URL', () => {
+    test('serves the live cycle from the media feed, which carries no year', () => {
+      const source = new NzElectionXmlSource({ year: '2026' });
+      expect(source.getName()).toBe(
+        'NZ Election XML Feed (https://media.election.net.nz/xml/)'
+      );
+    });
+
+    test('keeps every finished cycle on the archive host', () => {
+      for (const year of ['1996', '2017', '2020', '2023']) {
+        const source = new NzElectionXmlSource({ year });
+        expect(source.getName()).toBe(
+          `NZ Election XML Feed (https://archive.electionresults.govt.nz/electionresults_${year}/xml/)`
+        );
+      }
+    });
+
+    test('defaults to the newest archived cycle', () => {
+      const source = new NzElectionXmlSource();
+      expect(source.getName()).toContain('/electionresults_2023/xml/');
+    });
+
+    test('an explicit base URL still wins over the year', () => {
+      const source = new NzElectionXmlSource({
+        year: '2026',
+        baseUrl: 'http://localhost:3457',
+      });
+      expect(source.getName()).toBe(
+        'NZ Election XML Feed (http://localhost:3457/)'
+      );
+    });
+  });
+
   test('fetches reference data only once across concurrent loads', async () => {
     const calls: string[] = [];
     const source = new NzElectionXmlSource({

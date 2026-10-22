@@ -39,6 +39,32 @@ describe('computeDiff', () => {
     expect(diff.previousLeaderName).toBeNull();
   });
 
+  it('treats a zero-vote baseline as a first result, not a leader change', () => {
+    // The live feed publishes every electorate with zero votes before election
+    // night. If that gets recorded as the baseline, the first real count at 7pm
+    // reads as a leader change in every seat and floods the feed.
+    const zeroBaseline = makeResult({
+      votesCounted: 0,
+      votePercentageCounted: 0,
+      partyVotes: [],
+      candidateVotes: [],
+      leaders: {
+        leadingCandidate: '',
+        leadingCandidateParty: null,
+        secondCandidate: '',
+        secondCandidateParty: null,
+        margin: 0,
+        marginPercent: 0,
+        predictionStatus: 'too-close',
+      },
+    });
+    const diff = computeDiff(zeroBaseline, makeResult());
+    const facts = diffFacts(diff);
+
+    expect(facts.isFirstResult).toBe(true);
+    expect(determineWebhookEvents(diff)).toEqual([]);
+  });
+
   it('flags leader change and exposes the outgoing leader', () => {
     const previous = makeResult();
     const current = makeResult({
