@@ -69,6 +69,16 @@ export const socketMessagesTotal = new Counter({
   registers: [register],
 });
 
+// A rejected payload never becomes `latestResults`, so it cannot be served to a
+// visitor or diffed into the feed. Normally zero; anything else names a
+// publisher that is not the co-located collector.
+export const resultsUpdatesRejectedTotal = new Counter({
+  name: 'election_results_updates_rejected_total',
+  help: 'results_update messages rejected by the dashboard server',
+  labelNames: ['reason'],
+  registers: [register],
+});
+
 // `route` is always a route template (e.g. /api/history/electorate/:name),
 // never a raw path, so cardinality stays bounded.
 export const httpRequestsTotal = new Counter({
