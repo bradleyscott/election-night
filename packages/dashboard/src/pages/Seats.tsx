@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
@@ -180,7 +180,7 @@ function SuccessfulCandidates({
                   <div className="flex items-center gap-1.5">
                     <div
                       className="w-2 h-2 flex-shrink-0 sm:hidden"
-                      style={{ backgroundColor: partyColors[c.party] || '#666' }}
+                      style={{ backgroundColor: partyColor(c.party) }}
                     />
                     {c.name}
                   </div>
@@ -189,7 +189,7 @@ function SuccessfulCandidates({
                   <div className="flex items-center gap-1.5">
                     <div
                       className="w-2 h-2 flex-shrink-0"
-                      style={{ backgroundColor: partyColors[c.party] || '#666' }}
+                      style={{ backgroundColor: partyColor(c.party) }}
                     />
                     <span>{c.party || 'Independent'}</span>
                   </div>

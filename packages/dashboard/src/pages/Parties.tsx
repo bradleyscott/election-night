@@ -3,9 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { cn } from '../lib/utils.js';
 import {
-  partyColors,
-  MAJOR_PARTY_ORDER,
-  MAJOR_PARTIES,
+  partyColor,
+  isMajorParty,
+  splitParties,
   buildElectorateLookup,
 } from '../lib/constants.js';
 import { WaitingState } from '../components/WaitingState.js';
@@ -34,13 +34,8 @@ export default function Parties() {
     () => [...new Set(partyLists.map((l) => l.party))],
     [partyLists]
   );
-  const allPartiesSet = useMemo(() => new Set(allParties), [allParties]);
-  const majorParties = useMemo(
-    () => MAJOR_PARTY_ORDER.filter((p) => allPartiesSet.has(p)),
-    [allPartiesSet]
-  );
-  const otherParties = useMemo(
-    () => allParties.filter((p) => !MAJOR_PARTIES.has(p)),
+  const { major: majorParties, other: otherParties } = useMemo(
+    () => splitParties(allParties),
     [allParties]
   );
   const parties = selectedParty
@@ -80,7 +75,7 @@ export default function Parties() {
           >
             <span
               className="inline-block w-2 h-2 ring-1 ring-foreground/20 mr-0.5 shrink-0"
-              style={{ backgroundColor: partyColors[party] || '#666' }}
+              style={{ backgroundColor: partyColor(party) }}
             />
             {party}
           </button>
@@ -88,7 +83,7 @@ export default function Parties() {
 
         {otherParties.length > 0 && (
           <select
-            value={selectedParty && !MAJOR_PARTIES.has(selectedParty) ? selectedParty : ''}
+            value={selectedParty && !isMajorParty(selectedParty) ? selectedParty : ''}
             onChange={(e) => setSelectedParty(e.target.value)}
             className="chip-print bg-background hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
@@ -132,7 +127,7 @@ export default function Parties() {
             <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-border font-display font-bold text-sm sm:text-base flex items-center gap-2">
               <span
                 className="inline-block w-2.5 h-2.5 ring-1 ring-foreground/20 shrink-0"
-                style={{ backgroundColor: partyColors[party] || '#666' }}
+                style={{ backgroundColor: partyColor(party) }}
               />
               {party}
             </div>

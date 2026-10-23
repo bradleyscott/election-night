@@ -1,4 +1,4 @@
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import type { PriorWinner } from '../lib/history-types.js';
 
 /**
@@ -61,7 +61,7 @@ export function PastWinners({
                       <div
                         className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
                         style={{
-                          backgroundColor: partyColors[w.party ?? ''] || '#666',
+                          backgroundColor: partyColor(w.party),
                         }}
                       />
                       <span className="font-semibold">{w.candidate}</span>
