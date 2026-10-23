@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import {
   predictionStatusClass,
   predictionStatusLabel,
@@ -35,8 +35,7 @@ export function ElectorateStats({
               <div
                 className="w-2.5 h-2.5 flex-shrink-0 ring-1 ring-foreground/20"
                 style={{
-                  backgroundColor:
-                    partyColors[leadingPartyVote?.candidate ?? ''] || '#666',
+                  backgroundColor: partyColor(leadingPartyVote?.candidate),
                 }}
               />
               <span className="text-xs sm:text-sm text-muted-foreground">
@@ -81,8 +80,9 @@ export function ElectorateStats({
             <div
               className="w-2.5 h-2.5 flex-shrink-0 ring-1 ring-foreground/20"
               style={{
-                backgroundColor:
-                  partyColors[result.leaders.leadingCandidateParty ?? ''] || '#666',
+                backgroundColor: partyColor(
+                  result.leaders.leadingCandidateParty
+                ),
               }}
             />
             <span className="text-xs sm:text-sm text-muted-foreground">

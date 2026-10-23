@@ -5,7 +5,7 @@ import { usePriorWinners } from '../hooks/useVoteHistory.js';
 import { Toggle } from '../components/Toggle.js';
 import { Pagination } from '../components/Pagination.js';
 import { WaitingState } from '../components/WaitingState.js';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import {
   isMaoriElectorate,
   normalizeElectorateName,
@@ -331,7 +331,7 @@ function PartyDot({ party }: { party: string | undefined | null }) {
   return (
     <div
       className="h-2 w-2 flex-shrink-0 ring-1 ring-foreground/15"
-      style={{ backgroundColor: partyColors[party ?? ''] || '#666' }}
+      style={{ backgroundColor: partyColor(party) }}
     />
   );
 }

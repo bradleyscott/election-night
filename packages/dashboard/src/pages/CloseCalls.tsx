@@ -5,7 +5,7 @@ import { WaitingState } from '../components/WaitingState.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateRacesView } from '../components/ElectorateRacesView.js';
 import { ListCutLinesView } from '../components/ListCutLinesView.js';
-import { MAJOR_PARTY_ORDER, MAJOR_PARTIES } from '../lib/constants.js';
+import { splitParties } from '../lib/constants.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -28,13 +28,8 @@ export default function CloseCalls() {
     () => [...new Set(partyLists.map((l) => l.party))],
     [partyLists]
   );
-  const allPartiesSet = useMemo(() => new Set(allParties), [allParties]);
-  const majorParties: string[] = useMemo(
-    () => MAJOR_PARTY_ORDER.filter((p) => allPartiesSet.has(p)),
-    [allPartiesSet]
-  );
-  const otherParties = useMemo(
-    () => allParties.filter((p) => !MAJOR_PARTIES.has(p)),
+  const { major: majorParties, other: otherParties } = useMemo(
+    () => splitParties(allParties),
     [allParties]
   );
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import { Pagination } from './Pagination.js';
@@ -105,8 +105,7 @@ export function ElectorateRacesView({
                       <div
                         className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
-                          backgroundColor:
-                            partyColors[l.leadingCandidateParty ?? ''] || '#666',
+                          backgroundColor: partyColor(l.leadingCandidateParty),
                         }}
                       />
                       <span className="font-semibold">{l.leadingCandidate}</span>
@@ -117,8 +116,7 @@ export function ElectorateRacesView({
                       <div
                         className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
-                          backgroundColor:
-                            partyColors[l.secondCandidateParty ?? ''] || '#666',
+                          backgroundColor: partyColor(l.secondCandidateParty),
                         }}
                       />
                       <span className="text-muted-foreground">

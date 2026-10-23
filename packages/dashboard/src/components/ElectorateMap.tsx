@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import { dashboardClientConfig } from '../config.js';
 import {
   BOUNDARY_MANIFEST_PATH,
@@ -262,13 +262,12 @@ export default function ElectorateMap({
       if (showPartyVote) {
         const leading = leadingPartyVote(e.partyVotes);
         map.set(key, {
-          color: partyColors[leading?.candidate ?? ''] || '#9ca3af',
+          color: partyColor(leading?.candidate, '#9ca3af'),
           opacity: getPartyOpacity(leading, e.votesCounted),
         });
       } else {
         map.set(key, {
-          color:
-            partyColors[e.leaders.leadingCandidateParty ?? ''] || '#9ca3af',
+          color: partyColor(e.leaders.leadingCandidateParty, '#9ca3af'),
           opacity: getCandidateOpacity(e),
         });
       }

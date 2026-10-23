@@ -10,13 +10,11 @@ import {
   Legend,
 } from 'recharts';
 import { usePartyVoteHistory } from '../hooks/useVoteHistory.js';
-import { partyColors } from '../lib/constants.js';
+import { partyColor, orderParties } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from '../components/WaitingState.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
-
-const ALL_PARTIES = Object.keys(partyColors);
 
 function formatDate(startedAt: string): string {
   const d = new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
@@ -149,6 +147,17 @@ export default function Trends() {
   const [mode, setMode] = useState<Mode>('seats');
   const initializedRef = useRef(false);
 
+  // Chips follow the parties present in the history, ordered by the fixed
+  // editorial order. A static colour map would show a dead chip for a party
+  // this cycle does not have, and no chip for one whose label the feed renamed.
+  const partyOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const point of data ?? []) {
+      for (const p of point.parties) seen.add(p.party);
+    }
+    return orderParties([...seen]);
+  }, [data]);
+
   useEffect(() => {
     if (data && data.length > 0 && !initializedRef.current) {
       initializedRef.current = true;
@@ -156,13 +165,17 @@ export default function Trends() {
       const parliamentParties = new Set(
         latest.parties.filter((p) => p.seats > 0).map((p) => p.party)
       );
-      if (parliamentParties.size === 0) {
-        setSelectedParties(new Set(ALL_PARTIES.slice(0, 4)));
-      } else {
-        setSelectedParties(parliamentParties);
-      }
+      setSelectedParties(
+        parliamentParties.size > 0
+          ? parliamentParties
+          : new Set(
+              orderParties(latest.parties.map((p) => p.party)).slice(0, 4)
+            )
+      );
     }
   }, [data]);
+
+  const visibleParties = partyOptions.filter((p) => selectedParties.has(p));
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -303,7 +316,7 @@ export default function Trends() {
 
       {mode !== 'counted' && (
         <div className="flex flex-wrap gap-1.5">
-          {ALL_PARTIES.map((party) => (
+          {partyOptions.map((party) => (
             <button
               key={party}
               onClick={() => toggleParty(party)}
@@ -316,7 +329,7 @@ export default function Trends() {
             >
               <span
                 className="inline-block w-2 h-2 ring-1 ring-foreground/25 shrink-0"
-                style={{ backgroundColor: partyColors[party] || '#666' }}
+                style={{ backgroundColor: partyColor(party) }}
               />
               {party}
             </button>
@@ -374,8 +387,8 @@ export default function Trends() {
                 activeDot={{ r: 4 }}
               />
             ) : (
-              ALL_PARTIES.filter((p) => selectedParties.has(p)).map((party) => {
-                const color = partyColors[party] || '#8884d8';
+              visibleParties.map((party) => {
+                const color = partyColor(party, '#8884d8');
                 const dark = isDarkColor(color);
                 return (
                   <Line
