@@ -12,6 +12,7 @@ import {
   httpRequestsTotal,
   lastScrapeTimestampSeconds,
   noteCollectorHeartbeat,
+  resultsUpdatesRejectedTotal,
   setBuildInfo,
   socketMessagesTotal,
   websocketClients,
@@ -32,6 +33,7 @@ import {
   resetFeedState,
 } from './feed.js';
 import { withMutex, Mutex } from './mutex.js';
+import { isLoopbackAddress } from './publisher.js';
 import {
   describeCacheSkip,
   extractCachedElectorates,
@@ -190,6 +192,42 @@ io.on('connection', (socket) => {
 
   socket.on('results_update', (payload: ResultsPayload) => {
     socketMessagesTotal.inc({ direction: 'in', event: 'results_update' });
+
+    // Name the publisher in the log: a payload from anywhere but the
+    // co-located collector sets `latestResults` for every visitor and is
+    // re-emitted on connect, so it outlives the process that received it being
+    // restarted. Without this line the source of a wrong-cycle payload is
+    // invisible from the outside.
+    const electorates = payload?.electorateResults ?? [];
+    const clientIp =
+      socket.handshake.headers['fly-client-ip'] ??
+      socket.handshake.headers['x-forwarded-for'];
+    const userAgent = socket.handshake.headers['user-agent'] ?? 'none';
+    const origin =
+      socket.handshake.headers['origin'] ??
+      socket.handshake.headers['referer'] ??
+      'none';
+    log.info(
+      `results_update from ${socket.handshake.address}${
+        clientIp ? ` (client ${clientIp})` : ''
+      }: ua=${userAgent} origin=${origin} query=${JSON.stringify(
+        socket.handshake.query
+      )} electorates=${electorates.length}, first=${
+        electorates[0]?.electorateName ?? 'none'
+      }, partyLists=${payload?.partyLists?.length ?? 0}`
+    );
+
+    if (
+      !dashboardServerConfig.allowRemoteResults &&
+      !isLoopbackAddress(socket.handshake.address)
+    ) {
+      resultsUpdatesRejectedTotal.inc({ reason: 'remote-publisher' });
+      log.warn(
+        `Ignoring results_update from ${socket.handshake.address}: only the co-located collector may publish (set ALLOW_REMOTE_RESULTS=true for a split deployment)`
+      );
+      return;
+    }
+
     withMutex(feedMutex, async () => {
       const previousResults = latestResults?.electorateResults ?? [];
       latestResults = payload;

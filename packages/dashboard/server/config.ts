@@ -43,6 +43,21 @@ const dashboardServerConfigSchema = z.object({
     .describe(
       'When set, POST /api/clear requires this shared secret in the x-clear-token header (unset = open, as before)'
     ),
+  /**
+   * In the combined deployment the collector publishes to this server over
+   * loopback, so a `results_update` from anywhere else is not ours: a
+   * `latestResults` set by a stray publisher is handed to every visitor and
+   * survives redeploys, because the payload is retained in memory and
+   * re-emitted on connect. Set `true` only for a split deployment where a
+   * remote collector publishes over the public socket.
+   */
+  allowRemoteResults: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true')
+    .describe(
+      'Accept results_update from a non-loopback publisher (default false; ALLOW_REMOTE_RESULTS=true for split deployments)'
+    ),
 });
 
 export type DashboardServerConfig = z.infer<typeof dashboardServerConfigSchema>;
@@ -58,6 +73,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     historyUpstream: process.env.HISTORY_UPSTREAM,
     collectorMetricsUrl: process.env.COLLECTOR_METRICS_URL,
     clearToken: process.env.CLEAR_TOKEN,
+    allowRemoteResults: process.env.ALLOW_REMOTE_RESULTS,
   });
 
   if (!parsed.success) {
