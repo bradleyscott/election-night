@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design comp — Can it still flip?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="name">election-night.live</span>
+    <span class="right"><span class="kicker">Live</span><span class="mono" style="font-size:12px">10:18pm</span></span>
+  </div>
+
+  <div class="pagehead">
+    <div>
+      <div class="kicker">Close seats · margin against the vote still out</div>
+      <h1>Can it still flip?</h1>
+    </div>
+    <div class="meta">
+      11 seats inside 2,000 votes<br>
+      3 cannot be called<br>
+      <span style="color:var(--red);font-weight:600">estimate, not a prediction</span>
+    </div>
+  </div>
+
+  <p class="lede">For each close seat: the current margin, how many voting places are still to report, and the ballot papers issued at those places. <em>If the outstanding vote cannot cover the margin, the seat is settled whatever the booths do.</em></p>
+
+  <div class="grid cols-2-even">
+
+    <div>
+      <div class="split">
+        <div>
+          <div class="kicker">Kapiti</div>
+          <div style="font-family:'Playfair Display',Georgia,serif;font-size:26px;margin-top:2px">Holds by 412</div>
+        </div>
+        <span class="chip red">cannot be called</span>
+      </div>
+      <div class="tiny" style="margin-top:6px">12 of 38 places still to report · up to 4,180 ballot papers issued there</div>
+
+      <div style="position:relative;height:76px;margin:14px 0 4px">
+        <div style="position:absolute;left:0;right:0;top:26px;height:6px;background:#e7e2d6"></div>
+        <div style="position:absolute;left:0;top:26px;height:6px;width:38%;background:#9c3a2a"></div>
+        <div style="position:absolute;left:38%;top:20px;height:18px;width:2px;background:#211d17"></div>
+        <div style="position:absolute;left:38%;top:46px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px">412</div>
+        <div style="position:absolute;right:0;top:66px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">4,180 outstanding</div>
+        <div style="position:absolute;left:0;top:0;font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">margin inside the outstanding vote</div>
+      </div>
+      <div class="foot" style="margin-top:2px">Outstanding vote is up to 10× the margin — this seat can still change hands on the night.</div>
+    </div>
+
+    <div>
+      <div class="split">
+        <div>
+          <div class="kicker">Glendene</div>
+          <div style="font-family:'Playfair Display',Georgia,serif;font-size:26px;margin-top:2px">Holds by 1,948</div>
+        </div>
+        <span class="chip ink">settled</span>
+      </div>
+      <div class="tiny" style="margin-top:6px">3 of 41 places still to report · up to 690 ballot papers issued there</div>
+
+      <div style="position:relative;height:76px;margin:14px 0 4px">
+        <div style="position:absolute;left:0;right:0;top:26px;height:6px;background:#e7e2d6"></div>
+        <div style="position:absolute;left:0;top:26px;height:6px;width:82%;background:#211d17"></div>
+        <div style="position:absolute;left:82%;top:20px;height:18px;width:2px;background:#211d17"></div>
+        <div style="position:absolute;left:82%;top:46px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px">1,948</div>
+        <div style="position:absolute;right:0;top:66px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">690 outstanding</div>
+        <div style="position:absolute;left:0;top:0;font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">margin larger than the vote still out</div>
+      </div>
+      <div class="foot" style="margin-top:2px">Even if every outstanding paper went to the challenger, the leader stays ahead. Not a projection — arithmetic.</div>
+    </div>
+
+    <div>
+      <div class="split">
+        <div>
+          <div class="kicker">Te Tai Tonga</div>
+          <div style="font-family:'Playfair Display',Georgia,serif;font-size:26px;margin-top:2px">Holds by 96</div>
+        </div>
+        <span class="chip red">too close</span>
+      </div>
+      <div class="tiny" style="margin-top:6px">27 of 52 places still to report · up to 9,340 ballot papers issued there</div>
+
+      <div style="position:relative;height:76px;margin:14px 0 4px">
+        <div style="position:absolute;left:0;right:0;top:26px;height:6px;background:#e7e2d6"></div>
+        <div style="position:absolute;left:0;top:26px;height:6px;width:9%;background:#9c3a2a"></div>
+        <div style="position:absolute;left:9%;top:20px;height:18px;width:2px;background:#211d17"></div>
+        <div style="position:absolute;left:9%;top:46px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px">96</div>
+        <div style="position:absolute;right:0;top:66px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">9,340 outstanding</div>
+        <div style="position:absolute;left:0;top:0;font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">margin far inside the outstanding vote</div>
+      </div>
+      <div class="foot" style="margin-top:2px">Almost all of this seat's vote is still out. The 96-vote lead carries no information yet.</div>
+    </div>
+
+    <div>
+      <h2 class="section-title">How this is worked out</h2>
+      <table>
+        <tbody>
+          <tr><td>Margin</td><td class="r">leader minus second place, votes counted</td></tr>
+          <tr><td>Places outstanding</td><td class="r"><span class="mono">total − counted</span>, from the seat file</td></tr>
+          <tr><td>Vote still out</td><td class="r">ballot papers <b>issued</b> at those places</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        Issued papers are an <b>upper bound</b>, not a forecast. They include papers that may be informal, and they count
+        every voter issued paper at that place — including advance voters enrolled in other seats, whose votes count
+        elsewhere. Special votes are excluded entirely. A seat shown as <em>settled</em> is arithmetic; a seat shown as
+        <em>cannot be called</em> is not a prediction that it will change.
+      </div>
+      <div class="tiny" style="margin-top:10px">Updated every poll. Where a place's issued count is still zero, the bound widens rather than being guessed.</div>
+    </div>
+  </div>
+
+  <p class="foot">
+    Source: <span class="mono">e{NN}/e{NN}.xml</span> (margin, places counted), <span class="mono">e{NN}/votingplaces/*.xml</span>
+    (issued ballot papers per place) and <span class="mono">votingplaces.xml</span> (which places belong to the seat).
+  </p>
+</div>
+</body>
+</html>

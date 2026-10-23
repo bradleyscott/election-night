@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design comp — Local swing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/mock.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="name">election-night.live</span>
+    <span class="right"><span class="kicker">Comparison</span><span class="mono" style="font-size:12px">10:04pm</span></span>
+  </div>
+
+  <div class="pagehead">
+    <div>
+      <div class="kicker">Local swing · 2023 → 2026 · party vote</div>
+      <h1>The same booths, three years apart</h1>
+    </div>
+    <div class="meta">
+      Wellington region<br>
+      214 comparable places<br>
+      <span style="color:var(--red);font-weight:600">38 places not comparable</span>
+    </div>
+  </div>
+
+  <p class="lede">Electorate boundaries changed for 2026, so seat-level comparisons are unreliable. Voting places are not — where the same booth stood in both cycles, its party vote can be compared directly. <em>Where it moved, opened late or closed, we say so rather than guess.</em></p>
+
+  <div class="grid cols-2">
+    <div>
+      <h2 class="section-title">Places in Wellington Central</h2>
+      <p class="section-sub">Party vote share, comparable places only. Sorted by size.</p>
+
+      <table>
+        <thead>
+          <tr><th>Voting place</th><th class="r">2023</th><th class="r">2026</th><th class="r">Swing</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Aotea Square (advance)</td>
+            <td class="r mono">Lab 41.2</td><td class="r mono">Lab 38.4</td>
+            <td class="r mono" style="color:var(--nat)">−2.8</td><td class="r"><span class="chip hollow">same site</span></td>
+          </tr>
+          <tr>
+            <td>Te Papa</td>
+            <td class="r mono">Lab 39.8</td><td class="r mono">Grn 34.1</td>
+            <td class="r mono" style="color:var(--grn)">Grn +6.2</td><td class="r"><span class="chip hollow">same site</span></td>
+          </tr>
+          <tr>
+            <td>Wellington East Girls' College</td>
+            <td class="r mono">Lab 43.6</td><td class="r mono">Lab 36.9</td>
+            <td class="r mono" style="color:var(--nat)">Lab −6.7</td><td class="r"><span class="chip hollow">same site</span></td>
+          </tr>
+          <tr>
+            <td>Mount Victoria Community Hall</td>
+            <td class="r mono">Lab 44.1</td><td class="r mono">Lab 40.7</td>
+            <td class="r mono" style="color:var(--nat)">Lab −3.4</td><td class="r"><span class="chip hollow">same site</span></td>
+          </tr>
+          <tr>
+            <td>Newtown School</td>
+            <td class="r mono">Lab 46.3</td><td class="r mono">Grn 33.8</td>
+            <td class="r mono" style="color:var(--grn)">Grn +9.1</td><td class="r"><span class="chip hollow">same site</span></td>
+          </tr>
+          <tr>
+            <td>Brooklyn Community Centre</td>
+            <td class="r mono">Lab 38.9</td><td class="r mono">—</td>
+            <td class="r mono" style="color:var(--muted)">moved</td><td class="r"><span class="chip red">moved</span></td>
+          </tr>
+          <tr>
+            <td>Kilbirnie Recreation Centre</td>
+            <td class="r mono">Lab 35.2</td><td class="r mono">Lab 31.4</td>
+            <td class="r mono" style="color:var(--nat)">Lab −3.8</td><td class="r"><span class="chip hollow">same site</span></td>
+          </tr>
+          <tr>
+            <td>Johnsonville Library</td>
+            <td class="r mono">—</td><td class="r mono">Nat 38.2</td>
+            <td class="r mono" style="color:var(--muted)">new</td><td class="r"><span class="chip red">new</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="foot" style="margin-top:10px">The swing column names the party that moved, so "Lab −6.7" reads without a legend. Places under 300 votes in either cycle are hidden behind a filter, not shown as noise.</p>
+    </div>
+
+    <div>
+      <h2 class="section-title">The region</h2>
+      <p class="section-sub">Electorates drawn to scale; shading is the change in the two-party contest since 2023, not a projection.</p>
+      <svg id="map" class="map" role="img" aria-label="Wellington electorates shaded by swing since 2023"></svg>
+
+      <div class="legend">
+        <span><i class="dot" style="background:#00529f"></i>toward National</span>
+        <span><i class="dot" style="background:#d82a20"></i>toward Labour</span>
+        <span><i class="dot" style="background:#098137"></i>toward Green</span>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2 class="section-title" style="font-size:18px">What counts as comparable</h2>
+      <table>
+        <tbody>
+          <tr><td>Same <span class="mono">vp_id</span>, same address</td><td class="r"><span class="chip hollow">compared</span></td></tr>
+          <tr><td>Renamed but same site</td><td class="r"><span class="chip hollow">compared</span></td></tr>
+          <tr><td>Moved within the suburb</td><td class="r"><span class="chip red">excluded</span></td></tr>
+          <tr><td>Opened for 2026 only</td><td class="r"><span class="chip red">new</span></td></tr>
+          <tr><td>Mobile team / care home</td><td class="r"><span class="chip red">excluded</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">A voting place is an institution, not a boundary. Where it is the same place doing the same job, the comparison holds even though the seat around it was redrawn — where it isn't, the row says so.</div>
+    </div>
+  </div>
+
+  <p class="foot">
+    Source: 2023 archive and 2026 media feed, <span class="mono">e{NN}/votingplaces/*.xml</span> joined across cycles by
+    <span class="mono">vp_id</span> and normalised address. Places are matched only on both; a mismatch is reported as
+    not comparable rather than paired by name. Archive coverage: 2020 and 2023 XML only.
+  </p>
+</div>
+
+<script src="assets/nz-map.js"></script>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const map = document.getElementById('map');
+  // A Wellington-region crop of the national frame.
+  const [minX, minY, w, h] = NZ_MAP.viewBox.split(' ').map(Number);
+  const cropW = 3.4, cropH = 3.2;
+  map.setAttribute('viewBox', `130.7 43.85 ${cropW} ${cropH}`);
+  map.setAttribute('style', 'max-height:430px');
+  const shade = { 'Wellington Central': '#d9a49a', 'Te Tai Tonga': '#e3c6c0', 'Hutt South': '#c9c3b4', 'Remutaka': '#bfc9c3', 'Ōhāriu': '#c6ccd8', 'Kapiti': '#c9d3e0', 'Kenepuru': '#d2d8e4' };
+  for (const seat of NZ_MAP.electorates) {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', seat.d);
+    p.setAttribute('class', 'seat');
+    p.setAttribute('fill', shade[seat.name] || '#e9e4d6');
+    if (shade[seat.name]) p.setAttribute('stroke', 'rgba(33,29,23,.55)');
+    map.appendChild(p);
+  }
+</script>
+</body>
+</html>
