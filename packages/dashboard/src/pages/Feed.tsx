@@ -107,7 +107,9 @@ function EventContent({ event }: { event: FeedEvent }) {
           · {d.currentMargin.toLocaleString()} vote lead (
           {(d.currentMarginPercent * 100).toFixed(2)}%)
         </span>
-        <span>· ±{(event.marginOfError * 100).toFixed(1)}% MoE</span>
+        {event.probability != null && (
+          <span>· {Math.round(event.probability * 100)}% chance</span>
+        )}
       </div>
     </>
   );

@@ -149,6 +149,25 @@ export const COMPOSITION_STRENGTH = 1;
  */
 export const PROVISIONAL_CEILING = 0.95;
 
+/**
+ * The chance at which the feed is willing to say a candidate is likely to win.
+ *
+ * This is a lower bar than the published race-call standard (AP calls only when
+ * the trailing candidate has no path to victory) because the claim is graded and
+ * reversible: it is a statement about tonight's count, it carries the number it
+ * was derived from, and a seat that falls back below the threshold produces a
+ * withdrawal event rather than a silent edit. The disciplined gate — no
+ * plausible path on the outstanding vote — is what turns this number into an
+ * "has won".
+ */
+export const CALL_THRESHOLD = 0.9;
+
+/**
+ * Above this the seat is worth describing as leaning, below it as too close to
+ * call. Used for the label on a feed event, never for a claim about the result.
+ */
+export const LEANING_THRESHOLD = 0.66;
+
 /** Relative uncertainty in the size of the outstanding vote. */
 const REMAINING_SIZE_SD = 0.12;
 

@@ -184,6 +184,12 @@ export type FeedEvent = {
   electorateName: string;
   predictionStatus: PredictionStatus;
   marginOfError: number;
+  /**
+   * The seat's chance of being won, when the count is live and a prior exists.
+   * `null` once the ordinary count is complete (a finished count has a margin,
+   * not a probability) and absent on events written before the p(win) model.
+   */
+  probability?: number | null;
   summary: string;
   commentary: string;
   diff: ElectorateDiff;
