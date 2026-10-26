@@ -92,19 +92,13 @@ function renderCopy(
   }
 
   if (chance?.state === 'counting') {
-    // One threshold, one verb: above it the seat is the leader's to lose, below
-    // it the race is not settled. Both lines carry the number that decided the
-    // verdict, so a steady 92% seat never reads as "too close to call".
+    // The number is the claim. No verdict adjective rides along with it: the
+    // reader sees the votes, what is still to come, and the chance, and can
+    // grade it themselves.
     const share = chancePercent(chance);
-    if (isCalled(chance)) {
-      return {
-        summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance with ${pct}% counted.`,
-        commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${chance.remainingVotes.toLocaleString()} votes are still to come, and their chance of holding the seat is ${share}.`,
-      };
-    }
     return {
-      summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance with ${pct}% counted, too close to call.`,
-      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted, but about ${chance.remainingVotes.toLocaleString()} votes are still to come, leaving their chance of holding the seat at ${share} and the race too close to call.`,
+      summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance with ${pct}% counted.`,
+      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${chance.remainingVotes.toLocaleString()} votes are still to come, and their chance of holding the seat is ${share}.`,
     };
   }
 
