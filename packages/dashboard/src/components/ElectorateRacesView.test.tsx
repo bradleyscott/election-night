@@ -83,9 +83,7 @@ describe('ElectorateRacesView', () => {
         <ElectorateRacesView
           electorates={[baseElectorate]}
           chances={
-            new Map([
-              [normalizeElectorateName('Auckland Central'), counting],
-            ])
+            new Map([[normalizeElectorateName('Auckland Central'), counting]])
           }
         />
       </BrowserRouter>

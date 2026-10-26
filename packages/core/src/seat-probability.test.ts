@@ -64,7 +64,9 @@ describe('computeSeatChance', () => {
     // cycle's turnout, 21% of which arrives as specials.
     expect(chance.specialsOutstanding).toBeGreaterThan(0);
     expect(chance.specialsOutstanding).toBeCloseTo(
-      4840 * CYCLE_CONSTANTS[LATEST_CYCLE].turnout * CYCLE_CONSTANTS[LATEST_CYCLE].specialShare,
+      4840 *
+        CYCLE_CONSTANTS[LATEST_CYCLE].turnout *
+        CYCLE_CONSTANTS[LATEST_CYCLE].specialShare,
       0
     );
   });

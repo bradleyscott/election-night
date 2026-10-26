@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  computeDiff,
-  determineWebhookEvents,
-  diffFacts,
-} from './diff.js';
+import { computeDiff, determineWebhookEvents, diffFacts } from './diff.js';
 import type { ComparableResult } from './diff.js';
 
 function makeResult(
@@ -134,7 +130,10 @@ describe('determineWebhookEvents', () => {
 
 describe('determineWebhookEvents with a call state', () => {
   const previous = makeResult({ votePercentageCounted: 0.6 });
-  const current = makeResult({ votesCounted: 9000, votePercentageCounted: 0.7 });
+  const current = makeResult({
+    votesCounted: 9000,
+    votePercentageCounted: 0.7,
+  });
 
   it('fires prediction_changed when the seat crosses the call threshold', () => {
     const events = determineWebhookEvents(computeDiff(previous, current), {
@@ -166,5 +165,3 @@ describe('determineWebhookEvents with a call state', () => {
     expect(events).not.toContain('prediction_changed');
   });
 });
-
-

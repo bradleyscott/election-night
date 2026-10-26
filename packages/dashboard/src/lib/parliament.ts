@@ -119,7 +119,9 @@ export function buildSeats(
         // The arc answers the same question as the map: how decided is this
         // seat. It runs on the chance of winning, so a 50/50 seat is pale
         // whichever party happens to be a hundred votes ahead.
-        opacity: mapFillOpacity(chances?.get(normalizeElectorateName(e.electorateName))),
+        opacity: mapFillOpacity(
+          chances?.get(normalizeElectorateName(e.electorateName))
+        ),
         type: 'electorate',
         name: e.electorateName,
         candidate: e.leaders.leadingCandidate,

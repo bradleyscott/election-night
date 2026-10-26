@@ -53,7 +53,9 @@ describe('SeatDetailContent', () => {
 
     expect(screen.getByText('Win %')).toBeInTheDocument();
     expect(screen.getByText('91%')).toBeInTheDocument();
-    expect(screen.queryByText(/Likely winner|Leaning|Too close to call/)).toBeNull();
+    expect(
+      screen.queryByText(/Likely winner|Leaning|Too close to call/)
+    ).toBeNull();
   });
 
   it('never prints a margin of error', () => {

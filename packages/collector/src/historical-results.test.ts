@@ -16,7 +16,10 @@ async function loadWith(env: Record<string, string | undefined>) {
   }
   const config = await import('./config.js');
   const module = await import('./historical-results.js');
-  return { config: config.collectorConfig, createSourceForYear: module.createSourceForYear };
+  return {
+    config: config.collectorConfig,
+    createSourceForYear: module.createSourceForYear,
+  };
 }
 
 afterEach(() => {
@@ -51,7 +54,9 @@ describe('createSourceForYear', () => {
   });
 
   test('stays on by default and still distinguishes the live cycle', async () => {
-    const { config, createSourceForYear } = await loadWith({ ELECTION_YEAR: '2026' });
+    const { config, createSourceForYear } = await loadWith({
+      ELECTION_YEAR: '2026',
+    });
 
     expect(config.priorResults).toBe('on');
     expect(createSourceForYear('2026')).not.toBeNull();

@@ -588,7 +588,7 @@ export function generateSeedData(): ResultsPayload {
   );
 
   return {
-    electorateResults: withPredictions,
+    electorateResults: withLeaders,
     partyVote,
     partyLists,
   };

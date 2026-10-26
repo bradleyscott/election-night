@@ -6,11 +6,7 @@ import {
   type SeatChance,
   type SeatPrior,
 } from './seat-probability.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-  VotingResults,
-} from './types.js';
+import type { ElectorateResults, WithLeaders, VotingResults } from './types.js';
 
 /**
  * Notional results: the previous cycle's votes rebuilt on this cycle's
@@ -158,8 +154,7 @@ export function seatChanceFor(
     })),
     votesCounted: result.votesCounted,
     percentVotesCast: result.percentVotesCast,
-    enrolment:
-      enrolmentForSeat(baseline, result.electorateName) ?? undefined,
+    enrolment: enrolmentForSeat(baseline, result.electorateName) ?? undefined,
     electionYear: electionYear ? Number(electionYear) : null,
     prior: priorForSeat(baseline, result.electorateName),
     nationalSwing,

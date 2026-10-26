@@ -49,23 +49,15 @@
           "name": "electorate_results_scrape_id_scrape_snapshots_id_fk",
           "tableFrom": "electorate_results",
           "tableTo": "scrape_snapshots",
-          "columnsFrom": [
-            "scrape_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "electorate_results_scrape_id_electorate_candidate_pk": {
-          "columns": [
-            "scrape_id",
-            "electorate",
-            "candidate"
-          ],
+          "columns": ["scrape_id", "electorate", "candidate"],
           "name": "electorate_results_scrape_id_electorate_candidate_pk"
         }
       },
@@ -159,22 +151,15 @@
           "name": "electorate_summary_scrape_id_scrape_snapshots_id_fk",
           "tableFrom": "electorate_summary",
           "tableTo": "scrape_snapshots",
-          "columnsFrom": [
-            "scrape_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "electorate_summary_scrape_id_electorate_pk": {
-          "columns": [
-            "scrape_id",
-            "electorate"
-          ],
+          "columns": ["scrape_id", "electorate"],
           "name": "electorate_summary_scrape_id_electorate_pk"
         }
       },
@@ -233,23 +218,15 @@
           "name": "party_lists_scrape_id_scrape_snapshots_id_fk",
           "tableFrom": "party_lists",
           "tableTo": "scrape_snapshots",
-          "columnsFrom": [
-            "scrape_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "party_lists_scrape_id_party_candidate_pk": {
-          "columns": [
-            "scrape_id",
-            "party",
-            "candidate"
-          ],
+          "columns": ["scrape_id", "party", "candidate"],
           "name": "party_lists_scrape_id_party_candidate_pk"
         }
       },
@@ -294,23 +271,15 @@
           "name": "party_vote_results_scrape_id_scrape_snapshots_id_fk",
           "tableFrom": "party_vote_results",
           "tableTo": "scrape_snapshots",
-          "columnsFrom": [
-            "scrape_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "party_vote_results_scrape_id_electorate_party_pk": {
-          "columns": [
-            "scrape_id",
-            "electorate",
-            "party"
-          ],
+          "columns": ["scrape_id", "electorate", "party"],
           "name": "party_vote_results_scrape_id_electorate_party_pk"
         }
       },
@@ -369,22 +338,15 @@
           "name": "party_vote_summary_scrape_id_scrape_snapshots_id_fk",
           "tableFrom": "party_vote_summary",
           "tableTo": "scrape_snapshots",
-          "columnsFrom": [
-            "scrape_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scrape_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "party_vote_summary_scrape_id_party_pk": {
-          "columns": [
-            "scrape_id",
-            "party"
-          ],
+          "columns": ["scrape_id", "party"],
           "name": "party_vote_summary_scrape_id_party_pk"
         }
       },

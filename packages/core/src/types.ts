@@ -3,7 +3,6 @@ export type ResultPageConfig = {
   url: string;
 };
 
-
 export type ElectorateResults = {
   electorateName: string;
   partyVotes: VotingResults[];

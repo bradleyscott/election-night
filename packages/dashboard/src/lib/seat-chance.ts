@@ -122,7 +122,8 @@ export function countProgress(
       result.percentVotesCast && result.percentVotesCast > 0
         ? result.percentVotesCast
         : null;
-    const enrolment = recorded ?? (turnout ? result.votesCounted / turnout : null);
+    const enrolment =
+      recorded ?? (turnout ? result.votesCounted / turnout : null);
     if (!enrolment) continue;
     votesCounted += result.votesCounted;
     expected += enrolment * cycle.turnout * cycle.nightShare;
@@ -134,8 +135,7 @@ export function countProgress(
     // seat that outruns the last cycle's turnout passes its expectation, and a
     // page reading "101.5% counted" invites the reader to distrust every other
     // number on it.
-    fraction:
-      expected > 0 ? Math.min(1, votesCounted / expected) : null,
+    fraction: expected > 0 ? Math.min(1, votesCounted / expected) : null,
   };
 }
 

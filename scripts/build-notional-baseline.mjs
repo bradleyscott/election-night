@@ -50,10 +50,7 @@ const TARGET_YEAR = arg('target', '2026');
 const VALIDATE = process.argv.includes('--validate');
 const OUT = resolve(
   ROOT,
-  arg(
-    'out',
-    `packages/core/data/notional-baseline-${TARGET_YEAR}.json`
-  )
+  arg('out', `packages/core/data/notional-baseline-${TARGET_YEAR}.json`)
 );
 
 const archive = (year) =>

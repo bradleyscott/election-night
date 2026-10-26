@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { buildSeats, type ElectorateEntry, type PartyEntry } from './parliament.js';
+import {
+  buildSeats,
+  type ElectorateEntry,
+  type PartyEntry,
+} from './parliament.js';
 import { normalizeElectorateName } from './electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
@@ -22,7 +26,13 @@ function electorate(name = 'Test'): ElectorateEntry {
 }
 
 const partyVote = [
-  { candidate: 'Red Party', votes: 10_000, seats: 1, electorateSeats: 1, listSeats: 0 },
+  {
+    candidate: 'Red Party',
+    votes: 10_000,
+    seats: 1,
+    electorateSeats: 1,
+    listSeats: 0,
+  },
 ] as unknown as PartyEntry[];
 
 function counting(probability: number): SeatChance {
@@ -51,14 +61,7 @@ function seatsWith(chance?: SeatChance) {
   const chances = chance
     ? new Map([[normalizeElectorateName('Test'), chance]])
     : undefined;
-  return buildSeats(
-    ['Red Party'],
-    partyVote,
-    electorates,
-    [],
-    120,
-    chances
-  );
+  return buildSeats(['Red Party'], partyVote, electorates, [], 120, chances);
 }
 
 describe('hemicycle opacity', () => {

@@ -34,7 +34,6 @@ describe('synthetic data', () => {
         withLead.candidateVotes[1].votes
       );
     });
-
   });
 
   describe('vote counts scale proportionally', () => {

@@ -67,7 +67,8 @@ const feedMutex = new Mutex();
  */
 function chanceLookupFor(
   electorates: ResultsPayload['electorateResults']
-): ((result: ComparableResult) => ReturnType<typeof seatChanceFor>) | undefined {
+):
+  ((result: ComparableResult) => ReturnType<typeof seatChanceFor>) | undefined {
   const electionYear = dashboardServerConfig.electionYear;
   if (!electionYear) return undefined;
   const results = electorates as Parameters<typeof nationalSwingOf>[0];

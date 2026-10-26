@@ -58,7 +58,11 @@ describe('CountedTape', () => {
   it('draws one rug tick per receipt and nothing for places still to come', () => {
     const receipts = [T0, T0 + 5 * MIN, T0 + 15 * MIN, T0 + 20 * MIN];
     const { container } = render(
-      <CountedTape {...base} points={points([10, 24, 41])} receipts={receipts} />
+      <CountedTape
+        {...base}
+        points={points([10, 24, 41])}
+        receipts={receipts}
+      />
     );
     const ticks = Array.from(container.querySelectorAll('line')).filter(
       (line) =>

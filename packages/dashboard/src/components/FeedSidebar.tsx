@@ -63,11 +63,8 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
           </p>
         )}
         <div className="font-mono text-[11px] text-muted-foreground/70 mt-0.5">
-          {Math.round(
-            (event.progress ?? d.currentPercentageCounted) * 100
-          )}
-          % counted ·{' '}
-          {d.currentMargin.toLocaleString()} vote lead ·{' '}
+          {Math.round((event.progress ?? d.currentPercentageCounted) * 100)}%
+          counted · {d.currentMargin.toLocaleString()} vote lead ·{' '}
           {relativeTime(event.timestamp)}
         </div>
       </div>

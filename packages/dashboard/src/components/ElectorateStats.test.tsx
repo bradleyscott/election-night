@@ -161,7 +161,9 @@ describe('ElectorateStats', () => {
       { result: result({ votesCounted: 35324 }) }
     );
     expect(screen.getByText(/about 6,308 votes/)).toBeInTheDocument();
-    expect(screen.getByText('Ahead by 396 (1.1% of votes)')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ahead by 396 (1.1% of votes)')
+    ).toBeInTheDocument();
     expect(screen.queryByText(/\d+\.\d+ votes/)).not.toBeInTheDocument();
   });
 

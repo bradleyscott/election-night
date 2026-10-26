@@ -54,7 +54,9 @@ describe('buildFeedEvents', () => {
 
 type CountingChance = Extract<SeatChance, { state: 'counting' }>;
 
-function countingChance(overrides: Partial<CountingChance> = {}): CountingChance {
+function countingChance(
+  overrides: Partial<CountingChance> = {}
+): CountingChance {
   return {
     state: 'counting',
     othersProbability: 0.01,
@@ -118,13 +120,10 @@ describe('buildFeedEvents with a chance lookup', () => {
   });
 
   it('publishes a withdrawal when a called seat falls back below the threshold', () => {
-    const events = buildFeedEvents(
-      [first],
-      [second],
-      (result) =>
-        countingChance({
-          probability: result.votesCounted === 4000 ? 0.62 : 0.91,
-        })
+    const events = buildFeedEvents([first], [second], (result) =>
+      countingChance({
+        probability: result.votesCounted === 4000 ? 0.62 : 0.91,
+      })
     );
 
     expect(events[0]!.type).toBe('prediction_called');

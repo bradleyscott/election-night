@@ -184,9 +184,7 @@ export async function processResults(
   const called = (result: Results | null): boolean => {
     if (!result || !chanceFor) return false;
     const chance = chanceFor(result);
-    return (
-      chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD
-    );
+    return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;
   };
 
   const promises: Promise<void>[] = [];

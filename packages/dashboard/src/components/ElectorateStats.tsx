@@ -79,11 +79,7 @@ export function ElectorateStats({
 
   if (chance.state === 'complete') {
     return (
-      <CompleteVerdict
-        result={result}
-        chance={chance}
-        updatedAt={updatedAt}
-      />
+      <CompleteVerdict result={result} chance={chance} updatedAt={updatedAt} />
     );
   }
 
@@ -153,7 +149,10 @@ function SplitBar({ share }: { share: number }) {
 
   return (
     <div className="mt-2 flex h-2 w-full" aria-hidden="true">
-      <div className="bg-foreground/70" style={{ width: `${clamped * 100}%` }} />
+      <div
+        className="bg-foreground/70"
+        style={{ width: `${clamped * 100}%` }}
+      />
       <div className="hatch-outstanding flex-1" />
     </div>
   );

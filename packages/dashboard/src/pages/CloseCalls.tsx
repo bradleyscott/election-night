@@ -8,10 +8,7 @@ import { ListCutLinesView } from '../components/ListCutLinesView.js';
 import { MAJOR_PARTY_ORDER, MAJOR_PARTIES } from '../lib/constants.js';
 import { useApi } from '../hooks/useApi.js';
 import type { RuntimeConfig } from '@election-night/core/polls-close';
-import {
-  nationalSwingOf,
-  seatChanceFor,
-} from '../lib/seat-chance.js';
+import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import type {

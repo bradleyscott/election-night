@@ -16,7 +16,13 @@ function chanceLine(info: SeatInfo): string | null {
   return `${Math.round(chance.probability * 100)}%`;
 }
 
-export function SeatDetailContent({ info, onClose }: { info: SeatInfo; onClose: () => void }) {
+export function SeatDetailContent({
+  info,
+  onClose,
+}: {
+  info: SeatInfo;
+  onClose: () => void;
+}) {
   const chance = chanceLine(info);
 
   return (

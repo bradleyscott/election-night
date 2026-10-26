@@ -52,13 +52,7 @@ const liveResults: ResultsPayload = {
   electorateResults: [
     // 5,000 in a big seat is only 10.0% — the raw-vote leader, but not the
     // biggest share, which is what the list sorts on.
-    electorate(
-      'Ōtāhuhu',
-      'ACT New Zealand',
-      'TURAI, Hana',
-      5_000,
-      50_000
-    ),
+    electorate('Ōtāhuhu', 'ACT New Zealand', 'TURAI, Hana', 5_000, 50_000),
     // Smaller raw lead (4,000) but the bigger share (16.0%).
     electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_000),
     electorate('Remutaka', 'Labour Party', 'HIPKINS, Chris', 6_000),
@@ -309,12 +303,7 @@ describe('Flipped page', () => {
         <MockSocketProvider
           results={{
             electorateResults: names.map((name, i) =>
-              electorate(
-                name,
-                'National Party',
-                `CANDIDATE ${i}`,
-                1_000 + i
-              )
+              electorate(name, 'National Party', `CANDIDATE ${i}`, 1_000 + i)
             ),
             partyVote: [],
             partyLists: [],
