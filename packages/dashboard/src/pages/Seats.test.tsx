@@ -39,6 +39,22 @@ describe('Seats page', () => {
     expect(screen.queryByText('95.0%')).not.toBeInTheDocument();
   });
 
+  test('shows a seat candidate a chance of winning, not a margin and its error', () => {
+    render(
+      <BrowserRouter>
+        <MockSocketProvider results={mockResults} connected>
+          <Seats />
+        </MockSocketProvider>
+      </BrowserRouter>
+    );
+
+    // The fixture has no prior on file, so the chance is capped at 95% rather
+    // than claimed as a certainty. What matters is that the column states a
+    // chance at all: the ± margin-of-error suffix is gone from the table.
+    expect(screen.getByText('95%')).toBeInTheDocument();
+    expect(screen.queryByText(/±/)).toBeNull();
+  });
+
   test('renders waiting state when no results are available', () => {
     render(
       <BrowserRouter>
