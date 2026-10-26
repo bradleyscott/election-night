@@ -226,22 +226,18 @@ function CompleteVerdict({
 }) {
   const sorted = [...result.candidateVotes].sort((a, b) => b.votes - a.votes);
   const top = sorted.slice(0, 2);
-  const third = sorted[2];
   const total = result.votesCounted || 1;
-  const leaderParty = chance.leader.party ?? 'Independent';
-  const thirdShare = third ? third.votes / total : 0;
-  const shownShare = top.reduce((sum, c) => sum + c.votes / total, 0);
-  const othersShare = Math.max(
-    0,
-    1 - shownShare - (thirdShare >= 0.05 ? thirdShare : 0)
-  );
+  // The badge names the person, not the party: the count on this panel is the
+  // candidate vote, and which person won is the fact the night produces.
+  const leaderName = chance.leader.name;
 
   return (
     <div className="border panel-print p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="kicker">Tonight&rsquo;s count complete</div>
         <span className="chip-print chip-print--red">
-          {leaderParty} ahead by {chance.margin.toLocaleString()}
+          <span className="normal-case">{leaderName}</span> ahead by{' '}
+          {chance.margin.toLocaleString()} ({percent(chance.margin / total)}%)
         </span>
       </div>
 
@@ -281,38 +277,6 @@ function CompleteVerdict({
         ))}
       </div>
 
-      <div className="mt-4 flex h-2.5 border border-border">
-        {top.map((candidate) => (
-          <div
-            key={candidate.candidate}
-            style={{
-              width: `${(candidate.votes / total) * 100}%`,
-              backgroundColor: partyColour(candidate.party),
-            }}
-          />
-        ))}
-        {thirdShare >= 0.05 && third && (
-          <div
-            style={{
-              width: `${thirdShare * 100}%`,
-              backgroundColor: partyColour(third.party),
-            }}
-          />
-        )}
-        <div
-          style={{
-            width: `${othersShare * 100}%`,
-            backgroundColor: 'hsl(var(--muted-foreground) / 0.45)',
-          }}
-        />
-      </div>
-      <div className="mt-2 flex flex-wrap justify-between gap-x-3 font-label text-xs text-muted-foreground">
-        <span>Share of votes counted</span>
-        <span>
-          Special votes are counted after election night and can still change
-          this seat.
-        </span>
-      </div>
     </div>
   );
 }

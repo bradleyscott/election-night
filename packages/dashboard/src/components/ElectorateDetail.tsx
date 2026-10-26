@@ -21,6 +21,7 @@ export function ElectorateDetail({
   showPartyVote,
   onTogglePartyVote,
   historyData,
+  votingPlaces,
   priorWinners,
   priorUnavailable,
   chance,
@@ -31,6 +32,8 @@ export function ElectorateDetail({
   showPartyVote: boolean;
   onTogglePartyVote: (showPartyVote: boolean) => void;
   historyData: ElectorateHistoryPoint[] | null;
+  /** The seat's voting places, for the receipt rug on the count chart. */
+  votingPlaces?: { counted: number; total: number; receipts: number[] };
   /** This seat's prior-cycle winners, newest first; empty when none apply. */
   priorWinners?: PriorWinner[];
   priorUnavailable?: boolean;
@@ -86,7 +89,11 @@ export function ElectorateDetail({
 
       <ElectorateResultsTable result={result} showPartyVote={showPartyVote} />
 
-      {priorWinners !== undefined && (
+      {/* Prior winners are who won the seat, and a seat is won on the
+          candidate vote. In party view the table below is the party vote, so
+          the two are not about the same contest and would read as a claim that
+          the party must repeat what its candidate did. */}
+      {!showPartyVote && priorWinners !== undefined && (
         <PastWinners
           winners={priorWinners}
           unavailable={priorUnavailable ?? false}
@@ -98,6 +105,7 @@ export function ElectorateDetail({
           history={historyData}
           mode="votes"
           showParty={showPartyVote}
+          votingPlaces={votingPlaces}
         />
       )}
     </div>
