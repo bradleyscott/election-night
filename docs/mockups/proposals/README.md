@@ -6,6 +6,29 @@ drawn ahead of implementation, so review them as a proposal — the tokens,
 utilities and component classes are the real ones, the markup is not the
 component.
 
+## `counted-tape` (`.html` / `.png`)
+
+The two **Counted** charts — the electorate panel's `VoteHistoryChart` and the
+Trends page — redrawn in the vocabulary of the **night tape** from
+`voting-places-map.html`: the Counted series in its own green, drawn as a step,
+with mono numerals, hairline rules and dashed gridlines. Each surface gets the
+element only it can have: the seat has per-voting-place receipt times, so its
+tape carries a rug of them; the country has only snapshots, so its tape steps
+between scrapes. Both stop at the last scrape rather than running to midnight —
+a count is a record, not a forecast — and nothing marks "now", because the step
+already begins at the most recent observation.
+
+**Shipped.** `packages/dashboard/src/components/CountedTape.tsx` draws it; both
+charts swap their monotone green line for it when their mode is Counted, and the
+axis vocabulary (mono ticks, `1.4M` / `47%` rounding, dashed grid, tooltip
+chrome) lives in `packages/dashboard/src/lib/chart-format.ts` so the three modes
+of each chart read alike.
+
+Numbers are a synthetic night rather than any real cycle — advance votes land
+just after seven and the count climbs through the evening — and the seat label
+(Epsom) is illustrative. Regenerate the capture as
+described for `electorate-pwin` below, at 1400 px wide.
+
 ## `electorate-pwin` (`.html` / `.png`)
 
 The electorate detail panel with the margin-of-error strip replaced by a single
@@ -104,6 +127,66 @@ cd packages/dashboard
   --window-size=1400,4131 --virtual-time-budget=12000 \
   --screenshot=electorate-map-controls.png \
   "file://$PWD/../../docs/mockups/proposals/electorate-map-controls.html"
+```
+
+## `count-complete` (`.html` / `.png`)
+
+The electorate panel's **count complete** card, drawn four ways plus today at
+the 512px the detail column gives it on a 1400px page: **A** is the counting
+card's own rows handed over unchanged, with the strip reinterpreted; **B** names
+the winner and puts the margin in a sentence; **C** leads with the margin at
+6xl; **D** is a returns sheet of mono facts. Every card holds Banks Peninsula at
+the same moment — 13,984 against 13,674, a margin of 310, 80% of the expected
+final vote in, about 9,700 special votes to come — so only the design moves.
+
+The card's problem is not the number: once the count is complete a probability
+would have to read 100%, so the card has to lead with something else. It is
+that today's card stops at *Tonight's count complete* and says nothing about the
+special votes, which is the one thing that can still move the seat. The page
+therefore keeps a second column of real 2023 figures beside the constructions:
+Banks Peninsula finished 17,860 to 17,464 — a margin of 396, 0.8% — after the
+specials were added, so a card that hides them is silent through the only
+fortnight in which the seat was still undecided.
+
+**Decided: A**, because the panel needs no second vocabulary when the count
+stops: the rows, the bars and the margin line are already the ones on screen all
+night, and the specials arrive in the slot the outstanding votes just left. B's
+closing *not final* block is worth taking for A's caption. B, C and D are
+rejected alternatives and can be deleted.
+
+**Shipped.** `ElectorateStats.tsx` draws the complete state from the same
+`ChanceRow` the counting state uses, with three switches: the 4xl slot prints a
+share of the votes counted to one decimal, the leader's line reads `Ahead by 310
+(0.8% of votes)`, and the even tick goes — half the votes is not the line a
+finished count is judged against. `SpecialsStrip` replaces `CountStrip` on the
+same `SplitBar`, so the hatched end means the same thing in both states. The
+field it needed is now on `SeatChance`'s complete variant: `specialsOutstanding`,
+which `computeSeatChance` already computed and discarded. Vote counts reaching
+the card are rounded at the display boundary (`votes()` in the component) —
+enrolment × turnout × share lands on a fraction, and the card otherwise prints
+*about 6,307.826 votes*; the feed commentary had the same leak and rounds too.
+
+**Provenance.** The seat, the final margin (396) and the share of the vote that
+arrives as specials (21.0% in 2023) are real. The archive publishes only final
+files, so the night's own candidate votes were reconstructed by removing the
+specials from the final counts in proportion: the preliminary numbers are a
+construction, and the margin they produce (310) is the right order of magnitude
+rather than a record.
+
+```bash
+cd packages/dashboard
+./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
+  -o /tmp/complete.css \
+  --content "../../docs/mockups/proposals/count-complete.html"
+
+# inline /tmp/complete.css into the <style> block, then capture 1400×3590 at 2x
+# (the height is document.documentElement.scrollHeight; re-measure after copy
+# changes — an over-tall window pads the bottom with the page background)
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
+  --window-size=1400,3590 --virtual-time-budget=12000 \
+  --screenshot=count-complete.png \
+  "file://$PWD/../../docs/mockups/proposals/count-complete.html"
 ```
 
 ## `chance-card` (`.html` / `.png`)

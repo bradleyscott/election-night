@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Counted, drawn as a tape · proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>*, ::before, ::after {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+::backdrop {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+/*
+! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+*/
+
+/*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  /* 1 */
+  border-width: 0;
+  /* 2 */
+  border-style: solid;
+  /* 2 */
+  border-color: #e5e7eb;
+  /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: '';
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5;
+  /* 1 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+  -moz-tab-size: 4;
+  /* 3 */
+  -o-tab-size: 4;
+     tab-size: 4;
+  /* 3 */
+  font-family: "Crimson Pro", Georgia, serif;
+  /* 4 */
+  font-feature-settings: normal;
+  /* 5 */
+  font-variation-settings: normal;
+  /* 6 */
+  -webkit-tap-highlight-color: transparent;
+  /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0;
+  /* 1 */
+  line-height: inherit;
+  /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0;
+  /* 1 */
+  color: inherit;
+  /* 2 */
+  border-top-width: 1px;
+  /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+          text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  /* 1 */
+  font-feature-settings: normal;
+  /* 2 */
+  font-variation-settings: normal;
+  /* 3 */
+  font-size: 1em;
+  /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0;
+  /* 1 */
+  border-color: inherit;
+  /* 2 */
+  border-collapse: collapse;
+  /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-feature-settings: inherit;
+  /* 1 */
+  font-variation-settings: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 1 */
+  font-weight: inherit;
+  /* 1 */
+  line-height: inherit;
+  /* 1 */
+  letter-spacing: inherit;
+  /* 1 */
+  color: inherit;
+  /* 1 */
+  margin: 0;
+  /* 2 */
+  padding: 0;
+  /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button;
+  /* 1 */
+  background-color: transparent;
+  /* 2 */
+  background-image: none;
+  /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type='search'] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  outline-offset: -2px;
+  /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  /* 1 */
+  font: inherit;
+  /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::-moz-placeholder, textarea::-moz-placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  /* 1 */
+  vertical-align: middle;
+  /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}
+
+:root {
+  /* newsprint stock — near-white, faint warm cast */
+  color-scheme: light;
+  --background: 60 9% 94%;
+  --foreground: 40 6% 13%;
+  --card: 60 9% 94%;
+  --card-foreground: 40 6% 13%;
+  --popover: 60 12% 97%;
+  --popover-foreground: 40 6% 13%;
+  --primary: 14 55% 38%;
+  --primary-foreground: 60 10% 97%;
+  --secondary: 60 8% 90%;
+  --secondary-foreground: 40 6% 20%;
+  --muted: 60 8% 90%;
+  --muted-foreground: 45 6% 37%;
+  --accent: 60 8% 90%;
+  --accent-foreground: 40 6% 20%;
+  --destructive: 0 72% 42%;
+  --destructive-foreground: 60 10% 97%;
+  --border: 50 5% 80%;
+  --input: 50 5% 80%;
+  --ring: 14 55% 38%;
+  --radius: 0px;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  overflow-x: clip;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  overflow-x: clip;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* faint paper grain — the medium is stock, not screen */
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+
+::-moz-selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+    *::before,
+    *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}
+
+.visible {
+  visibility: visible;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+
+.ml-auto {
+  margin-left: auto;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mt-10 {
+  margin-top: 2.5rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.grid {
+  display: grid;
+}
+
+.h-auto {
+  height: auto;
+}
+
+.w-\[390px\] {
+  width: 390px;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.max-w-\[110ch\] {
+  max-width: 110ch;
+}
+
+.max-w-\[1180px\] {
+  max-width: 1180px;
+}
+
+.max-w-\[86ch\] {
+  max-width: 86ch;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-baseline {
+  align-items: baseline;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-1\.5 {
+  gap: 0.375rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-px {
+  gap: 1px;
+}
+
+.gap-x-4 {
+  -moz-column-gap: 1rem;
+       column-gap: 1rem;
+}
+
+.gap-x-6 {
+  -moz-column-gap: 1.5rem;
+       column-gap: 1.5rem;
+}
+
+.gap-y-1 {
+  row-gap: 0.25rem;
+}
+
+.gap-y-1\.5 {
+  row-gap: 0.375rem;
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+}
+
+.divide-y > :not([hidden]) ~ :not([hidden]) {
+  --tw-divide-y-reverse: 0;
+  border-top-width: calc(1px * calc(1 - var(--tw-divide-y-reverse)));
+  border-bottom-width: calc(1px * var(--tw-divide-y-reverse));
+}
+
+.border {
+  border-width: 1px;
+}
+
+.border-b {
+  border-bottom-width: 1px;
+}
+
+.border-b-2 {
+  border-bottom-width: 2px;
+}
+
+.border-r {
+  border-right-width: 1px;
+}
+
+.border-t {
+  border-top-width: 1px;
+}
+
+.border-border {
+  border-color: hsl(var(--border));
+}
+
+.border-foreground {
+  border-color: hsl(var(--foreground));
+}
+
+.bg-background {
+  background-color: hsl(var(--background));
+}
+
+.bg-border {
+  background-color: hsl(var(--border));
+}
+
+.bg-card {
+  background-color: hsl(var(--card));
+}
+
+.bg-foreground {
+  background-color: hsl(var(--foreground));
+}
+
+.p-3 {
+  padding: 0.75rem;
+}
+
+.px-2\.5 {
+  padding-left: 0.625rem;
+  padding-right: 0.625rem;
+}
+
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.px-5 {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.py-1\.5 {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.py-2\.5 {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.pb-2 {
+  padding-bottom: 0.5rem;
+}
+
+.pb-4 {
+  padding-bottom: 1rem;
+}
+
+.pt-2 {
+  padding-top: 0.5rem;
+}
+
+.pt-4 {
+  padding-top: 1rem;
+}
+
+.font-display {
+  font-family: "Playfair Display", Georgia, serif;
+}
+
+.font-label {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.text-\[0\.625rem\] {
+  font-size: 0.625rem;
+}
+
+.text-\[0\.6875rem\] {
+  font-size: 0.6875rem;
+}
+
+.text-\[1\.0625rem\] {
+  font-size: 1.0625rem;
+}
+
+.text-\[2\.1rem\] {
+  font-size: 2.1rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.normal-case {
+  text-transform: none;
+}
+
+.tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.leading-\[1\.1\] {
+  line-height: 1.1;
+}
+
+.leading-relaxed {
+  line-height: 1.625;
+}
+
+.tracking-\[0\.08em\] {
+  letter-spacing: 0.08em;
+}
+
+.tracking-normal {
+  letter-spacing: 0em;
+}
+
+.tracking-wide {
+  letter-spacing: 0.025em;
+}
+
+.text-background {
+  color: hsl(var(--background));
+}
+
+.text-foreground {
+  color: hsl(var(--foreground));
+}
+
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+.filter {
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1)) rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
+  }
+}
+
+/* print chrome */
+
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-label {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-mono,
+  .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.kicker {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* page header: double rule, broadsheet style */
+
+/* red masthead accents — the one print accent */
+
+/* retired gradient chrome — now solid print red/paper so no call-site breaks */
+
+/* hairline panel (replaces card + shadow) */
+
+.panel-print {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+/* stat strip — hairline grid with column + row rules */
+
+/* chips: square, hairline */
+
+.chip-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.125rem 0.45rem;
+  border: 1px solid hsl(var(--border));
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.chip-print--ink {
+  border-color: hsl(var(--foreground) / 0.45);
+}
+
+.chip-print--red {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+.rule-red {
+  border-top: 2px solid hsl(var(--primary));
+}
+
+/* voting place marks: shape = where the place stands, fill = counted.
+     Solid for a count received, outlined while outstanding, and a halo in the
+     page colour so a mark reads against a party-coloured fill either way. */
+
+/* tooltip: hairline panel, no arrow, two lines of address then the status */
+
+/* quiet motion */
+
+/* ────────────────────────────────────────────────────────────
+   Hallmark · genre: editorial · macrostructure: Workbench (app shell) ·
+   theme: Newsprint (printed edition) · nav: N6 Newspaper masthead ·
+   footer: Ft1 Mast-headed · designed-as-app · design.md ·
+   pre-emit critique: P5 H4 E5 S5 R4 V5
+   ------------------------------------------------------------ */
+
+/* ── flat print: cards are hairlines, shadows are off ───────── */
+
+.shadow-sm,
+.shadow,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl,
+.hover\:shadow-sm:hover,
+.hover\:shadow-md:hover,
+.hover\:shadow-lg:hover {
+  box-shadow: none !important;
+}
+
+/* ── Leaflet: paper map, serif popups ──────────────────────── */
+
+.leaflet-container {
+  background: hsl(var(--background));
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+
+/* warm the OSM tiles toward newsprint stock */
+
+.leaflet-tile {
+  filter: saturate(0.78) sepia(0.14) brightness(1.02) contrast(0.97);
+}
+
+.dark .leaflet-tile {
+  filter: grayscale(0.25) sepia(0.2) brightness(0.72) contrast(1.05);
+}
+
+.leaflet-tooltip.electorate-label {
+  background: none;
+  border: none;
+  box-shadow: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: hsl(var(--foreground));
+  text-shadow:
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background));
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: none;
+  font-family: 'Crimson Pro', Georgia, serif;
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  line-height: 1.5;
+}
+
+.leaflet-popup-tip {
+  background: hsl(var(--popover));
+  box-shadow: none;
+}
+
+.leaflet-popup-close-button {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.leaflet-bar {
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.leaflet-bar a {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.leaflet-bar a:hover {
+  background: hsl(var(--muted)) !important;
+}
+
+.leaflet-control-attribution {
+  background: hsl(var(--popover) / 0.85) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 9px !important;
+}
+
+.leaflet-control-attribution a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sm\:p-4 {
+    padding: 1rem;
+  }
+
+  .sm\:px-8 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .sm\:text-\[2\.6rem\] {
+    font-size: 2.6rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-\[minmax\(0\2c 1fr\)_320px\] {
+    grid-template-columns: minmax(0,1fr) 320px;
+  }
+}
+
+/* ── marks, borrowed from the night tape ───────────────────────── */
+.legend-line {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 1.5px solid hsl(var(--foreground));
+}
+.legend-line--counted {
+  border-top-color: #22c55e;
+}
+.legend-line--pace {
+  border-top-color: hsl(var(--foreground) / 0.4);
+  border-top-style: dashed;
+}
+.legend-line--dash {
+  border-top-color: hsl(var(--primary));
+  border-top-style: dashed;
+}
+.legend-tick--counted {
+  background: #22c55e;
+  width: 2px;
+}
+.legend-tick--adv {
+  background: hsl(var(--primary));
+  width: 2px;
+}
+.legend-tick {
+  display: inline-block;
+  width: 1.5px;
+  height: 9px;
+  background: hsl(var(--foreground) / 0.55);
+  vertical-align: -2px;
+}
+.legend-bar {
+  display: inline-block;
+  width: 5px;
+  height: 12px;
+  background: hsl(var(--foreground) / 0.72);
+  vertical-align: -2px;
+}
+.legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 1.5px hsl(var(--card));
+  vertical-align: -1px;
+}
+svg text {
+  font-family: 'IBM Plex Mono', monospace;
+}
+</style>
+  </head>
+  <body class="bg-background text-foreground">
+  <div class="mx-auto max-w-[1180px] px-5 sm:px-8 py-8">
+    <!-- ─────────────────────────── masthead ─────────────────────────── -->
+    <header class="border-b-2 border-foreground pb-4">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <span class="kicker">Proposal · Counted charts</span>
+        <span class="kicker">Not implemented — design capture</span>
+      </div>
+      <h1 class="mt-2 text-[2.1rem] leading-[1.1] sm:text-[2.6rem]">
+        Counted, drawn as a tape.
+      </h1>
+      <p class="mt-3 max-w-[86ch] text-[1.0625rem] leading-relaxed">
+        <em>Counted</em> is the only chart in the app that is not print: a green
+        monotone line over a dashed grid, drawn identically on a seat and on the
+        country. This evolves both of them into the vocabulary of the
+        <strong>night tape</strong> from the voting-places proposal: the same
+        green, drawn as a step, with receipt ticks, mono numerals and hairline
+        rules. It gives
+        each surface the element only it can have.
+      </p>
+      <p class="mt-2 max-w-[86ch] text-[1.0625rem] leading-relaxed text-muted-foreground">
+        A seat has voting-place receipts, so its tape carries a rug of them. The
+        country has only snapshots, so its tape steps between scrapes. Both stop
+        at the last one — a count is a record, not a forecast.
+      </p>
+    </header>
+
+    <!-- ─────────────────────────── why ─────────────────────────── -->
+    <section class="mt-6 grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4 text-sm">
+      <div class="bg-card p-3">
+        <div class="kicker mb-1">Same series, same green</div>
+        <p>
+          <span class="font-mono">#22c55e</span> is what Counted wears today, in
+          the line and in the legend. The tape changes the drawing, not the
+          colour, so the chart and the mode button beside it stay one thing.
+        </p>
+      </div>
+      <div class="bg-card p-3">
+        <div class="kicker mb-1">No cadence</div>
+        <p>
+          A monotone curve hides how the night actually arrives: advance votes
+          at seven, the cliff after ten, then a tail of specials that is
+          measured in weeks.
+        </p>
+      </div>
+      <div class="bg-card p-3">
+        <div class="kicker mb-1">Reads as a forecast</div>
+        <p>
+          A smoothed line suggests the next value follows from the last. The
+          count arrives in chunks, so the chart should look like a record of what
+          has landed, not a trend to be extended.
+        </p>
+      </div>
+      <div class="bg-card p-3">
+        <div class="kicker mb-1">Seat looks like country</div>
+        <p>
+          One seat has per-place receipts; the country has only totals. Drawing
+          both the same way throws away the difference between them.
+        </p>
+      </div>
+    </section>
+
+    <!-- ─────────────────── 1 · electorate / counted ─────────────────── -->
+    <section class="mt-8">
+      <div class="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-2">
+        <div class="flex items-baseline gap-3">
+          <span class="font-display text-2xl text-muted-foreground">1</span>
+          <h2 class="text-2xl">Seat tape — the count, place by place</h2>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="chip-print chip-print--ink">Electorate page</span>
+          <span class="chip-print">Counted mode</span>
+        </div>
+      </div>
+
+      <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div class="space-y-4">
+          <!-- today -->
+          <div class="panel-print">
+            <div class="flex items-baseline justify-between gap-3 border-b px-4 py-2">
+              <span class="kicker">Today</span>
+              <span class="font-mono text-[0.6875rem] text-muted-foreground">VoteHistoryChart · chartMode="counted"</span>
+            </div>
+            <div class="p-3 sm:p-4">
+              <div class="mb-3 flex items-center justify-between">
+                <div class="kicker">Count progress</div>
+                <div class="flex border border-border">
+                  <span class="px-2.5 py-1 font-label text-xs font-semibold tracking-wide text-muted-foreground border-r border-border"># Votes</span>
+                  <span class="px-2.5 py-1 font-label text-xs font-semibold tracking-wide text-muted-foreground border-r border-border">% of Vote</span>
+                  <span class="px-2.5 py-1 font-label text-xs font-semibold tracking-wide bg-foreground text-background">Counted</span>
+                </div>
+              </div>
+              <svg id="today-seat" viewBox="0 0 900 280" class="h-auto w-full" role="img" aria-label="Current Counted chart on the electorate page"></svg>
+            </div>
+          </div>
+
+          <!-- proposed -->
+          <div class="panel-print">
+            <div class="flex items-baseline justify-between gap-3 border-b px-4 py-2 rule-red">
+              <span class="kicker text-foreground">Proposed</span>
+              <span class="chip-print chip-print--red">Option A</span>
+            </div>
+            <div class="p-3 sm:p-4">
+              <div class="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div class="kicker">Count progress</div>
+                <div class="flex items-baseline gap-3">
+                  <span class="font-mono text-sm tabular-nums"><span id="seat-counted">9</span> / <span id="seat-total">22</span> places</span>
+                  <span class="font-mono text-sm tabular-nums text-muted-foreground" id="seat-votes">14,920 of 31,250 votes</span>
+                </div>
+              </div>
+              <svg id="seat-tape" viewBox="0 0 900 300" class="h-auto w-full" role="img" aria-label="Proposed seat tape: one tick per voting place receipt with the counted-vote step above it"></svg>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t pt-2 text-[0.6875rem] font-label uppercase tracking-[0.08em]">
+                <span class="flex items-center gap-1.5"><span class="legend-line legend-line--counted"></span>Votes counted</span>
+                <span class="flex items-center gap-1.5"><span class="legend-tick legend-tick--counted"></span>Place reported</span>
+                <span class="ml-auto font-mono tracking-normal normal-case text-muted-foreground" id="seat-note">13 places still to come</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel-print divide-y text-sm">
+          <div class="px-4 py-3">
+            <div class="kicker mb-1">Shows</div>
+            <p>
+              The step is the seat's counted votes. The ticks underneath are the
+              seat's own voting places, each drawn at the moment its count
+              landed — so a flat stretch of step has a visible cause ("three
+              halls at once", "nothing since 9pm") instead of looking like a
+              stalled line.
+            </p>
+          </div>
+          <div class="px-4 py-3">
+            <div class="kicker mb-1">Needs</div>
+            <p>
+              Nothing new. Receipt times come from
+              <span class="font-mono">useVotingPlaces</span> (shipped with the
+              map layer); the step comes from the electorate history the chart
+              already receives. Nothing is drawn past the last receipt, so the
+              tape never claims to know a vote that has not landed.
+            </p>
+          </div>
+          <div class="px-4 py-3">
+            <div class="kicker mb-1">Breaks when</div>
+            <p>
+              A seat with three places is a rug of three ticks and carries no
+              news; the step has to stand alone. And a place's receipt time says
+              nothing about how many votes it holds, so a big hall and a church
+              hall pull the same weight on the rug. The tape also stops where the
+              count stops, which on a slow seat can be half past nine.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ──────────────────── 2 · trends / counted ──────────────────── -->
+    <section class="mt-10">
+      <div class="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-2">
+        <div class="flex items-baseline gap-3">
+          <span class="font-display text-2xl text-muted-foreground">2</span>
+          <h2 class="text-2xl">Night tape — the country against the clock</h2>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="chip-print chip-print--ink">Trends page</span>
+          <span class="chip-print">Counted mode</span>
+        </div>
+      </div>
+
+      <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div class="space-y-4">
+          <div class="panel-print">
+            <div class="flex items-baseline justify-between gap-3 border-b px-4 py-2">
+              <span class="kicker">Today</span>
+              <span class="font-mono text-[0.6875rem] text-muted-foreground">Trends · mode === 'counted'</span>
+            </div>
+            <div class="p-3 sm:p-4">
+              <div class="mb-3 flex items-center justify-between">
+                <p class="text-sm font-semibold text-muted-foreground">Vote count progress over time.</p>
+                <div class="flex border border-border">
+                  <span class="px-3 py-1.5 font-label text-xs font-semibold tracking-wide text-muted-foreground border-r border-border"># Votes</span>
+                  <span class="px-3 py-1.5 font-label text-xs font-semibold tracking-wide text-muted-foreground border-r border-border">% of Vote</span>
+                  <span class="px-3 py-1.5 font-label text-xs font-semibold tracking-wide text-muted-foreground border-r border-border"># Seats</span>
+                  <span class="px-3 py-1.5 font-label text-xs font-semibold tracking-wide bg-foreground text-background">Counted</span>
+                </div>
+              </div>
+              <svg id="today-national" viewBox="0 0 900 300" class="h-auto w-full" role="img" aria-label="Current Counted chart on the Trends page"></svg>
+            </div>
+          </div>
+
+          <div class="panel-print">
+            <div class="flex items-baseline justify-between gap-3 border-b px-4 py-2 rule-red">
+              <span class="kicker text-foreground">Proposed</span>
+              <span class="chip-print chip-print--red">Option A</span>
+            </div>
+            <div class="p-3 sm:p-4">
+              <div class="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div class="kicker">Votes counted · national</div>
+                <span class="font-mono text-sm tabular-nums"><span id="nat-pct">57.5%</span> · <span class="text-muted-foreground" id="nat-votes">1.40M</span></span>
+              </div>
+              <svg id="national-tape" viewBox="0 0 900 300" class="h-auto w-full" role="img" aria-label="Proposed night tape: national share counted as a step, ending at the latest scrape"></svg>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t pt-2 text-[0.6875rem] font-label uppercase tracking-[0.08em]">
+                <span class="flex items-center gap-1.5"><span class="legend-line legend-line--counted"></span>Counted</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel-print divide-y text-sm">
+          <div class="px-4 py-3">
+            <div class="kicker mb-1">Shows</div>
+            <p>
+              The half of election night a map is bad at: how fast it is going.
+              The step is the national share counted, drawn at the minute each
+              scrape landed, so the advance vote, the nine o'clock lull and the
+              ten o'clock cliff keep their shape instead of being sanded into a
+              curve.
+            </p>
+          </div>
+          <div class="px-4 py-3">
+            <div class="kicker mb-1">Breaks when</div>
+            <p>
+              A missed scrape reads as a longer flat step, not a gap — there is
+              no interpolation to hide it. And the right edge is always slightly
+              behind the room: it is the last scrape, not the last ballot, and
+              nothing marks it, because there is nowhere further to go.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── marks ─────────────────────────── -->
+    <section class="mt-10 panel-print">
+      <div class="border-b px-4 py-2.5">
+        <span class="kicker">The vocabulary, borrowed whole</span>
+      </div>
+      <div class="grid gap-px bg-border sm:grid-cols-2">
+        <div class="bg-card p-3">
+          <div class="mb-2 flex items-center gap-2"><span class="legend-line legend-line--counted"></span><span class="kicker">Counted</span></div>
+          <p class="text-sm">Solid step in the series green. No smoothing, because the count jumps between polls and a curve would invent the in-between.</p>
+        </div>
+        <div class="bg-card p-3">
+          <div class="mb-2 flex items-center gap-2"><span class="legend-tick legend-tick--counted"></span><span class="kicker">Place reported</span></div>
+          <p class="text-sm">One tick per voting place at its receipt time, on the baseline. Seat only — it is the rug we can finally afford.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── mobile ─────────────────────────── -->
+    <section class="mt-10">
+      <div class="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-2">
+        <h2 class="text-2xl">On a phone</h2>
+        <span class="kicker">390px · y-axis drops to three ticks, x-axis to two hours</span>
+      </div>
+      <div class="mt-4 flex flex-wrap items-start gap-4">
+        <div class="w-[390px]">
+          <div class="panel-print p-3">
+            <div class="mb-2 flex items-baseline justify-between gap-2">
+              <div class="kicker">Count progress</div>
+              <span class="font-mono text-xs tabular-nums">9 / 22 places</span>
+            </div>
+            <svg id="seat-tape-m" viewBox="0 0 360 230" class="h-auto w-full" role="img" aria-label="Seat tape at phone width"></svg>
+            <div class="mt-2 border-t pt-2 text-[0.625rem] font-label uppercase tracking-[0.08em] text-muted-foreground">Ticks: places reported</div>
+          </div>
+        </div>
+        <div class="w-[390px]">
+          <div class="panel-print p-3">
+            <div class="mb-2 flex items-baseline justify-between gap-2">
+              <div class="kicker">Votes counted</div>
+              <span class="font-mono text-xs tabular-nums">57.5%</span>
+            </div>
+            <svg id="national-tape-m" viewBox="0 0 360 220" class="h-auto w-full" role="img" aria-label="National night tape at phone width"></svg>
+            <div class="mt-2 border-t pt-2 text-[0.625rem] font-label uppercase tracking-[0.08em] text-muted-foreground">Stops at the last scrape</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── implementation ─────────────────────── -->
+    <section class="mt-10 panel-print rule-red">
+      <div class="px-5 py-4">
+        <span class="kicker">If it ships</span>
+        <h2 class="mt-1 text-2xl">Two branches, no new dependency.</h2>
+        <div class="mt-3 grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <p class="mb-2">
+              <span class="font-mono text-xs">VoteHistoryChart.tsx</span> — the
+              <span class="font-mono text-xs">chartMode === 'counted'</span>
+              branch swaps its <span class="font-mono text-xs">Line</span> for
+              the seat tape; history and receipts are already props-adjacent, so
+              nothing new is fetched.
+            </p>
+            <p>
+              <span class="font-mono text-xs">Trends.tsx</span> — the counted
+              branch draws the national tape from
+              <span class="font-mono text-xs">chartData</span>, stepping between
+              consecutive points and stopping at the last one. No new data is
+              needed on either page.
+            </p>
+          </div>
+          <div>
+            <p class="mb-2">
+              Hand-drawn SVG, as here: no chart library, no animation, no
+              tooltip library. Values are printed in mono next to the mark, so
+              hovering is a nicety rather than the only way to read a number —
+              which also makes the whole chart legible to a screen reader from
+              its <span class="font-mono text-xs">aria-label</span> summary.
+            </p>
+            <p class="text-muted-foreground">
+              Dark mode is free: every mark is a token
+              (<span class="font-mono text-xs">foreground</span>,
+              <span class="font-mono text-xs">border</span>,
+              <span class="font-mono text-xs">primary</span>), not a literal.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-8 max-w-[110ch] border-t pt-4 text-xs leading-relaxed text-muted-foreground">
+      <p>
+        <strong>Provenance.</strong> A synthetic night, not any real cycle:
+        advance votes land just after seven and the count climbs through the
+        evening. Seat receipts are the kind of
+        timestamps the live per-place files carry; the seat itself (Epsom) is
+        only a label. Marks, type, rules and spacing are the shipped design
+        tokens — IBM Plex Mono for numbers, Inter for labels, Playfair for the
+        heading — so what you see is what a component would print.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    const INK = 'hsl(var(--foreground))';
+    const MUTED = 'hsl(var(--muted-foreground))';
+    const RULE = 'hsl(var(--border))';
+    const RED = 'hsl(var(--primary))';
+    const GREEN = '#22c55e';
+    const PAPER = 'hsl(var(--card))';
+    const NS = 'http://www.w3.org/2000/svg';
+
+    const mk = (svg, name, attrs, text) => {
+      const n = document.createElementNS(NS, name);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      if (text !== undefined) n.textContent = text;
+      svg.appendChild(n);
+      return n;
+    };
+    const hm = (m) => {
+      const h = Math.floor(m / 60) % 24;
+      const min = m % 60;
+      const ap = h >= 12 ? 'pm' : 'am';
+      const hh = h % 12 === 0 ? 12 : h % 12;
+      return `${hh}${min === 0 ? '' : ':' + String(min).padStart(2, '0')}${ap}`;
+    };
+
+    /* ── data ─────────────────────────────────────────────────────── */
+    const SEAT_TOTAL = 31250;
+    const RECEIPTS = [
+      { m: 19 * 60 + 4, v: 2380 },
+      { m: 19 * 60 + 6, v: 1980 },
+      { m: 19 * 60 + 9, v: 1420 },
+      { m: 19 * 60 + 42, v: 1310 },
+      { m: 20 * 60 + 7, v: 1580 },
+      { m: 20 * 60 + 39, v: 1420 },
+      { m: 21 * 60 + 14, v: 1730 },
+      { m: 21 * 60 + 52, v: 1490 },
+      { m: 22 * 60 + 11, v: 1610 },
+    ];
+    const SEAT_PLACES_TOTAL = 22;
+    const NOW = 22 * 60 + 18;
+
+    const seatStep = [{ m: 19 * 60, v: 0 }];
+    let acc = 0;
+    for (const r of RECEIPTS) {
+      acc += r.v;
+      seatStep.push({ m: r.m, v: acc });
+    }
+    const seatCounted = acc;
+
+    const NAT_TOTAL = 2430000;
+    const KNOTS = [
+      [19 * 60, 0],
+      [19 * 60 + 22, 0.15],
+      [20 * 60, 0.27],
+      [20 * 60 + 40, 0.33],
+      [21 * 60, 0.4],
+      [22 * 60, 0.52],
+      [22 * 60 + 40, 0.63],
+      [23 * 60 + 10, 0.82],
+      [23 * 60 + 30, 0.95],
+      [24 * 60, 0.965],
+    ];
+    const smoothstep = (t) => t * t * (3 - 2 * t);
+    const natAt = (m) => {
+      for (let i = 0; i < KNOTS.length - 1; i++) {
+        const [m0, v0] = KNOTS[i];
+        const [m1, v1] = KNOTS[i + 1];
+        if (m <= m1) {
+          if (m <= m0) return v0;
+          const t = smoothstep((m - m0) / (m1 - m0));
+          return v0 + (v1 - v0) * t;
+        }
+      }
+      return KNOTS[KNOTS.length - 1][1];
+    };
+    const NAT_POINTS = [];
+    for (let m = 19 * 60; m <= 24 * 60; m += 5) NAT_POINTS.push({ m, f: natAt(m) });
+    const natNow = natAt(NOW);
+
+    /* ── the shipped chart, redrawn ──────────────────────────────── */
+    function drawToday(svgId, pts, { yMax, yFmt, W = 900, H = 280 }) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = '';
+      const pad = { l: 48, r: 16, t: 12, b: 30 };
+      const END = pts[pts.length - 1].m;
+      const X = (m) => pad.l + ((m - 1140) / (END - 1140)) * (W - pad.l - pad.r);
+      const Y = (v) => H - pad.b - (v / yMax) * (H - pad.t - pad.b);
+
+      for (const f of [0, 0.25, 0.5, 0.75, 1]) {
+        mk(svg, 'line', {
+          x1: pad.l, x2: W - pad.r, y1: Y(f * yMax), y2: Y(f * yMax),
+          stroke: RULE, 'stroke-width': 1, 'stroke-dasharray': '3 3',
+        });
+        mk(svg, 'text', {
+          x: pad.l - 8, y: Y(f * yMax) + 4, 'text-anchor': 'end',
+          fill: MUTED, style: 'font: 11px Inter, system-ui, sans-serif',
+        }, yFmt(f * yMax));
+      }
+      for (let m = 1140; m <= END; m += 30) {
+        mk(svg, 'line', {
+          x1: X(m), x2: X(m), y1: pad.t, y2: H - pad.b,
+          stroke: RULE, 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0.7,
+        });
+        mk(svg, 'text', {
+          x: X(m), y: H - pad.b + 16,
+          'text-anchor': m === 1140 ? 'start' : m > END - 20 ? 'end' : 'middle',
+          fill: MUTED, style: 'font: 11px Inter, system-ui, sans-serif',
+        }, hm(m));
+      }
+      const d = pts
+        .map((p, i) => `${i === 0 ? 'M' : 'L'}${X(p.m).toFixed(1)},${Y(p.v).toFixed(1)}`)
+        .join(' ');
+      mk(svg, 'path', {
+        d, fill: 'none', stroke: '#22c55e', 'stroke-width': 2,
+        'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+      });
+      const cxm = W / 2;
+      mk(svg, 'rect', { x: cxm - 30, y: H - 6, width: 7, height: 7, fill: '#22c55e' });
+      mk(svg, 'text', {
+        x: cxm - 18, y: H - 0.5, fill: INK,
+        style: 'font: 11px Inter, system-ui, sans-serif; font-weight: 600',
+      }, 'Counted');
+    }
+
+    const rangeMinutes = () => {
+      const out = [];
+      for (let m = 1140; m <= 1440; m += 60) out.push(m);
+      return out;
+    };
+
+    /* ── seat tape ───────────────────────────────────────────────── */
+    function drawSeatTape(svgId, { W = 900, H = 300, compact = false } = {}) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = '';
+      const pad = compact
+        ? { l: 30, r: 12, t: 16, b: 46 }
+        : { l: 52, r: 26, t: 22, b: 58 };
+      const END = NOW;
+      const rugH = compact ? 8 : 12;
+      const plotB = H - pad.b;
+      const rugB = plotB + 3 + rugH;
+      const axisY = H - (compact ? 8 : 10);
+      const YMAX = 32000;
+      const X = (m) => pad.l + ((m - 1140) / (END - 1140)) * (W - pad.l - pad.r);
+      const Y = (v) => plotB - (v / YMAX) * (plotB - pad.t);
+      const fs = compact ? 8.5 : 9.5;
+      const num = `font-family: 'IBM Plex Mono', monospace; font-size: ${fs}px; font-variant-numeric: tabular-nums`;
+
+      const ticks = compact ? [0, 16000, 32000] : [0, 8000, 16000, 24000, 32000];
+      for (const v of ticks) {
+        mk(svg, 'line', {
+          x1: pad.l, x2: W - pad.r, y1: Y(v), y2: Y(v),
+          stroke: RULE, 'stroke-width': v === 0 ? 1.2 : 0.8,
+        });
+        mk(svg, 'text', {
+          x: pad.l - 7, y: Y(v) + 3.5, 'text-anchor': 'end', fill: MUTED, style: num,
+        }, v === 0 ? '0' : `${v / 1000}k`);
+      }
+
+      const hourMarks = compact ? [1140, 1260] : [];
+      for (const m of compact ? hourMarks : rangeMinutes()) {
+        mk(svg, 'line', {
+          x1: X(m), x2: X(m), y1: pad.t, y2: rugB,
+          stroke: RULE, 'stroke-width': 0.6, 'stroke-dasharray': '2 4',
+        });
+        mk(svg, 'text', {
+          x: X(m), y: axisY,
+          'text-anchor': m === 1140 ? 'start' : 'middle',
+          fill: MUTED, style: num,
+        }, hm(m));
+      }
+
+      // the rug: one tick per voting place, at the moment its count landed
+      mk(svg, 'line', {
+        x1: pad.l, x2: W - pad.r, y1: plotB, y2: plotB,
+        stroke: RULE, 'stroke-width': 1.2,
+      });
+      for (const r of RECEIPTS) {
+        mk(svg, 'line', {
+          x1: X(r.m), x2: X(r.m), y1: plotB + 2.5, y2: plotB + 2.5 + rugH,
+          stroke: GREEN, 'stroke-width': 1.2, 'stroke-opacity': 0.8,
+        });
+      }
+
+      // the step: counted votes, no smoothing
+      let d = `M${X(seatStep[0].m).toFixed(1)},${Y(0).toFixed(1)}`;
+      for (const p of seatStep.slice(1)) d += ` H${X(p.m).toFixed(1)} V${Y(p.v).toFixed(1)}`;
+      d += ` H${X(NOW).toFixed(1)}`;
+      mk(svg, 'path', { d, fill: 'none', stroke: GREEN, 'stroke-width': 1.8 });
+
+    }
+
+    /* ── national tape ───────────────────────────────────────────── */
+    function drawNationalTape(svgId, { W = 900, H = 300, compact = false } = {}) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = '';
+      const pad = compact
+        ? { l: 30, r: 12, t: 20, b: 28 }
+        : { l: 46, r: 20, t: 26, b: 36 };
+      const plotB = H - pad.b;
+      const END = NOW;
+      const X = (m) => pad.l + ((m - 1140) / (END - 1140)) * (W - pad.l - pad.r);
+      const Y = (f) => plotB - f * (plotB - pad.t);
+      const fs = compact ? 8.5 : 9.5;
+      const num = `font-family: 'IBM Plex Mono', monospace; font-size: ${fs}px; font-variant-numeric: tabular-nums`;
+
+      for (const f of compact ? [0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1]) {
+        mk(svg, 'line', {
+          x1: pad.l, x2: W - pad.r, y1: Y(f), y2: Y(f),
+          stroke: RULE, 'stroke-width': f === 0 ? 1.2 : 0.8,
+        });
+        mk(svg, 'text', {
+          x: pad.l - 7, y: Y(f) + 3.5, 'text-anchor': 'end', fill: MUTED, style: num,
+        }, `${Math.round(f * 100)}%`);
+      }
+      for (const m of compact ? [1140, 1260] : rangeMinutes()) {
+        mk(svg, 'line', {
+          x1: X(m), x2: X(m), y1: pad.t, y2: plotB,
+          stroke: RULE, 'stroke-width': 0.6, 'stroke-dasharray': '2 4',
+        });
+        mk(svg, 'text', {
+          x: X(m), y: plotB + (compact ? 16 : 18),
+          'text-anchor': m === 1140 ? 'start' : 'middle',
+          fill: MUTED, style: num,
+        }, hm(m));
+      }
+
+      // the count, as steps
+      const past = NAT_POINTS.filter((p) => p.m <= NOW);
+      let d = `M${X(past[0].m).toFixed(1)},${Y(past[0].f).toFixed(1)}`;
+      for (const p of past.slice(1)) {
+        d += ` H${X(p.m).toFixed(1)} V${Y(p.f).toFixed(1)}`;
+      }
+      mk(svg, 'path', {
+        d, fill: 'none', stroke: GREEN, 'stroke-width': 1.7, 'stroke-linejoin': 'round',
+      });
+
+    }
+
+    /* ── render ──────────────────────────────────────────────────── */
+    drawToday('today-seat', seatStep.map((p) => ({ m: p.m, v: p.v })), {
+      yMax: 32000,
+      yFmt: (v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toLocaleString()),
+      H: 280,
+    });
+    drawToday('today-national', NAT_POINTS.filter((p) => p.m <= NOW).map((p) => ({ m: p.m, v: p.f })), {
+      yMax: 1,
+      yFmt: (v) => `${Math.round(v * 100)}%`,
+      H: 300,
+    });
+    drawSeatTape('seat-tape');
+    drawNationalTape('national-tape');
+    drawSeatTape('seat-tape-m', { W: 360, H: 230, compact: true });
+    drawNationalTape('national-tape-m', { W: 360, H: 220, compact: true });
+
+    document.getElementById('seat-votes').textContent =
+      seatCounted.toLocaleString() + ' of ' + SEAT_TOTAL.toLocaleString() + ' votes';
+    document.getElementById('seat-counted').textContent = RECEIPTS.length;
+    document.getElementById('nat-pct').textContent = (natNow * 100).toFixed(1) + '%';
+    document.getElementById('nat-votes').textContent =
+      (natNow * NAT_TOTAL / 1e6).toFixed(2) + 'M';
+  </script>
+</body>
+
+</html>

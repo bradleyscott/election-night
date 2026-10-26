@@ -142,6 +142,7 @@ describe('buildFeedEvents with a chance lookup', () => {
       margin: 396,
       leader: { name: 'Alice', party: 'A', votes: 5000 },
       runnerUp: { name: 'Bob', party: 'B', votes: 4604 },
+      specialsOutstanding: 1200,
     }));
 
     expect(events[0]!.type).toBe('count_completed');

@@ -87,7 +87,7 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} is likely to win — ${share} chance of winning with ${pct}% counted.`,
-      commentary: `${leader} is likely to win ${name}. Leading by ${votes} votes with ${pct}% counted, and about ${chance.remainingVotes.toLocaleString()} votes still to come, their chance of winning the seat is ${share}.`,
+      commentary: `${leader} is likely to win ${name}. Leading by ${votes} votes with ${pct}% counted, and about ${Math.round(chance.remainingVotes).toLocaleString()} votes still to come, their chance of winning the seat is ${share}.`,
     };
   }
 
@@ -106,7 +106,7 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance of winning with ${pct}% counted.`,
-      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${chance.remainingVotes.toLocaleString()} votes are still to come, and their chance of winning the seat is ${share}.`,
+      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${Math.round(chance.remainingVotes).toLocaleString()} votes are still to come, and their chance of winning the seat is ${share}.`,
     };
   }
 

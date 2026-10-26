@@ -105,15 +105,64 @@ describe('ElectorateStats', () => {
   });
 
   it('replaces the probability with a margin once the count is complete', () => {
-    renderStats({
-      state: 'complete',
-      leader: { name: 'WEENINK, Vanessa', party: 'National', votes: 17860 },
-      runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
-      margin: 396,
-    });
-    expect(screen.getByText(/ahead by 396/i)).toBeInTheDocument();
+    renderStats(
+      {
+        state: 'complete',
+        leader: { name: 'WEENINK, Vanessa', party: 'National', votes: 17860 },
+        runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
+        margin: 396,
+        specialsOutstanding: 9700,
+      },
+      { result: result({ votesCounted: 35324 }) }
+    );
+    expect(screen.getByText('Count complete')).toBeInTheDocument();
+    // The 4xl slot holds a share of the votes counted, not a probability that
+    // could only read 100%.
+    expect(screen.getByText('50.6')).toBeInTheDocument();
+    expect(screen.getByText('49.4')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ahead by 396 (1.1% of votes)')
+    ).toBeInTheDocument();
     expect(screen.queryByText(/chance of winning/i)).not.toBeInTheDocument();
     expect(screen.queryByText('100')).not.toBeInTheDocument();
+  });
+
+  it('says the count is complete, not the result', () => {
+    // The specials are the one thing that can still move the seat, so the card
+    // owes the reader the slot the outstanding votes just left.
+    renderStats(
+      {
+        state: 'complete',
+        leader: { name: 'WEENINK, Vanessa', party: 'National', votes: 17860 },
+        runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
+        margin: 396,
+        specialsOutstanding: 9700,
+      },
+      { result: result({ votesCounted: 35324 }) }
+    );
+    expect(screen.getByText('Specials to come')).toBeInTheDocument();
+    expect(screen.getByText(/about 9,700 votes/)).toBeInTheDocument();
+    expect(
+      screen.getByText('78% of the expected final vote')
+    ).toBeInTheDocument();
+  });
+
+  it('rounds the estimates it prints instead of showing their decimals', () => {
+    // Enrolment × turnout × share lands on a fraction of a vote, and the card
+    // used to print it: "about 6,307.826 votes".
+    renderStats(
+      {
+        state: 'complete',
+        leader: { name: 'WEENINK, Vanessa', party: 'National', votes: 17860 },
+        runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
+        margin: 396.4,
+        specialsOutstanding: 6307.826,
+      },
+      { result: result({ votesCounted: 35324 }) }
+    );
+    expect(screen.getByText(/about 6,308 votes/)).toBeInTheDocument();
+    expect(screen.getByText('Ahead by 396 (1.1% of votes)')).toBeInTheDocument();
+    expect(screen.queryByText(/\d+\.\d+ votes/)).not.toBeInTheDocument();
   });
 
   it('renders no card at all in party mode', () => {

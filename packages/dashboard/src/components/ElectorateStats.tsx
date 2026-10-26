@@ -17,7 +17,11 @@ type CandidateRow = {
 const partyColour = (party: string | null | undefined) =>
   (party && partyColors[party]) || '#666';
 
-const percent = (fraction: number) => (fraction * 100).toFixed(1);
+/**
+ * Vote counts leave the model as estimates (enrolment × turnout × share), so
+ * they are fractional. The card says "about 9,700 votes", never "6,307.826".
+ */
+const votes = (count: number) => Math.round(count).toLocaleString();
 
 /**
  * The electorate verdict: a chance of winning while the count is live, a
@@ -74,7 +78,13 @@ export function ElectorateStats({
   }
 
   if (chance.state === 'complete') {
-    return <CompleteVerdict result={result} chance={chance} />;
+    return (
+      <CompleteVerdict
+        result={result}
+        chance={chance}
+        updatedAt={updatedAt}
+      />
+    );
   }
 
   const candidates: CandidateRow[] = [chance.leader, chance.runnerUp].map(
@@ -134,6 +144,22 @@ export function ElectorateStats({
 }
 
 /**
+ * One bar, two states: the solid share has been counted, the hatched share has
+ * not. Both strips draw it the same way, because "counted / still to come" is
+ * the same shape whether the missing votes are tonight's or the specials'.
+ */
+function SplitBar({ share }: { share: number }) {
+  const clamped = Math.max(0, Math.min(1, share));
+
+  return (
+    <div className="mt-2 flex h-2 w-full" aria-hidden="true">
+      <div className="bg-foreground/70" style={{ width: `${clamped * 100}%` }} />
+      <div className="hatch-outstanding flex-1" />
+    </div>
+  );
+}
+
+/**
  * The votes in and the votes out, drawn as one bar: the solid share has been
  * counted, the hatched share is still to come. The percentage and the vote
  * counts sit either end so the reader can see both without reading the bar.
@@ -159,22 +185,59 @@ function CountStrip({
               {Math.round(share * 100)}%
             </span>
             {' \u00b7 '}
-            {counted.toLocaleString()} votes
+            {votes(counted)} votes
           </div>
         </div>
         <div className="text-right">
           <div className="kicker">Still out</div>
           <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
-            about {remaining.toLocaleString()} votes
+            about {votes(remaining)} votes
           </div>
         </div>
       </div>
-      <div className="mt-2 flex h-2 w-full" aria-hidden="true">
-        <div
-          className="bg-foreground/70"
-          style={{ width: `${share * 100}%` }}
-        />
-        <div className="hatch-outstanding flex-1" />
+      <SplitBar share={share} />
+    </div>
+  );
+}
+
+/**
+ * The strip the complete card wears instead. Nothing is still out tonight — the
+ * count has stopped — but the specials are, and they arrive in the same slot
+ * the outstanding votes just left, so the reader does not have to learn a
+ * second vocabulary at the moment the card stops moving.
+ */
+function SpecialsStrip({
+  counted,
+  specials,
+}: {
+  counted: number;
+  specials: number;
+}) {
+  const total = counted + specials;
+  const share = total > 0 ? counted / total : 1;
+
+  return (
+    <div className="mt-1 border-t pt-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="kicker">Counted</div>
+          <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-sm font-bold text-foreground">
+              {votes(counted)}
+            </span>{' '}
+            votes
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="kicker">Specials to come</div>
+          <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+            about {votes(specials)} votes
+          </div>
+        </div>
+      </div>
+      <SplitBar share={share} />
+      <div className="mt-1 font-label text-[11px] text-muted-foreground">
+        {Math.round(share * 100)}% of the expected final vote
       </div>
     </div>
   );
@@ -197,6 +260,9 @@ function ChanceRow({
   label,
   margin,
   marginPercent,
+  marginUnit,
+  shareDecimals = 0,
+  showEvenTick = true,
 }: {
   candidate: CandidateRow;
   share: number;
@@ -205,6 +271,12 @@ function ChanceRow({
   margin?: number;
   /** That gap as a share of the votes counted, as the rest of the app defines it. */
   marginPercent?: number | null;
+  /** What the margin's percentage is a share of: "of votes" once the count stops. */
+  marginUnit?: string;
+  /** 1 keeps the tenths a completed count prints; a chance would round them away. */
+  shareDecimals?: number;
+  /** Half votes is not the line a finished count is judged against. */
+  showEvenTick?: boolean;
 }) {
   return (
     <div className="py-3">
@@ -223,7 +295,7 @@ function ChanceRow({
             {candidate.name}
           </div>
           <div className="font-label text-xs tabular-nums text-muted-foreground">
-            {candidate.votes.toLocaleString()} votes
+            {votes(candidate.votes)} votes
           </div>
         </div>
         <div className="flex-shrink-0 text-right">
@@ -231,7 +303,7 @@ function ChanceRow({
             className="font-display text-4xl font-bold leading-none tracking-tight tabular-nums"
             title={label}
           >
-            {Math.round(share * 100)}
+            {(share * 100).toFixed(shareDecimals)}
             <span className="text-xl">%</span>
           </div>
         </div>
@@ -247,18 +319,22 @@ function ChanceRow({
             backgroundColor: partyColour(candidate.party),
           }}
         />
-        <div
-          aria-hidden="true"
-          className="absolute inset-y-[-3px] left-1/2 w-px bg-foreground/40"
-        />
+        {showEvenTick && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-y-[-3px] left-1/2 w-px bg-foreground/40"
+          />
+        )}
       </div>
       {margin !== undefined && (
         <div className="kicker mt-1.5">
           {margin === 0
             ? 'Level'
-            : `Ahead by ${margin.toLocaleString()}${
+            : `Ahead by ${votes(margin)}${
                 marginPercent != null
-                  ? ` (${(marginPercent * 100).toFixed(1)}%)`
+                  ? ` (${(marginPercent * 100).toFixed(1)}%${
+                      marginUnit ? ` ${marginUnit}` : ''
+                    })`
                   : ''
               }`}
         </div>
@@ -267,67 +343,62 @@ function ChanceRow({
   );
 }
 
+/**
+ * A finished count has a margin, not a probability — a probability that could
+ * only read 100% tells the reader nothing. So the number stops, and the card
+ * hands the space to the two facts that outlive the night: the margin as a
+ * share of the votes counted, and the specials still to come, which in 2023
+ * were 21% of all votes and did move seats. The rows are the counting card's
+ * own, so the eye does not have to relearn the panel when the count stops.
+ */
 function CompleteVerdict({
   result,
   chance,
+  updatedAt,
 }: {
   result: ElectorateResult;
   chance: Extract<SeatChance, { state: 'complete' }>;
+  updatedAt?: Date | null;
 }) {
-  const sorted = [...result.candidateVotes].sort((a, b) => b.votes - a.votes);
-  const top = sorted.slice(0, 2);
   const total = result.votesCounted || 1;
+  const updated = formatUpdatedAgo(updatedAt ?? null);
+  const rows: CandidateRow[] = [chance.leader, chance.runnerUp].map((c) => ({
+    name: c.name,
+    party: c.party ?? null,
+    votes: c.votes,
+  }));
 
   return (
     <div className="border panel-print p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="kicker">Tonight&rsquo;s count complete</div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="kicker">Count complete</div>
+        {updated && (
+          <span className="font-label text-[11px] text-muted-foreground">
+            Updated {updated}
+          </span>
+        )}
       </div>
 
-      <div className="mt-4 divide-y divide-border border-y border-border">
-        {top.map((candidate, index) => (
-          <div
-            key={candidate.candidate}
-            className="flex items-baseline justify-between gap-3 py-3"
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
-                  style={{ backgroundColor: partyColour(candidate.party) }}
-                />
-                <span className="font-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {candidate.party ?? 'Independent'}
-                </span>
-              </div>
-              <div
-                className={`mt-1 font-display text-lg leading-tight tracking-tight ${
-                  index === 0 ? 'font-bold' : 'font-semibold'
-                }`}
-              >
-                {candidate.candidate}
-              </div>
-            </div>
-            <div className="flex-shrink-0 text-right tabular-nums">
-              <div className="font-display text-3xl font-bold leading-none tracking-tight">
-                {candidate.votes.toLocaleString()}
-              </div>
-              <div className="mt-1 font-mono text-xs font-semibold text-muted-foreground">
-                {percent(candidate.votes / total)}% of votes
-              </div>
-              {/* The margin belongs to the winner's row, not to the panel head:
-                  it is a fact about this candidate, and floating it beside the
-                  kicker made it look like a property of the panel. */}
-              {index === 0 && (
-                <span className="chip-print chip-print--red mt-2 inline-block">
-                  ahead by {chance.margin.toLocaleString()} (
-                  {percent(chance.margin / total)}%)
-                </span>
-              )}
-            </div>
-          </div>
+      <div className="mt-1 divide-y divide-border">
+        {rows.map((candidate, index) => (
+          <ChanceRow
+            key={candidate.name}
+            candidate={candidate}
+            share={candidate.votes / total}
+            shareDecimals={1}
+            label="share of votes counted"
+            showEvenTick={false}
+            margin={index === 0 ? chance.margin : undefined}
+            marginPercent={index === 0 ? chance.margin / total : undefined}
+            marginUnit="of votes"
+          />
         ))}
       </div>
+
+      <SpecialsStrip
+        counted={result.votesCounted}
+        specials={chance.specialsOutstanding}
+      />
     </div>
   );
 }

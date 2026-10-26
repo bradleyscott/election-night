@@ -70,6 +70,7 @@ describe('SeatDetailContent', () => {
           margin: 396,
           leader: { name: 'SMITH, Alex', party: 'National Party', votes: 5000 },
           runnerUp: { name: 'JONES, Bo', party: 'Labour Party', votes: 4604 },
+          specialsOutstanding: 1200,
         },
       })
     );

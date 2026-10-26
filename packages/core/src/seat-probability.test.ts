@@ -60,6 +60,13 @@ describe('computeSeatChance', () => {
     expect(chance.margin).toBe(200);
     expect(chance.leader.name).toBe('LEADER, One');
     expect(chance.runnerUp.name).toBe('RUNNER, Two');
+    // The count is complete; the result is not final. 4,840 enrolled at the
+    // cycle's turnout, 21% of which arrives as specials.
+    expect(chance.specialsOutstanding).toBeGreaterThan(0);
+    expect(chance.specialsOutstanding).toBeCloseTo(
+      4840 * CYCLE_CONSTANTS[LATEST_CYCLE].turnout * CYCLE_CONSTANTS[LATEST_CYCLE].specialShare,
+      0
+    );
   });
 
   it('recovers the outstanding vote from turnout and the prior night share', () => {

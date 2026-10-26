@@ -229,6 +229,14 @@ export type SeatChance =
       margin: number;
       leader: SeatChanceCandidate;
       runnerUp: SeatChanceCandidate;
+      /**
+       * Special votes still to be counted. A complete night count is not a
+       * result: in 2023 specials were 21% of all votes and were added over the
+       * fortnight after the night, so a seat decided by a few hundred votes can
+       * still change hands. Carried here because it is the only thing the panel
+       * can honestly say once the count stops.
+       */
+      specialsOutstanding: number;
     }
   | {
       state: 'counting';
@@ -478,7 +486,7 @@ export function computeSeatChance(input: SeatChanceInput): SeatChance {
       : 0;
 
   if (progress >= COMPLETE_THRESHOLD) {
-    return { state: 'complete', margin, leader, runnerUp };
+    return { state: 'complete', margin, leader, runnerUp, specialsOutstanding };
   }
 
   const observed = new Map(
