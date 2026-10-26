@@ -227,18 +227,11 @@ function CompleteVerdict({
   const sorted = [...result.candidateVotes].sort((a, b) => b.votes - a.votes);
   const top = sorted.slice(0, 2);
   const total = result.votesCounted || 1;
-  // The badge names the person, not the party: the count on this panel is the
-  // candidate vote, and which person won is the fact the night produces.
-  const leaderName = chance.leader.name;
 
   return (
     <div className="border panel-print p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="kicker">Tonight&rsquo;s count complete</div>
-        <span className="chip-print chip-print--red">
-          <span className="normal-case">{leaderName}</span> ahead by{' '}
-          {chance.margin.toLocaleString()} ({percent(chance.margin / total)}%)
-        </span>
       </div>
 
       <div className="mt-4 divide-y divide-border border-y border-border">
@@ -272,6 +265,15 @@ function CompleteVerdict({
               <div className="mt-1 font-mono text-xs font-semibold text-muted-foreground">
                 {percent(candidate.votes / total)}% of votes
               </div>
+              {/* The margin belongs to the winner's row, not to the panel head:
+                  it is a fact about this candidate, and floating it beside the
+                  kicker made it look like a property of the panel. */}
+              {index === 0 && (
+                <span className="chip-print chip-print--red mt-2 inline-block">
+                  ahead by {chance.margin.toLocaleString()} (
+                  {percent(chance.margin / total)}%)
+                </span>
+              )}
             </div>
           </div>
         ))}
