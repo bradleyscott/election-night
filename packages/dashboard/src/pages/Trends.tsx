@@ -183,8 +183,9 @@ export default function Trends() {
     });
   }, [data]);
 
-  // The national Counted series: share of voting places counted, per scrape.
-  // The country reports totals rather than places, so this tape has no rug.
+  // The national Counted series: share of the vote counted, per scrape, on the
+  // same denominator the seat panel uses. The country reports totals rather
+  // than places, so this tape has no rug.
   const countedPoints = useMemo<TapePoint[]>(() => {
     return (data ?? []).map((point) => ({
       t: parseTimestamp(point.startedAt),

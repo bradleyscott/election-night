@@ -446,7 +446,7 @@ export default function ElectorateMap({
               className="h-2.5 w-4 bg-[#9ca3af]"
               style={{ opacity: 0.25 }}
             />
-            <span>too close to call</span>
+            <span>50/50</span>
             <span
               aria-hidden="true"
               className="h-2.5 w-4 bg-[#9ca3af]"

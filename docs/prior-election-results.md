@@ -6,7 +6,7 @@ are served by one mechanism, `ElectionResultsService` in
 
 - **Flipped** (`/flipped`) lists seats whose previous holder's party is not the
   party leading tonight, with the previous holder's margin of victory beside
-  tonight's lead and margin of error.
+  tonight's lead and its chance of winning.
 - **Past winners** on the electorate page lists the winner of each earlier cycle
   the archive still serves. It states only finished results: no claim about who
   is leading tonight, which on a partial count is not a verdict yet.

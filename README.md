@@ -7,8 +7,8 @@ This started as a project for a 2023 election night party — the goal was to av
 ## Features
 
 - **Official results feed** — Reads the Electoral Commission's official XML results feed over plain HTTPS as results are published: the live cycle from the media feed ([media.election.net.nz](https://media.election.net.nz/xml/)), finished cycles from the archive host ([archive.electionresults.govt.nz](https://archive.electionresults.govt.nz/)). No browser and no Cloudflare workarounds. The election year is configurable via `ELECTION_YEAR` (e.g. `2020`, `2023`, `2026`).
-- **Race calling** — Predicts winners per electorate with confidence levels (`too-close`, `leaning`, `likely`, `projected`) using statistical margin analysis.
-- **Seat projections** — Allocates list seats via the Sainte-Laguë method to project the final parliament makeup.
+- **Chance of winning** — Every electorate carries a live probability that the candidate currently leading goes on to win it, derived from the votes counted, the votes still to come and how the outstanding vote is behaving — not from a sampling error ([method](docs/seat-probability-model.md)). A seat's full result and the live feed use the same number.
+- **Seat allocation** — Reads the Commission's own list, electorate and total seats per party from `election.xml`, including the threshold rule and any overhang. The app does not derive an allocation of its own.
 - **Interactive web dashboard** — Built with React, Vite, Leaflet, Recharts, and Tailwind, dressed as a printed-edition newsroom broadsheet (see `design.md`). Includes:
   - A masthead countdown to polls close (7:00pm on election day), which becomes `Polls closed · counting` on the night
   - Parliament seat grid and party vote breakdown

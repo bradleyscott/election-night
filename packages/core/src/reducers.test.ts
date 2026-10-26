@@ -60,7 +60,7 @@ describe('calculateLead party resolution', () => {
 });
 
 describe('calculatePartyVoteWithPercentages', () => {
-  test('returns zero percentages and zero MoE when no votes counted', () => {
+  test('returns zero percentages when no votes are counted', () => {
     const r = makeElectorate({ votesCounted: 0, votePercentageCounted: 0 });
     const withLead = calculateLead(r);
     const partyVote = calculatePartyVoteWithPercentages([withLead]);

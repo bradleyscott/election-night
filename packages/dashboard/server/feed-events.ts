@@ -47,7 +47,15 @@ function renderCopy(
 ): { summary: string; commentary: string } {
   const l = result.leaders;
   const name = result.electorateName;
-  const pct = (result.votePercentageCounted * 100).toFixed(0);
+  // Percent counted is votes against the votes tonight is expected to produce,
+  // the same denominator the seat panel prints. `votePercentageCounted` is the
+  // share of *voting places* reported, which runs hot early (advance votes land
+  // in blocks after 7pm), so it is only a fallback when no cycle is modelled.
+  const pct = (
+    chance?.state === 'counting'
+      ? chance.progress * 100
+      : result.votePercentageCounted * 100
+  ).toFixed(0);
   const marginPct = (l.marginPercent * 100).toFixed(2);
   const votes = diff.currentMargin.toLocaleString();
   const party = (p: string | null | undefined) => p ?? 'Independent';
@@ -200,6 +208,7 @@ export function buildFeedEvents(
       type,
       electorateName: result.electorateName,
       probability: chance?.state === 'counting' ? chance.probability : null,
+      progress: chance?.state === 'counting' ? chance.progress : null,
       summary,
       commentary,
       diff,

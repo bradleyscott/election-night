@@ -95,7 +95,8 @@ function EventContent({ event }: { event: FeedEvent }) {
 
       <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1 text-sm text-muted-foreground font-medium">
         <span>
-          {(d.currentPercentageCounted * 100).toFixed(0)}% votes counted
+          {Math.round((event.progress ?? d.currentPercentageCounted) * 100)}%
+          votes counted
           {percentageDelta !== null && percentageDelta !== 0 && (
             <span className="text-blue-700 dark:text-blue-400 ml-0.5">
               ({percentageDelta > 0 ? '+' : ''}

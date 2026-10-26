@@ -3,7 +3,6 @@ export type ResultPageConfig = {
   url: string;
 };
 
-export type Config = Record<string, never>;
 
 export type ElectorateResults = {
   electorateName: string;
@@ -180,6 +179,12 @@ export type FeedEvent = {
    * not a probability) and absent on events written before the p(win) model.
    */
   probability?: number | null;
+  /**
+   * Votes counted against the votes tonight is expected to produce: the same
+   * number the seat panel prints as "% counted". `null` when the count is not
+   * live or no cycle was modelled — never the share of voting places reported.
+   */
+  progress?: number | null;
   summary: string;
   commentary: string;
   diff: ElectorateDiff;

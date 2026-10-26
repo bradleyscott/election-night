@@ -67,12 +67,13 @@ counting starts.
 
 ## Things the data does not contain
 
-- **No advance-voting flag.** Among 2,686 addresses, the only "Advance" string is
+- **No advance-voting flag.** Among the 2,723 published places, the only "Advance" string is
   a school name. Advance places are not marked; mobile teams and care-home visits
   are, and they carry no coordinates.
 - **No enrolment per seat.** `total_votes_cast` and `percent_votes_cast` are
-  published, so enrolment can be derived (`votes / percent`), but it is not a
-  field.
+  published, so enrolment can be derived per seat (`votes / percent`) and is
+  recorded once in `packages/core/data/notional-baseline-*.json`, but the feed
+  itself carries the national figure only (`statistics.xml` → `total_electors`).
 - **No electorate for Māori places.** `vp_e_no` only ever takes the 65 general
   values in 2023. No place stands in a Māori electorate, so _every_ Māori result
   is formally out-of-seat.

@@ -199,7 +199,12 @@ async function runOnce(current: ElectionSource): Promise<void> {
         payload.electorateResults,
         payload.partyVote,
         payload.partyLists,
-        collectorConfig.electionYear
+        collectorConfig.electionYear,
+        chanceLookupFor(
+          notionalBaseline,
+          payload.electorateResults,
+          collectorConfig.electionYear
+        )
       );
       publishMetrics(
         emitSnapshotWrite(

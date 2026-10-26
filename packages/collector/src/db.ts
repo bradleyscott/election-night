@@ -14,6 +14,7 @@ import type {
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { log } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,7 +62,15 @@ export function writeResults(
    * `/history/*` can scope itself to one cycle instead of blending whatever
    * cycles happen to share the DB (the Fly deployment keeps it on a volume).
    */
-  electionYear: string
+  electionYear: string,
+  /**
+   * The model's chance for a seat, when one is computable. History stores the
+   * model's own progress (votes against the votes tonight is expected to
+   * produce) rather than the share of voting places reported: places are not
+   * votes, and the places figure runs hot early because advance votes land in
+   * blocks after 7pm.
+   */
+  chanceFor?: (result: ElectorateResults & WithLeaders) => SeatChance | null
 ) {
   log.info('Writing results to DB...');
 
@@ -85,17 +94,21 @@ export function writeResults(
           .run();
       }
 
+      const chance = chanceFor?.(r);
+      const progress =
+        chance?.state === 'counting'
+          ? Math.min(1, chance.progress)
+          : r.votePercentageCounted;
       tx.insert(schema.electorateSummary)
         .values({
           scrapeId,
           electorate: r.electorateName,
           votesCounted: r.votesCounted,
           estimatedTotalVotes:
-            r.votePercentageCounted > 0 &&
-            Number.isFinite(r.votePercentageCounted)
-              ? r.votesCounted / r.votePercentageCounted
+            progress > 0 && Number.isFinite(progress)
+              ? r.votesCounted / progress
               : 0,
-          votePctCounted: r.votePercentageCounted,
+          votePctCounted: progress,
           leadingCandidate: r.leaders.leadingCandidate,
           leadingParty: r.leaders.leadingCandidateParty,
           margin: r.leaders.margin,
