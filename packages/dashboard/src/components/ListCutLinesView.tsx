@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { partyColors, buildElectorateLookup } from '../lib/constants.js';
+import { partyColor, buildElectorateLookup } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import type {
@@ -77,7 +77,7 @@ export function ListCutLinesView({
           >
             <span
               className="inline-block w-2 h-2 mr-1.5 ring-1 ring-foreground/20 shrink-0"
-              style={{ backgroundColor: partyColors[party] || '#666' }}
+              style={{ backgroundColor: partyColor(party) }}
             />
             {party}
           </button>
@@ -108,7 +108,7 @@ export function ListCutLinesView({
           <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-border font-display font-bold text-sm sm:text-base tracking-tight flex items-center gap-2">
             <span
               className="inline-block w-2.5 h-2.5 ring-1 ring-foreground/20 shrink-0"
-              style={{ backgroundColor: partyColors[activeParty] || '#666' }}
+              style={{ backgroundColor: partyColor(activeParty) }}
             />
             {activeParty}
           </div>

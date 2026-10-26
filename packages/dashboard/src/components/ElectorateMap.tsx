@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import { mapFillOpacity } from '../lib/seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { dashboardClientConfig } from '../config.js';
@@ -270,15 +270,14 @@ export default function ElectorateMap({
       if (showPartyVote) {
         const leading = leadingPartyVote(e.partyVotes);
         map.set(key, {
-          color: partyColors[leading?.candidate ?? ''] || '#9ca3af',
+          color: partyColor(leading?.candidate, '#9ca3af'),
           opacity: getPartyOpacity(leading, e.votesCounted),
         });
       } else {
         // Shading follows the chance of winning, so the map says how decided a
         // seat is rather than who happens to lead it right now.
         map.set(key, {
-          color:
-            partyColors[e.leaders.leadingCandidateParty ?? ''] || '#9ca3af',
+          color: partyColor(e.leaders.leadingCandidateParty, '#9ca3af'),
           opacity: mapFillOpacity(chances?.get(key)),
         });
       }
@@ -428,15 +427,9 @@ export default function ElectorateMap({
           />
         )}
       </div>
-      {/* A phone's map is 300px tall: the card would cover half of it, so the
-          same ledger sits underneath instead. */}
-      {places && (
-        <VotingPlaceLedger
-          summary={places}
-          loading={placesLoading}
-          className="border-t sm:hidden"
-        />
-      )}
+      {/* No ledger under the map on a phone: the panel below already carries the
+          count, and a second card inside a 300px map card is one row of chrome
+          between a thumb and the seat. */}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {chances && !showPartyVote ? (
           <span className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">

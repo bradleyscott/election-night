@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ElectorateHistoryPoint } from '../lib/history-types.js';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import {
   AXIS_STROKE,
@@ -48,8 +48,7 @@ function parseDate(startedAt: string): Date {
 }
 
 function getEntityColor(party: string | null): string {
-  if (party && partyColors[party]) return partyColors[party];
-  return '#666';
+  return partyColor(party);
 }
 
 function isDarkColor(hex: string): boolean {

@@ -1,4 +1,4 @@
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import { formatUpdatedAgo } from '../lib/seat-chance.js';
 import type {
   ElectorateResults,
@@ -14,8 +14,7 @@ type CandidateRow = {
   votes: number;
 };
 
-const partyColour = (party: string | null | undefined) =>
-  (party && partyColors[party]) || '#666';
+const partyColour = (party: string | null | undefined) => partyColor(party);
 
 /**
  * Vote counts leave the model as estimates (enrolment × turnout × share), so

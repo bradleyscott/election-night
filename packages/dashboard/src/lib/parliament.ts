@@ -1,4 +1,4 @@
-import { partyColors } from './constants.js';
+import { partyColor } from './constants.js';
 import { normalizeElectorateName } from './electorates.js';
 import { mapFillOpacity } from './seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
@@ -95,7 +95,7 @@ export function buildSeats(
     const name = order[idx];
     const p = partyVote.find((x) => x.candidate === name);
     if (!p || p.seats <= 0) continue;
-    const color = partyColors[name] || '#666';
+    const color = partyColor(name);
     const elecSeats = p.electorateSeats;
     const listSeats = p.listSeats;
 

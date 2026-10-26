@@ -125,8 +125,9 @@ function latestLabel(latestAt: string | null): string | null {
  * How much of the selected seat's count has landed, by place.
  *
  * On a desktop map this is a card in the corner of the map, over the water
- * where nothing is drawn. On a phone the map is 300px tall and a card would
- * cover half of it, so the same numbers become a strip under the map instead.
+ * where nothing is drawn. It is not drawn on a phone at all: the map is only
+ * 300px tall there, a card would cover half of it, and the seat panel below
+ * already states the count.
  */
 export function VotingPlaceLedger({
   summary,

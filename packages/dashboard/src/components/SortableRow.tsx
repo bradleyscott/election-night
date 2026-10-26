@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/react/sortable';
 import { cn } from '../lib/utils.js';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import type { PartyEntry } from '../lib/parliament.js';
 
 export function SortableRow({
@@ -39,7 +39,7 @@ export function SortableRow({
           <div
             className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0 ring-1 ring-foreground/15"
             style={{
-              backgroundColor: partyColors[party.candidate] || '#666',
+              backgroundColor: partyColor(party.candidate),
             }}
           />
           <span className="font-bold truncate min-w-0">{party.candidate}</span>

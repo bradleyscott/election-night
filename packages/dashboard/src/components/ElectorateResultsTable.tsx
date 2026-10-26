@@ -1,5 +1,5 @@
 import { cn } from '../lib/utils.js';
-import { partyColors } from '../lib/constants.js';
+import { partyColor } from '../lib/constants.js';
 import type {
   ElectorateResults,
   VotingResults,
@@ -71,7 +71,7 @@ export function ElectorateResultsTable({
                       <div
                         className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
-                          backgroundColor: partyColors[c.candidate] || '#666',
+                          backgroundColor: partyColor(c.candidate),
                         }}
                       />
                       {c.candidate}
@@ -85,9 +85,9 @@ export function ElectorateResultsTable({
                         <div
                           className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                           style={{
-                            backgroundColor:
-                              partyColors[hasParty(c) ? (c.party ?? '') : ''] ||
-                              '#666',
+                            backgroundColor: partyColor(
+                              hasParty(c) ? c.party : null
+                            ),
                           }}
                         />
                         {hasParty(c)
@@ -101,7 +101,9 @@ export function ElectorateResultsTable({
                   {c.votes.toLocaleString()}
                 </td>
                 <td className="text-right px-3 tabular-nums">
-                  {((c.votes / result.votesCounted) * 100).toFixed(1)}
+                  {result.votesCounted > 0
+                    ? ((c.votes / result.votesCounted) * 100).toFixed(1)
+                    : '—'}
                 </td>
               </tr>
             ))}

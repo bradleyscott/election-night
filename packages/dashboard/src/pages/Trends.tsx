@@ -12,8 +12,8 @@ import {
 import { usePartyVoteHistory } from '../hooks/useVoteHistory.js';
 import {
   canonicalPartyName,
+  orderParties,
   partyColor,
-  PARTY_FILTER_NAMES,
 } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from '../components/WaitingState.js';
@@ -33,11 +33,6 @@ import { CountedTape } from '../components/CountedTape.js';
 import type { TapePoint } from '../components/CountedTape.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
-
-// One button per party, under its current name: `partyColors` keeps both of
-// TOP's spellings so an archive still gets its colour, `PARTY_FILTER_NAMES`
-// collapses them for the filter row and the chart series.
-const ALL_PARTIES = PARTY_FILTER_NAMES;
 
 function formatDate(startedAt: string): string {
   const d = new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
@@ -144,6 +139,19 @@ export default function Trends() {
   const [mode, setMode] = useState<Mode>('seats');
   const initializedRef = useRef(false);
 
+  // Chips follow the parties present in the history, under their current
+  // names, ordered by the fixed editorial order. A static colour map would
+  // show a dead chip for a party this cycle does not have, and no chip for one
+  // whose label the feed renamed; the chart series below are keyed by the
+  // canonical name too, so a renamed party keeps one chip and one line.
+  const partyOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const point of data ?? []) {
+      for (const p of point.parties) seen.add(canonicalPartyName(p.party));
+    }
+    return orderParties([...seen]);
+  }, [data]);
+
   useEffect(() => {
     if (data && data.length > 0 && !initializedRef.current) {
       initializedRef.current = true;
@@ -153,13 +161,17 @@ export default function Trends() {
           .filter((p) => p.seats > 0)
           .map((p) => canonicalPartyName(p.party))
       );
-      if (parliamentParties.size === 0) {
-        setSelectedParties(new Set(ALL_PARTIES.slice(0, 4)));
-      } else {
-        setSelectedParties(parliamentParties);
-      }
+      setSelectedParties(
+        parliamentParties.size > 0
+          ? parliamentParties
+          : new Set(
+              orderParties(latest.parties.map((p) => p.party)).slice(0, 4)
+            )
+      );
     }
   }, [data]);
+
+  const visibleParties = partyOptions.filter((p) => selectedParties.has(p));
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -311,7 +323,7 @@ export default function Trends() {
 
       {mode !== 'counted' && (
         <div className="flex flex-wrap gap-1.5">
-          {ALL_PARTIES.map((party) => (
+          {partyOptions.map((party) => (
             <button
               key={party}
               onClick={() => toggleParty(party)}
@@ -375,32 +387,30 @@ export default function Trends() {
               />
               <Tooltip content={<PartyTooltip mode={mode} />} />
               <Legend content={<PartyLegend />} />
-              {ALL_PARTIES.filter((p) => selectedParties.has(p)).map(
-                (party) => {
-                  const color = partyColor(party);
-                  const dark = isDarkColor(color);
-                  return (
-                    <Line
-                      key={party}
-                      type="monotone"
-                      dataKey={`${dataKeyPrefix}${party}`}
-                      name={party}
-                      stroke={color}
-                      strokeWidth={dark ? 3 : 2}
-                      dot={false}
-                      activeDot={{ r: 4 }}
-                      style={
-                        dark
-                          ? {
-                              filter:
-                                'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
-                            }
-                          : undefined
-                      }
-                    />
-                  );
-                }
-              )}
+              {visibleParties.map((party) => {
+                const color = partyColor(party);
+                const dark = isDarkColor(color);
+                return (
+                  <Line
+                    key={party}
+                    type="monotone"
+                    dataKey={`${dataKeyPrefix}${party}`}
+                    name={party}
+                    stroke={color}
+                    strokeWidth={dark ? 3 : 2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                    style={
+                      dark
+                        ? {
+                            filter:
+                              'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         )}

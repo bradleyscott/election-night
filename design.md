@@ -57,7 +57,7 @@ to it. Amend intentionally — the file is the rule.
 - **Data is set in mono, labels in Inter, prose in Crimson Pro, display in
   Playfair.** Tables rule-based, figures tabular. Party colours are data
   semantics and stay untouched (National #00529F, Labour #D82A20, Green
-  #098137, ACT #FFD700, NZ First #333, TPM #000, TOP #4B0082).
+  #098137, ACT #FFD700, NZ First #333, TPM #000, TOP teal #00B9BC).
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.
