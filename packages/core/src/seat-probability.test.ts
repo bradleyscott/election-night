@@ -125,7 +125,7 @@ describe('computeSeatChance', () => {
     expect(chance.insideOutstanding).toBe(false);
   });
 
-  it('marks a seat with no prior as leaning on its own count', () => {
+  it('marks a seat with no prior as provisional on its own count', () => {
     const chance = computeSeatChance(input({ prior: null }));
     if (chance.state !== 'counting') throw new Error('expected a live count');
     expect(chance.provisionalPrior).toBe(true);

@@ -162,12 +162,6 @@ export const PROVISIONAL_CEILING = 0.95;
  */
 export const CALL_THRESHOLD = 0.9;
 
-/**
- * Above this the seat is worth describing as leaning, below it as too close to
- * call. Used for the label on a feed event, never for a claim about the result.
- */
-export const LEANING_THRESHOLD = 0.66;
-
 /** Relative uncertainty in the size of the outstanding vote. */
 const REMAINING_SIZE_SD = 0.12;
 
