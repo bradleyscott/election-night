@@ -152,6 +152,11 @@ export type WebhookPayload = {
   electorateName: string;
   result: ElectorateResults & WithLeaders & WithMarginOfError;
   diff: ElectorateDiff;
+  /**
+   * The seat's chance of being won, when the count is live and a prior exists.
+   * `null` on a finished count, and absent when the collector had no baseline.
+   */
+  probability?: number | null;
 };
 
 // ---- Feed / Commentary ----

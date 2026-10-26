@@ -34,6 +34,8 @@ import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
 import { createHistoryHandler, closeHistoryDb } from './history-server.js';
 import { VotingPlaceStatusService } from './voting-place-status.js';
+import { loadNotionalBaseline } from './notional-baseline.js';
+import { chanceLookupFor } from '@election-night/core/notional-baseline';
 
 if (process.argv[2] === 'clear') {
   const { runClear } = await import('./clear.js');
@@ -58,6 +60,15 @@ let source: ElectionSource | null = null;
 let electorateConfigs: ElectorateConfig[] = [];
 
 const resultsService = createResultsService();
+
+/**
+ * The previous cycle's votes on this cycle's boundaries, read once.
+ *
+ * The webhook has to speak the same language as the feed, and the feed calls a
+ * seat on a chance of winning — which needs a prior. Without a baseline for the
+ * cycle the collector still runs; it just publishes counts, never predictions.
+ */
+const notionalBaseline = loadNotionalBaseline(collectorConfig.electionYear);
 
 /**
  * Per-place count status, served on demand for the seat a visitor opened.
@@ -202,7 +213,14 @@ async function runOnce(current: ElectionSource): Promise<void> {
       );
       throw err;
     }
-    await processResults(payload.electorateResults);
+    await processResults(
+      payload.electorateResults,
+      chanceLookupFor(
+        notionalBaseline,
+        payload.electorateResults,
+        collectorConfig.electionYear
+      )
+    );
     cacheResults(payload.electorateResults);
     health.cacheYear = cacheCycle();
     resultsService.setLiveResults(payload);

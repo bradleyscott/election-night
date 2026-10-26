@@ -57,10 +57,16 @@
     "./sources": {
       "types": "./dist/sources/index.d.ts",
       "default": "./dist/sources/index.js"
-    }
+    },
+    "./notional-baseline": {
+      "types": "./dist/notional-baseline.d.ts",
+      "default": "./dist/notional-baseline.js"
+    },
+    "./data/*": "./data/*"
   },
   "files": [
-    "dist"
+    "dist",
+    "data"
   ],
   "scripts": {
     "build": "tsc -b"

@@ -135,6 +135,45 @@ describe('determineWebhookEvents', () => {
   });
 });
 
+describe('determineWebhookEvents with a call state', () => {
+  const previous = makeResult({ votePercentageCounted: 0.6 });
+  const current = makeResult({ votesCounted: 9000, votePercentageCounted: 0.7 });
+
+  it('fires prediction_changed when the seat crosses the call threshold', () => {
+    const events = determineWebhookEvents(computeDiff(previous, current), {
+      called: true,
+      wasCalled: false,
+    });
+    expect(events).toContain('prediction_changed');
+  });
+
+  it('fires prediction_changed when a call is withdrawn', () => {
+    const events = determineWebhookEvents(computeDiff(previous, current), {
+      called: false,
+      wasCalled: true,
+    });
+    expect(events).toContain('prediction_changed');
+  });
+
+  it('stays quiet while the seat is called at both ends of the diff', () => {
+    // The status band can move without the chance crossing 0.9 — the webhook
+    // follows the crossing, not the band, so this must not fire.
+    const moved = makeResult({
+      votesCounted: 9000,
+      votePercentageCounted: 0.7,
+      leaders: {
+        ...previous.leaders,
+        predictionStatus: 'leaning' as PredictionStatus,
+      },
+    });
+    const events = determineWebhookEvents(computeDiff(previous, moved), {
+      called: true,
+      wasCalled: true,
+    });
+    expect(events).not.toContain('prediction_changed');
+  });
+});
+
 describe('determineFeedEventType', () => {
   it('prioritises leader_change over count_completed', () => {
     const previous = makeResult({ votePercentageCounted: 0.9 });

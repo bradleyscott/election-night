@@ -52,7 +52,7 @@ const OUT = resolve(
   ROOT,
   arg(
     'out',
-    `packages/dashboard/src/data/notional-baseline-${TARGET_YEAR}.json`
+    `packages/core/data/notional-baseline-${TARGET_YEAR}.json`
   )
 );
 

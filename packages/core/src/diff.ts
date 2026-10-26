@@ -106,15 +106,28 @@ export function diffFacts(diff: ElectorateDiff): DiffFacts {
  * The first scrape of an electorate just establishes a baseline — no
  * webhooks are sent.
  */
+/**
+ * Webhook events for one seat's diff.
+ *
+ * `callState` is what makes a prediction a *crossing*: the feed and the
+ * webhook both say "likely to win" only when the seat's chance passes 0.9, and
+ * both must agree on when that happened. When the caller has no chance to
+ * offer (no prior, no served cycle) the older status-band transition is used
+ * instead, so the diff contract still works without the model.
+ */
 export function determineWebhookEvents(
-  diff: ElectorateDiff
+  diff: ElectorateDiff,
+  callState?: { called: boolean; wasCalled: boolean }
 ): WebhookEventType[] {
   const facts = diffFacts(diff);
   if (facts.isFirstResult) return [];
 
   const events: WebhookEventType[] = [];
   if (facts.votesChanged) events.push('result_updated');
-  if (facts.predictionStatusChanged) events.push('prediction_changed');
+  const callChanged = callState
+    ? callState.called !== callState.wasCalled
+    : facts.predictionStatusChanged;
+  if (callChanged) events.push('prediction_changed');
   if (facts.leaderChanged) events.push('leader_change');
   if (facts.countCompleted) events.push('count_completed');
   return events;
