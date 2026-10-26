@@ -7,7 +7,6 @@ import type {
   ElectorateResults,
   WithLeaders,
   WithMarginOfError,
-  VotingResults,
 } from '@election-night/core/types';
 import type {
   ElectorateHistoryPoint,
@@ -42,10 +41,6 @@ export function ElectorateDetail({
   /** Polls-close label for the before-counting state, e.g. "7pm". */
   pollsCloseLabel?: string | null;
 }) {
-  const leadingPartyVote = [...result.partyVotes].sort(
-    (a, b) => b.votes - a.votes
-  )[0] as VotingResults | undefined;
-
   return (
     <div
       className="space-y-3 sm:space-y-4 opacity-0 animate-fade-in-up"
@@ -84,7 +79,6 @@ export function ElectorateDetail({
       <ElectorateStats
         result={result}
         showPartyVote={showPartyVote}
-        leadingPartyVote={leadingPartyVote ?? null}
         chance={chance}
         updatedAt={updatedAt}
         pollsCloseLabel={pollsCloseLabel}

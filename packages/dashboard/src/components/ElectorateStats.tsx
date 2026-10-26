@@ -4,7 +4,6 @@ import type {
   ElectorateResults,
   WithLeaders,
   WithMarginOfError,
-  VotingResults,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
@@ -32,14 +31,12 @@ const percent = (fraction: number) => (fraction * 100).toFixed(1);
 export function ElectorateStats({
   result,
   showPartyVote,
-  leadingPartyVote,
   chance,
   updatedAt,
   pollsCloseLabel,
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
-  leadingPartyVote: VotingResults | null;
   /** The computed chance, from `seatChanceFor`. Absent renders the count only. */
   chance?: SeatChance | null;
   /** When this browser's results last changed, for the count chip. */
@@ -49,34 +46,12 @@ export function ElectorateStats({
 }) {
   const countChip = countChipText(chance, updatedAt);
 
-  if (showPartyVote) {
-    return (
-      <div className="border panel-print p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="kicker">Leading party</div>
-          {countChip && (
-            <span className="chip-print chip-print--ink">{countChip}</span>
-          )}
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <span
-            className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
-            style={{
-              backgroundColor: partyColour(leadingPartyVote?.candidate),
-            }}
-          />
-          <span className="font-display text-xl font-bold tracking-tight">
-            {leadingPartyVote?.candidate ?? 'Unknown'}
-          </span>
-        </div>
-        <div className="font-label text-xs tabular-nums text-muted-foreground">
-          {leadingPartyVote
-            ? `${leadingPartyVote.votes.toLocaleString()} votes`
-            : 'No votes counted yet'}
-        </div>
-      </div>
-    );
-  }
+  // The party view has no verdict to give: a seat's chance of winning is a
+  // candidate-vote fact, and the party vote decides a different contest. Rather
+  // than relabel the card, or print a party number that would teach the same
+  // percentage two meanings, the card is simply not there.
+  if (showPartyVote) return null;
+
 
   if (!chance || chance.state === 'waiting') {
     return (
@@ -120,6 +95,10 @@ export function ElectorateStats({
           candidate={candidates[0]}
           share={chance.probability}
           label="chance of winning"
+          margin={chance.margin}
+          marginPercent={
+            result.votesCounted ? chance.margin / result.votesCounted : null
+          }
         />
         <ChanceRow
           candidate={candidates[1]}
@@ -133,9 +112,6 @@ export function ElectorateStats({
         </div>
       )}
 
-      <p className="mt-3 font-label text-xs text-muted-foreground">
-        {outstandingSentence(chance)}
-      </p>
       {chance.provisionalPrior && (
         <p className="mt-1 font-label text-xs text-muted-foreground">
           This seat has no comparable result from last time, so the number rests
@@ -144,27 +120,6 @@ export function ElectorateStats({
       )}
     </div>
   );
-}
-
-/**
- * The votes-out sentence, which must never contradict the number above it.
- *
- * The bound and the probability are two views of the same thing, so the claim
- * "this seat can still change tonight" is only made when the probability agrees
- * — a seat at 99% with a large outstanding vote would otherwise say both "this
- * is settled" and "this is not settled" in the same panel.
- */
-function outstandingSentence(
-  chance: Extract<SeatChance, { state: 'counting' }>
-): string {
-  const outstanding = `About ${chance.remainingVotes.toLocaleString()} votes are still to count`;
-  if (chance.margin > chance.remainingHigh) {
-    return `${outstanding} — fewer than the lead, so this seat cannot change hands on tonight's count.`;
-  }
-  if (chance.probability < 0.9) {
-    return `${outstanding} — this seat can still change tonight.`;
-  }
-  return `${outstanding}.`;
 }
 
 /**
@@ -182,10 +137,16 @@ function ChanceRow({
   candidate,
   share,
   label,
+  margin,
+  marginPercent,
 }: {
   candidate: CandidateRow;
   share: number;
   label: string;
+  /** Votes between the top two, shown on the leading row only. */
+  margin?: number;
+  /** That gap as a share of the votes counted, as the rest of the app defines it. */
+  marginPercent?: number | null;
 }) {
   return (
     <div className="py-3">
@@ -205,6 +166,18 @@ function ChanceRow({
           </div>
           <div className="font-label text-xs tabular-nums text-muted-foreground">
             {candidate.votes.toLocaleString()} votes
+            {margin !== undefined && (
+              <>
+                {' \u00b7 '}
+                {margin === 0
+                  ? 'level'
+                  : `ahead by ${margin.toLocaleString()}${
+                      marginPercent != null
+                        ? ` (${(marginPercent * 100).toFixed(1)}%)`
+                        : ''
+                    }`}
+              </>
+            )}
           </div>
         </div>
         <div className="flex-shrink-0 text-right">

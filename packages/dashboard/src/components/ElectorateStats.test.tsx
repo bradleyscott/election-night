@@ -52,7 +52,6 @@ const renderStats = (chance: SeatChance | null, extra = {}) =>
     <ElectorateStats
       result={result()}
       showPartyVote={false}
-      leadingPartyVote={null}
       chance={chance}
       updatedAt={new Date()}
       {...extra}
@@ -67,29 +66,27 @@ describe('ElectorateStats', () => {
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 
-  it('shows a chance of winning, the count state and the votes out', () => {
+  it('shows a chance of winning and the count state', () => {
     renderStats(counting);
     expect(screen.getByText('54')).toBeInTheDocument();
     expect(screen.getByText('46')).toBeInTheDocument();
     expect(screen.getByText(/68% counted/i)).toBeInTheDocument();
-    // The bound agrees with the number: 340 ahead is not a settled seat.
-    expect(
-      screen.getByText(/this seat can still change tonight/i)
-    ).toBeInTheDocument();
   });
 
-  it('makes no claim about changing when the number is merely confident', () => {
+  it('puts the margin and its share under the leading candidate only', () => {
+    renderStats(counting);
+    // 340 ahead of 31,590 counted = 1.1%.
+    expect(
+      screen.getByText('11,860 votes · ahead by 340 (1.1%)')
+    ).toBeInTheDocument();
+    expect(screen.getByText('11,520 votes')).toBeInTheDocument();
+  });
+
+  it('carries no commentary about what the outstanding votes could do', () => {
     renderStats({ ...counting, probability: 0.95, margin: 4200 });
     expect(
-      screen.queryByText(/this seat can still change tonight/i)
+      screen.queryByText(/still to count|can still change|cannot change hands/i)
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/cannot change hands/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/About 15,300 votes are still to count/)
-    ).toBeInTheDocument();
-  });
-
-  it('says a seat cannot change once the lead exceeds the votes out', () => {
     renderStats({
       ...counting,
       probability: 0.99,
@@ -97,8 +94,8 @@ describe('ElectorateStats', () => {
       remainingHigh: 18000,
     });
     expect(
-      screen.getByText(/cannot change hands on tonight's count/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/still to count|can still change|cannot change hands/i)
+    ).not.toBeInTheDocument();
   });
 
   it('replaces the probability with a margin once the count is complete', () => {
@@ -113,19 +110,19 @@ describe('ElectorateStats', () => {
     expect(screen.queryByText('100')).not.toBeInTheDocument();
   });
 
-  it('removes the verdict in party mode rather than relabelling it', () => {
-    render(
+  it('renders no card at all in party mode', () => {
+    const { container } = render(
       <ElectorateStats
         result={result()}
         showPartyVote
-        leadingPartyVote={{ candidate: 'National Party', votes: 12780 }}
         chance={counting}
         updatedAt={new Date()}
       />
     );
-    expect(screen.getByText('Leading party')).toBeInTheDocument();
-    expect(screen.getByText('National Party')).toBeInTheDocument();
+    // A seat's chance of winning is a candidate-vote fact; the party vote
+    // decides a different contest, so there is nothing honest to print here.
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText(/chance of winning/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('54')).not.toBeInTheDocument();
+    expect(screen.queryByText(/leading party/i)).not.toBeInTheDocument();
   });
 });
