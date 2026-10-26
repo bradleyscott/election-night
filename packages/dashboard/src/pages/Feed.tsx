@@ -108,7 +108,7 @@ function EventContent({ event }: { event: FeedEvent }) {
           {(d.currentMarginPercent * 100).toFixed(2)}%)
         </span>
         {event.probability != null && (
-          <span>· {Math.round(event.probability * 100)}% chance</span>
+          <span>· {Math.round(event.probability * 100)}% chance of winning</span>
         )}
       </div>
     </>

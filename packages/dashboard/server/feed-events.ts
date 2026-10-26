@@ -78,7 +78,7 @@ function renderCopy(
   if (chance?.state === 'counting' && flags.called && !flags.wasCalled) {
     const share = chancePercent(chance);
     return {
-      summary: `${name}: ${leader} is likely to win — ${share} chance with ${pct}% counted.`,
+      summary: `${name}: ${leader} is likely to win — ${share} chance of winning with ${pct}% counted.`,
       commentary: `${leader} is likely to win ${name}. Leading by ${votes} votes with ${pct}% counted, and about ${chance.remainingVotes.toLocaleString()} votes still to come, their chance of holding the seat is ${share}.`,
     };
   }
@@ -97,7 +97,7 @@ function renderCopy(
     // grade it themselves.
     const share = chancePercent(chance);
     return {
-      summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance with ${pct}% counted.`,
+      summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance of winning with ${pct}% counted.`,
       commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${chance.remainingVotes.toLocaleString()} votes are still to come, and their chance of holding the seat is ${share}.`,
     };
   }
