@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import {
   useElectorateHistory,
   usePriorWinners,
 } from '../hooks/useVoteHistory.js';
-import { ElectorateSearch } from '../components/ElectorateSearch.js';
-import { Toggle } from '../components/Toggle.js';
+import { MapControls } from '../components/MapControls.js';
 import { ElectorateDetail } from '../components/ElectorateDetail.js';
 import ElectorateMap from '../components/ElectorateMap.js';
-import { isMaoriElectorate, normalizeElectorateName } from '../lib/electorates.js';
+import {
+  isMaoriElectorate,
+  normalizeElectorateName,
+} from '../lib/electorates.js';
 import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { usePollsClose } from '../hooks/usePollsClose.js';
@@ -76,8 +78,9 @@ export default function Electorates() {
   }, [electorates, electionYear, nationalSwing]);
 
   const chance = selectedElectorate
-    ? (chances.get(normalizeElectorateName(selectedElectorate.electorateName)) ??
-      null)
+    ? (chances.get(
+        normalizeElectorateName(selectedElectorate.electorateName)
+      ) ?? null)
     : null;
 
   const pollsCloseLabel = useMemo(() => {
@@ -139,44 +142,8 @@ export default function Electorates() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="pagehead mb-0">
-          <h1>Electorates</h1>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <ElectorateSearch names={electorateNames} />
-          <Toggle
-            options={[
-              { value: 'general', label: 'General' },
-              { value: 'maori', label: 'Māori' },
-            ]}
-            value={showMaori ? 'maori' : 'general'}
-            onChange={(v) => setShowMaori(v === 'maori')}
-          />
-          {selectedElectorate && (
-            <Link
-              to="/electorates"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-2 min-h-[44px] flex items-center font-bold"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-              <span className="hidden sm:inline">Clear</span>
-            </Link>
-          )}
-        </div>
+      <div className="pagehead">
+        <h1>Electorates</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -187,6 +154,12 @@ export default function Electorates() {
           )}
           style={{ animationDelay: '0.1s' }}
         >
+          <MapControls
+            names={electorateNames}
+            showMaori={showMaori}
+            onShowMaoriChange={setShowMaori}
+            showClear={!!selectedElectorate}
+          />
           <ElectorateMap
             electorates={electorates}
             selectedName={selectedName ?? undefined}
