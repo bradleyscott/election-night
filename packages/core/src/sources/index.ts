@@ -1,1 +1,1 @@
-export { NzElectionXmlSource } from './nz-election-xml.js';
+export { NzElectionXmlSource, resolveFeedBaseUrl } from './nz-election-xml.js';

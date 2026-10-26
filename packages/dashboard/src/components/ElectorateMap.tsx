@@ -4,6 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { partyColors } from '../lib/constants.js';
 import { dashboardClientConfig } from '../config.js';
+import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
+import {
+  VotingPlaceLedger,
+  VotingPlaceLegend,
+  VotingPlacesLayer,
+} from './VotingPlaces.js';
 import {
   BOUNDARY_MANIFEST_PATH,
   boundaryGeoJsonPath,
@@ -235,6 +241,13 @@ export default function ElectorateMap({
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Which places count towards the selected seat, and which have reported.
+  // Only asked for once a seat is picked: the collector answers per seat, not
+  // for the whole country.
+  const { summary: places, loading: placesLoading } = useVotingPlaces(
+    selectedName ?? null
+  );
+
   const geoKey = showMaori ? 'maori' : 'general';
 
   // Electorate names are stable during a count but the results array is not,
@@ -359,57 +372,77 @@ export default function ElectorateMap({
           </p>
         </div>
       )}
-      <MapContainer
-        center={DEFAULT_CENTER}
-        zoom={DEFAULT_ZOOM}
-        zoomSnap={0.5}
-        className="h-[300px] sm:h-[600px] w-full"
-        scrollWheelZoom={true}
-        zoomControl={true}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
-        <GeoJSON
-          key={`${geoKey}-${showPartyVote ? 'party' : 'candidate'}`}
-          data={geoData}
-          style={(feature) => {
-            const name = feature?.properties?.name;
-            const key = name ? normalizeElectorateName(name) : null;
-            const isSelected =
-              key !== null &&
-              selectedName !== undefined &&
-              normalizeElectorateName(selectedName) === key;
-            const style = key ? lookup.get(key) : undefined;
-            return {
-              fillColor: style?.color ?? '#e5e7eb',
-              weight: isSelected ? 3 : 1,
-              opacity: 1,
-              color: isSelected ? '#000' : '#fff',
-              fillOpacity: style?.opacity ?? 0.15,
-            };
-          }}
-          onEachFeature={(feature, layer) => {
-            const name = feature.properties.name;
+      <div className="relative">
+        <MapContainer
+          center={DEFAULT_CENTER}
+          zoom={DEFAULT_ZOOM}
+          zoomSnap={0.5}
+          className="h-[300px] sm:h-[600px] w-full"
+          scrollWheelZoom={true}
+          zoomControl={true}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          />
+          <GeoJSON
+            key={`${geoKey}-${showPartyVote ? 'party' : 'candidate'}`}
+            data={geoData}
+            style={(feature) => {
+              const name = feature?.properties?.name;
+              const key = name ? normalizeElectorateName(name) : null;
+              const isSelected =
+                key !== null &&
+                selectedName !== undefined &&
+                normalizeElectorateName(selectedName) === key;
+              const style = key ? lookup.get(key) : undefined;
+              return {
+                fillColor: style?.color ?? '#e5e7eb',
+                weight: isSelected ? 3 : 1,
+                opacity: 1,
+                color: isSelected ? '#000' : '#fff',
+                fillOpacity: style?.opacity ?? 0.15,
+              };
+            }}
+            onEachFeature={(feature, layer) => {
+              const name = feature.properties.name;
 
-            layer.bindTooltip(name, {
-              permanent: true,
-              direction: 'center',
-              className: 'electorate-label',
-            });
+              layer.bindTooltip(name, {
+                permanent: true,
+                direction: 'center',
+                className: 'electorate-label',
+              });
 
-            layer.on({
-              click: () => {
-                navigate(`/electorates/${encodeURIComponent(name)}`);
-              },
-            });
-          }}
+              layer.on({
+                click: () => {
+                  navigate(`/electorates/${encodeURIComponent(name)}`);
+                },
+              });
+            }}
+          />
+          <MapUpdater selectedName={selectedName} geoData={geoData} />
+          {places && <VotingPlacesLayer places={places.places} />}
+        </MapContainer>
+        {places && (
+          <VotingPlaceLedger
+            summary={places}
+            loading={placesLoading}
+            className="pointer-events-none absolute bottom-2 left-2 z-[500] hidden w-[14.5rem] sm:block"
+          />
+        )}
+      </div>
+      {/* A phone's map is 300px tall: the card would cover half of it, so the
+          same ledger sits underneath instead. */}
+      {places && (
+        <VotingPlaceLedger
+          summary={places}
+          loading={placesLoading}
+          className="border-t sm:hidden"
         />
-        <MapUpdater selectedName={selectedName} geoData={geoData} />
-      </MapContainer>
+      )}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <span className="chip-print">{boundary.year} electorates</span>
+        {places ? <VotingPlaceLegend /> : null}
         <span className="text-[0.625rem] text-muted-foreground">
           Boundaries: Stats NZ (CC BY 4.0)
         </span>

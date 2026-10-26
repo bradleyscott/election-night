@@ -209,6 +209,76 @@
 
   .rule-red { border-top: 2px solid hsl(var(--primary)); }
 
+  /* voting place marks: shape = where the place stands, fill = counted.
+     Solid for a count received, outlined while outstanding, and a halo in the
+     page colour so a mark reads against a party-coloured fill either way. */
+  .voting-place-pip-anchor {
+    background: none;
+    border: 0;
+  }
+  .voting-place-pip {
+    display: block;
+    width: 10px;
+    height: 10px;
+    background: hsl(var(--foreground));
+    box-shadow: 0 0 0 1.5px hsl(var(--card));
+  }
+  .voting-place-pip--circle {
+    border-radius: 50%;
+  }
+  .voting-place-pip--open {
+    background: hsl(var(--card));
+    box-shadow:
+      0 0 0 1.5px hsl(var(--card)),
+      inset 0 0 0 1.5px hsl(var(--foreground));
+  }
+  @media (max-width: 639px) {
+    .voting-place-pip {
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  /* tooltip: hairline panel, no arrow, two lines of address then the status */
+  .leaflet-tooltip.voting-place-tip-anchor {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0.4rem 0.5rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    color: hsl(var(--foreground));
+    white-space: normal;
+    max-width: 15rem;
+    width: max-content;
+  }
+  .leaflet-tooltip.voting-place-tip-anchor::before {
+    display: none;
+  }
+  .voting-place-tip b {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .voting-place-tip > span {
+    display: block;
+    color: hsl(var(--muted-foreground));
+  }
+  .voting-place-tip .voting-place-tip__scope {
+    font-size: 0.5625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .voting-place-tip em {
+    display: block;
+    margin-top: 0.125rem;
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* quiet motion */
   .animate-fade-in,
   .animate-fade-in-up,

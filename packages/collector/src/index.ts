@@ -27,11 +27,13 @@ import {
 } from './retention.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
+import { resolveFeedBaseUrl } from '@election-night/core/sources';
 import { scrapeCycle } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
 import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
 import { createHistoryHandler, closeHistoryDb } from './history-server.js';
+import { VotingPlaceStatusService } from './voting-place-status.js';
 
 if (process.argv[2] === 'clear') {
   const { runClear } = await import('./clear.js');
@@ -56,6 +58,22 @@ let source: ElectionSource | null = null;
 let electorateConfigs: ElectorateConfig[] = [];
 
 const resultsService = createResultsService();
+
+/**
+ * Per-place count status, served on demand for the seat a visitor opened.
+ * Fetches from the same feed the scrape loop reads, but not on the loop: the
+ * register is 632 KB and a seat's places ~70 files, so it answers only what is
+ * asked for and caches each seat briefly.
+ */
+const votingPlaces = new VotingPlaceStatusService({
+  baseUrl: resolveFeedBaseUrl({
+    year: collectorConfig.electionYear,
+    baseUrl: collectorConfig.xmlFeedBaseUrl,
+  }),
+  electionYear: collectorConfig.electionYear,
+  timeoutMs: collectorConfig.fetchTimeoutMs,
+  onLog: (message, error) => log.warn(message, error ?? ''),
+});
 
 health.electionYear = collectorConfig.electionYear;
 
@@ -313,6 +331,7 @@ async function main(): Promise<void> {
         dbPath: collectorConfig.dbPath,
         electionYear: collectorConfig.electionYear,
         resultsService,
+        votingPlaces,
       })
     );
   } catch (err) {

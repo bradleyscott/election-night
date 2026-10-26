@@ -30,6 +30,10 @@
       "types": "./dist/history.d.ts",
       "default": "./dist/history.js"
     },
+    "./voting-places": {
+      "types": "./dist/voting-places.d.ts",
+      "default": "./dist/voting-places.js"
+    },
     "./electorate-names": {
       "types": "./dist/electorate-names.d.ts",
       "default": "./dist/electorate-names.js"

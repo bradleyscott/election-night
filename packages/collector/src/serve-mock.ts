@@ -10,6 +10,9 @@ import {
   type MockElectionYear,
 } from './synthetic-electorates.js';
 import type { ElectorateResults } from '@election-night/core/types';
+import { normalizeElectorateName } from '@election-night/core/electorate-names';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // ---- CLI ----
 //
@@ -344,6 +347,8 @@ function renderIndex(): string {
 <li><a href="/candidates.xml">candidates.xml</a></li>
 <li><a href="/parties.xml">parties.xml</a></li>
 <li><a href="/electorates.xml">electorates.xml</a></li>
+<li><a href="/votingplaces.xml">votingplaces.xml</a></li>
+<li><a href="/e01/votingplaces/">e01/votingplaces/</a></li>
 </ul>
 <ul>
 ${links}
@@ -366,6 +371,303 @@ if (stageArg) {
 
 const autoStepMs = parsed['--auto-step'];
 let autoStepTimer: ReturnType<typeof setInterval> | null = null;
+
+// ---- voting places ----
+//
+// The real feed publishes a register (`votingplaces.xml`) and then, per
+// electorate, a directory listing plus one small result file per place. Only
+// the cycle being counted has that directory — the archive host forbids
+// listing — which is why the dashboard asks for a seat's places on demand.
+//
+// The mock invents a plausible register: three booths in each seat, one advance
+// place that belongs to a neighbouring seat (so the map draws it as a circle
+// away from the seat), and one mobile team with no coordinates at all. Booth
+// coordinates are anchored on real towns because the mock has no geometry of
+// its own; the point is the four legend states switching over time, not the
+// geography.
+
+const PLACE_ANCHORS: { town: string; lat: number; lon: number }[] = [
+  { town: 'Whangārei', lat: -35.7251, lon: 174.3237 },
+  { town: 'Auckland', lat: -36.8485, lon: 174.7633 },
+  { town: 'Hamilton', lat: -37.787, lon: 175.2793 },
+  { town: 'Tauranga', lat: -37.6878, lon: 176.1651 },
+  { town: 'Rotorua', lat: -38.1368, lon: 176.2497 },
+  { town: 'Gisborne', lat: -38.6623, lon: 178.0176 },
+  { town: 'Napier', lat: -39.4928, lon: 176.912 },
+  { town: 'New Plymouth', lat: -39.0556, lon: 174.0752 },
+  { town: 'Palmerston North', lat: -40.3523, lon: 175.6082 },
+  { town: 'Wellington', lat: -41.2866, lon: 174.7756 },
+  { town: 'Nelson', lat: -41.2706, lon: 173.284 },
+  { town: 'Christchurch', lat: -43.5321, lon: 172.6362 },
+  { town: 'Dunedin', lat: -45.8788, lon: 170.5028 },
+  { town: 'Invercargill', lat: -46.4132, lon: 168.3538 },
+];
+
+const PLACE_SUFFIXES = [
+  'Primary School',
+  'Community Hall',
+  'Public Library',
+  'Returning Office',
+  'Church Hall',
+  'Sports Centre',
+  'Community Centre',
+  'RSA Hall',
+];
+
+const PLACE_ROADS = [
+  'Queen Street',
+  'Victoria Avenue',
+  'Cameron Road',
+  'Fergusson Drive',
+  'Grey Street',
+  'Princes Street',
+  'Main Road',
+  'Rimu Street',
+];
+
+const BOOTHS_PER_SEAT = 3;
+
+/** Stable pseudo-random in [0, 1) from a seed, so a place never moves. */
+function jitter(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Every ring in a GeoJSON Polygon/MultiPolygon coordinate tree. */
+function collectRings(coords: unknown): [number, number][][] {
+  const rings: [number, number][][] = [];
+  const walk = (node: unknown): void => {
+    if (!Array.isArray(node) || node.length === 0) return;
+    const isPoint =
+      typeof node[0] === 'number' && typeof (node as unknown[])[1] === 'number';
+    if (isPoint) return;
+    const isRing = Array.isArray(node[0]) && typeof node[0][0] === 'number';
+    if (isRing) {
+      rings.push(node as [number, number][]);
+      return;
+    }
+    for (const child of node) walk(child);
+  };
+  walk(coords);
+  return rings;
+}
+
+/** Bounding-box area, which ranks rings without a projection. */
+function ringArea(ring: [number, number][]): number {
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  for (const [lon, lat] of ring) {
+    if (lon < minLon) minLon = lon;
+    if (lon > maxLon) maxLon = lon;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  }
+  return (maxLon - minLon) * (maxLat - minLat);
+}
+
+/**
+ * A representative point per electorate, taken from the boundary geometry the
+ * dashboard ships. The mock has no geography of its own, and invented
+ * coordinates put every place outside the seat the map zooms to, so a dry run
+ * could not see the marks it was meant to be exercising. Reading the same
+ * GeoJSON the map draws is not new coupling: `synthetic-electorates.test.ts`
+ * already asserts this fixture against the same manifest.
+ */
+function loadElectorateCentres(): Map<string, { lat: number; lon: number }> {
+  const centres = new Map<string, { lat: number; lon: number }>();
+  const dir = path.resolve(
+    import.meta.dirname,
+    '../../dashboard/public/boundaries',
+    ELECTION_YEAR
+  );
+  for (const file of [
+    'general-electorates.geojson',
+    'maori-electorates.geojson',
+  ]) {
+    let parsed: {
+      features?: {
+        properties?: { name?: string };
+        geometry?: { coordinates?: unknown };
+      }[];
+    };
+    try {
+      parsed = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+    } catch {
+      continue;
+    }
+    for (const feature of parsed.features ?? []) {
+      const name = feature.properties?.name;
+      if (!name) continue;
+      // Use the tightest ring of the seat, not the average of every vertex: a
+      // seat that includes coastal water (Auckland Central does) or outlying
+      // islands would otherwise get a "centre" out at sea, and the marks would
+      // land nowhere near the polygon the map zooms to. The tightest ring with
+      // a plausible number of vertices is the urban part of the seat.
+      let pick: [number, number][] | null = null;
+      for (const ring of collectRings(feature.geometry?.coordinates)) {
+        if (ring.length < 12) continue;
+        if (!pick || ringArea(ring) < ringArea(pick)) pick = ring;
+      }
+      if (pick) {
+        const lon = pick.reduce((sum, p) => sum + p[0], 0) / pick.length;
+        const lat = pick.reduce((sum, p) => sum + p[1], 0) / pick.length;
+        centres.set(normalizeElectorateName(name), { lat, lon });
+      }
+    }
+  }
+  return centres;
+}
+
+const ELECTORATE_CENTRES = loadElectorateCentres();
+
+/** Where the mock puts a seat's places: inside its own boundary when known. */
+function anchorFor(eNo: number): { town: string; lat: number; lon: number } {
+  const fallback = PLACE_ANCHORS[(eNo - 1) % PLACE_ANCHORS.length]!;
+  const electorate = MOCK_ELECTORATES[eNo - 1];
+  const centre = electorate
+    ? ELECTORATE_CENTRES.get(normalizeElectorateName(electorate.name))
+    : undefined;
+  return centre ? { ...centre, town: fallback.town } : fallback;
+}
+
+type MockVotingPlace = {
+  id: number;
+  /** The seat the register files this place under. */
+  vpENo: number;
+  placeNo: number;
+  name: string;
+  address: string;
+  lat: number | null;
+  lon: number | null;
+};
+
+function buildVotingPlaces(): MockVotingPlace[] {
+  const places: MockVotingPlace[] = [];
+
+  MOCK_ELECTORATES.forEach((electorate, index) => {
+    const eNo = index + 1;
+    const anchor = anchorFor(eNo);
+
+    for (let booth = 1; booth <= BOOTHS_PER_SEAT; booth++) {
+      const seed = eNo * 100 + booth;
+      const suffix = PLACE_SUFFIXES[seed % PLACE_SUFFIXES.length]!;
+      const streetNo = 3 + Math.round(jitter(seed) * 240);
+      const road = PLACE_ROADS[seed % PLACE_ROADS.length]!;
+      places.push({
+        id: seed,
+        vpENo: eNo,
+        placeNo: booth,
+        name: `${electorate.name} ${suffix}`,
+        address: `${electorate.name} ${suffix}, ${streetNo} ${road}, ${electorate.name}`,
+        lat: anchor.lat + (jitter(seed + 7) - 0.5) * 0.05,
+        lon: anchor.lon + (jitter(seed + 13) - 0.5) * 0.07,
+      });
+    }
+
+    // An advance voting place that counts for this seat but stands in the next
+    // one along — the case the circle mark exists for.
+    const neighbourNo = (eNo % MOCK_ELECTORATES.length) + 1;
+    const neighbour = anchorFor(neighbourNo);
+    const advanceSeed = eNo * 100 + 4;
+    places.push({
+      id: advanceSeed,
+      vpENo: neighbourNo,
+      placeNo: 4,
+      name: `Advance Voting Centre, ${MOCK_ELECTORATES[neighbourNo - 1]!.name}`,
+      address: `Advance Voting Centre, ${MOCK_ELECTORATES[neighbourNo - 1]!.name}`,
+      lat: neighbour.lat + (jitter(advanceSeed) - 0.5) * 0.05,
+      lon: neighbour.lon + (jitter(advanceSeed + 3) - 0.5) * 0.07,
+    });
+
+    // Mobile teams carry votes but were never anywhere to draw.
+    const teamSeed = eNo * 100 + 11;
+    places.push({
+      id: teamSeed,
+      vpENo: eNo,
+      placeNo: 11,
+      name: 'Mobile Team 1',
+      address: `Mobile Team, Team 1, Taken in ${electorate.name} Electorate`,
+      lat: null,
+      lon: null,
+    });
+  });
+
+  return places;
+}
+
+const MOCK_VOTING_PLACES = buildVotingPlaces();
+
+/** The places that count towards a seat: its own booths, advance place, teams. */
+function placesForSeat(eNo: number): MockVotingPlace[] {
+  return MOCK_VOTING_PLACES.filter((place) =>
+    place.placeNo === 4 ? place.id === eNo * 100 + 4 : place.vpENo === eNo
+  );
+}
+
+/** Share of a seat's places whose count has landed at each stage. */
+const STAGE_COUNTED_SHARE = [0.35, 0.65, 0.9, 1];
+
+function placeCounted(place: MockVotingPlace, seatNo: number): boolean {
+  const share = STAGE_COUNTED_SHARE[currentStage] ?? 1;
+  // A place's position in the queue is fixed, so advancing the stage only ever
+  // adds receipts — a place never un-counts.
+  return jitter(place.id * 3 + seatNo) < share;
+}
+
+function placeReceivedAt(place: MockVotingPlace): string {
+  const minute = 5 + Math.floor(jitter(place.id + 17) * 48);
+  const hour = currentStage >= 2 ? 20 : 19;
+  return `${ELECTION_YEAR}-10-24T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+}
+
+function placeFileName(place: MockVotingPlace, seatNo: number): string {
+  return `${String(seatNo).padStart(2, '0')}-${String(place.vpENo).padStart(2, '0')}${String(place.placeNo).padStart(3, '0')}.xml`;
+}
+
+function renderVotingPlacesXml(): string {
+  const entries = MOCK_VOTING_PLACES.map(
+    (place) => `  <votingplace vp_id="${place.id}" vp_e_no="${place.vpENo}">
+    <vp_address>${escapeXml(place.address)}</vp_address>
+    <vp_lat>${place.lat === null ? '' : place.lat.toFixed(4)}</vp_lat>
+    <vp_lon>${place.lon === null ? '' : place.lon.toFixed(4)}</vp_lon>
+  </votingplace>`
+  ).join('\n');
+  return `${xmlDeclaration()}\n<votingplaces>\n${entries}\n</votingplaces>\n`;
+}
+
+/** An Apache-style autoindex, which is what the live feed serves. */
+function renderVotingPlaceListing(seatNo: number): string {
+  const rows = placesForSeat(seatNo)
+    .map((place) => {
+      const file = placeFileName(place, seatNo);
+      return `    <tr><td><a href="${file}">${file}</a></td><td>-</td><td>2.1K</td></tr>`;
+    })
+    .join('\n');
+  return `<!DOCTYPE html>
+<html><head><title>Index of /e${String(seatNo).padStart(2, '0')}/votingplaces/</title></head>
+<body><h1>Index of /e${String(seatNo).padStart(2, '0')}/votingplaces/</h1>
+<table>
+${rows}
+</table></body></html>`;
+}
+
+function renderVotingPlaceResult(
+  place: MockVotingPlace,
+  seatNo: number
+): string {
+  const counted = placeCounted(place, seatNo);
+  const issued = counted ? 120 + Math.round(jitter(place.id) * 900) : 0;
+  return `${xmlDeclaration()}
+<votingplace vp_id="${place.id}" vp_e_no="${place.vpENo}" e_no="${seatNo}" vp_no="${place.placeNo}" updated="${ELECTION_YEAR}-10-24T21:00:00">
+  <time_received>${counted ? placeReceivedAt(place) : ''}</time_received>
+  <statistics>
+    <total_issued_ballot_papers>${issued}</total_issued_ballot_papers>
+  </statistics>
+</votingplace>
+`;
+}
 
 function sendXml(res: http.ServerResponse, body: string) {
   res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
@@ -420,6 +722,41 @@ const server = http.createServer((req, res) => {
 
   if (path === '/election.xml') {
     sendXml(res, renderElectionXml());
+    return;
+  }
+
+  if (path === '/votingplaces.xml') {
+    sendXml(res, renderVotingPlacesXml());
+    return;
+  }
+
+  const listing = path.match(/^\/e(\d+)\/votingplaces\/$/);
+  if (listing) {
+    const seatNo = parseInt(listing[1], 10);
+    if (!MOCK_ELECTORATES[seatNo - 1]) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(renderVotingPlaceListing(seatNo));
+    return;
+  }
+
+  const placeFile = path.match(
+    /^\/e(\d+)\/votingplaces\/(\d{2,3})-(\d{2})(\d{3})\.xml$/
+  );
+  if (placeFile) {
+    const seatNo = parseInt(placeFile[1], 10);
+    const place = MOCK_VOTING_PLACES.find(
+      (candidate) => placeFileName(candidate, seatNo) === path.split('/').pop()
+    );
+    if (!place || !MOCK_ELECTORATES[seatNo - 1]) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    sendXml(res, renderVotingPlaceResult(place, seatNo));
     return;
   }
 

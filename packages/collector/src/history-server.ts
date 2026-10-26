@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
 import type { ElectionResultsService } from '@election-night/core/election-results-service';
+import type { VotingPlaceStatusService } from './voting-place-status.js';
 import { log } from './logger.js';
 
 /**
@@ -35,6 +36,13 @@ export interface HistoryHandlerOptions {
    * Absent in tests and any embedding that only wants the DB-backed routes.
    */
   resultsService?: ElectionResultsService;
+  /**
+   * Serves `/history/voting-places/:electorate` — which places count towards a
+   * seat and which have reported. Not a DB query either: the collector fetches
+   * it from the feed on demand, because only the cycle being counted can list
+   * its places.
+   */
+  votingPlaces?: VotingPlaceStatusService;
 }
 
 let db: Database.Database | null = null;
@@ -210,7 +218,7 @@ function getPartyVoteHistory(
 export function createHistoryHandler(
   options: HistoryHandlerOptions
 ): (req: IncomingMessage, res: ServerResponse) => boolean {
-  const { dbPath, electionYear, resultsService } = options;
+  const { dbPath, electionYear, resultsService, votingPlaces } = options;
 
   return (req, res) => {
     const url = req.url ?? '';
@@ -251,6 +259,30 @@ export function createHistoryHandler(
                 }),
           (err) => {
             log.error(`Results lookup failed for ${requested}`, err);
+            sendJson(res, 500, { error: 'query failed' });
+          }
+        );
+        return true;
+      }
+    }
+
+    // Per-place count status: fetched from the feed on demand, never from the
+    // DB (a place list is ~70 files, too many to hold per poll). Answered
+    // before the DB is touched so the dashboard can draw a seat's places before
+    // the first snapshot lands.
+    if (votingPlaces) {
+      const placesMatch = pathname!.match(/^\/history\/voting-places\/(.+)$/);
+      if (placesMatch) {
+        const name = decodeURIComponent(placesMatch[1]!);
+        votingPlaces.placesFor(name).then(
+          (places) =>
+            places
+              ? sendJson(res, 200, places)
+              : sendJson(res, 404, {
+                  error: `no voting places for ${name} in ${electionYear ?? 'this cycle'}`,
+                }),
+          (err) => {
+            log.error(`Voting place lookup failed for ${name}`, err);
             sendJson(res, 500, { error: 'query failed' });
           }
         );

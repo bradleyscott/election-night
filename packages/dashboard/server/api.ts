@@ -52,6 +52,24 @@ export async function serveApi(
     return true;
   }
 
+  // GET /api/history/voting-places/:name — which places count towards a seat
+  // and which have reported. 404 when the cycle cannot list its places (the
+  // archives publish place results but forbid directory listing), which the
+  // map treats as "no layer this cycle" rather than an error.
+  const votingPlacesMatch = pathname.match(
+    /^\/api\/history\/voting-places\/(.+)$/
+  );
+  if (votingPlacesMatch) {
+    const name = decodeURIComponent(votingPlacesMatch[1]);
+    const places = await historySource.votingPlaces(name);
+    if (places) {
+      sendJson(res, places);
+    } else {
+      sendJson(res, { error: `no voting places for ${name}` }, 404);
+    }
+    return true;
+  }
+
   // GET /api/history/results/:year — results for any nominated cycle, live or
   // archived, from the collector's results service.
   const resultsMatch = pathname.match(/^\/api\/history\/results\/(\d{4})$/);

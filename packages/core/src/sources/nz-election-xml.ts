@@ -93,6 +93,17 @@ function buildBaseUrl(options: NzElectionXmlSourceOptions): string {
   return `${ARCHIVE_HOST}/electionresults_${year}/xml/`;
 }
 
+/**
+ * The base URL a cycle is read from: the live media feed for the cycle being
+ * counted, the archive host for a finished one. Exported so per-place fetching
+ * (which is not part of `ElectionSource`) resolves the same URL.
+ */
+export function resolveFeedBaseUrl(
+  options: { year?: string; baseUrl?: string } = {}
+): string {
+  return buildBaseUrl(options);
+}
+
 function makeFetch(timeoutMs: number) {
   return (url: string): Promise<string> =>
     fetch(url, {
