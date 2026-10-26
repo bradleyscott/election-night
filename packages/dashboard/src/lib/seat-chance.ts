@@ -182,7 +182,8 @@ export function seatChanceFor(
     })),
     votesCounted: result.votesCounted,
     percentVotesCast: result.percentVotesCast,
-    enrolment: enrolmentForSeat(result.electorateName, electionYear) ?? undefined,
+    enrolment:
+      enrolmentForSeat(result.electorateName, electionYear) ?? undefined,
     electionYear: electionYear ? Number(electionYear) : null,
     prior: priorForSeat(result.electorateName, electionYear),
     nationalSwing,

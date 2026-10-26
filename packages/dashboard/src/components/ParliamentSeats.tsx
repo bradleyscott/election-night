@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import {
   useFloating,
   autoUpdate,
@@ -9,7 +16,11 @@ import {
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { usePartyOrder } from '../hooks/usePartyOrder.js';
 import { buildSeats } from '../lib/parliament.js';
-import type { PartyEntry, ElectorateEntry, PartyListEntry } from '../lib/parliament.js';
+import type {
+  PartyEntry,
+  ElectorateEntry,
+  PartyListEntry,
+} from '../lib/parliament.js';
 import { WaitingState } from './WaitingState.js';
 import BottomSheet from './BottomSheet.js';
 import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
@@ -57,7 +68,10 @@ export default function ParliamentSeats({
   useEffect(() => {
     if (selectedSeat === null || isMobile) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node)
+      ) {
         setSelectedSeat(null);
       }
     };
@@ -73,7 +87,8 @@ export default function ParliamentSeats({
   const majority = useMemo(() => Math.floor(totalSeats / 2) + 1, [totalSeats]);
 
   const seats = useMemo(
-    () => buildSeats(order, partyVote, electorateResults, partyLists, totalSeats),
+    () =>
+      buildSeats(order, partyVote, electorateResults, partyLists, totalSeats),
     [order, partyVote, electorateResults, partyLists, totalSeats]
   );
 
@@ -264,7 +279,9 @@ export default function ParliamentSeats({
       <BottomSheet
         open={selectedSeatInfo !== null && isMobile}
         onClose={() => setSelectedSeat(null)}
-        title={selectedSeatInfo ? `${selectedSeatInfo.party} seat` : 'Seat details'}
+        title={
+          selectedSeatInfo ? `${selectedSeatInfo.party} seat` : 'Seat details'
+        }
       >
         {selectedSeatInfo && (
           <SeatDetailContent

@@ -8,7 +8,14 @@ export default function Logo({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="ogBody" x1="0" y1="0" x2="120" y2="140" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id="ogBody"
+          x1="0"
+          y1="0"
+          x2="120"
+          y2="140"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor="#C8503E" />
           <stop offset="100%" stopColor="#9E2B1C" />
         </linearGradient>
@@ -75,7 +82,14 @@ export default function Logo({ className }: { className?: string }) {
         <rect x="46" y="34" width="8" height="13" rx="2.5" fill="white" />
         <rect x="66" y="34" width="8" height="13" rx="2.5" fill="white" />
 
-        <rect x="47" y="35" width="3" height="5" rx="1" fill="rgba(0,0,0,0.1)" />
+        <rect
+          x="47"
+          y="35"
+          width="3"
+          height="5"
+          rx="1"
+          fill="rgba(0,0,0,0.1)"
+        />
 
         <path
           d="M 40 58 Q 60 72 80 58"
@@ -93,14 +107,42 @@ export default function Logo({ className }: { className?: string }) {
           strokeLinecap="round"
         />
 
-        <path d="M 20 72 Q 14 68 8 76" fill="none" stroke="url(#ogBody)" strokeWidth="10" strokeLinecap="round" />
-        <path d="M 100 72 Q 106 68 112 76" fill="none" stroke="url(#ogBody)" strokeWidth="10" strokeLinecap="round" />
+        <path
+          d="M 20 72 Q 14 68 8 76"
+          fill="none"
+          stroke="url(#ogBody)"
+          strokeWidth="10"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 100 72 Q 106 68 112 76"
+          fill="none"
+          stroke="url(#ogBody)"
+          strokeWidth="10"
+          strokeLinecap="round"
+        />
 
         <circle cx="8" cy="76" r="5" fill="#9E2B1C" />
         <circle cx="112" cy="76" r="5" fill="#9E2B1C" />
 
-        <line x1="8" y1="76" x2="-2" y2="14" stroke="#8B4513" strokeWidth="3" strokeLinecap="round" />
-        <line x1="112" y1="76" x2="122" y2="14" stroke="#8B4513" strokeWidth="3" strokeLinecap="round" />
+        <line
+          x1="8"
+          y1="76"
+          x2="-2"
+          y2="14"
+          stroke="#8B4513"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <line
+          x1="112"
+          y1="76"
+          x2="122"
+          y2="14"
+          stroke="#8B4513"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
 
         <path d="M -2 16 L -40 28 L 6 60 Z" fill="#2563EB" />
         <path d="M 122 16 L 160 28 L 115 60 Z" fill="#DC2626" />

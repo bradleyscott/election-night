@@ -292,13 +292,18 @@ describe('pruneSnapshots', () => {
   async function writeSnapshots(count: number, backdateHours: number) {
     const { writeResults } = await import('./db.js');
     for (let i = 0; i < count; i += 1) {
-      writeResults([makeResult()], [makePartyVote()], [makePartyList()], '2026');
+      writeResults(
+        [makeResult()],
+        [makePartyVote()],
+        [makePartyList()],
+        '2026'
+      );
     }
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
     conn
       .prepare(
-        "UPDATE scrape_snapshots SET started_at = datetime(started_at, ?) WHERE id <= ?"
+        'UPDATE scrape_snapshots SET started_at = datetime(started_at, ?) WHERE id <= ?'
       )
       .run(`-${backdateHours} hours`, count);
     conn.close();
@@ -356,7 +361,9 @@ describe('pruneSnapshots', () => {
     const conn = new Database(dbPath);
     const orphans = (
       conn
-        .prepare('SELECT count(*) c FROM electorate_results WHERE scrape_id = ?')
+        .prepare(
+          'SELECT count(*) c FROM electorate_results WHERE scrape_id = ?'
+        )
         .get(oldest) as { c: number }
     ).c;
     conn.close();
@@ -454,17 +461,23 @@ describe('compaction', () => {
   });
 
   test('returns freed pages to the filesystem after a prune', async () => {
-    const { writeResults, pruneSnapshots, compactDatabase } = await import(
-      './db.js'
-    );
+    const { writeResults, pruneSnapshots, compactDatabase } =
+      await import('./db.js');
     // Enough snapshots that the file is worth shrinking, then age them out.
     for (let i = 0; i < 60; i += 1) {
-      writeResults([makeResult()], [makePartyVote()], [makePartyList()], '2026');
+      writeResults(
+        [makeResult()],
+        [makePartyVote()],
+        [makePartyList()],
+        '2026'
+      );
     }
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
     conn
-      .prepare("UPDATE scrape_snapshots SET started_at = datetime('now', '-48 hours')")
+      .prepare(
+        "UPDATE scrape_snapshots SET started_at = datetime('now', '-48 hours')"
+      )
       .run();
     conn.close();
 

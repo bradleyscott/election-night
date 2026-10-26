@@ -24,9 +24,7 @@ export function ElectorateResultsTable({
   showPartyVote: boolean;
 }) {
   const rows = (
-    showPartyVote
-      ? [...result.partyVotes]
-      : [...result.candidateVotes]
+    showPartyVote ? [...result.partyVotes] : [...result.candidateVotes]
   ).sort((a, b) => b.votes - a.votes);
 
   return (
@@ -93,7 +91,9 @@ export function ElectorateResultsTable({
                               '#666',
                           }}
                         />
-                        {hasParty(c) ? (c.party ?? 'Independent') : 'Independent'}
+                        {hasParty(c)
+                          ? (c.party ?? 'Independent')
+                          : 'Independent'}
                       </div>
                     </td>
                   </>

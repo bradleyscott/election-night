@@ -263,12 +263,7 @@ export default function VoteHistoryChart({
   }
 
   return (
-    <div
-      className={cn(
-        'border p-3 sm:p-4',
-        className
-      )}
-    >
+    <div className={cn('border p-3 sm:p-4', className)}>
       <div className="flex items-center justify-between mb-3">
         <div className="kicker">{chartTitle}</div>
         <div className="flex flex-wrap border border-border">

@@ -31,7 +31,9 @@ describe('useApi', () => {
 
   test('loads data on success', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ name: 'Auckland Central' }), { status: 200 })
+      new Response(JSON.stringify({ name: 'Auckland Central' }), {
+        status: 200,
+      })
     );
 
     render(<TestComponent url="/api/electorate" />);
@@ -45,7 +47,9 @@ describe('useApi', () => {
   });
 
   test('sets error on non-ok response', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404 }));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('Not found', { status: 404 })
+    );
 
     render(<TestComponent url="/api/missing" />);
 

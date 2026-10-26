@@ -21,7 +21,11 @@ export const LOW_DISK_FRACTION = 0.05;
 /** Window used while the volume is under pressure, in hours. */
 export const PRESSURE_KEEP_HOURS = 1;
 
-export type DiskSample = { path: string; size: number; available: number } | null;
+export type DiskSample = {
+  path: string;
+  size: number;
+  available: number;
+} | null;
 
 export function sampleDisk(dbPath: string): DiskSample {
   return sampleDiskUsage(dbPath);

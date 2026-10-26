@@ -8,14 +8,21 @@ interface BottomSheetProps {
   title?: string;
 }
 
-export default function BottomSheet({ open, onClose, children, title }: BottomSheetProps) {
+export default function BottomSheet({
+  open,
+  onClose,
+  children,
+  title,
+}: BottomSheetProps) {
   const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -48,7 +55,10 @@ export default function BottomSheet({ open, onClose, children, title }: BottomSh
         </div>
         <div className="p-4 pt-2">
           {title && (
-            <h2 id={titleId} className="font-display text-base font-bold tracking-tight mb-2">
+            <h2
+              id={titleId}
+              className="font-display text-base font-bold tracking-tight mb-2"
+            >
               {title}
             </h2>
           )}

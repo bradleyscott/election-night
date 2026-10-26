@@ -7,7 +7,9 @@ export function ElectorateSearch({ names }: { names: string[] }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listId = useRef(`electorate-search-list-${Math.random().toString(36).slice(2)}`).current;
+  const listId = useRef(
+    `electorate-search-list-${Math.random().toString(36).slice(2)}`
+  ).current;
   const timeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
 

@@ -5,8 +5,20 @@ import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
 import type { SeatInfo } from '../lib/parliament.js';
 
 const seats: SeatInfo[] = [
-  { party: 'National Party', color: '#00529F', opacity: 1, type: 'electorate', name: 'Auckland Central' },
-  { party: 'Labour Party', color: '#D82A20', opacity: 1, type: 'electorate', name: 'Mt Albert' },
+  {
+    party: 'National Party',
+    color: '#00529F',
+    opacity: 1,
+    type: 'electorate',
+    name: 'Auckland Central',
+  },
+  {
+    party: 'Labour Party',
+    color: '#D82A20',
+    opacity: 1,
+    type: 'electorate',
+    name: 'Mt Albert',
+  },
   { party: 'Vacant', color: '#888888', opacity: 0.5, type: 'list', name: '' },
 ];
 
@@ -34,7 +46,9 @@ describe('ParliamentSeatGrid', () => {
       />
     );
 
-    const nationalSeat = screen.getByLabelText('National Party electorate seat');
+    const nationalSeat = screen.getByLabelText(
+      'National Party electorate seat'
+    );
     expect(nationalSeat).toHaveAttribute('tabIndex', '0');
 
     fireEvent.keyDown(nationalSeat, { key: ' ' });

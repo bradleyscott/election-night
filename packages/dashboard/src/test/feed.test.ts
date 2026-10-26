@@ -32,7 +32,10 @@ describe('buildFeedEvents', () => {
   });
 
   it('generates an event when vote counts change after the first scrape', () => {
-    const first = makeResult({ electorateName: 'Testville', votesCounted: 1000 });
+    const first = makeResult({
+      electorateName: 'Testville',
+      votesCounted: 1000,
+    });
     const second = makeResult({
       electorateName: 'Testville',
       votesCounted: 2000,

@@ -9,8 +9,12 @@ function TestComponent() {
   const { results, connected } = useResults();
   return (
     <div>
-      <div data-testid="connected">{connected ? 'connected' : 'disconnected'}</div>
-      <div data-testid="electorates">{results?.electorateResults.length ?? 0}</div>
+      <div data-testid="connected">
+        {connected ? 'connected' : 'disconnected'}
+      </div>
+      <div data-testid="electorates">
+        {results?.electorateResults.length ?? 0}
+      </div>
     </div>
   );
 }

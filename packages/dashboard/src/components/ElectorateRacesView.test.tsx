@@ -4,7 +4,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type * as ReactRouter from 'react-router-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { ElectorateRacesView } from './ElectorateRacesView.js';
-import type { ElectorateResults, WithLeaders, WithMarginOfError } from '@election-night/core/types';
+import type {
+  ElectorateResults,
+  WithLeaders,
+  WithMarginOfError,
+} from '@election-night/core/types';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -38,14 +42,20 @@ describe('ElectorateRacesView', () => {
       </BrowserRouter>
     );
 
-    const row = screen.getByRole('button', { name: /View details for Auckland Central/i });
+    const row = screen.getByRole('button', {
+      name: /View details for Auckland Central/i,
+    });
     expect(row).toHaveAttribute('tabIndex', '0');
 
     fireEvent.keyDown(row, { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith('/electorates/Auckland%20Central');
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/electorates/Auckland%20Central'
+    );
 
     mockNavigate.mockClear();
     fireEvent.keyDown(row, { key: ' ' });
-    expect(mockNavigate).toHaveBeenCalledWith('/electorates/Auckland%20Central');
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/electorates/Auckland%20Central'
+    );
   });
 });

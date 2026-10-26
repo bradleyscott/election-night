@@ -106,10 +106,13 @@ export function ElectorateRacesView({
                         className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
                         style={{
                           backgroundColor:
-                            partyColors[l.leadingCandidateParty ?? ''] || '#666',
+                            partyColors[l.leadingCandidateParty ?? ''] ||
+                            '#666',
                         }}
                       />
-                      <span className="font-semibold">{l.leadingCandidate}</span>
+                      <span className="font-semibold">
+                        {l.leadingCandidate}
+                      </span>
                     </div>
                   </td>
                   <td className="hidden sm:table-cell py-2 sm:py-3 px-3">

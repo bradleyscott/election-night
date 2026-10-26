@@ -45,7 +45,10 @@ describe('priors', () => {
     const prior = priorForSeat('Banks Peninsula', '2026');
     // Keyed by the feed's own party names ("National Party"), which the model
     // canonicalises when it reads them.
-    expect(prior?.partyCandidateShare?.['National Party']).toBeCloseTo(0.3653, 3);
+    expect(prior?.partyCandidateShare?.['National Party']).toBeCloseTo(
+      0.3653,
+      3
+    );
     expect(prior?.partyCandidateShare?.['Labour Party']).toBeCloseTo(0.3572, 3);
   });
 

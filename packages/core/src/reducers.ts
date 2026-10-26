@@ -208,7 +208,9 @@ function buildPartyVoteWithSeats(
         listSeats: p.listSeats,
       };
     })
-    .sort((a, b) => b.votes - a.votes || a.candidate.localeCompare(b.candidate));
+    .sort(
+      (a, b) => b.votes - a.votes || a.candidate.localeCompare(b.candidate)
+    );
 }
 
 function getElectorateWinners(

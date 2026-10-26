@@ -5,8 +5,7 @@ const dotVariants = {
   blue: 'bg-blue-700 dark:bg-blue-400',
   green: 'bg-green-700 dark:bg-green-400',
   amber: 'bg-amber-600 dark:bg-amber-400',
-  yellow:
-    'bg-amber-500 ring-amber-500/40',
+  yellow: 'bg-amber-500 ring-amber-500/40',
 } as const;
 
 export type TimelineDotColor = keyof typeof dotVariants;
@@ -38,7 +37,13 @@ export function TimelineItem({
   );
 }
 
-export function TimelineGroupHeader({ label, time }: { label: string; time?: string }) {
+export function TimelineGroupHeader({
+  label,
+  time,
+}: {
+  label: string;
+  time?: string;
+}) {
   return (
     <div className="flex gap-3 pb-1">
       <div className="w-2.5 shrink-0" />
@@ -56,7 +61,13 @@ export function TimelineGroupHeader({ label, time }: { label: string; time?: str
   );
 }
 
-export function TimelineSeparator({ label, time }: { label: string; time?: string }) {
+export function TimelineSeparator({
+  label,
+  time,
+}: {
+  label: string;
+  time?: string;
+}) {
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">

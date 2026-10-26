@@ -16,7 +16,9 @@ type PartyListEntry = PartyList & WithAdjustedRank;
 export default function Parties() {
   const { results } = useResults();
   const [searchParams] = useSearchParams();
-  const [selectedParty, setSelectedParty] = useState<string>(searchParams.get('party') ?? '');
+  const [selectedParty, setSelectedParty] = useState<string>(
+    searchParams.get('party') ?? ''
+  );
   const [showElectorateLeaders, setShowElectorateLeaders] = useState(false);
 
   useEffect(() => {
@@ -26,7 +28,10 @@ export default function Parties() {
   const partyLists = (results?.partyLists ?? []) as PartyListEntry[];
 
   const electorateForCandidate = useMemo(
-    () => (results?.electorateResults ? buildElectorateLookup(results.electorateResults) : new Map<string, string>()),
+    () =>
+      results?.electorateResults
+        ? buildElectorateLookup(results.electorateResults)
+        : new Map<string, string>(),
     [results?.electorateResults]
   );
 
@@ -70,10 +75,13 @@ export default function Parties() {
         {majorParties.map((party) => (
           <button
             key={party}
-            onClick={() => setSelectedParty(selectedParty === party ? '' : party)}
+            onClick={() =>
+              setSelectedParty(selectedParty === party ? '' : party)
+            }
             className={cn(
               'chip-print transition-colors',
-              party === selectedParty || (!selectedParty && party === majorParties[0])
+              party === selectedParty ||
+                (!selectedParty && party === majorParties[0])
                 ? 'bg-foreground text-background border-foreground'
                 : 'hover:bg-muted/40'
             )}
@@ -88,13 +96,19 @@ export default function Parties() {
 
         {otherParties.length > 0 && (
           <select
-            value={selectedParty && !MAJOR_PARTIES.has(selectedParty) ? selectedParty : ''}
+            value={
+              selectedParty && !MAJOR_PARTIES.has(selectedParty)
+                ? selectedParty
+                : ''
+            }
             onChange={(e) => setSelectedParty(e.target.value)}
             className="chip-print bg-background hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <option value="">More…</option>
             {otherParties.map((p) => (
-              <option key={p} value={p}>{p}</option>
+              <option key={p} value={p}>
+                {p}
+              </option>
             ))}
           </select>
         )}
@@ -112,7 +126,12 @@ export default function Parties() {
 
       {parties.map((party, pIdx) => {
         const members = partyLists
-          .filter((l) => l.party === party && (showElectorateLeaders || !electorateForCandidate.has(l.candidate)))
+          .filter(
+            (l) =>
+              l.party === party &&
+              (showElectorateLeaders ||
+                !electorateForCandidate.has(l.candidate))
+          )
           .sort((a, b) => {
             const aIsLeader = electorateForCandidate.has(a.candidate);
             const bIsLeader = electorateForCandidate.has(b.candidate);
@@ -140,10 +159,18 @@ export default function Parties() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">List</th>
-                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">Rank</th>
-                    <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">Candidate</th>
-                    <th className="text-right py-2 sm:py-3 px-3 w-24 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">From Cut</th>
+                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                      List
+                    </th>
+                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                      Rank
+                    </th>
+                    <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                      Candidate
+                    </th>
+                    <th className="text-right py-2 sm:py-3 px-3 w-24 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                      From Cut
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -156,8 +183,11 @@ export default function Parties() {
                       }
                     }
                     return members.flatMap((member, mIdx) => {
-                      const electorate = electorateForCandidate.get(member.candidate);
-                      const isElected = member.distanceFromCut >= 0 || !!electorate;
+                      const electorate = electorateForCandidate.get(
+                        member.candidate
+                      );
+                      const isElected =
+                        member.distanceFromCut >= 0 || !!electorate;
                       const rows = [];
                       if (mIdx === cutIdx) {
                         rows.push(
@@ -182,10 +212,14 @@ export default function Parties() {
                           key={member.candidate}
                           className={cn(
                             'border-b last:border-0 transition-colors hover:bg-muted/20',
-                            isElected ? 'bg-green-700/5 dark:bg-green-950/20' : '',
+                            isElected
+                              ? 'bg-green-700/5 dark:bg-green-950/20'
+                              : '',
                             'opacity-0 animate-fade-in-up'
                           )}
-                          style={{ animationDelay: `${pIdx * 0.1 + 0.1 + mIdx * 0.03}s` }}
+                          style={{
+                            animationDelay: `${pIdx * 0.1 + 0.1 + mIdx * 0.03}s`,
+                          }}
                         >
                           <td className="py-2 sm:py-3 px-3 text-muted-foreground tabular-nums font-semibold">
                             {member.listRank}

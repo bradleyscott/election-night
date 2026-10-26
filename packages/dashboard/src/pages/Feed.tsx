@@ -11,7 +11,10 @@ function timeBucket(timestamp: number): number {
   return Math.floor(timestamp / 10000) * 10000;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; dotColor: 'blue' | 'green' | 'amber'; textColor: string }> = {
+const TYPE_CONFIG: Record<
+  string,
+  { label: string; dotColor: 'blue' | 'green' | 'amber'; textColor: string }
+> = {
   result_updated: {
     label: 'Updated',
     dotColor: 'blue',
@@ -36,7 +39,10 @@ const TYPE_CONFIG: Record<string, { label: string; dotColor: 'blue' | 'green' | 
 
 function linkifyElectorate(text: string, electorateName: string) {
   const parts = text.split(
-    new RegExp(`(${electorateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+    new RegExp(
+      `(${electorateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
+      'gi'
+    )
   );
   return parts.map((part, i) =>
     part.toLowerCase() === electorateName.toLowerCase() ? (
@@ -64,7 +70,12 @@ function EventContent({ event }: { event: FeedEvent }) {
   return (
     <>
       <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 text-sm text-muted-foreground font-semibold mb-px">
-        <span className={cn('font-bold tracking-wide uppercase', typeConfig.textColor)}>
+        <span
+          className={cn(
+            'font-bold tracking-wide uppercase',
+            typeConfig.textColor
+          )}
+        >
           {typeConfig.label}
         </span>
       </div>
@@ -93,11 +104,10 @@ function EventContent({ event }: { event: FeedEvent }) {
           )}
         </span>
         <span>
-          · {d.currentMargin.toLocaleString()} vote lead ({(d.currentMarginPercent * 100).toFixed(2)}%)
+          · {d.currentMargin.toLocaleString()} vote lead (
+          {(d.currentMarginPercent * 100).toFixed(2)}%)
         </span>
-        <span>
-          · ±{(event.marginOfError * 100).toFixed(1)}% MoE
-        </span>
+        <span>· ±{(event.marginOfError * 100).toFixed(1)}% MoE</span>
       </div>
     </>
   );
@@ -193,7 +203,11 @@ export default function Feed() {
         <h1>Feed</h1>
       </div>
 
-      <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} counts={counts} />
+      <FilterBar
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        counts={counts}
+      />
 
       <div className="mt-4">
         {filtered.length === 0 ? (
@@ -202,8 +216,15 @@ export default function Feed() {
           </p>
         ) : (
           grouped.map(([bucket, events], groupIndex) => (
-            <div key={bucket} className="opacity-0 animate-fade-in" style={{ animationDelay: `${groupIndex * 0.08}s` }}>
-              <TimelineGroupHeader label={relativeTime(bucket)} time={formatClockTime(bucket)} />
+            <div
+              key={bucket}
+              className="opacity-0 animate-fade-in"
+              style={{ animationDelay: `${groupIndex * 0.08}s` }}
+            >
+              <TimelineGroupHeader
+                label={relativeTime(bucket)}
+                time={formatClockTime(bucket)}
+              />
               {events.map((event, itemIndex) => (
                 <TimelineItem
                   key={event.id}

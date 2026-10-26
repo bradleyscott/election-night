@@ -165,7 +165,9 @@ export function ParliamentTable({
                         <span className="font-extrabold tabular-nums">
                           {coalitionInfo.cumulative}
                         </span>
-                        <span className="text-muted-foreground mr-1">seats</span>
+                        <span className="text-muted-foreground mr-1">
+                          seats
+                        </span>
                       </span>
                     </div>
                   </div>

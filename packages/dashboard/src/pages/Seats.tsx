@@ -30,7 +30,11 @@ function AnimatedStat({
     >
       <div className="kicker mb-1">{label}</div>
       <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
-        {value !== null ? (format ? format(animated) : Math.round(animated).toLocaleString()) : '—'}
+        {value !== null
+          ? format
+            ? format(animated)
+            : Math.round(animated).toLocaleString()
+          : '—'}
       </div>
     </div>
   );
@@ -58,7 +62,9 @@ function SuccessfulCandidates({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const candidates = useMemo(() => {
-    const winnerNames = new Set(electorateResults.map((e) => e.leaders.leadingCandidate));
+    const winnerNames = new Set(
+      electorateResults.map((e) => e.leaders.leadingCandidate)
+    );
 
     const list: {
       name: string;
@@ -95,7 +101,11 @@ function SuccessfulCandidates({
 
     const q = search.toLowerCase().trim();
     const filtered = q
-      ? list.filter((c) => c.name.toLowerCase().includes(q) || c.electorateName?.toLowerCase().includes(q))
+      ? list.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.electorateName?.toLowerCase().includes(q)
+        )
       : list;
 
     filtered.sort((a, b) => {
@@ -147,13 +157,15 @@ function SuccessfulCandidates({
                 className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('name')}
               >
-                Candidate<SortIndicator column="name" />
+                Candidate
+                <SortIndicator column="name" />
               </th>
               <th
                 className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('party')}
               >
-                Party<SortIndicator column="party" />
+                Party
+                <SortIndicator column="party" />
               </th>
               <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Seat
@@ -162,7 +174,8 @@ function SuccessfulCandidates({
                 className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('certainty')}
               >
-                Certainty<SortIndicator column="certainty" />
+                Certainty
+                <SortIndicator column="certainty" />
               </th>
             </tr>
           </thead>
@@ -180,7 +193,9 @@ function SuccessfulCandidates({
                   <div className="flex items-center gap-1.5">
                     <div
                       className="w-2 h-2 flex-shrink-0 sm:hidden"
-                      style={{ backgroundColor: partyColors[c.party] || '#666' }}
+                      style={{
+                        backgroundColor: partyColors[c.party] || '#666',
+                      }}
                     />
                     {c.name}
                   </div>
@@ -189,7 +204,9 @@ function SuccessfulCandidates({
                   <div className="flex items-center gap-1.5">
                     <div
                       className="w-2 h-2 flex-shrink-0"
-                      style={{ backgroundColor: partyColors[c.party] || '#666' }}
+                      style={{
+                        backgroundColor: partyColors[c.party] || '#666',
+                      }}
                     />
                     <span>{c.party || 'Independent'}</span>
                   </div>
@@ -232,7 +249,9 @@ function SuccessfulCandidates({
                       </span>
                     </span>
                   ) : (
-                    <span className="text-foreground">+{Math.round(c.certainty)} from cut</span>
+                    <span className="text-foreground">
+                      +{Math.round(c.certainty)} from cut
+                    </span>
                   )}
                 </td>
               </tr>
@@ -248,12 +267,17 @@ export default function Seats() {
   const { results } = useResults();
 
   const partyVote = results?.partyVote;
-  const sorted = partyVote ? [...partyVote].sort((a, b) => b.seats - a.seats) : [];
+  const sorted = partyVote
+    ? [...partyVote].sort((a, b) => b.seats - a.seats)
+    : [];
   const totalSeats = sorted.reduce((s, p) => s + p.seats, 0);
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 
   const electorateResults = results?.electorateResults ?? [];
-  const totalVotesCounted = electorateResults.reduce((s, e) => s + e.votesCounted, 0);
+  const totalVotesCounted = electorateResults.reduce(
+    (s, e) => s + e.votesCounted,
+    0
+  );
   const totalVotesEstimate = electorateResults.reduce(
     (s, e) => s + e.votesCounted / (e.votePercentageCounted || 1),
     0
@@ -274,11 +298,7 @@ export default function Seats() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 stat-grid">
-            <AnimatedStat
-              label="Total Seats"
-              value={totalSeats}
-              delay={1}
-            />
+            <AnimatedStat label="Total Seats" value={totalSeats} delay={1} />
             <AnimatedStat
               label="Parties in Parliament"
               value={partiesInParliament}
@@ -296,7 +316,9 @@ export default function Seats() {
             >
               <div className="kicker mb-1">Votes Counted</div>
               <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
-                {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
+                {overallVotePercentage !== null
+                  ? overallVotePercentage.toFixed(1) + '%'
+                  : '—'}
               </div>
             </div>
           </div>
@@ -309,7 +331,9 @@ export default function Seats() {
             <ParliamentSeats
               partyVote={partyVote ?? []}
               electorateResults={results?.electorateResults ?? []}
-              partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
+              partyLists={
+                (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
+              }
             />
           </div>
 
@@ -323,7 +347,9 @@ export default function Seats() {
             </h2>
             <SuccessfulCandidates
               electorateResults={results?.electorateResults ?? []}
-              partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
+              partyLists={
+                (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
+              }
             />
           </div>
         </>

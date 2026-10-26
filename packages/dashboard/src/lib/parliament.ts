@@ -11,7 +11,9 @@ import type {
 } from '@election-night/core/types';
 
 export type PartyEntry = VotingResults & WithSeats;
-export type ElectorateEntry = ElectorateResults & WithLeaders & WithMarginOfError;
+export type ElectorateEntry = ElectorateResults &
+  WithLeaders &
+  WithMarginOfError;
 export type PartyListEntry = PartyList & WithAdjustedRank;
 
 export const ROWS = 3;

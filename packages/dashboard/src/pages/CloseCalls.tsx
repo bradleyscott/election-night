@@ -127,11 +127,7 @@ export default function CloseCalls() {
       </div>
 
       {view === 'electorates' ? (
-        <div
-          className={cn(
-            'border opacity-0 animate-fade-in-up'
-          )}
-        >
+        <div className={cn('border opacity-0 animate-fade-in-up')}>
           <ElectorateRacesView electorates={electorates} />
         </div>
       ) : (

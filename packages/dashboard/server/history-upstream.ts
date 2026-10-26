@@ -141,8 +141,9 @@ export function createHistorySource(options: {
     return value;
   }
 
-  const emptyOnMissing = async <T>(work: () => Promise<T[] | null>): Promise<T[]> =>
-    (await work()) ?? [];
+  const emptyOnMissing = async <T>(
+    work: () => Promise<T[] | null>
+  ): Promise<T[]> => (await work()) ?? [];
 
   return {
     snapshotMetas: () =>

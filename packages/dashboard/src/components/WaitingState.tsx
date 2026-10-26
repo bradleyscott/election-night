@@ -4,15 +4,17 @@ import { cn } from '../lib/utils.js';
 type WaitingVariant = 'full' | 'compact' | 'inline';
 
 const MESSAGES: Record<string, string> = {
-  default:     'Results will appear here as counting gets underway.',
-  electorates: 'Electorate results will stream in as booths across New Zealand report.',
-  closecalls:  'The tightest races will surface here as counting gets underway.',
-  feed:        'Events will appear here as results start coming in across the country.',
-  parties:     'Party list standings will update as votes are tallied nationwide.',
-  parliament:  "Parliament's composition will take shape as votes are counted.",
-  candidates:  'Likely parliamentarians will be listed here once results begin arriving.',
-  trends:      'Vote trends will appear once more votes are counted.',
-  sidebar:     'Updates will appear as results come in.',
+  default: 'Results will appear here as counting gets underway.',
+  electorates:
+    'Electorate results will stream in as booths across New Zealand report.',
+  closecalls: 'The tightest races will surface here as counting gets underway.',
+  feed: 'Events will appear here as results start coming in across the country.',
+  parties: 'Party list standings will update as votes are tallied nationwide.',
+  parliament: "Parliament's composition will take shape as votes are counted.",
+  candidates:
+    'Likely parliamentarians will be listed here once results begin arriving.',
+  trends: 'Vote trends will appear once more votes are counted.',
+  sidebar: 'Updates will appear as results come in.',
 };
 
 type WaitingContext = keyof typeof MESSAGES;
@@ -53,7 +55,9 @@ function useCountingAnimation() {
       }
     }
     run(0);
-    return () => { if (timer.current) clearTimeout(timer.current); };
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, []);
 
   return { drawnCount, fading };
@@ -79,24 +83,27 @@ function TallyGroup({
 
   // 4 vertical lines + 1 diagonal slash crossing through them all
   const strokes: [number, number, number, number][] = [
-    [x,          y,      x,              y + h],
-    [x + sp,     y,      x + sp,         y + h],
-    [x + sp * 2, y,      x + sp * 2,     y + h],
-    [x + sp * 3, y,      x + sp * 3,     y + h],
-    [x - 5,      y + h + 5, x + sp * 3 + 5, y - 5],
+    [x, y, x, y + h],
+    [x + sp, y, x + sp, y + h],
+    [x + sp * 2, y, x + sp * 2, y + h],
+    [x + sp * 3, y, x + sp * 3, y + h],
+    [x - 5, y + h + 5, x + sp * 3 + 5, y - 5],
   ];
 
   return (
     <>
       {strokes.map(([x1, y1, x2, y2], i) => {
         const active = drawnCount !== undefined;
-        const shown = active ? (!fading && drawnCount > i) : true;
+        const shown = active ? !fading && drawnCount > i : true;
         const opacity = muted ? 0.25 : shown ? 1 : 0;
 
         return (
           <line
             key={i}
-            x1={x1} y1={y1} x2={x2} y2={y2}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
             stroke="hsl(var(--primary))"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
@@ -122,19 +129,43 @@ function TallyVisualization({ size }: { size: 'lg' | 'sm' }) {
   if (size === 'lg') {
     // 3 groups: 2 completed (muted) + 1 actively counting
     return (
-      <svg width="185" height="72" viewBox="0 0 185 72" fill="none" aria-hidden="true">
-        <TallyGroup x={10}  y={10} strokeWidth={sw} muted />
-        <TallyGroup x={72}  y={10} strokeWidth={sw} muted />
-        <TallyGroup x={134} y={10} strokeWidth={sw} drawnCount={drawnCount} fading={fading} />
+      <svg
+        width="185"
+        height="72"
+        viewBox="0 0 185 72"
+        fill="none"
+        aria-hidden="true"
+      >
+        <TallyGroup x={10} y={10} strokeWidth={sw} muted />
+        <TallyGroup x={72} y={10} strokeWidth={sw} muted />
+        <TallyGroup
+          x={134}
+          y={10}
+          strokeWidth={sw}
+          drawnCount={drawnCount}
+          fading={fading}
+        />
       </svg>
     );
   }
 
   // 2 groups: 1 completed (muted) + 1 actively counting
   return (
-    <svg width="120" height="65" viewBox="0 0 120 65" fill="none" aria-hidden="true">
+    <svg
+      width="120"
+      height="65"
+      viewBox="0 0 120 65"
+      fill="none"
+      aria-hidden="true"
+    >
       <TallyGroup x={10} y={7} strokeWidth={sw} muted />
-      <TallyGroup x={68} y={7} strokeWidth={sw} drawnCount={drawnCount} fading={fading} />
+      <TallyGroup
+        x={68}
+        y={7}
+        strokeWidth={sw}
+        drawnCount={drawnCount}
+        fading={fading}
+      />
     </svg>
   );
 }
@@ -186,7 +217,9 @@ export function WaitingState({
           >
             Awaiting Data
           </p>
-          <p className="text-xs text-muted-foreground leading-relaxed">{message}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {message}
+          </p>
         </div>
       </div>
     );
@@ -206,7 +239,9 @@ export function WaitingState({
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-none">
           {title ?? 'Awaiting First Results'}
         </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {message}
+        </p>
 
         <div className="flex items-center justify-center gap-2 pt-3">
           {[0, 1, 2].map((i) => (

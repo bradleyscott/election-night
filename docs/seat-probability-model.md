@@ -104,7 +104,7 @@ Two details matter more than they look:
   seat's own previous result, and geometry is used only for the 10 seats that
   are new or renamed in 2026. `method` records which route each seat took.
 - **Parties, not people, are the unit.** A candidate is an avatar of their
-  party, so `partyCandidateShare` — the party's share of the *candidate* vote —
+  party, so `partyCandidateShare` — the party's share of the _candidate_ vote —
   is the prior a projection wants. A party that stands a new candidate inherits
   its own prior; only a party with no candidate last time is provisional.
   Party names are canonicalised (`canonicalParty`) because the feed writes
@@ -196,13 +196,13 @@ to 100%, which reads as a call the count has not made — and a seat reported at
 
 ## Constants
 
-| Constant               | Value | Where it comes from                                        |
-| ---------------------- | ----- | ---------------------------------------------------------- |
-| `CYCLE_CONSTANTS`      | table | per cycle, below                                           |
-| `LATEST_CYCLE`         | 2023  | newest cycle with published figures                        |
-| `DEFAULT_TAU`          | 0.03  | fallback only; the real value is measured per transition   |
-| `REMAINING_SIZE_SD`    | 0.12  | tolerance on the turnout estimate                          |
-| `COMPLETE_THRESHOLD`   | 0.99  | progress at which the count is treated as finished         |
+| Constant             | Value | Where it comes from                                      |
+| -------------------- | ----- | -------------------------------------------------------- |
+| `CYCLE_CONSTANTS`    | table | per cycle, below                                         |
+| `LATEST_CYCLE`       | 2023  | newest cycle with published figures                      |
+| `DEFAULT_TAU`        | 0.03  | fallback only; the real value is measured per transition |
+| `REMAINING_SIZE_SD`  | 0.12  | tolerance on the turnout estimate                        |
+| `COMPLETE_THRESHOLD` | 0.99  | progress at which the count is treated as finished       |
 
 | Cycle | `turnout` | `nightShare` | `specialShare` |
 | ----- | --------- | ------------ | -------------- |

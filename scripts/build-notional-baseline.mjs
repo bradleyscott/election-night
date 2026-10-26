@@ -477,7 +477,8 @@ async function main() {
       (a, b) => a + b,
       0
     );
-    seat.sourceVotes[result.eNo] = (seat.sourceVotes[result.eNo] ?? 0) + resultVotes;
+    seat.sourceVotes[result.eNo] =
+      (seat.sourceVotes[result.eNo] ?? 0) + resultVotes;
     for (const [party, votes] of Object.entries(result.partyVotes)) {
       seat.partyVotes[party] = (seat.partyVotes[party] ?? 0) + votes;
       seat.votes += votes;
@@ -619,7 +620,7 @@ async function main() {
       'in-seat voting place results located by coordinates. Shares are of votes ' +
       'cast at places standing inside the seat; advance votes cast elsewhere are ' +
       'excluded because they cannot be geolocated. A seat that kept its name and ' +
-      'gained no located votes takes the source cycle\'s result for that name ' +
+      "gained no located votes takes the source cycle's result for that name " +
       'instead (`method: same-name-carry-over`) — the only route for the Māori ' +
       'seats. Boundary data: Stats NZ (CC BY 4.0).',
     sourceYear: Number(SOURCE_YEAR),

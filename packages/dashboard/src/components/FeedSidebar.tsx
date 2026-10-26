@@ -37,7 +37,7 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
   const d = event.diff;
 
   return (
-      <div className="flex gap-2 py-1.5">
+    <div className="flex gap-2 py-1.5">
       <div
         className={cn(
           'w-2 h-2 rounded-full ring-[2px] mt-1.5 shrink-0',
@@ -83,8 +83,7 @@ export default function FeedSidebar({
     let events = feedEvents;
     if (electorateName) {
       events = events.filter(
-        (e) =>
-          e.electorateName.toLowerCase() === electorateName.toLowerCase()
+        (e) => e.electorateName.toLowerCase() === electorateName.toLowerCase()
       );
     }
     return events.slice(0, 30);
@@ -103,9 +102,13 @@ export default function FeedSidebar({
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {filteredEvents.length === 0 ? (
-          feedEvents.length === 0
-            ? <WaitingState variant="inline" context="sidebar" />
-            : <p className="text-xs text-muted-foreground font-semibold py-4 text-center">No matching events yet.</p>
+          feedEvents.length === 0 ? (
+            <WaitingState variant="inline" context="sidebar" />
+          ) : (
+            <p className="text-xs text-muted-foreground font-semibold py-4 text-center">
+              No matching events yet.
+            </p>
+          )
         ) : (
           <div className="space-y-0">
             {filteredEvents.map((event) => (

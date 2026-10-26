@@ -92,7 +92,12 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Playfair Display', Georgia, serif;
     font-weight: 700;
     font-style: normal;
@@ -111,7 +116,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       animation-duration: 0.001s !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.001s !important;
@@ -121,9 +128,16 @@
 
 @layer utilities {
   /* print chrome */
-  .font-display { font-family: 'Playfair Display', Georgia, serif; }
-  .font-label { font-family: 'Inter', system-ui, sans-serif; }
-  .font-mono, .tabular-nums { font-variant-numeric: tabular-nums; }
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+  .font-label {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .font-mono,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 
   .kicker {
     font-family: 'Inter', system-ui, sans-serif;
@@ -151,8 +165,12 @@
   }
 
   /* red masthead accents — the one print accent */
-  .text-brand { color: hsl(var(--primary)); }
-  .bg-brand { background-color: hsl(var(--primary)); }
+  .text-brand {
+    color: hsl(var(--primary));
+  }
+  .bg-brand {
+    background-color: hsl(var(--primary));
+  }
 
   /* retired gradient chrome — now solid print red/paper so no call-site breaks */
   .bg-gradient-brand {
@@ -183,10 +201,14 @@
     border-right: 1px solid hsl(var(--border));
   }
   @media (min-width: 1024px) {
-    .stat-grid > *:nth-last-child(-n+4) { border-bottom: 0; }
+    .stat-grid > *:nth-last-child(-n + 4) {
+      border-bottom: 0;
+    }
   }
   @media (max-width: 1023px) {
-    .stat-grid > *:nth-last-child(-n+2) { border-bottom: 0; }
+    .stat-grid > *:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
   }
 
   /* chips: square, hairline */
@@ -204,10 +226,17 @@
     line-height: 1.4;
     white-space: nowrap;
   }
-  .chip-print--ink { border-color: hsl(var(--foreground) / 0.45); }
-  .chip-print--red { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+  .chip-print--ink {
+    border-color: hsl(var(--foreground) / 0.45);
+  }
+  .chip-print--red {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+  }
 
-  .rule-red { border-top: 2px solid hsl(var(--primary)); }
+  .rule-red {
+    border-top: 2px solid hsl(var(--primary));
+  }
 
   /* voting place marks: shape = where the place stands, fill = counted.
      Solid for a count received, outlined while outstanding, and a halo in the
@@ -286,16 +315,36 @@
     will-change: opacity, transform;
   }
 
-  .stagger-1 { animation-delay: 0.05s; }
-  .stagger-2 { animation-delay: 0.1s; }
-  .stagger-3 { animation-delay: 0.15s; }
-  .stagger-4 { animation-delay: 0.2s; }
-  .stagger-5 { animation-delay: 0.25s; }
-  .stagger-6 { animation-delay: 0.3s; }
-  .stagger-7 { animation-delay: 0.35s; }
-  .stagger-8 { animation-delay: 0.4s; }
-  .stagger-9 { animation-delay: 0.45s; }
-  .stagger-10 { animation-delay: 0.5s; }
+  .stagger-1 {
+    animation-delay: 0.05s;
+  }
+  .stagger-2 {
+    animation-delay: 0.1s;
+  }
+  .stagger-3 {
+    animation-delay: 0.15s;
+  }
+  .stagger-4 {
+    animation-delay: 0.2s;
+  }
+  .stagger-5 {
+    animation-delay: 0.25s;
+  }
+  .stagger-6 {
+    animation-delay: 0.3s;
+  }
+  .stagger-7 {
+    animation-delay: 0.35s;
+  }
+  .stagger-8 {
+    animation-delay: 0.4s;
+  }
+  .stagger-9 {
+    animation-delay: 0.45s;
+  }
+  .stagger-10 {
+    animation-delay: 0.5s;
+  }
 }
 
 /* ── flat print: cards are hairlines, shadows are off ───────── */
@@ -337,8 +386,10 @@
   letter-spacing: 0.02em;
   color: hsl(var(--foreground));
   text-shadow:
-    0 0 3px hsl(var(--background)), 0 0 3px hsl(var(--background)),
-    0 0 3px hsl(var(--background)), 0 0 3px hsl(var(--background));
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background));
   padding: 0;
   margin: 0;
   white-space: nowrap;

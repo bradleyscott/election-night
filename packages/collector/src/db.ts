@@ -224,7 +224,9 @@ export function pruneSnapshots(
       limit ?`
   );
   const deleteChildren = SNAPSHOT_CHILD_TABLES.map((table) =>
-    sqliteDb.prepare(`delete from ${table} where scrape_id in (select value from json_each(?))`)
+    sqliteDb.prepare(
+      `delete from ${table} where scrape_id in (select value from json_each(?))`
+    )
   );
   const deleteSnapshots = sqliteDb.prepare(
     'delete from scrape_snapshots where id in (select value from json_each(?))'
@@ -272,7 +274,9 @@ export function pruneSnapshots(
  * cannot write.
  */
 export function enableIncrementalVacuum(): boolean {
-  if (sqliteDb.pragma('auto_vacuum', { simple: true }) === INCREMENTAL_AUTO_VACUUM) {
+  if (
+    sqliteDb.pragma('auto_vacuum', { simple: true }) === INCREMENTAL_AUTO_VACUUM
+  ) {
     return true;
   }
 
@@ -313,7 +317,9 @@ export function enableIncrementalVacuum(): boolean {
  * pages (of `page_size` bytes) actually returned.
  */
 export function compactDatabase(maxPages = 4096): number {
-  if (sqliteDb.pragma('auto_vacuum', { simple: true }) !== INCREMENTAL_AUTO_VACUUM) {
+  if (
+    sqliteDb.pragma('auto_vacuum', { simple: true }) !== INCREMENTAL_AUTO_VACUUM
+  ) {
     return 0;
   }
   const before = sqliteDb.pragma('freelist_count', { simple: true }) as number;
