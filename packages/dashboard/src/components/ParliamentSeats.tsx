@@ -27,6 +27,7 @@ import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
 import { ParliamentTable } from './ParliamentTable.js';
 import { SeatDetailContent } from './SeatDetailContent.js';
 import { type DragEndEvent } from '@dnd-kit/dom';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { isSortable } from '@dnd-kit/react/sortable';
 
 const ROWS = 3;
@@ -35,10 +36,12 @@ export default function ParliamentSeats({
   partyVote,
   electorateResults,
   partyLists,
+  chances,
 }: {
   partyVote: PartyEntry[];
   electorateResults: ElectorateEntry[];
   partyLists: PartyListEntry[];
+  chances?: Map<string, SeatChance>;
 }) {
   const { order, setOrder, resetOrder } = usePartyOrder(partyVote);
   const [draggingParty, setDraggingParty] = useState<string | null>(null);
@@ -88,8 +91,15 @@ export default function ParliamentSeats({
 
   const seats = useMemo(
     () =>
-      buildSeats(order, partyVote, electorateResults, partyLists, totalSeats),
-    [order, partyVote, electorateResults, partyLists, totalSeats]
+      buildSeats(
+        order,
+        partyVote,
+        electorateResults,
+        partyLists,
+        totalSeats,
+        chances
+      ),
+    [order, partyVote, electorateResults, partyLists, totalSeats, chances]
   );
 
   // The seat grid has a min-width and scrolls horizontally on small screens, so a

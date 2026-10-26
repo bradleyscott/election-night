@@ -2,13 +2,23 @@ import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils.js';
 import type { SeatInfo } from '../lib/parliament.js';
 
-export function SeatDetailContent({
-  info,
-  onClose,
-}: {
-  info: SeatInfo;
-  onClose: () => void;
-}) {
+/**
+ * What the seat's count can support, in one line.
+ *
+ * A live count gives a chance; a finished one gives a margin. Those are
+ * different kinds of statement and the popover never prints one as the other —
+ * which is why a complete seat shows its margin here rather than "100%".
+ */
+function chanceLine(info: SeatInfo): string | null {
+  const chance = info.chance;
+  if (!chance || chance.state === 'waiting') return null;
+  if (chance.state === 'complete') return null;
+  return `${Math.round(chance.probability * 100)}%`;
+}
+
+export function SeatDetailContent({ info, onClose }: { info: SeatInfo; onClose: () => void }) {
+  const chance = chanceLine(info);
+
   return (
     <>
       <div className="flex items-center justify-between mb-2">
@@ -38,28 +48,7 @@ export function SeatDetailContent({
             <span className="chip-print chip-print--red">List</span>
           )}
           {info.type === 'electorate' && (
-            <span
-              className={cn(
-                'chip-print',
-                info.predictionStatus === 'projected' &&
-                  'border-green-700/40 bg-green-700/10 text-green-800 dark:bg-green-500/15 dark:text-green-300',
-                info.predictionStatus === 'likely' &&
-                  'border-green-700/40 bg-green-700/10 text-green-800 dark:bg-green-500/15 dark:text-green-300',
-                info.predictionStatus === 'leaning' &&
-                  'border-orange-600/40 bg-orange-600/10 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300',
-                info.predictionStatus === 'too-close' &&
-                  'border-amber-600/40 bg-amber-600/10 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
-                !info.predictionStatus &&
-                  'border-amber-600/40 bg-amber-600/10 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
-              )}
-            >
-              {(info.predictionStatus === 'projected' ||
-                info.predictionStatus === 'likely') &&
-                'Likely winner'}
-              {info.predictionStatus === 'leaning' && 'Leaning'}
-              {info.predictionStatus === 'too-close' && 'Too close to call'}
-              {!info.predictionStatus && 'Too close to call'}
-            </span>
+            <span className="chip-print">Electorate</span>
           )}
         </div>
 
@@ -97,13 +86,14 @@ export function SeatDetailContent({
             <div className="text-muted-foreground">Lead</div>
             <div className="font-semibold tabular-nums">
               {(info.marginPercent * 100).toFixed(1)}%
-              {info.marginOfError !== undefined && (
-                <span className="text-muted-foreground font-normal">
-                  {' '}
-                  ±{(info.marginOfError * 100).toFixed(1)}%
-                </span>
-              )}
             </div>
+          </div>
+        )}
+
+        {chance !== null && (
+          <div>
+            <div className="text-muted-foreground">Chance</div>
+            <div className="font-semibold tabular-nums">{chance}</div>
           </div>
         )}
 

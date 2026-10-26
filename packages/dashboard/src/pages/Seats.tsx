@@ -390,6 +390,7 @@ export default function Seats() {
               partyLists={
                 (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
               }
+              chances={chances}
             />
           </div>
 

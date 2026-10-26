@@ -1,4 +1,6 @@
 import { partyColors } from './constants.js';
+import { normalizeElectorateName } from './electorates.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
   VotingResults,
   WithSeats,
@@ -7,7 +9,6 @@ import type {
   WithMarginOfError,
   PartyList,
   WithAdjustedRank,
-  PredictionStatus,
 } from '@election-night/core/types';
 
 export type PartyEntry = VotingResults & WithSeats;
@@ -27,8 +28,12 @@ export type SeatInfo = {
   candidate?: string;
   margin?: number;
   marginPercent?: number;
-  marginOfError?: number;
-  predictionStatus?: PredictionStatus;
+  /**
+   * The seat's chance of being won, when there is a prior and a live count.
+   * A finished count carries a margin instead — the popover shows whatever
+   * the count can actually support.
+   */
+  chance?: SeatChance;
   listRank?: number;
   adjustedRank?: number;
   distanceFromCut?: number;
@@ -79,7 +84,8 @@ export function buildSeats(
   partyVote: PartyEntry[],
   electorates: ElectorateEntry[],
   partyLists: PartyListEntry[],
-  totalSeats: number
+  totalSeats: number,
+  chances?: Map<string, SeatChance>
 ): SeatInfo[] {
   const out: SeatInfo[] = [];
 
@@ -137,8 +143,7 @@ export function buildSeats(
         candidate: e.leaders.leadingCandidate,
         margin: e.leaders.margin,
         marginPercent: e.leaders.marginPercent,
-        marginOfError: e.marginOfError,
-        predictionStatus: e.leaders.predictionStatus,
+        chance: chances?.get(normalizeElectorateName(e.electorateName)),
       });
     }
 
