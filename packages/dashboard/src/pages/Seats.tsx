@@ -74,7 +74,7 @@ function ElectorateCertainty({
     return (
       <span>
         {(marginPercent * 100).toFixed(1)}%
-        <span className="text-muted-foreground font-medium"> margin</span>
+        <span className="text-muted-foreground"> margin</span>
       </span>
     );
   }
@@ -286,13 +286,13 @@ function SuccessfulCandidates({
                       >
                         List
                       </Link>
-                      <span className="sm:hidden font-mono text-xs font-semibold text-foreground tabular-nums">
+                      <span className="sm:hidden font-mono text-xs text-foreground tabular-nums">
                         +{Math.round(c.certainty)}
                       </span>
                     </span>
                   )}
                 </td>
-                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums font-semibold">
+                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums">
                   {c.isElectorate ? (
                     <ElectorateCertainty
                       chance={c.chance}
