@@ -2,6 +2,15 @@ import { useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { partyColor } from '../lib/constants.js';
+import {
+  countProgress,
+  nationalSwingOf,
+  seatChanceFor,
+} from '../lib/seat-chance.js';
+import { normalizeElectorateName } from '../lib/electorates.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
+import { useApi } from '../hooks/useApi.js';
+import type { RuntimeConfig } from '@election-night/core/polls-close';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
@@ -30,15 +39,53 @@ function AnimatedStat({
     >
       <div className="kicker mb-1">{label}</div>
       <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
-        {value !== null ? (format ? format(animated) : Math.round(animated).toLocaleString()) : '—'}
+        {value !== null
+          ? format
+            ? format(animated)
+            : Math.round(animated).toLocaleString()
+          : '—'}
       </div>
     </div>
   );
 }
 
+/**
+ * What the Certainty column means for a seat: the chance this candidate holds
+ * it, not how far the lead is from a sampling error. Once the count is in,
+ * there is no probability left to quote, so it states the margin the count
+ * produced instead — as a share of the votes counted, the same definition of
+ * margin the rest of the app uses.
+ */
+function ElectorateCertainty({
+  chance,
+  marginPercent,
+}: {
+  chance: SeatChance | null;
+  marginPercent?: number | null;
+}) {
+  if (!chance || chance.state === 'waiting') {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  if (chance.state === 'complete') {
+    if (marginPercent == null) {
+      return <span className="text-muted-foreground">—</span>;
+    }
+    return (
+      <span>
+        {(marginPercent * 100).toFixed(1)}%
+        <span className="text-muted-foreground"> margin</span>
+      </span>
+    );
+  }
+
+  return <span>{Math.round(chance.probability * 100)}%</span>;
+}
+
 function SuccessfulCandidates({
   electorateResults,
   partyLists,
+  chances,
 }: {
   electorateResults: {
     electorateName: string;
@@ -47,9 +94,9 @@ function SuccessfulCandidates({
       leadingCandidateParty: string | undefined;
       marginPercent: number;
     };
-    marginOfError: number;
   }[];
   partyLists: (PartyList & WithAdjustedRank)[];
+  chances?: Map<string, SeatChance>;
 }) {
   type SortKey = 'name' | 'party' | 'certainty';
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -58,24 +105,36 @@ function SuccessfulCandidates({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const candidates = useMemo(() => {
-    const winnerNames = new Set(electorateResults.map((e) => e.leaders.leadingCandidate));
+    const winnerNames = new Set(
+      electorateResults.map((e) => e.leaders.leadingCandidate)
+    );
 
     const list: {
       name: string;
       party: string;
       electorateName: string | undefined;
       certainty: number;
-      marginOfError: number | undefined;
+      chance: SeatChance | null;
+      marginPercent: number | null;
       isElectorate: boolean;
     }[] = [];
 
     for (const er of electorateResults) {
+      const chance =
+        chances?.get(normalizeElectorateName(er.electorateName)) ?? null;
       list.push({
         name: er.leaders.leadingCandidate,
         party: er.leaders.leadingCandidateParty ?? '',
         electorateName: er.electorateName,
-        certainty: er.leaders.marginPercent,
-        marginOfError: er.marginOfError,
+        // A finished count is not a probability, so it sorts as certain.
+        certainty:
+          chance?.state === 'counting'
+            ? chance.probability
+            : chance?.state === 'complete'
+              ? 1
+              : 0,
+        chance,
+        marginPercent: er.leaders.marginPercent ?? null,
         isElectorate: true,
       });
     }
@@ -87,7 +146,8 @@ function SuccessfulCandidates({
           party: pl.party,
           electorateName: undefined,
           certainty: pl.distanceFromCut,
-          marginOfError: undefined,
+          chance: null,
+          marginPercent: null,
           isElectorate: false,
         });
       }
@@ -95,7 +155,11 @@ function SuccessfulCandidates({
 
     const q = search.toLowerCase().trim();
     const filtered = q
-      ? list.filter((c) => c.name.toLowerCase().includes(q) || c.electorateName?.toLowerCase().includes(q))
+      ? list.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.electorateName?.toLowerCase().includes(q)
+        )
       : list;
 
     filtered.sort((a, b) => {
@@ -147,13 +211,15 @@ function SuccessfulCandidates({
                 className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('name')}
               >
-                Candidate<SortIndicator column="name" />
+                Candidate
+                <SortIndicator column="name" />
               </th>
               <th
                 className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('party')}
               >
-                Party<SortIndicator column="party" />
+                Party
+                <SortIndicator column="party" />
               </th>
               <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Seat
@@ -162,7 +228,8 @@ function SuccessfulCandidates({
                 className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('certainty')}
               >
-                Certainty<SortIndicator column="certainty" />
+                Certainty
+                <SortIndicator column="certainty" />
               </th>
             </tr>
           </thead>
@@ -215,24 +282,22 @@ function SuccessfulCandidates({
                       >
                         List
                       </Link>
-                      <span className="sm:hidden font-mono text-xs font-semibold text-foreground tabular-nums">
+                      <span className="sm:hidden font-mono text-xs text-foreground tabular-nums">
                         +{Math.round(c.certainty)}
                       </span>
                     </span>
                   )}
                 </td>
-                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums font-semibold">
+                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums">
                   {c.isElectorate ? (
-                    <span>
-                      {(c.certainty * 100).toFixed(1)}%{' '}
-                      <span className="text-muted-foreground font-medium whitespace-nowrap">
-                        {c.marginOfError !== undefined
-                          ? `± ${(c.marginOfError * 100).toFixed(1)}%`
-                          : '—'}
-                      </span>
-                    </span>
+                    <ElectorateCertainty
+                      chance={c.chance}
+                      marginPercent={c.marginPercent}
+                    />
                   ) : (
-                    <span className="text-foreground">+{Math.round(c.certainty)} from cut</span>
+                    <span className="text-foreground">
+                      +{Math.round(c.certainty)} from cut
+                    </span>
                   )}
                 </td>
               </tr>
@@ -246,22 +311,44 @@ function SuccessfulCandidates({
 
 export default function Seats() {
   const { results } = useResults();
+  const { data: config } = useApi<RuntimeConfig>('/api/config');
 
   const partyVote = results?.partyVote;
-  const sorted = partyVote ? [...partyVote].sort((a, b) => b.seats - a.seats) : [];
+  const sorted = partyVote
+    ? [...partyVote].sort((a, b) => b.seats - a.seats)
+    : [];
   const totalSeats = sorted.reduce((s, p) => s + p.seats, 0);
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 
   const electorateResults = results?.electorateResults ?? [];
-  const totalVotesCounted = electorateResults.reduce((s, e) => s + e.votesCounted, 0);
-  const totalVotesEstimate = electorateResults.reduce(
-    (s, e) => s + e.votesCounted / (e.votePercentageCounted || 1),
-    0
+  // Counted votes and how far through the night that is. The denominator is
+  // the votes these seats are expected to receive tonight, not the share of
+  // voting places that have reported — places do not hold equal numbers of
+  // votes, and advance votes land in blocks after 7pm.
+  const progress = countProgress(
+    electorateResults,
+    config?.electionYear ?? null
   );
   const overallVotePercentage =
-    totalVotesCounted > 0
-      ? (totalVotesCounted / totalVotesEstimate) * 100
-      : null;
+    progress.fraction !== null ? progress.fraction * 100 : null;
+
+  // The chance of winning each seat, computed once for the whole table so a
+  // row's number and the seat page's number come from the same call.
+  const electionYear = config?.electionYear ?? null;
+  const nationalSwing = useMemo(
+    () => nationalSwingOf(electorateResults, electionYear),
+    [electorateResults, electionYear]
+  );
+  const chances = useMemo(() => {
+    const map = new Map<string, SeatChance>();
+    for (const result of electorateResults) {
+      map.set(
+        normalizeElectorateName(result.electorateName),
+        seatChanceFor(result, electionYear, nationalSwing)
+      );
+    }
+    return map;
+  }, [electorateResults, electionYear, nationalSwing]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -274,29 +361,32 @@ export default function Seats() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 stat-grid">
-            <AnimatedStat
-              label="Total Seats"
-              value={totalSeats}
-              delay={1}
-            />
+            <AnimatedStat label="Total Seats" value={totalSeats} delay={1} />
             <AnimatedStat
               label="Parties in Parliament"
               value={partiesInParliament}
               delay={2}
             />
-            <AnimatedStat
-              label="Votes cast"
-              value={Math.round(totalVotesEstimate)}
-              delay={3}
-            />
+            <div
+              className={cn(
+                'p-2.5 sm:p-3 opacity-0 animate-fade-in-up stagger-3'
+              )}
+            >
+              <div className="kicker mb-1">Votes counted</div>
+              <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight tabular-nums">
+                {progress.votesCounted.toLocaleString()}
+              </div>
+            </div>
             <div
               className={cn(
                 'p-2.5 sm:p-3 opacity-0 animate-fade-in-up stagger-4'
               )}
             >
-              <div className="kicker mb-1">Votes Counted</div>
+              <div className="kicker mb-1">Counted</div>
               <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
-                {overallVotePercentage !== null ? overallVotePercentage.toFixed(1) + '%' : '—'}
+                {overallVotePercentage !== null
+                  ? overallVotePercentage.toFixed(1) + '%'
+                  : '—'}
               </div>
             </div>
           </div>
@@ -309,7 +399,10 @@ export default function Seats() {
             <ParliamentSeats
               partyVote={partyVote ?? []}
               electorateResults={results?.electorateResults ?? []}
-              partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
+              partyLists={
+                (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
+              }
+              chances={chances}
             />
           </div>
 
@@ -322,8 +415,11 @@ export default function Seats() {
               Likely Parliamentarians
             </h2>
             <SuccessfulCandidates
+              chances={chances}
               electorateResults={results?.electorateResults ?? []}
-              partyLists={(results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]}
+              partyLists={
+                (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
+              }
             />
           </div>
         </>

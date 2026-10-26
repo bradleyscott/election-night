@@ -15,6 +15,13 @@
       "when": 1789720979825,
       "tag": "0001_absent_grey_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792996472557,
+      "tag": "0002_wide_black_widow",
+      "breakpoints": true
     }
   ]
 }

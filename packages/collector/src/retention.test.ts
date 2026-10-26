@@ -78,7 +78,9 @@ describe('describeSweep', () => {
         keepHours: 24,
         underPressure: false,
       })
-    ).toBe('Retention: pruned 42 snapshot(s) older than 24h, reclaimed 7 page(s)');
+    ).toBe(
+      'Retention: pruned 42 snapshot(s) older than 24h, reclaimed 7 page(s)'
+    );
   });
 
   test('says so when the volume forced a shorter window', () => {

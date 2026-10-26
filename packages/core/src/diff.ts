@@ -1,16 +1,11 @@
 import type {
   ElectorateDiff,
   ElectorateResults,
-  FeedEventType,
-  PredictionStatus,
   WebhookEventType,
   WithLeaders,
-  WithMarginOfError,
 } from './types.js';
 
-export type ComparableResult = ElectorateResults &
-  WithLeaders &
-  WithMarginOfError;
+export type ComparableResult = ElectorateResults & WithLeaders;
 
 /**
  * Compute the delta between two scrape cycles for one electorate.
@@ -50,12 +45,6 @@ export function computeDiff(
     previousLeaderParty: leaderChanged
       ? (previous?.leaders.leadingCandidateParty ?? null)
       : null,
-    predictionStatusChanged:
-      previous !== null &&
-      previous !== undefined &&
-      previous.leaders.predictionStatus !== current.leaders.predictionStatus,
-    previousPredictionStatus: previous?.leaders.predictionStatus ?? null,
-    currentPredictionStatus: current.leaders.predictionStatus,
   };
 }
 
@@ -68,9 +57,6 @@ export type DiffFacts = {
   votesChanged: boolean;
   /** Counting finished this cycle (crossed from <100% to 100%). */
   countCompleted: boolean;
-  predictionStatusChanged: boolean;
-  /** Prediction hardened to 'likely' or 'projected' this cycle. */
-  predictionCalled: boolean;
 };
 
 export function diffFacts(diff: ElectorateDiff): DiffFacts {
@@ -78,11 +64,6 @@ export function diffFacts(diff: ElectorateDiff): DiffFacts {
     diff.previousPercentageCounted !== null &&
     diff.previousPercentageCounted < 1 &&
     diff.currentPercentageCounted >= 1;
-
-  const predictionCalled =
-    diff.predictionStatusChanged &&
-    (diff.currentPredictionStatus === 'likely' ||
-      diff.currentPredictionStatus === 'projected');
 
   return {
     // A baseline where nothing had been counted yet is not a result: the feed
@@ -96,40 +77,32 @@ export function diffFacts(diff: ElectorateDiff): DiffFacts {
       diff.currentVotesCounted !== diff.previousVotesCounted ||
       diff.currentPercentageCounted !== diff.previousPercentageCounted,
     countCompleted,
-    predictionStatusChanged: diff.predictionStatusChanged,
-    predictionCalled,
   };
 }
 
 /**
- * Webhook events for the collector: one payload per triggered event type.
- * The first scrape of an electorate just establishes a baseline — no
- * webhooks are sent.
+ * Webhook events for one seat's diff — one payload per triggered event type.
+ * The first scrape of an electorate just establishes a baseline, so no events
+ * are sent for it.
+ *
+ * `callState` is what makes a prediction a *crossing*: the feed and the webhook
+ * both say "likely to win" only when the seat's chance passes 0.9, and both must
+ * agree on when that happened. Without a chance (no prior, no served cycle)
+ * there is no prediction event at all — the number, not the band, is the
+ * claim.
  */
 export function determineWebhookEvents(
-  diff: ElectorateDiff
+  diff: ElectorateDiff,
+  callState?: { called: boolean; wasCalled: boolean }
 ): WebhookEventType[] {
   const facts = diffFacts(diff);
   if (facts.isFirstResult) return [];
 
   const events: WebhookEventType[] = [];
   if (facts.votesChanged) events.push('result_updated');
-  if (facts.predictionStatusChanged) events.push('prediction_changed');
+  if (callState && callState.called !== callState.wasCalled)
+    events.push('prediction_changed');
   if (facts.leaderChanged) events.push('leader_change');
   if (facts.countCompleted) events.push('count_completed');
   return events;
-}
-
-/** Single feed event type for the dashboard, by descending importance. */
-export function determineFeedEventType(diff: ElectorateDiff): FeedEventType {
-  const facts = diffFacts(diff);
-  if (facts.leaderChanged) return 'leader_change';
-  if (facts.countCompleted) return 'count_completed';
-  if (facts.predictionCalled) return 'prediction_called';
-  return 'result_updated';
-}
-
-/** Statuses considered a confident call (shared by feed/commentary logic). */
-export function isConfidentStatus(status: PredictionStatus): boolean {
-  return status === 'likely' || status === 'projected';
 }

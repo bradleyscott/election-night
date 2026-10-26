@@ -1,12 +1,15 @@
 import { describe, expect, test } from 'vitest';
-import { getOpacity, type ElectorateEntry } from './parliament.js';
+import {
+  buildSeats,
+  type ElectorateEntry,
+  type PartyEntry,
+} from './parliament.js';
+import { normalizeElectorateName } from './electorates.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 
-function electorate(
-  marginPercent: number,
-  marginOfError: number
-): ElectorateEntry {
+function electorate(name = 'Test'): ElectorateEntry {
   return {
-    electorateName: 'Test',
+    electorateName: name,
     partyVotes: [],
     candidateVotes: [],
     votesCounted: 1000,
@@ -16,32 +19,66 @@ function electorate(
       leadingCandidateParty: 'Red Party',
       secondCandidate: 'Bob',
       secondCandidateParty: 'Blue Party',
-      margin: marginPercent * 1000,
-      marginPercent,
-      predictionStatus: 'too-close',
+      margin: 200,
+      marginPercent: 0.11,
     },
-    marginOfError,
   };
 }
 
-describe('getOpacity', () => {
-  test('is solid for a projected race', () => {
-    expect(getOpacity(electorate(0.2, 0.02))).toBeCloseTo(0.8);
+const partyVote = [
+  {
+    candidate: 'Red Party',
+    votes: 10_000,
+    seats: 1,
+    electorateSeats: 1,
+    listSeats: 0,
+  },
+] as unknown as PartyEntry[];
+
+function counting(probability: number): SeatChance {
+  return {
+    state: 'counting',
+    othersProbability: 0.01,
+    leader: { name: 'Alice', party: 'Red Party', votes: 600 },
+    runnerUp: { name: 'Bob', party: 'Blue Party', votes: 400 },
+    probability,
+    margin: 200,
+    remainingVotes: 3000,
+    remainingLow: 2400,
+    remainingHigh: 3600,
+    progress: 0.6,
+    enrolment: 45000,
+    assumedCycle: false,
+    insideOutstanding: true,
+    specialsOutstanding: 7300,
+    insideSpecials: true,
+    provisionalPrior: false,
+  };
+}
+
+function seatsWith(chance?: SeatChance) {
+  const electorates = [electorate()];
+  const chances = chance
+    ? new Map([[normalizeElectorateName('Test'), chance]])
+    : undefined;
+  return buildSeats(['Red Party'], partyVote, electorates, [], 120, chances);
+}
+
+describe('hemicycle opacity', () => {
+  test('paints a decided seat solid', () => {
+    const [seat] = seatsWith(counting(0.98));
+    expect(seat!.opacity).toBeGreaterThan(0.75);
   });
 
-  test('is dim for a too-close race', () => {
-    expect(getOpacity(electorate(0.01, 0.02))).toBeCloseTo(0.2);
+  test('paints a toss-up pale however large its margin', () => {
+    const [pale] = seatsWith(counting(0.52));
+    const [solid] = seatsWith(counting(0.98));
+    expect(pale!.opacity).toBeLessThan(0.3);
+    expect(pale!.opacity).toBeLessThan(solid!.opacity);
   });
 
-  test('is finite at a complete count where marginOfError is 0', () => {
-    const value = getOpacity(electorate(0.11, 0));
-    expect(Number.isFinite(value)).toBe(true);
-    expect(value).toBeCloseTo(0.8);
-  });
-
-  test('does not produce NaN for an electorate with no candidate votes', () => {
-    const value = getOpacity(electorate(0, 0));
-    expect(Number.isNaN(value)).toBe(false);
-    expect(value).toBeCloseTo(0.2);
+  test('paints a seat with no chance pale', () => {
+    const [seat] = seatsWith(undefined);
+    expect(seat!.opacity).toBeCloseTo(0.15);
   });
 });

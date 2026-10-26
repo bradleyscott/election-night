@@ -101,6 +101,7 @@ function toElectorateResults(raw: RawElectorateResults): ElectorateResults {
     candidateVotes: raw.candidateVotes,
     votesCounted: raw.votesCounted,
     votePercentageCounted: raw.votePercentageCounted,
+    percentVotesCast: raw.percentVotesCast,
   };
 }
 

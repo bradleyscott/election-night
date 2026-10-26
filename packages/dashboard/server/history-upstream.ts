@@ -23,6 +23,7 @@ import type {
   ResultsForYear,
   SnapshotMeta,
 } from '@election-night/core/history';
+import type { VotingPlacesResponse } from '@election-night/core/voting-places';
 import {
   historyCacheEvents,
   historyUpstreamDuration,
@@ -45,6 +46,12 @@ export interface HistorySource {
   priorWinners(): Promise<PriorWinnersResponse | null>;
   /** Results for a nominated year, or null when that year cannot be served. */
   resultsForYear(year: string): Promise<ResultsForYear | null>;
+  /**
+   * Which voting places count towards a seat and which have reported, or null
+   * when the collector cannot answer for this cycle (an archived cycle, whose
+   * feed forbids directory listing).
+   */
+  votingPlaces(name: string): Promise<VotingPlacesResponse | null>;
   clearCache(): void;
 }
 
@@ -134,8 +141,9 @@ export function createHistorySource(options: {
     return value;
   }
 
-  const emptyOnMissing = async <T>(work: () => Promise<T[] | null>): Promise<T[]> =>
-    (await work()) ?? [];
+  const emptyOnMissing = async <T>(
+    work: () => Promise<T[] | null>
+  ): Promise<T[]> => (await work()) ?? [];
 
   return {
     snapshotMetas: () =>
@@ -165,6 +173,12 @@ export function createHistorySource(options: {
       fetchJson<ResultsForYear>(
         `/history/results/${year}`,
         '/history/results/:year',
+        { allowMissing: true }
+      ),
+    votingPlaces: (name) =>
+      fetchJson<VotingPlacesResponse>(
+        `/history/voting-places/${encodeURIComponent(name)}`,
+        '/history/voting-places/:name',
         { allowMissing: true }
       ),
     clearCache: () => cache.clear(),

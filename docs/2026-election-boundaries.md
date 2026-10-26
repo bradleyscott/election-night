@@ -60,9 +60,11 @@ uncoloured electorates and clickable-but-empty polygons.
   feed's own `e_no` numbering. New names, new numbering and the drop from 72 to
   71 electorates are picked up automatically; there is no hardcoded electorate
   list in the production path.
-- Seat maths is data-driven: `sainteLague(..., 120, ...)` still targets a
-  120-seat parliament, and electorate wins, list seats and overhang are all
-  derived from the results.
+- Seat maths is not ours: `election.xml` publishes list, electorate and total
+  seats per party — threshold rule and overhang included — and those numbers are
+  rendered as published. The only Sainte-Laguë left in the repo is in the dev
+  seed (`packages/dashboard/server/seed.ts`), which fabricates a parliament
+  when there is no feed at all.
 
 **Changed for 2026:**
 

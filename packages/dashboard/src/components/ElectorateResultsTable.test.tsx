@@ -5,7 +5,6 @@ import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 
 const baseResult = {
@@ -20,7 +19,6 @@ const baseResult = {
   ],
   votesCounted: 0,
   votePercentageCounted: 0,
-  marginOfError: 0,
   leaders: {
     leadingCandidate: 'SMITH, John',
     leadingCandidateParty: 'National Party',
@@ -28,9 +26,8 @@ const baseResult = {
     secondCandidateParty: 'Labour Party',
     margin: 0,
     marginPercent: 0,
-    predictionStatus: 'too-close',
   },
-} as ElectorateResults & WithLeaders & WithMarginOfError;
+} as ElectorateResults & WithLeaders;
 
 describe('ElectorateResultsTable', () => {
   test('shows an em-dash instead of NaN when no votes are counted', () => {
@@ -59,7 +56,7 @@ describe('ElectorateResultsTable', () => {
         { candidate: 'SMITH, John', party: 'National Party', votes: 750 },
         { candidate: 'JONES, Mary', party: 'Labour Party', votes: 250 },
       ],
-    } as ElectorateResults & WithLeaders & WithMarginOfError;
+    } as ElectorateResults & WithLeaders;
 
     render(<ElectorateResultsTable result={counted} showPartyVote={false} />);
 

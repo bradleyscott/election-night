@@ -34,7 +34,6 @@ export const electorateResults = sqliteTable(
     candidate: text('candidate').notNull(),
     party: text('party').notNull(),
     votes: integer('votes').notNull(),
-    isPredicted: integer('is_predicted').notNull().default(0),
   },
   (table) => ({
     pk: primaryKey({
@@ -55,12 +54,10 @@ export const electorateSummary = sqliteTable(
     votePctCounted: real('vote_pct_counted').notNull(),
     leadingCandidate: text('leading_candidate'),
     leadingParty: text('leading_party'),
-    predictedWinner: integer('predicted_winner').notNull().default(0),
     margin: integer('margin'),
     marginPct: real('margin_pct'),
     secondCandidate: text('second_candidate'),
     secondParty: text('second_party'),
-    marginOfError: real('margin_of_error'),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.scrapeId, table.electorate] }),

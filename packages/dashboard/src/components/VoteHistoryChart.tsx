@@ -11,6 +11,21 @@ import {
 import type { ElectorateHistoryPoint } from '../lib/history-types.js';
 import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
+import {
+  AXIS_STROKE,
+  AXIS_TICK,
+  GRID_DASH,
+  GRID_STROKE,
+  formatClock,
+  formatPercent,
+  formatPercentAxis,
+  formatTooltipStamp,
+  formatVoteAxis,
+  formatVotes,
+  timeTicks,
+} from '../lib/chart-format.js';
+import { CountedTape } from './CountedTape.js';
+import type { TapePoint } from './CountedTape.js';
 
 type ChartMode = 'votes' | 'percentage' | 'candidateVotes' | 'counted';
 
@@ -19,30 +34,17 @@ type ChartProps = {
   mode?: ChartMode;
   showParty?: boolean;
   className?: string;
+  /**
+   * The seat's voting places, for the receipt rug under the Counted tape: the
+   * count only ever moves when a place lands, so the ticks are the same series
+   * at a finer resolution. Absent on an archived cycle, or before any place
+   * reports, and the tape simply draws without a rug.
+   */
+  votingPlaces?: { counted: number; total: number; receipts: number[] };
 };
 
 function parseDate(startedAt: string): Date {
   return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
-}
-
-function formatTime(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleTimeString('en-NZ', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
-function formatFullDate(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-NZ', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
 }
 
 function getEntityColor(party: string | null): string {
@@ -72,11 +74,11 @@ function VoteChartTooltip({
     payload?: Record<string, unknown>;
   }[];
   label?: string;
-  mode: ChartMode;
+  mode: Exclude<ChartMode, 'counted'>;
 }) {
   if (!active || !payload || !label) return null;
 
-  const labelStr = formatFullDate(Number(label));
+  const labelStr = formatTooltipStamp(Number(label));
 
   return (
     <div className="border bg-popover p-3 text-sm max-w-xs">
@@ -97,16 +99,9 @@ function VoteChartTooltip({
               <span className="font-semibold truncate">{entry.name}</span>
             </div>
             <span className="tabular-nums font-bold text-right shrink-0">
-              {mode === 'percentage' || mode === 'counted'
-                ? `${(entry.value * 100).toFixed(1)}%`
-                : entry.value.toLocaleString()}
-              {mode === 'counted' &&
-                entry.payload &&
-                (entry.payload.votesCounted as number) > 0 && (
-                  <span className="ml-1 text-muted-foreground font-semibold">
-                    ({(entry.payload.votesCounted as number).toLocaleString()})
-                  </span>
-                )}
+              {mode === 'percentage'
+                ? formatPercent(entry.value * 100)
+                : formatVotes(entry.value)}
             </span>
           </div>
         );
@@ -167,8 +162,22 @@ export default function VoteHistoryChart({
   mode = 'votes',
   showParty = false,
   className,
+  votingPlaces,
 }: ChartProps) {
   const [chartMode, setChartMode] = useState<ChartMode>(mode);
+
+  // The Counted series is the share of the seat's voting places counted, so the
+  // rug of receipts below the axis is the same measure at a finer resolution.
+  const countedPoints = useMemo<TapePoint[]>(() => {
+    return history.map((point) => ({
+      t: parseDate(point.startedAt).getTime(),
+      value: point.votePctCounted * 100,
+      sub:
+        point.votesCounted > 0
+          ? `${point.votesCounted.toLocaleString()} votes`
+          : undefined,
+    }));
+  }, [history]);
 
   const chartData = useMemo(() => {
     return history.map((point) => {
@@ -176,10 +185,6 @@ export default function VoteHistoryChart({
       const ts = parseDate(point.startedAt).getTime();
       const row: Record<string, number | string> = {
         ts,
-        time: formatTime(ts),
-        fullDate: formatFullDate(ts),
-        votesCounted: point.votesCounted,
-        pctCounted: point.votePctCounted,
       };
 
       if (showParty) {
@@ -200,34 +205,14 @@ export default function VoteHistoryChart({
     });
   }, [history, chartMode, showParty]);
 
-  // Tick interval is a multiple of 5 minutes, chosen by the overall time span
+  // Same tick spacing the drawn tape uses, so the axis does not change voice
+  // when the mode does.
   const xTicks = useMemo(() => {
     if (history.length < 2) return [];
-    const min = parseDate(history[0].startedAt).getTime();
-    const max = parseDate(history[history.length - 1].startedAt).getTime();
-    const spanMs = max - min;
-    const MIN = 60 * 1000;
-    const FIVE_MIN = 5 * MIN;
-    const TEN_MIN = 10 * MIN;
-    const FIFTEEN_MIN = 15 * MIN;
-    const THIRTY_MIN = 30 * MIN;
-    const ONE_HOUR = 60 * MIN;
-
-    let intervalMs: number;
-    if (spanMs <= 30 * MIN) intervalMs = FIVE_MIN;
-    else if (spanMs <= 60 * MIN) intervalMs = TEN_MIN;
-    else if (spanMs <= 2 * 60 * MIN) intervalMs = FIFTEEN_MIN;
-    else if (spanMs <= 4 * 60 * MIN) intervalMs = THIRTY_MIN;
-    else intervalMs = ONE_HOUR;
-
-    const start = new Date(Math.floor(min / intervalMs) * intervalMs);
-    const ticks: number[] = [];
-    const cursor = new Date(start);
-    while (cursor.getTime() <= max + intervalMs) {
-      ticks.push(cursor.getTime());
-      cursor.setTime(cursor.getTime() + intervalMs);
-    }
-    return ticks;
+    return timeTicks(
+      parseDate(history[0].startedAt).getTime(),
+      parseDate(history[history.length - 1].startedAt).getTime()
+    );
   }, [history]);
 
   // Determine which entities to show lines for (candidates or parties with votes > 0),
@@ -262,12 +247,7 @@ export default function VoteHistoryChart({
   }
 
   return (
-    <div
-      className={cn(
-        'border p-3 sm:p-4',
-        className
-      )}
-    >
+    <div className={cn('border p-3 sm:p-4', className)}>
       <div className="flex items-center justify-between mb-3">
         <div className="kicker">{chartTitle}</div>
         <div className="flex flex-wrap border border-border">
@@ -306,51 +286,55 @@ export default function VoteHistoryChart({
           </button>
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart
-          data={chartData}
-          margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="hsl(var(--border))"
-            verticalPoints={xTicks.length > 0 ? xTicks : undefined}
-          />
-          <XAxis
-            dataKey="ts"
-            type="number"
-            domain={['dataMin', 'dataMax']}
-            ticks={xTicks}
-            tickFormatter={(v: number) => formatTime(v)}
-            tick={{ fontSize: 11 }}
-            stroke="hsl(var(--muted-foreground))"
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 11 }}
-            stroke="hsl(var(--muted-foreground))"
-            tickLine={false}
-            domain={chartMode === 'counted' ? [0, 1] : ['auto', 'auto']}
-            tickFormatter={
-              chartMode === 'percentage' || chartMode === 'counted'
-                ? (v: number) => `${(v * 100).toFixed(0)}%`
-                : (v: number) =>
-                    v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toLocaleString()
-            }
-          />
-          <Tooltip content={<VoteChartTooltip mode={chartMode} />} />
-          {chartMode === 'counted' ? (
-            <Line
-              type="monotone"
-              dataKey="pctCounted"
-              name="Counted"
-              stroke="#22c55e"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
+      {chartMode === 'counted' ? (
+        <CountedTape
+          points={countedPoints}
+          receipts={votingPlaces?.receipts}
+          yTicks={[0, 25, 50, 75, 100]}
+          formatTick={formatPercentAxis}
+          formatValue={formatPercent}
+          height={280}
+          label="Votes counted"
+          note={
+            votingPlaces
+              ? `${votingPlaces.counted} / ${votingPlaces.total} places`
+              : undefined
+          }
+        />
+      ) : (
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+          >
+            <CartesianGrid
+              strokeDasharray={GRID_DASH}
+              stroke={GRID_STROKE}
+              verticalPoints={xTicks.length > 0 ? xTicks : undefined}
             />
-          ) : (
-            entities.map((e) => {
+            <XAxis
+              dataKey="ts"
+              type="number"
+              domain={['dataMin', 'dataMax']}
+              ticks={xTicks}
+              tickFormatter={formatClock}
+              tick={AXIS_TICK}
+              stroke={AXIS_STROKE}
+              tickLine={false}
+            />
+            <YAxis
+              tick={AXIS_TICK}
+              stroke={AXIS_STROKE}
+              tickLine={false}
+              domain={['auto', 'auto']}
+              tickFormatter={
+                chartMode === 'percentage'
+                  ? (v: number) => formatPercentAxis(v * 100)
+                  : formatVoteAxis
+              }
+            />
+            <Tooltip content={<VoteChartTooltip mode={chartMode} />} />
+            {entities.map((e) => {
               const color = getEntityColor(e.party);
               const dark = isDarkColor(color);
               return (
@@ -373,17 +357,11 @@ export default function VoteHistoryChart({
                   }
                 />
               );
-            })
-          )}
-        </LineChart>
-      </ResponsiveContainer>
-      {chartMode === 'counted' ? (
-        <VoteChartLegend
-          entities={[{ name: 'Counted', party: null, color: '#22c55e' }]}
-        />
-      ) : (
-        <VoteChartLegend entities={entities} />
+            })}
+          </LineChart>
+        </ResponsiveContainer>
       )}
+      {chartMode === 'counted' ? null : <VoteChartLegend entities={entities} />}
     </div>
   );
 }

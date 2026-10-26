@@ -10,9 +10,27 @@ import {
   Legend,
 } from 'recharts';
 import { usePartyVoteHistory } from '../hooks/useVoteHistory.js';
-import { partyColor, orderParties } from '../lib/constants.js';
+import {
+  canonicalPartyName,
+  orderParties,
+  partyColor,
+} from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from '../components/WaitingState.js';
+import {
+  AXIS_STROKE,
+  AXIS_TICK,
+  GRID_DASH,
+  GRID_STROKE,
+  formatClock,
+  formatPercent,
+  formatPercentAxis,
+  formatTooltipStamp,
+  formatVoteAxis,
+  timeTicks,
+} from '../lib/chart-format.js';
+import { CountedTape } from '../components/CountedTape.js';
+import type { TapePoint } from '../components/CountedTape.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
 
@@ -27,18 +45,6 @@ function formatDate(startedAt: string): string {
 
 function parseTimestamp(startedAt: string): number {
   return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z')).getTime();
-}
-
-function roundTo5Min(timestamp: number, direction: 'floor' | 'ceil'): number {
-  const d = new Date(timestamp);
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-  const hour = d.getHours();
-  const min = d.getMinutes();
-  const roundedMin =
-    direction === 'floor' ? Math.floor(min / 5) * 5 : Math.ceil(min / 5) * 5;
-  return new Date(year, month, day, hour, roundedMin).getTime();
 }
 
 function PartyLegend({
@@ -74,14 +80,6 @@ function isDarkColor(hex: string): boolean {
   return luminance < 0.35;
 }
 
-function formatTimeLabel(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('en-NZ', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
 function PartyTooltip({
   active,
   payload,
@@ -96,11 +94,12 @@ function PartyTooltip({
     payload?: Record<string, unknown>;
   }[];
   label?: string | number;
-  mode: Mode;
+  mode: Exclude<Mode, 'counted'>;
 }) {
   if (!active || !payload || !label) return null;
   const sorted = [...payload].sort((a, b) => b.value - a.value);
-  const labelText = typeof label === 'number' ? formatTimeLabel(label) : label;
+  const labelText =
+    typeof label === 'number' ? formatTooltipStamp(label) : label;
 
   return (
     <div className="border bg-popover p-3 text-sm max-w-xs">
@@ -120,18 +119,11 @@ function PartyTooltip({
             <span className="font-semibold truncate">{entry.name}</span>
           </div>
           <span className="tabular-nums font-bold text-right shrink-0">
-            {mode === 'percent' || mode === 'counted'
-              ? `${entry.value.toFixed(1)}%`
+            {mode === 'percent'
+              ? formatPercent(entry.value)
               : mode === 'seats'
                 ? `${entry.value.toFixed(0)} seat${entry.value === 1 ? '' : 's'}`
                 : entry.value.toLocaleString()}
-            {mode === 'counted' &&
-              entry.payload &&
-              (entry.payload.countedVotes as number) > 0 && (
-                <span className="ml-1 text-muted-foreground font-semibold">
-                  ({(entry.payload.countedVotes as number).toLocaleString()})
-                </span>
-              )}
           </span>
         </div>
       ))}
@@ -147,13 +139,15 @@ export default function Trends() {
   const [mode, setMode] = useState<Mode>('seats');
   const initializedRef = useRef(false);
 
-  // Chips follow the parties present in the history, ordered by the fixed
-  // editorial order. A static colour map would show a dead chip for a party
-  // this cycle does not have, and no chip for one whose label the feed renamed.
+  // Chips follow the parties present in the history, under their current
+  // names, ordered by the fixed editorial order. A static colour map would
+  // show a dead chip for a party this cycle does not have, and no chip for one
+  // whose label the feed renamed; the chart series below are keyed by the
+  // canonical name too, so a renamed party keeps one chip and one line.
   const partyOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const point of data ?? []) {
-      for (const p of point.parties) seen.add(p.party);
+      for (const p of point.parties) seen.add(canonicalPartyName(p.party));
     }
     return orderParties([...seen]);
   }, [data]);
@@ -163,7 +157,9 @@ export default function Trends() {
       initializedRef.current = true;
       const latest = data[data.length - 1];
       const parliamentParties = new Set(
-        latest.parties.filter((p) => p.seats > 0).map((p) => p.party)
+        latest.parties
+          .filter((p) => p.seats > 0)
+          .map((p) => canonicalPartyName(p.party))
       );
       setSelectedParties(
         parliamentParties.size > 0
@@ -184,16 +180,33 @@ export default function Trends() {
       const row: Record<string, number | string> = {
         time: formatDate(point.startedAt),
         timestamp: parseTimestamp(point.startedAt),
-        countedVotes: point.votesCounted,
-        pctCounted: point.votePctCounted * 100,
       };
       for (const p of point.parties) {
-        row[`party:Votes:${p.party}`] = p.votes;
-        row[`party:Pct:${p.party}`] = total > 0 ? (p.votes / total) * 100 : 0;
-        row[`party:Seats:${p.party}`] = p.seats;
+        // A renamed party keeps its rows under the current name, so a series
+        // does not lose the votes it won under the old spelling.
+        const name = canonicalPartyName(p.party);
+        row[`party:Votes:${name}`] =
+          Number(row[`party:Votes:${name}`] ?? 0) + p.votes;
+        row[`party:Pct:${name}`] = total > 0 ? (p.votes / total) * 100 : 0;
+        row[`party:Seats:${name}`] =
+          Number(row[`party:Seats:${name}`] ?? 0) + p.seats;
       }
       return row;
     });
+  }, [data]);
+
+  // The national Counted series: share of the vote counted, per scrape, on the
+  // same denominator the seat panel uses. The country reports totals rather
+  // than places, so this tape has no rug.
+  const countedPoints = useMemo<TapePoint[]>(() => {
+    return (data ?? []).map((point) => ({
+      t: parseTimestamp(point.startedAt),
+      value: point.votePctCounted * 100,
+      sub:
+        point.votesCounted > 0
+          ? `${point.votesCounted.toLocaleString()} votes`
+          : undefined,
+    }));
   }, [data]);
 
   const { ticks, domain } = useMemo(() => {
@@ -205,16 +218,10 @@ export default function Trends() {
     const timestamps = chartData.map((d) => d.timestamp as number);
     const min = Math.min(...timestamps);
     const max = Math.max(...timestamps);
-    const start = roundTo5Min(min, 'floor');
-    const end = roundTo5Min(max, 'ceil');
     const interval = 5 * 60 * 1000;
-    const tickList: number[] = [];
-    for (let t = start; t <= end; t += interval) {
-      tickList.push(t);
-    }
     const domainValue: [number, number] =
       min === max ? [min - interval, max + interval] : [min, max];
-    return { ticks: tickList, domain: domainValue };
+    return { ticks: timeTicks(min, max, 8), domain: domainValue };
   }, [chartData]);
 
   const toggleParty = useCallback((party: string) => {
@@ -338,57 +345,50 @@ export default function Trends() {
       )}
 
       <div className="border p-3 sm:p-4">
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart
-            data={chartData}
-            margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              dataKey="timestamp"
-              type="number"
-              domain={domain}
-              ticks={ticks}
-              tick={{ fontSize: 11 }}
-              tickFormatter={formatTimeLabel}
-              stroke="hsl(var(--muted-foreground))"
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 11 }}
-              stroke="hsl(var(--muted-foreground))"
-              tickLine={false}
-              domain={mode === 'counted' ? [0, 100] : ['auto', 'auto']}
-              tickFormatter={
-                mode === 'votes'
-                  ? (v: number) =>
-                      v >= 1_000_000
-                        ? `${(v / 1_000_000).toFixed(1)}M`
-                        : v >= 1000
-                          ? `${(v / 1000).toFixed(0)}k`
-                          : v.toLocaleString()
-                  : mode === 'seats'
-                    ? (v: number) => v.toLocaleString()
-                    : mode === 'counted'
-                      ? (v: number) => `${v.toFixed(0)}%`
-                      : (v: number) => `${v.toFixed(1)}%`
-              }
-            />
-            <Tooltip content={<PartyTooltip mode={mode} />} />
-            <Legend content={<PartyLegend />} />
-            {mode === 'counted' ? (
-              <Line
-                type="monotone"
-                dataKey="pctCounted"
-                name="Counted"
-                stroke="#22c55e"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
+        {mode === 'counted' ? (
+          <CountedTape
+            points={countedPoints}
+            yTicks={[0, 25, 50, 75, 100]}
+            formatTick={formatPercentAxis}
+            formatValue={formatPercent}
+            height={400}
+            label="Counted"
+            emptyLabel="No count yet"
+          />
+        ) : (
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart
+              data={chartData}
+              margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray={GRID_DASH} stroke={GRID_STROKE} />
+              <XAxis
+                dataKey="timestamp"
+                type="number"
+                domain={domain}
+                ticks={ticks}
+                tick={AXIS_TICK}
+                tickFormatter={formatClock}
+                stroke={AXIS_STROKE}
+                tickLine={false}
               />
-            ) : (
-              visibleParties.map((party) => {
-                const color = partyColor(party, '#8884d8');
+              <YAxis
+                tick={AXIS_TICK}
+                stroke={AXIS_STROKE}
+                tickLine={false}
+                domain={['auto', 'auto']}
+                tickFormatter={
+                  mode === 'votes'
+                    ? formatVoteAxis
+                    : mode === 'seats'
+                      ? (v: number) => v.toLocaleString()
+                      : formatPercentAxis
+                }
+              />
+              <Tooltip content={<PartyTooltip mode={mode} />} />
+              <Legend content={<PartyLegend />} />
+              {visibleParties.map((party) => {
+                const color = partyColor(party);
                 const dark = isDarkColor(color);
                 return (
                   <Line
@@ -410,10 +410,10 @@ export default function Trends() {
                     }
                   />
                 );
-              })
-            )}
-          </LineChart>
-        </ResponsiveContainer>
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

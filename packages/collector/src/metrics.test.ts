@@ -151,10 +151,11 @@ describe('disk usage metric', () => {
   async function diskValues() {
     const series = await collectorRegister.getMetricsAsJSON();
     return {
-      size: series.find((s) => s.name === 'election_disk_size_bytes')?.values ?? [],
+      size:
+        series.find((s) => s.name === 'election_disk_size_bytes')?.values ?? [],
       free:
-        series.find((s) => s.name === 'election_disk_available_bytes')?.values ??
-        [],
+        series.find((s) => s.name === 'election_disk_available_bytes')
+          ?.values ?? [],
     };
   }
 

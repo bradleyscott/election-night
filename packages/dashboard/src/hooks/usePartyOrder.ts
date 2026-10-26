@@ -8,9 +8,7 @@ export function usePartyOrder(partyVote: PartyEntry[]) {
   const [order, setOrder] = useState<string[]>([]);
 
   useEffect(() => {
-    const active = partyVote
-      .filter((p) => p.seats > 0)
-      .map((p) => p.candidate);
+    const active = partyVote.filter((p) => p.seats > 0).map((p) => p.candidate);
 
     let base: string[] | null = null;
     const saved = localStorage.getItem(STORAGE_KEY);

@@ -21,7 +21,7 @@ export function useAnimatedNumber(target: number, duration = 800): number {
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
 
-      setCurrent(prevCurrent => {
+      setCurrent((prevCurrent) => {
         if (startValue.current === null) {
           startValue.current = prevCurrent;
         }

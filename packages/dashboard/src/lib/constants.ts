@@ -9,45 +9,68 @@ export const partyColors: Record<string, string> = {
   // (opportunity-logo-teal.svg, "Opportunity Logo (RGB teal)") rather than
   // eyeballed: the party describes itself as blue-green and keeps the teal
   // through the 2026 rename to Opportunity Party.
+  'Opportunity Party': '#00B9BC',
+  // The same party's name before it was registered as "Opportunity Party" on
+  // 28 January 2026; the 2023 archive and the mock feed still say this.
   'The Opportunities Party (TOP)': '#00B9BC',
 };
 
 /**
- * Party renames between cycles, keyed by the name the feed publishes and
- * valued with the canonical name used for colour and ordering. The Electoral
- * Commission renames parties without changing their `p_no`: party 24 is
- * "The Opportunities Party (TOP)" (abbrev TOP) in the 2023 archive and
+ * Party names from an earlier cycle that now belong to a registered party,
+ * keyed by the earlier name and valued with the current registered name. The
+ * Electoral Commission renames parties without changing their `p_no`: party 24
+ * is "The Opportunities Party (TOP)" (abbrev TOP) in the 2023 archive and
  * "Opportunity Party" (abbrev OPP) in the live 2026 feed. Chips, colours and
  * ordering all resolve through `canonicalPartyName`, because a hardcoded 2023
- * name would drop the party from every pick list and paint it grey for the
- * whole of 2026 while the feed's own label still rendered.
+ * name would drop the party from every pick list and paint it grey while the
+ * feed's own label still rendered.
  *
- * Only parties this app gives a colour and an order need an entry; a minor
- * party behind "More…" carries no identity beyond its label.
+ * Only a rename belongs here: a party that merged or split is a different
+ * party and must not inherit another's colour or its place in the filter row.
+ * Both spellings stay in `partyColors` so a 2023 archive still draws its lines
+ * in TOP's teal; this table is what collapses them into one entry on screen.
  */
 export const PARTY_RENAMES: Record<string, string> = {
-  'Opportunity Party': 'The Opportunities Party (TOP)',
+  'The Opportunities Party (TOP)': 'Opportunity Party',
 };
 
-/** The canonical (colour/order) name for a party as this cycle's feed names it. */
+/** The current name for a party that has been renamed since an earlier cycle. */
 export function canonicalPartyName(party: string): string {
   return PARTY_RENAMES[party] ?? party;
 }
 
-/** Party colour for the name the feed publishes, with a neutral fallback. */
+/**
+ * A party's brand colour for the name the feed publishes, with a neutral
+ * fallback. Both spellings carry the colour, but the double lookup costs
+ * nothing and protects a third spelling.
+ */
 export function partyColor(
   party: string | null | undefined,
   fallback = '#666'
 ): string {
   if (!party) return fallback;
-  return partyColors[canonicalPartyName(party)] ?? fallback;
+  return (
+    partyColors[party] ?? partyColors[canonicalPartyName(party)] ?? fallback
+  );
 }
+
+/**
+ * Every party that has a colour, under its current name, in palette order.
+ * One per party: the filter row on the Trends page is built from this, so a
+ * renamed party cannot appear twice.
+ */
+export const PARTY_FILTER_NAMES: string[] = [
+  ...new Set(Object.keys(partyColors).map(canonicalPartyName)),
+];
 
 /**
  * Fixed editorial order for the parties shown as chips. Deliberately static:
  * a list that reordered as results arrived would move a button out from under
  * a finger mid-tap. Any party registered for the cycle that is not listed here
  * still appears, behind "More…".
+ *
+ * Opportunity is here because its list sits close enough to the cut to be worth
+ * watching, not because the app considers it one of the five major parties.
  */
 export const MAJOR_PARTY_ORDER: readonly string[] = [
   'National Party',
@@ -55,7 +78,7 @@ export const MAJOR_PARTY_ORDER: readonly string[] = [
   'Green Party',
   'ACT New Zealand',
   'New Zealand First Party',
-  'The Opportunities Party (TOP)',
+  'Opportunity Party',
 ];
 
 export const MAJOR_PARTIES = new Set<string>(MAJOR_PARTY_ORDER);

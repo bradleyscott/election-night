@@ -11,13 +11,55 @@ const status: NationalStatus = {
   parties: [
     // 2023 shape: National 43 + 5, Labour 17 + 17, TPM 6 + 0 (an overhang —
     // six Māori seats on 3.08% of the party vote), nobody else in parliament.
-    { party: 'National Party', votes: 1085851, listSeats: 5, electorateSeats: 43, totalSeats: 48 },
-    { party: 'Labour Party', votes: 767540, listSeats: 17, electorateSeats: 17, totalSeats: 34 },
-    { party: 'Green Party', votes: 330907, listSeats: 12, electorateSeats: 3, totalSeats: 15 },
-    { party: 'ACT New Zealand', votes: 246473, listSeats: 9, electorateSeats: 2, totalSeats: 11 },
-    { party: 'New Zealand First Party', votes: 173553, listSeats: 8, electorateSeats: 0, totalSeats: 8 },
-    { party: 'Te Pāti Māori', votes: 87844, listSeats: 0, electorateSeats: 6, totalSeats: 6 },
-    { party: 'The Opportunities Party (TOP)', votes: 63344, listSeats: 0, electorateSeats: 0, totalSeats: 0 },
+    {
+      party: 'National Party',
+      votes: 1085851,
+      listSeats: 5,
+      electorateSeats: 43,
+      totalSeats: 48,
+    },
+    {
+      party: 'Labour Party',
+      votes: 767540,
+      listSeats: 17,
+      electorateSeats: 17,
+      totalSeats: 34,
+    },
+    {
+      party: 'Green Party',
+      votes: 330907,
+      listSeats: 12,
+      electorateSeats: 3,
+      totalSeats: 15,
+    },
+    {
+      party: 'ACT New Zealand',
+      votes: 246473,
+      listSeats: 9,
+      electorateSeats: 2,
+      totalSeats: 11,
+    },
+    {
+      party: 'New Zealand First Party',
+      votes: 173553,
+      listSeats: 8,
+      electorateSeats: 0,
+      totalSeats: 8,
+    },
+    {
+      party: 'Te Pāti Māori',
+      votes: 87844,
+      listSeats: 0,
+      electorateSeats: 6,
+      totalSeats: 6,
+    },
+    {
+      party: 'The Opportunities Party (TOP)',
+      votes: 63344,
+      listSeats: 0,
+      electorateSeats: 0,
+      totalSeats: 0,
+    },
   ],
   totalVotesCast: 2867478,
   percentVotesCast: 77.7,
@@ -29,13 +71,41 @@ const status: NationalStatus = {
 };
 
 const aggregates = [
-  { candidate: 'National Party', votes: 1085851, percentage: 0.38, marginOfError: 0.01 },
-  { candidate: 'Labour Party', votes: 767540, percentage: 0.27, marginOfError: 0.01 },
-  { candidate: 'Green Party', votes: 330907, percentage: 0.116, marginOfError: 0.01 },
-  { candidate: 'ACT New Zealand', votes: 246473, percentage: 0.086, marginOfError: 0.01 },
-  { candidate: 'New Zealand First Party', votes: 173553, percentage: 0.061, marginOfError: 0.01 },
-  { candidate: 'Te Pāti Māori', votes: 87844, percentage: 0.031, marginOfError: 0.01 },
-  { candidate: 'The Opportunities Party (TOP)', votes: 63344, percentage: 0.022, marginOfError: 0.01 },
+  {
+    candidate: 'National Party',
+    votes: 1085851,
+    percentage: 0.38,
+  },
+  {
+    candidate: 'Labour Party',
+    votes: 767540,
+    percentage: 0.27,
+  },
+  {
+    candidate: 'Green Party',
+    votes: 330907,
+    percentage: 0.116,
+  },
+  {
+    candidate: 'ACT New Zealand',
+    votes: 246473,
+    percentage: 0.086,
+  },
+  {
+    candidate: 'New Zealand First Party',
+    votes: 173553,
+    percentage: 0.061,
+  },
+  {
+    candidate: 'Te Pāti Māori',
+    votes: 87844,
+    percentage: 0.031,
+  },
+  {
+    candidate: 'The Opportunities Party (TOP)',
+    votes: 63344,
+    percentage: 0.022,
+  },
 ];
 
 describe('buildPartyVoteWithSeats', () => {
@@ -56,13 +126,12 @@ describe('buildPartyVoteWithSeats', () => {
     expect(result.reduce((sum, p) => sum + p.seats, 0)).toBe(122);
   });
 
-  test('keeps the vote share and margin of error we compute ourselves', () => {
+  test('keeps the vote share we compute ourselves', () => {
     const result = buildPartyVoteWithSeats(aggregates, status);
     const national = result.find((p) => p.candidate === 'National Party');
 
     expect(national!.votes).toBe(1085851);
     expect(national!.percentage).toBeCloseTo(0.38);
-    expect(national!.marginOfError).toBeCloseTo(0.01);
   });
 
   test('sorts the party vote by votes, descending', () => {

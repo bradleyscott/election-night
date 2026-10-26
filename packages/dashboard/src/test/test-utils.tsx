@@ -16,7 +16,13 @@ export function MockSocketProvider({
 }) {
   return (
     <SocketContext.Provider
-      value={{ socket: null, connected, results, feedEvents }}
+      value={{
+        socket: null,
+        connected,
+        results,
+        resultsUpdatedAt: results ? new Date(0) : null,
+        feedEvents,
+      }}
     >
       {children}
     </SocketContext.Provider>
@@ -33,7 +39,11 @@ export function renderWithProviders(children: ReactNode) {
 
 export function renderWithProvidersAndData(
   children: ReactNode,
-  data: { results?: ResultsPayload | null; feedEvents?: FeedEvent[]; connected?: boolean }
+  data: {
+    results?: ResultsPayload | null;
+    feedEvents?: FeedEvent[];
+    connected?: boolean;
+  }
 ) {
   return (
     <BrowserRouter>

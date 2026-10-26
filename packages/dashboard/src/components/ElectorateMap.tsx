@@ -3,7 +3,15 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { partyColor } from '../lib/constants.js';
+import { mapFillOpacity } from '../lib/seat-chance.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { dashboardClientConfig } from '../config.js';
+import type { VotingPlaceSummary } from '../hooks/useVotingPlaces.js';
+import {
+  VotingPlaceLedger,
+  VotingPlaceLegend,
+  VotingPlacesLayer,
+} from './VotingPlaces.js';
 import {
   BOUNDARY_MANIFEST_PATH,
   boundaryGeoJsonPath,
@@ -31,17 +39,24 @@ L.Icon.Default.mergeOptions({
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   VotingResults,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 interface ElectorateMapProps {
   electorates: ElectorateResult[];
   selectedName?: string;
   showMaori: boolean;
   showPartyVote?: boolean;
+  /** Chance of winning, keyed by normalised electorate name. */
+  chances?: Map<string, SeatChance>;
+  /**
+   * The selected seat's voting places. Owned by the page so the count chart can
+   * draw the same receipts without a second request.
+   */
+  places?: VotingPlaceSummary | null;
+  placesLoading?: boolean;
 }
 
 const GEO_KINDS: Record<'general' | 'maori', BoundaryKind> = {
@@ -112,16 +127,6 @@ function leadingPartyVote(
     if (partyVotes[i].votes > top.votes) top = partyVotes[i];
   }
   return top;
-}
-
-function getCandidateOpacity(result: ElectorateResult): number {
-  const moe = result.marginOfError;
-  const marginPercent = result.leaders.marginPercent;
-  if (!Number.isFinite(moe) || moe <= 0) return 0.2;
-  const ratio = marginPercent / moe;
-  if (ratio >= 2) return 0.8;
-  if (ratio <= 1) return 0.2;
-  return 0.2 + (ratio - 1) * 0.6;
 }
 
 function getPartyOpacity(
@@ -230,6 +235,9 @@ export default function ElectorateMap({
   selectedName,
   showMaori,
   showPartyVote,
+  chances,
+  places,
+  placesLoading,
 }: ElectorateMapProps) {
   const [boundary, setBoundary] = useState<LoadedBoundary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -266,14 +274,16 @@ export default function ElectorateMap({
           opacity: getPartyOpacity(leading, e.votesCounted),
         });
       } else {
+        // Shading follows the chance of winning, so the map says how decided a
+        // seat is rather than who happens to lead it right now.
         map.set(key, {
           color: partyColor(e.leaders.leadingCandidateParty, '#9ca3af'),
-          opacity: getCandidateOpacity(e),
+          opacity: mapFillOpacity(chances?.get(key)),
         });
       }
     }
     return map;
-  }, [electorates, showPartyVote]);
+  }, [electorates, showPartyVote, chances]);
 
   useEffect(() => {
     setBoundary(null);
@@ -358,57 +368,86 @@ export default function ElectorateMap({
           </p>
         </div>
       )}
-      <MapContainer
-        center={DEFAULT_CENTER}
-        zoom={DEFAULT_ZOOM}
-        zoomSnap={0.5}
-        className="h-[300px] sm:h-[600px] w-full"
-        scrollWheelZoom={true}
-        zoomControl={true}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
-        <GeoJSON
-          key={`${geoKey}-${showPartyVote ? 'party' : 'candidate'}`}
-          data={geoData}
-          style={(feature) => {
-            const name = feature?.properties?.name;
-            const key = name ? normalizeElectorateName(name) : null;
-            const isSelected =
-              key !== null &&
-              selectedName !== undefined &&
-              normalizeElectorateName(selectedName) === key;
-            const style = key ? lookup.get(key) : undefined;
-            return {
-              fillColor: style?.color ?? '#e5e7eb',
-              weight: isSelected ? 3 : 1,
-              opacity: 1,
-              color: isSelected ? '#000' : '#fff',
-              fillOpacity: style?.opacity ?? 0.15,
-            };
-          }}
-          onEachFeature={(feature, layer) => {
-            const name = feature.properties.name;
+      <div className="relative">
+        <MapContainer
+          center={DEFAULT_CENTER}
+          zoom={DEFAULT_ZOOM}
+          zoomSnap={0.5}
+          className="h-[300px] sm:h-[600px] w-full"
+          scrollWheelZoom={true}
+          zoomControl={true}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          />
+          <GeoJSON
+            key={`${geoKey}-${showPartyVote ? 'party' : 'candidate'}`}
+            data={geoData}
+            style={(feature) => {
+              const name = feature?.properties?.name;
+              const key = name ? normalizeElectorateName(name) : null;
+              const isSelected =
+                key !== null &&
+                selectedName !== undefined &&
+                normalizeElectorateName(selectedName) === key;
+              const style = key ? lookup.get(key) : undefined;
+              return {
+                fillColor: style?.color ?? '#e5e7eb',
+                weight: isSelected ? 3 : 1,
+                opacity: 1,
+                color: isSelected ? '#000' : '#fff',
+                fillOpacity: style?.opacity ?? 0.15,
+              };
+            }}
+            onEachFeature={(feature, layer) => {
+              const name = feature.properties.name;
 
-            layer.bindTooltip(name, {
-              permanent: true,
-              direction: 'center',
-              className: 'electorate-label',
-            });
+              layer.bindTooltip(name, {
+                permanent: true,
+                direction: 'center',
+                className: 'electorate-label',
+              });
 
-            layer.on({
-              click: () => {
-                navigate(`/electorates/${encodeURIComponent(name)}`);
-              },
-            });
-          }}
-        />
-        <MapUpdater selectedName={selectedName} geoData={geoData} />
-      </MapContainer>
+              layer.on({
+                click: () => {
+                  navigate(`/electorates/${encodeURIComponent(name)}`);
+                },
+              });
+            }}
+          />
+          <MapUpdater selectedName={selectedName} geoData={geoData} />
+          {places && <VotingPlacesLayer places={places.places} />}
+        </MapContainer>
+        {places && (
+          <VotingPlaceLedger
+            summary={places}
+            loading={placesLoading}
+            className="pointer-events-none absolute bottom-2 left-2 z-[500] hidden w-[14.5rem] sm:block"
+          />
+        )}
+      </div>
+      {/* No ledger under the map on a phone: the panel below already carries the
+          count, and a second card inside a 300px map card is one row of chrome
+          between a thumb and the seat. */}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <span className="chip-print">{boundary.year} electorates</span>
+        {chances && !showPartyVote ? (
+          <span className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-4 bg-[#9ca3af]"
+              style={{ opacity: 0.25 }}
+            />
+            <span>50/50</span>
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-4 bg-[#9ca3af]"
+              style={{ opacity: 0.8 }}
+            />
+            <span>decided</span>
+          </span>
+        ) : null}
+        {places ? <VotingPlaceLegend /> : null}
         <span className="text-[0.625rem] text-muted-foreground">
           Boundaries: Stats NZ (CC BY 4.0)
         </span>

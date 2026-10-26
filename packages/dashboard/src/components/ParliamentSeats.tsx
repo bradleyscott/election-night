@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import {
   useFloating,
   autoUpdate,
@@ -9,13 +16,18 @@ import {
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { usePartyOrder } from '../hooks/usePartyOrder.js';
 import { buildSeats } from '../lib/parliament.js';
-import type { PartyEntry, ElectorateEntry, PartyListEntry } from '../lib/parliament.js';
+import type {
+  PartyEntry,
+  ElectorateEntry,
+  PartyListEntry,
+} from '../lib/parliament.js';
 import { WaitingState } from './WaitingState.js';
 import BottomSheet from './BottomSheet.js';
 import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
 import { ParliamentTable } from './ParliamentTable.js';
 import { SeatDetailContent } from './SeatDetailContent.js';
 import { type DragEndEvent } from '@dnd-kit/dom';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { isSortable } from '@dnd-kit/react/sortable';
 
 const ROWS = 3;
@@ -24,10 +36,12 @@ export default function ParliamentSeats({
   partyVote,
   electorateResults,
   partyLists,
+  chances,
 }: {
   partyVote: PartyEntry[];
   electorateResults: ElectorateEntry[];
   partyLists: PartyListEntry[];
+  chances?: Map<string, SeatChance>;
 }) {
   const { order, setOrder, resetOrder } = usePartyOrder(partyVote);
   const [draggingParty, setDraggingParty] = useState<string | null>(null);
@@ -57,7 +71,10 @@ export default function ParliamentSeats({
   useEffect(() => {
     if (selectedSeat === null || isMobile) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node)
+      ) {
         setSelectedSeat(null);
       }
     };
@@ -73,8 +90,16 @@ export default function ParliamentSeats({
   const majority = useMemo(() => Math.floor(totalSeats / 2) + 1, [totalSeats]);
 
   const seats = useMemo(
-    () => buildSeats(order, partyVote, electorateResults, partyLists, totalSeats),
-    [order, partyVote, electorateResults, partyLists, totalSeats]
+    () =>
+      buildSeats(
+        order,
+        partyVote,
+        electorateResults,
+        partyLists,
+        totalSeats,
+        chances
+      ),
+    [order, partyVote, electorateResults, partyLists, totalSeats, chances]
   );
 
   // The seat grid has a min-width and scrolls horizontally on small screens, so a
@@ -264,7 +289,9 @@ export default function ParliamentSeats({
       <BottomSheet
         open={selectedSeatInfo !== null && isMobile}
         onClose={() => setSelectedSeat(null)}
-        title={selectedSeatInfo ? `${selectedSeatInfo.party} seat` : 'Seat details'}
+        title={
+          selectedSeatInfo ? `${selectedSeatInfo.party} seat` : 'Seat details'
+        }
       >
         {selectedSeatInfo && (
           <SeatDetailContent

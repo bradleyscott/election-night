@@ -3,16 +3,21 @@ export type ResultPageConfig = {
   url: string;
 };
 
-export type Config = {
-  predictionConfidence: number;
-};
-
 export type ElectorateResults = {
   electorateName: string;
   partyVotes: VotingResults[];
   candidateVotes: (VotingResults & WithParty)[];
   votesCounted: number;
   votePercentageCounted: number;
+  /**
+   * Turnout in this seat so far: votes counted ÷ enrolled electors, as a
+   * fraction. This is the feed's `percent_votes_cast`.
+   *
+   * It is **not** counting progress. `votePercentageCounted` counts voting
+   * places; this counts people, and it is the only field that can turn a
+   * count into a share of the vote still to come.
+   */
+  percentVotesCast?: number;
 };
 
 export type VotingResults = {
@@ -26,7 +31,6 @@ export type WithParty = {
 
 export type WithPercentages = {
   percentage: number;
-  marginOfError: number;
 };
 
 export type WithSeats = {
@@ -34,8 +38,6 @@ export type WithSeats = {
   electorateSeats: number;
   listSeats: number;
 };
-
-export type PredictionStatus = 'too-close' | 'leaning' | 'likely' | 'projected';
 
 export type WithLeaders = {
   leaders: {
@@ -45,12 +47,7 @@ export type WithLeaders = {
     secondCandidateParty: string | undefined;
     margin: number;
     marginPercent: number;
-    predictionStatus: PredictionStatus;
   };
-};
-
-export type WithMarginOfError = {
-  marginOfError: number;
 };
 
 export type PartyList = {
@@ -65,7 +62,7 @@ export type WithAdjustedRank = {
 };
 
 export type ResultsPayload = {
-  electorateResults: (ElectorateResults & WithLeaders & WithMarginOfError)[];
+  electorateResults: (ElectorateResults & WithLeaders)[];
   partyVote: (VotingResults & WithSeats)[];
   partyLists: (PartyList & WithAdjustedRank)[];
 };
@@ -108,6 +105,8 @@ export type RawElectorateResults = {
   partyVotes: VotingResults[];
   votesCounted: number;
   votePercentageCounted: number;
+  /** Turnout so far (feed `percent_votes_cast`), as a fraction. */
+  percentVotesCast?: number;
 };
 
 export interface ElectionSource {
@@ -139,8 +138,13 @@ export type WebhookPayload = {
   event: WebhookEventType;
   timestamp: number;
   electorateName: string;
-  result: ElectorateResults & WithLeaders & WithMarginOfError;
+  result: ElectorateResults & WithLeaders;
   diff: ElectorateDiff;
+  /**
+   * The seat's chance of being won, when the count is live and a prior exists.
+   * `null` on a finished count, and absent when the collector had no baseline.
+   */
+  probability?: number | null;
 };
 
 // ---- Feed / Commentary ----
@@ -161,9 +165,6 @@ export type ElectorateDiff = {
   leaderChanged: boolean;
   previousLeaderName: string | null;
   previousLeaderParty: string | null;
-  predictionStatusChanged: boolean;
-  previousPredictionStatus: PredictionStatus | null;
-  currentPredictionStatus: PredictionStatus;
 };
 
 export type FeedEvent = {
@@ -171,8 +172,18 @@ export type FeedEvent = {
   timestamp: number;
   type: FeedEventType;
   electorateName: string;
-  predictionStatus: PredictionStatus;
-  marginOfError: number;
+  /**
+   * The seat's chance of being won, when the count is live and a prior exists.
+   * `null` once the ordinary count is complete (a finished count has a margin,
+   * not a probability) and absent on events written before the p(win) model.
+   */
+  probability?: number | null;
+  /**
+   * Votes counted against the votes tonight is expected to produce: the same
+   * number the seat panel prints as "% counted". `null` when the count is not
+   * live or no cycle was modelled — never the share of voting places reported.
+   */
+  progress?: number | null;
   summary: string;
   commentary: string;
   diff: ElectorateDiff;

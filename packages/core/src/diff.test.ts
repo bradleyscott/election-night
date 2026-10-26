@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  computeDiff,
-  determineFeedEventType,
-  determineWebhookEvents,
-  diffFacts,
-} from './diff.js';
+import { computeDiff, determineWebhookEvents, diffFacts } from './diff.js';
 import type { ComparableResult } from './diff.js';
-import type { PredictionStatus } from './types.js';
 
 function makeResult(
   overrides: Partial<ComparableResult> = {}
@@ -17,7 +11,6 @@ function makeResult(
     candidateVotes: [],
     votesCounted: 1000,
     votePercentageCounted: 0.5,
-    marginOfError: 0.02,
     leaders: {
       leadingCandidate: 'Alice',
       leadingCandidateParty: 'Red Party',
@@ -25,7 +18,6 @@ function makeResult(
       secondCandidateParty: 'Blue Party',
       margin: 100,
       marginPercent: 0.1,
-      predictionStatus: 'too-close',
     },
     ...overrides,
   };
@@ -55,7 +47,6 @@ describe('computeDiff', () => {
         secondCandidateParty: null,
         margin: 0,
         marginPercent: 0,
-        predictionStatus: 'too-close',
       },
     });
     const diff = computeDiff(zeroBaseline, makeResult());
@@ -124,10 +115,12 @@ describe('determineWebhookEvents', () => {
         ...previous.leaders,
         leadingCandidate: 'Bob',
         leadingCandidateParty: 'Blue Party',
-        predictionStatus: 'likely' as PredictionStatus,
       },
     });
-    const events = determineWebhookEvents(computeDiff(previous, current));
+    const events = determineWebhookEvents(computeDiff(previous, current), {
+      called: true,
+      wasCalled: false,
+    });
     expect(events).toContain('result_updated');
     expect(events).toContain('prediction_changed');
     expect(events).toContain('leader_change');
@@ -135,35 +128,40 @@ describe('determineWebhookEvents', () => {
   });
 });
 
-describe('determineFeedEventType', () => {
-  it('prioritises leader_change over count_completed', () => {
-    const previous = makeResult({ votePercentageCounted: 0.9 });
-    const current = makeResult({
-      votePercentageCounted: 1,
-      leaders: {
-        ...previous.leaders,
-        leadingCandidateParty: 'Blue Party',
-      },
-    });
-    expect(determineFeedEventType(computeDiff(previous, current))).toBe(
-      'leader_change'
-    );
+describe('determineWebhookEvents with a call state', () => {
+  const previous = makeResult({ votePercentageCounted: 0.6 });
+  const current = makeResult({
+    votesCounted: 9000,
+    votePercentageCounted: 0.7,
   });
 
-  it('returns prediction_called only when the call hardens', () => {
-    const previous = makeResult();
-    const current = makeResult({
-      leaders: { ...previous.leaders, predictionStatus: 'likely' },
+  it('fires prediction_changed when the seat crosses the call threshold', () => {
+    const events = determineWebhookEvents(computeDiff(previous, current), {
+      called: true,
+      wasCalled: false,
     });
-    expect(determineFeedEventType(computeDiff(previous, current))).toBe(
-      'prediction_called'
-    );
+    expect(events).toContain('prediction_changed');
+  });
 
-    const softened = makeResult({
-      leaders: { ...previous.leaders, predictionStatus: 'leaning' },
+  it('fires prediction_changed when a call is withdrawn', () => {
+    const events = determineWebhookEvents(computeDiff(previous, current), {
+      called: false,
+      wasCalled: true,
     });
-    expect(determineFeedEventType(computeDiff(previous, softened))).toBe(
-      'result_updated'
-    );
+    expect(events).toContain('prediction_changed');
+  });
+
+  it('stays quiet while the seat is called at both ends of the diff', () => {
+    // The status band can move without the chance crossing 0.9 — the webhook
+    // follows the crossing, not the band, so this must not fire.
+    const moved = makeResult({
+      votesCounted: 9000,
+      votePercentageCounted: 0.7,
+    });
+    const events = determineWebhookEvents(computeDiff(previous, moved), {
+      called: true,
+      wasCalled: true,
+    });
+    expect(events).not.toContain('prediction_changed');
   });
 });

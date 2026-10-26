@@ -68,6 +68,12 @@ const collectorConfigSchema = z.object({
     .transform((v) => (v ? v : undefined))
     .describe('Webhook URL for result events'),
   electionSourcePath: z.string().optional(),
+  priorResults: z
+    .enum(['on', 'off'])
+    .default('on')
+    .describe(
+      'Whether prior cycles are fetched from the archive. `off` makes every year except the one being counted report unavailable, which is what keeps an air-gapped or mocked run — and the tests that spawn this process — off the network'
+    ),
   priorElectionYear: z
     .string()
     .optional()
@@ -97,6 +103,7 @@ function loadCollectorConfig(): CollectorConfig {
     resultsCachePath: process.env.RESULTS_CACHE_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,
+    priorResults: process.env.PRIOR_RESULTS,
     priorElectionYear: process.env.PRIOR_ELECTION_YEAR,
     wsReconnectDelayMs: process.env.WS_RECONNECT_DELAY_MS,
   });

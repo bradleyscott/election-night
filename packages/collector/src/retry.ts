@@ -8,11 +8,7 @@ export async function withRetry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
 ): Promise<T> {
-  const {
-    maxAttempts = 3,
-    baseDelayMs = 500,
-    maxDelayMs = 10_000,
-  } = options;
+  const { maxAttempts = 3, baseDelayMs = 500, maxDelayMs = 10_000 } = options;
 
   let lastError: unknown;
 

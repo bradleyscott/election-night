@@ -4,31 +4,40 @@ import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import { Pagination } from './Pagination.js';
+import { normalizeElectorateName } from '../lib/electorates.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
+import type { SeatChance } from '@election-night/core/seat-probability';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 const PAGE_SIZE = 10;
 
 export function ElectorateRacesView({
   electorates,
+  chances,
 }: {
   electorates: ElectorateResult[];
+  chances?: Map<string, SeatChance>;
 }) {
   const navigate = useNavigate();
   const [page, setPage] = useState(0);
 
-  const sorted = useMemo(
-    () =>
-      [...electorates].sort(
-        (a, b) => a.leaders.marginPercent - b.leaders.marginPercent
-      ),
-    [electorates]
-  );
+  // Closest first still, but "close" is now the chance of losing rather than
+  // the distance between the top two. A seat with a 12% lead and a 99% chance
+  // is not a close call; a seat 300 votes apart at 39% counted is.
+  const sorted = useMemo(() => {
+    const rank = (er: ElectorateResult) => {
+      const chance = chances?.get(normalizeElectorateName(er.electorateName));
+      if (chance?.state === 'counting') return chance.probability;
+      // A finished count is not a probability, and an uncounted seat is not a
+      // close call; both belong below every live race.
+      return chance?.state === 'complete' ? 1 : 1.5;
+    };
+    return [...electorates].sort((a, b) => rank(a) - rank(b));
+  }, [electorates, chances]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageResults = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -62,8 +71,8 @@ export function ElectorateRacesView({
               <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
                 Lead %
               </th>
-              <th className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                MoE
+              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                Win %
               </th>
             </tr>
           </thead>
@@ -108,7 +117,9 @@ export function ElectorateRacesView({
                           backgroundColor: partyColor(l.leadingCandidateParty),
                         }}
                       />
-                      <span className="font-semibold">{l.leadingCandidate}</span>
+                      <span className="font-semibold">
+                        {l.leadingCandidate}
+                      </span>
                     </div>
                   </td>
                   <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
@@ -130,8 +141,12 @@ export function ElectorateRacesView({
                   <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
                     {(l.marginPercent * 100).toFixed(2)}%
                   </td>
-                  <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right tabular-nums font-bold text-muted-foreground">
-                    ±{(er.marginOfError * 100).toFixed(1)}%
+                  <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
+                    <WinPercentCell
+                      chance={chances?.get(
+                        normalizeElectorateName(er.electorateName)
+                      )}
+                    />
                   </td>
                 </tr>
               );
@@ -142,5 +157,29 @@ export function ElectorateRacesView({
 
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
+  );
+}
+
+/**
+ * The chance the leader holds the seat. A margin of error is a property of a
+ * sample, and this is not a sample — it is a count part-way through, so the
+ * honest figure is the chance the lead survives the votes still to come.
+ */
+function WinPercentCell({ chance }: { chance?: SeatChance }) {
+  if (chance?.state === 'counting') {
+    return <span>{Math.round(chance.probability * 100)}%</span>;
+  }
+
+  return (
+    <span
+      className="text-muted-foreground"
+      title={
+        chance?.state === 'complete'
+          ? "Tonight's count is complete for this seat"
+          : 'No votes counted yet'
+      }
+    >
+      &mdash;
+    </span>
   );
 }

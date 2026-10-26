@@ -9,7 +9,9 @@ function TestComponent() {
   const { feedEvents, connected } = useFeed();
   return (
     <div>
-      <div data-testid="connected">{connected ? 'connected' : 'disconnected'}</div>
+      <div data-testid="connected">
+        {connected ? 'connected' : 'disconnected'}
+      </div>
       <div data-testid="events">{feedEvents.length}</div>
     </div>
   );

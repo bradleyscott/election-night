@@ -11,11 +11,10 @@ import { tmpdir } from 'os';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   WebhookPayload,
 } from '@election-night/core/types';
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+type Results = ElectorateResults & WithLeaders;
 
 const mockConfig: {
   resultsCachePath: string;
@@ -45,9 +44,7 @@ function makeResult(overrides: Partial<Results> = {}): Results {
       secondCandidateParty: 'Labour Party',
       margin: 400,
       marginPercent: 0.04,
-      predictionStatus: 'too-close',
     },
-    marginOfError: 0.02,
     ...overrides,
   };
 }
@@ -179,7 +176,6 @@ describe('computeDiff', () => {
     expect(diff.previousPercentageCounted).toBeNull();
     expect(diff.previousMargin).toBeNull();
     expect(diff.leaderChanged).toBe(false);
-    expect(diff.predictionStatusChanged).toBe(false);
     expect(diff.previousLeaderName).toBeNull();
   });
 
@@ -192,7 +188,6 @@ describe('computeDiff', () => {
     expect(diff.previousVotesCounted).toBe(10000);
     expect(diff.currentVotesCounted).toBe(10000);
     expect(diff.leaderChanged).toBe(false);
-    expect(diff.predictionStatusChanged).toBe(false);
   });
 
   test('detects leader change', async () => {
@@ -208,22 +203,6 @@ describe('computeDiff', () => {
 
     expect(diff.leaderChanged).toBe(true);
     expect(diff.previousLeaderParty).toBe('National Party');
-  });
-
-  test('detects prediction status change', async () => {
-    const { computeDiff } = await import('./results.js');
-    const previous = makeResult();
-    const current = makeResult({
-      leaders: {
-        ...previous.leaders,
-        predictionStatus: 'projected',
-      },
-    });
-    const diff = computeDiff(previous, current);
-
-    expect(diff.predictionStatusChanged).toBe(true);
-    expect(diff.previousPredictionStatus).toBe('too-close');
-    expect(diff.currentPredictionStatus).toBe('projected');
   });
 
   test('detects vote count change', async () => {
@@ -262,15 +241,16 @@ describe('determineWebhookEvents', () => {
     expect(determineWebhookEvents(diff)).toContain('result_updated');
   });
 
-  test('returns prediction_changed when status changes', async () => {
+  test('returns prediction_changed when the call state crosses', async () => {
     const { computeDiff, determineWebhookEvents } =
       await import('./results.js');
     const previous = makeResult();
-    const current = makeResult({
-      leaders: { ...previous.leaders, predictionStatus: 'likely' },
-    });
+    const current = makeResult({ votesCounted: 15000 });
     const diff = computeDiff(previous, current);
-    expect(determineWebhookEvents(diff)).toContain('prediction_changed');
+    expect(
+      determineWebhookEvents(diff, { called: true, wasCalled: false })
+    ).toContain('prediction_changed');
+    expect(determineWebhookEvents(diff)).not.toContain('prediction_changed');
   });
 
   test('returns leader_change when leading party changes', async () => {
@@ -321,11 +301,13 @@ describe('determineWebhookEvents', () => {
         secondCandidateParty: 'National Party',
         margin: 200,
         marginPercent: 0.01,
-        predictionStatus: 'projected',
       },
     });
     const diff = computeDiff(previous, current);
-    const events = determineWebhookEvents(diff);
+    const events = determineWebhookEvents(diff, {
+      called: true,
+      wasCalled: false,
+    });
 
     expect(events).toContain('result_updated');
     expect(events).toContain('prediction_changed');
@@ -472,7 +454,6 @@ describe('processResults', () => {
           secondCandidateParty: 'Labour Party',
           margin: 200,
           marginPercent: 0.04,
-          predictionStatus: 'too-close',
         },
       }),
     ]);
@@ -490,13 +471,14 @@ describe('processResults', () => {
           secondCandidateParty: 'National Party',
           margin: 150,
           marginPercent: 0.015,
-          predictionStatus: 'leaning',
         },
       }),
     ]);
 
-    // Should have fired for result_updated, prediction_changed, AND leader_change
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // Without a chance lookup there is no call to cross, so this fires for
+    // result_updated and leader_change only — the prediction event needs the
+    // model, not a status derived from the count.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const calls = fetchMock.mock.calls.map(
       (c) =>
@@ -504,8 +486,68 @@ describe('processResults', () => {
           .event
     );
     expect(calls).toContain('result_updated');
-    expect(calls).toContain('prediction_changed');
     expect(calls).toContain('leader_change');
+    expect(calls).not.toContain('prediction_changed');
+
+    vi.unstubAllGlobals();
+  });
+
+  test('calls a seat on the chance model, not the status band', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    mockConfig.webhookUrl = 'https://hooks.example.com/webhook';
+
+    const { cacheResults, processResults } = await import('./results.js');
+
+    cacheResults([
+      makeResult({
+        electorateName: 'Auckland Central',
+        votesCounted: 5000,
+        votePercentageCounted: 0.5,
+      }),
+    ]);
+
+    // The status band does not move between these two counts; only the chance
+    // crosses 0.9. The webhook has to follow the chance, because that is what
+    // the feed and the electorate page are showing.
+    const chanceAt = (probability: number) =>
+      ({
+        state: 'counting',
+        probability,
+        othersProbability: 0,
+        leader: { name: 'Smith, John', party: 'National Party', votes: 5100 },
+        runnerUp: { name: 'Jones, Mary', party: 'Labour Party', votes: 4900 },
+        margin: 200,
+        remainingVotes: 3000,
+        remainingLow: 2400,
+        remainingHigh: 3600,
+        progress: 0.6,
+        enrolment: 45000,
+        assumedCycle: false,
+        insideOutstanding: true,
+        specialsOutstanding: 7300,
+        insideSpecials: true,
+        provisionalPrior: false,
+      }) as const;
+
+    await processResults(
+      [
+        makeResult({
+          electorateName: 'Auckland Central',
+          votesCounted: 9000,
+          votePercentageCounted: 0.7,
+        }),
+      ],
+      (result) => chanceAt(result.votesCounted < 9000 ? 0.62 : 0.93)
+    );
+
+    const payloads = fetchMock.mock.calls.map(
+      (c) => JSON.parse((c[1] as RequestInit).body as string) as WebhookPayload
+    );
+    const events = payloads.map((p) => p.event);
+    expect(events).toContain('prediction_changed');
+    expect(payloads[0]!.probability).toBeCloseTo(0.93);
 
     vi.unstubAllGlobals();
   });

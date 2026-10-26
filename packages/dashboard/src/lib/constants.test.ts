@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   MAJOR_PARTY_ORDER,
+  PARTY_FILTER_NAMES,
   PARTY_RENAMES,
   canonicalPartyName,
   isMajorParty,
@@ -18,17 +19,48 @@ import {
 const TOP_2023 = 'The Opportunities Party (TOP)';
 const TOP_2026 = 'Opportunity Party';
 
+describe('party names', () => {
+  test('the filter row lists each party once', () => {
+    expect(PARTY_FILTER_NAMES.length).toBe(new Set(PARTY_FILTER_NAMES).size);
+    expect(
+      PARTY_FILTER_NAMES.filter((name) => name === 'Opportunity Party')
+    ).toHaveLength(1);
+  });
+
+  test('a renamed party collapses onto its registered name', () => {
+    expect(canonicalPartyName('The Opportunities Party (TOP)')).toBe(
+      'Opportunity Party'
+    );
+    expect(canonicalPartyName('Opportunity Party')).toBe('Opportunity Party');
+    expect(canonicalPartyName('Labour Party')).toBe('Labour Party');
+  });
+
+  test('every filter entry has a colour under its current name', () => {
+    for (const name of PARTY_FILTER_NAMES) {
+      expect(partyColors[name]).toBeDefined();
+    }
+  });
+
+  test('both spellings resolve to the same colour', () => {
+    expect(partyColor('The Opportunities Party (TOP)')).toBe(
+      partyColor('Opportunity Party')
+    );
+  });
+
+  test('a rename keeps both names in the palette so an archive still draws', () => {
+    for (const [from, to] of Object.entries(PARTY_RENAMES)) {
+      expect(partyColors[from]).toBeDefined();
+      expect(partyColors[to]).toBeDefined();
+      expect(partyColors[from]).toBe(partyColors[to]);
+    }
+  });
+});
+
 describe('party identity across cycles', () => {
   test('the 2026 feed label resolves to the 2023 colour', () => {
     expect(partyColor(TOP_2026)).toBe(partyColors[TOP_2023]);
     expect(partyColor(TOP_2026)).not.toBe('#666');
     expect(partyColor(TOP_2023)).toBe(partyColor(TOP_2026));
-  });
-
-  test('canonicalPartyName maps only the renamed feed labels', () => {
-    expect(canonicalPartyName(TOP_2026)).toBe(TOP_2023);
-    expect(canonicalPartyName(TOP_2023)).toBe(TOP_2023);
-    expect(canonicalPartyName('National Party')).toBe('National Party');
   });
 
   test('unknown, empty and missing parties take the fallback colour', () => {
@@ -40,15 +72,12 @@ describe('party identity across cycles', () => {
     expect(partyColor(TOP_2026, '#9ca3af')).not.toBe('#9ca3af');
   });
 
-  test('every rename resolves to a colour and is not itself a colour key', () => {
+  test('every rename maps a different name onto a coloured party', () => {
     const renames = Object.entries(PARTY_RENAMES);
     expect(renames.length).toBeGreaterThan(0);
     for (const [from, to] of renames) {
       expect(from).not.toBe(to);
       expect(partyColors[to]).toBeTruthy();
-      // A renamed label must not also own a colour, or the two names could
-      // drift to different colours without any test noticing.
-      expect(partyColors[from]).toBeUndefined();
     }
   });
 
@@ -98,7 +127,7 @@ describe('party chip lists', () => {
   });
 
   test('TOP sits after the five established parties', () => {
-    expect(MAJOR_PARTY_ORDER.indexOf(TOP_2023)).toBe(
+    expect(MAJOR_PARTY_ORDER.indexOf(TOP_2026)).toBe(
       MAJOR_PARTY_ORDER.length - 1
     );
   });

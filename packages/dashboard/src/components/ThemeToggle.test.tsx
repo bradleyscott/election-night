@@ -14,14 +14,18 @@ describe('ThemeToggle', () => {
   it('defaults to light when nothing is saved', () => {
     render(<ThemeToggle />);
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Switch to dark mode' })
+    ).toBeTruthy();
   });
 
   it('applies a saved dark theme on mount', () => {
     localStorage.setItem(THEME_KEY, 'dark');
     render(<ThemeToggle />);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Switch to light mode' })
+    ).toBeTruthy();
   });
 
   it('toggles to dark, persists, and toggles back', () => {

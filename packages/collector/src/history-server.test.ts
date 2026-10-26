@@ -7,7 +7,6 @@ import type { AddressInfo } from 'node:net';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 import { createHistoryHandler } from './history-server.js';
 import type { ElectionResultsService } from '@election-night/core/election-results-service';
@@ -17,7 +16,7 @@ vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+type Results = ElectorateResults & WithLeaders;
 
 function makeResult(
   votes: number,
@@ -42,9 +41,7 @@ function makeResult(
       secondCandidateParty: 'Labour Party',
       margin: 200,
       marginPercent: 0.02,
-      predictionStatus: 'leaning',
     },
-    marginOfError: 0.02,
   };
 }
 

@@ -9,17 +9,17 @@ import * as schema from './db/schema.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   VotingResults,
   WithSeats,
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { log } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+type Results = ElectorateResults & WithLeaders;
 type PartyVoteSummary = VotingResults & WithSeats;
 type PartyListEntry = PartyList & WithAdjustedRank;
 
@@ -62,7 +62,15 @@ export function writeResults(
    * `/history/*` can scope itself to one cycle instead of blending whatever
    * cycles happen to share the DB (the Fly deployment keeps it on a volume).
    */
-  electionYear: string
+  electionYear: string,
+  /**
+   * The model's chance for a seat, when one is computable. History stores the
+   * model's own progress (votes against the votes tonight is expected to
+   * produce) rather than the share of voting places reported: places are not
+   * votes, and the places figure runs hot early because advance votes land in
+   * blocks after 7pm.
+   */
+  chanceFor?: (result: ElectorateResults & WithLeaders) => SeatChance | null
 ) {
   log.info('Writing results to DB...');
 
@@ -82,43 +90,31 @@ export function writeResults(
             candidate: cv.candidate,
             party: cv.party ?? '',
             votes: cv.votes,
-            isPredicted:
-              r.leaders.predictionStatus === 'projected' &&
-              r.leaders.leadingCandidate === cv.candidate
-                ? 1
-                : 0,
           })
           .run();
       }
 
+      const chance = chanceFor?.(r);
+      const progress =
+        chance?.state === 'counting'
+          ? Math.min(1, chance.progress)
+          : r.votePercentageCounted;
       tx.insert(schema.electorateSummary)
         .values({
           scrapeId,
           electorate: r.electorateName,
           votesCounted: r.votesCounted,
           estimatedTotalVotes:
-            r.votePercentageCounted > 0 &&
-            Number.isFinite(r.votePercentageCounted)
-              ? r.votesCounted / r.votePercentageCounted
+            progress > 0 && Number.isFinite(progress)
+              ? r.votesCounted / progress
               : 0,
-          votePctCounted: r.votePercentageCounted,
+          votePctCounted: progress,
           leadingCandidate: r.leaders.leadingCandidate,
           leadingParty: r.leaders.leadingCandidateParty,
-          predictedWinner:
-            r.leaders.predictionStatus === 'projected'
-              ? 3
-              : r.leaders.predictionStatus === 'likely'
-                ? 2
-                : r.leaders.predictionStatus === 'leaning'
-                  ? 1
-                  : 0,
           margin: r.leaders.margin,
           marginPct: r.leaders.marginPercent,
           secondCandidate: r.leaders.secondCandidate,
           secondParty: r.leaders.secondCandidateParty,
-          marginOfError: Number.isFinite(r.marginOfError)
-            ? r.marginOfError
-            : null,
         })
         .run();
 
@@ -224,7 +220,9 @@ export function pruneSnapshots(
       limit ?`
   );
   const deleteChildren = SNAPSHOT_CHILD_TABLES.map((table) =>
-    sqliteDb.prepare(`delete from ${table} where scrape_id in (select value from json_each(?))`)
+    sqliteDb.prepare(
+      `delete from ${table} where scrape_id in (select value from json_each(?))`
+    )
   );
   const deleteSnapshots = sqliteDb.prepare(
     'delete from scrape_snapshots where id in (select value from json_each(?))'
@@ -272,7 +270,9 @@ export function pruneSnapshots(
  * cannot write.
  */
 export function enableIncrementalVacuum(): boolean {
-  if (sqliteDb.pragma('auto_vacuum', { simple: true }) === INCREMENTAL_AUTO_VACUUM) {
+  if (
+    sqliteDb.pragma('auto_vacuum', { simple: true }) === INCREMENTAL_AUTO_VACUUM
+  ) {
     return true;
   }
 
@@ -313,7 +313,9 @@ export function enableIncrementalVacuum(): boolean {
  * pages (of `page_size` bytes) actually returned.
  */
 export function compactDatabase(maxPages = 4096): number {
-  if (sqliteDb.pragma('auto_vacuum', { simple: true }) !== INCREMENTAL_AUTO_VACUUM) {
+  if (
+    sqliteDb.pragma('auto_vacuum', { simple: true }) !== INCREMENTAL_AUTO_VACUUM
+  ) {
     return 0;
   }
   const before = sqliteDb.pragma('freelist_count', { simple: true }) as number;

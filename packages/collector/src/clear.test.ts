@@ -6,10 +6,9 @@ import Database from 'better-sqlite3';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+type Results = ElectorateResults & WithLeaders;
 
 vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -54,9 +53,7 @@ const sampleResults: Results[] = [
       secondCandidateParty: 'Labour Party',
       margin: 400,
       marginPercent: 0.04,
-      predictionStatus: 'too-close',
     },
-    marginOfError: 0.02,
   },
 ];
 

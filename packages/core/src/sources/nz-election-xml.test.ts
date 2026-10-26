@@ -215,6 +215,7 @@ describe('NzElectionXmlSource', () => {
   <statistics>
     <total_votes_cast>1000</total_votes_cast>
     <percent_voting_places_counted>50.0</percent_voting_places_counted>
+    <percent_votes_cast>25.0</percent_votes_cast>
   </statistics>
   <partyvotes>
     <party p_no="10"><votes>600</votes></party>
@@ -242,6 +243,9 @@ describe('NzElectionXmlSource', () => {
     });
 
     const raw = await source.fetchResults(configs[0]!);
+    // Two different denominators on purpose: places counted, and turnout.
+    expect(raw.votePercentageCounted).toBeCloseTo(0.5);
+    expect(raw.percentVotesCast).toBeCloseTo(0.25);
     expect(raw.candidateVotes).toEqual([
       { candidate: "O'CONNOR, Damien", votes: 400, party: 'Red & Blue Party' },
       {

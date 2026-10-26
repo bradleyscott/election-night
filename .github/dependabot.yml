@@ -1,54 +1,54 @@
 version: 2
 updates:
   # npm workspace dependencies (all packages)
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     cooldown:
       default-days: 7
     open-pull-requests-limit: 10
     labels:
-      - "dependencies"
+      - 'dependencies'
     groups:
       dev-dependencies:
         patterns:
-          - "@types/*"
-          - "eslint*"
-          - "typescript*"
-          - "prettier"
-          - "vitest"
-          - "tsx"
-          - "drizzle-kit"
+          - '@types/*'
+          - 'eslint*'
+          - 'typescript*'
+          - 'prettier'
+          - 'vitest'
+          - 'tsx'
+          - 'drizzle-kit'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       production-dependencies:
         patterns:
-          - "*"
+          - '*'
         exclude-patterns:
-          - "@types/*"
-          - "eslint*"
-          - "typescript*"
-          - "prettier"
-          - "vitest"
-          - "tsx"
-          - "drizzle-kit"
+          - '@types/*'
+          - 'eslint*'
+          - 'typescript*'
+          - 'prettier'
+          - 'vitest'
+          - 'tsx'
+          - 'drizzle-kit'
         # Without this, major bumps get swept into the grouped PR — which is how
         # tailwindcss 3 -> 4 arrived bundled with eleven unrelated patches. Majors
         # are breaking by definition and need their own PR plus a migration.
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
 
   # GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     cooldown:
       default-days: 7
     labels:
-      - "dependencies"
-      - "github-actions"
+      - 'dependencies'
+      - 'github-actions'

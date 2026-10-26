@@ -40,7 +40,9 @@ describe('ElectorateSearch', () => {
     const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'auck' } });
 
-    await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    );
     const options = screen.getAllByRole('option');
     expect(options).toHaveLength(1);
     expect(options[0]).toHaveTextContent('Auckland Central');
@@ -49,7 +51,9 @@ describe('ElectorateSearch', () => {
     expect(options[0]).toHaveAttribute('aria-selected', 'true');
 
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(mockedNavigate).toHaveBeenCalledWith('/electorates/Auckland%20Central');
+    expect(mockedNavigate).toHaveBeenCalledWith(
+      '/electorates/Auckland%20Central'
+    );
   });
 
   test('closes listbox on Escape', async () => {
@@ -61,9 +65,13 @@ describe('ElectorateSearch', () => {
 
     const input = screen.getByRole('combobox');
     fireEvent.focus(input);
-    await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    );
 
     fireEvent.keyDown(input, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    );
   });
 });

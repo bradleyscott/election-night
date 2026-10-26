@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
+import { useApi } from '../hooks/useApi.js';
 import { usePriorWinners } from '../hooks/useVoteHistory.js';
 import { Toggle } from '../components/Toggle.js';
 import { Pagination } from '../components/Pagination.js';
@@ -11,18 +12,14 @@ import {
   normalizeElectorateName,
 } from '../lib/electorates.js';
 import {
-  predictionStatusClass,
-  predictionStatusLabel,
-} from '../lib/prediction-status.js';
+  nationalSwingOf,
+  seatChanceFor,
+  type ElectorateResult,
+} from '../lib/seat-chance.js';
 import { cn } from '../lib/utils.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-  WithMarginOfError,
-} from '@election-night/core/types';
+import type { RuntimeConfig } from '@election-night/core/polls-close';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import type { PriorWinner } from '../lib/history-types.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
 
@@ -53,6 +50,25 @@ export default function Flipped() {
   const [page, setPage] = useState(0);
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
+  const { data: config } = useApi<RuntimeConfig>('/api/config');
+
+  // The same figure the seat page, the map, Seats and Close Calls quote, so no
+  // two surfaces can disagree about one seat.
+  const electionYear = config?.electionYear ?? null;
+  const nationalSwing = useMemo(
+    () => nationalSwingOf(electorates, electionYear),
+    [electorates, electionYear]
+  );
+  const chances = useMemo(() => {
+    const map = new Map<string, SeatChance>();
+    for (const result of electorates) {
+      map.set(
+        normalizeElectorateName(result.electorateName),
+        seatChanceFor(result, electionYear, nationalSwing)
+      );
+    }
+    return map;
+  }, [electorates, electionYear, nationalSwing]);
 
   const primaryYear = prior?.primaryYear ?? null;
 
@@ -199,15 +215,14 @@ export default function Flipped() {
                   <Th align="left">Now leading</Th>
                   {/* Below sm the numbers are folded into the two comparison
                       columns (see the row cells), so only the margin and
-                      status columns drop out — the lead, with its error band,
-                      stays visible. */}
+                      chance columns drop out — the lead stays visible. */}
                   <Th align="right" className="hidden sm:table-cell">
                     Lead
                   </Th>
-                  {/* Status is a qualifier, not part of the comparison, so it
-                      goes last. */}
+                  {/* The chance is a qualifier, not part of the comparison, so
+                      it goes last. */}
                   <Th align="right" className="hidden sm:table-cell">
-                    Status
+                    Win %
                   </Th>
                 </tr>
               </thead>
@@ -276,31 +291,23 @@ export default function Flipped() {
                         </div>
                         <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
                           leads {l.margin.toLocaleString()} ·{' '}
-                          {(l.marginPercent * 100).toFixed(1)}% ±
-                          {(electorate.marginOfError * 100).toFixed(1)}%
+                          {(l.marginPercent * 100).toFixed(1)}%
                         </div>
                       </td>
-                      {/* The lead share and its 95% error band are both in
-                          the same units (share of the votes counted), so
-                          they belong in one column — “10.0% ±2.0%”. */}
                       <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell sm:px-3 sm:py-3">
                         <span className="font-bold">
                           {l.margin.toLocaleString()}
                         </span>
                         <span className="block whitespace-nowrap text-xs text-muted-foreground">
-                          {(l.marginPercent * 100).toFixed(1)}% ±
-                          {(electorate.marginOfError * 100).toFixed(1)}%
+                          {(l.marginPercent * 100).toFixed(1)}%
                         </span>
                       </td>
                       <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
-                        <span
-                          className={cn(
-                            'chip-print',
-                            predictionStatusClass(l.predictionStatus)
+                        <WinPercentCell
+                          chance={chances.get(
+                            normalizeElectorateName(electorate.electorateName)
                           )}
-                        >
-                          {predictionStatusLabel(l.predictionStatus)}
-                        </span>
+                        />
                       </td>
                     </tr>
                   );
@@ -316,14 +323,37 @@ export default function Flipped() {
           </div>
 
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-
-          <p className="border-t px-3 py-2 text-xs text-muted-foreground sm:px-4">
-            Percentages are each margin as a share of the votes counted. The ±
-            on the lead is the 95% error band on that share.
-          </p>
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The chance the leader holds the seat. A margin of error describes a sample,
+ * and a count part-way through is not a sample — the honest figure is how
+ * likely the lead is to survive the votes still to count.
+ */
+function WinPercentCell({ chance }: { chance?: SeatChance }) {
+  if (chance?.state === 'counting') {
+    return (
+      <span className="font-bold tabular-nums">
+        {Math.round(chance.probability * 100)}%
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="text-muted-foreground"
+      title={
+        chance?.state === 'complete'
+          ? "Tonight's count is complete for this seat"
+          : 'No votes counted yet'
+      }
+    >
+      &mdash;
+    </span>
   );
 }
 

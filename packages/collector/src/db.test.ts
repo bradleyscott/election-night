@@ -5,7 +5,6 @@ import { tmpdir } from 'os';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   VotingResults,
   WithSeats,
   PartyList,
@@ -16,7 +15,7 @@ vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+type Results = ElectorateResults & WithLeaders;
 type PartyVoteSummary = VotingResults & WithSeats;
 type PartyListEntry = PartyList & WithAdjustedRank;
 
@@ -37,9 +36,7 @@ function makeResult(overrides: Partial<Results> = {}): Results {
       secondCandidateParty: 'Labour Party',
       margin: 400,
       marginPercent: 0.04,
-      predictionStatus: 'too-close',
     },
-    marginOfError: 0.02,
     ...overrides,
   };
 }
@@ -175,7 +172,7 @@ describe('db', () => {
     expect(rows[0].leading_party).toBe('National Party');
   });
 
-  test('writeResults stores candidate votes with prediction flag', async () => {
+  test('writeResults stores candidate votes', async () => {
     const { writeResults } = await import('./db.js');
     const result = makeResult({
       leaders: {
@@ -185,7 +182,6 @@ describe('db', () => {
         secondCandidateParty: 'Labour Party',
         margin: 400,
         marginPercent: 0.04,
-        predictionStatus: 'projected',
       },
     });
     writeResults([result], [], [], '2026');
@@ -194,19 +190,18 @@ describe('db', () => {
     const conn = new Database(dbPath);
     const rows = conn
       .prepare(
-        `SELECT er.candidate, er.votes, er.is_predicted
+        `SELECT er.candidate, er.votes
          FROM electorate_results er
          JOIN scrape_snapshots sn ON sn.id = er.scrape_id
          WHERE sn.id = (SELECT MAX(id) FROM scrape_snapshots)
          ORDER BY er.votes DESC`
       )
-      .all() as { candidate: string; votes: number; is_predicted: number }[];
+      .all() as { candidate: string; votes: number }[];
     conn.close();
 
     expect(rows[0].candidate).toBe('Smith, John');
-    expect(rows[0].is_predicted).toBe(1);
+    expect(rows[0].votes).toBe(5200);
     expect(rows[1].candidate).toBe('Jones, Mary');
-    expect(rows[1].is_predicted).toBe(0);
   });
 
   test('writeResults stores party vote summary with seats', async () => {
@@ -292,13 +287,18 @@ describe('pruneSnapshots', () => {
   async function writeSnapshots(count: number, backdateHours: number) {
     const { writeResults } = await import('./db.js');
     for (let i = 0; i < count; i += 1) {
-      writeResults([makeResult()], [makePartyVote()], [makePartyList()], '2026');
+      writeResults(
+        [makeResult()],
+        [makePartyVote()],
+        [makePartyList()],
+        '2026'
+      );
     }
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
     conn
       .prepare(
-        "UPDATE scrape_snapshots SET started_at = datetime(started_at, ?) WHERE id <= ?"
+        'UPDATE scrape_snapshots SET started_at = datetime(started_at, ?) WHERE id <= ?'
       )
       .run(`-${backdateHours} hours`, count);
     conn.close();
@@ -356,7 +356,9 @@ describe('pruneSnapshots', () => {
     const conn = new Database(dbPath);
     const orphans = (
       conn
-        .prepare('SELECT count(*) c FROM electorate_results WHERE scrape_id = ?')
+        .prepare(
+          'SELECT count(*) c FROM electorate_results WHERE scrape_id = ?'
+        )
         .get(oldest) as { c: number }
     ).c;
     conn.close();
@@ -454,17 +456,23 @@ describe('compaction', () => {
   });
 
   test('returns freed pages to the filesystem after a prune', async () => {
-    const { writeResults, pruneSnapshots, compactDatabase } = await import(
-      './db.js'
-    );
+    const { writeResults, pruneSnapshots, compactDatabase } =
+      await import('./db.js');
     // Enough snapshots that the file is worth shrinking, then age them out.
     for (let i = 0; i < 60; i += 1) {
-      writeResults([makeResult()], [makePartyVote()], [makePartyList()], '2026');
+      writeResults(
+        [makeResult()],
+        [makePartyVote()],
+        [makePartyList()],
+        '2026'
+      );
     }
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
     conn
-      .prepare("UPDATE scrape_snapshots SET started_at = datetime('now', '-48 hours')")
+      .prepare(
+        "UPDATE scrape_snapshots SET started_at = datetime('now', '-48 hours')"
+      )
       .run();
     conn.close();
 

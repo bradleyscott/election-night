@@ -30,6 +30,10 @@
       "types": "./dist/history.d.ts",
       "default": "./dist/history.js"
     },
+    "./voting-places": {
+      "types": "./dist/voting-places.d.ts",
+      "default": "./dist/voting-places.js"
+    },
     "./electorate-names": {
       "types": "./dist/electorate-names.d.ts",
       "default": "./dist/electorate-names.js"
@@ -42,6 +46,10 @@
       "types": "./dist/polls-close.d.ts",
       "default": "./dist/polls-close.js"
     },
+    "./seat-probability": {
+      "types": "./dist/seat-probability.d.ts",
+      "default": "./dist/seat-probability.js"
+    },
     "./election-results-service": {
       "types": "./dist/election-results-service.d.ts",
       "default": "./dist/election-results-service.js"
@@ -49,10 +57,16 @@
     "./sources": {
       "types": "./dist/sources/index.d.ts",
       "default": "./dist/sources/index.js"
-    }
+    },
+    "./notional-baseline": {
+      "types": "./dist/notional-baseline.d.ts",
+      "default": "./dist/notional-baseline.js"
+    },
+    "./data/*": "./data/*"
   },
   "files": [
-    "dist"
+    "dist",
+    "data"
   ],
   "scripts": {
     "build": "tsc -b"

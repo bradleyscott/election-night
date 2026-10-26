@@ -4,7 +4,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type * as ReactRouter from 'react-router-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { ElectorateRacesView } from './ElectorateRacesView.js';
-import type { ElectorateResults, WithLeaders, WithMarginOfError } from '@election-night/core/types';
+import type { SeatChance } from '@election-night/core/seat-probability';
+import { normalizeElectorateName } from '../lib/electorates.js';
+import type {
+  ElectorateResults,
+  WithLeaders,
+} from '@election-night/core/types';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -18,7 +23,6 @@ const baseElectorate = {
   partyVotes: [],
   votesCounted: 1000,
   votePercentageCounted: 0.5,
-  marginOfError: 0.02,
   leaders: {
     leadingCandidate: 'SMITH, John',
     leadingCandidateParty: 'National Party',
@@ -26,9 +30,27 @@ const baseElectorate = {
     secondCandidateParty: 'Labour Party',
     margin: 1000,
     marginPercent: 0.04,
-    predictionStatus: 'leaning',
   },
-} as ElectorateResults & WithLeaders & WithMarginOfError;
+} as ElectorateResults & WithLeaders;
+
+const counting: SeatChance = {
+  state: 'counting',
+  leader: { name: 'SMITH, John', party: 'National Party', votes: 5400 },
+  runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 5300 },
+  othersProbability: 0,
+  probability: 0.44,
+  margin: 100,
+  remainingVotes: 9000,
+  remainingLow: 6000,
+  remainingHigh: 12000,
+  progress: 0.375,
+  enrolment: 45407,
+  assumedCycle: false,
+  insideOutstanding: true,
+  specialsOutstanding: 5000,
+  insideSpecials: true,
+  provisionalPrior: false,
+};
 
 describe('ElectorateRacesView', () => {
   test('table rows are keyboard accessible', () => {
@@ -38,14 +60,38 @@ describe('ElectorateRacesView', () => {
       </BrowserRouter>
     );
 
-    const row = screen.getByRole('button', { name: /View details for Auckland Central/i });
+    const row = screen.getByRole('button', {
+      name: /View details for Auckland Central/i,
+    });
     expect(row).toHaveAttribute('tabIndex', '0');
 
     fireEvent.keyDown(row, { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith('/electorates/Auckland%20Central');
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/electorates/Auckland%20Central'
+    );
 
     mockNavigate.mockClear();
     fireEvent.keyDown(row, { key: ' ' });
-    expect(mockNavigate).toHaveBeenCalledWith('/electorates/Auckland%20Central');
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/electorates/Auckland%20Central'
+    );
+  });
+
+  test('shows a chance of winning instead of a margin of error', () => {
+    render(
+      <BrowserRouter>
+        <ElectorateRacesView
+          electorates={[baseElectorate]}
+          chances={
+            new Map([[normalizeElectorateName('Auckland Central'), counting]])
+          }
+        />
+      </BrowserRouter>
+    );
+
+    expect(screen.getByText('Win %')).toBeInTheDocument();
+    expect(screen.getByText('44%')).toBeInTheDocument();
+    expect(screen.queryByText('MoE')).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
   });
 });

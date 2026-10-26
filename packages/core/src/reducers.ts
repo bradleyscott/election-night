@@ -1,46 +1,14 @@
-import jstat from 'jstat';
-import { config } from './config.js';
 import {
   ElectorateResults,
   NationalStatus,
   PartyList,
-  PredictionStatus,
   ResultsPayload,
   VotingResults,
   WithLeaders,
-  WithMarginOfError,
   WithPercentages,
   WithSeats,
   WithAdjustedRank,
 } from './types.js';
-
-function calculateMarginOfError(
-  resultAsPercentage: number,
-  sample: number,
-  population: number,
-  confidence: number
-) {
-  if (sample <= 0 || population <= 0 || !Number.isFinite(resultAsPercentage)) {
-    return 0;
-  }
-  const zScore = jstat.normal.inv(1 - (1 - confidence) / 2, 0, 1);
-  const finitePopulationCorrection = Math.sqrt(
-    (population - sample) / (population - 1)
-  );
-  const marginOfError =
-    zScore *
-    Math.sqrt((resultAsPercentage * (1 - resultAsPercentage)) / sample) *
-    finitePopulationCorrection;
-
-  return Number.isFinite(marginOfError) ? marginOfError : 0;
-}
-
-function predictionStatusFromRatio(ratio: number): PredictionStatus {
-  if (ratio > 2) return 'projected';
-  if (ratio > 1.5) return 'likely';
-  if (ratio > 1) return 'leaning';
-  return 'too-close';
-}
 
 function calculateLead(
   results: ElectorateResults
@@ -69,61 +37,6 @@ function calculateLead(
       secondCandidateParty,
       margin,
       marginPercent,
-      predictionStatus: 'too-close',
-    },
-  };
-}
-
-function predictWinner(
-  results: ElectorateResults & WithLeaders,
-  confidence: number
-): ElectorateResults & WithLeaders & WithMarginOfError {
-  const votesCounted = results.votesCounted;
-  const votePercentageCounted = results.votePercentageCounted;
-
-  if (
-    votesCounted <= 0 ||
-    votePercentageCounted <= 0 ||
-    !Number.isFinite(votePercentageCounted)
-  ) {
-    return {
-      ...results,
-      marginOfError: 0,
-      leaders: {
-        ...results.leaders,
-        predictionStatus: 'too-close',
-      },
-    };
-  }
-
-  const totalVotes = votesCounted / votePercentageCounted;
-  const leadingShare = (results.candidateVotes[0]?.votes ?? 0) / votesCounted;
-  const secondShare = (results.candidateVotes[1]?.votes ?? 0) / votesCounted;
-  const leadPercent = leadingShare - secondShare;
-
-  const zScore = jstat.normal.inv(1 - (1 - confidence) / 2, 0, 1);
-  const finitePopulationCorrection = Math.sqrt(
-    (totalVotes - votesCounted) / (totalVotes - 1)
-  );
-  const diffVariance =
-    (leadingShare + secondShare - leadPercent * leadPercent) / votesCounted;
-
-  const marginOfError =
-    zScore * Math.sqrt(diffVariance) * finitePopulationCorrection;
-
-  const ratio =
-    marginOfError > 0
-      ? leadPercent / marginOfError
-      : leadPercent > 0
-        ? Infinity
-        : 0;
-
-  return {
-    ...results,
-    marginOfError: Number.isFinite(marginOfError) ? marginOfError : 0,
-    leaders: {
-      ...results.leaders,
-      predictionStatus: predictionStatusFromRatio(ratio),
     },
   };
 }
@@ -145,40 +58,15 @@ function calculatePartyVote(results: ElectorateResults[]): VotingResults[] {
   }));
 }
 
-function aggregateVotesCounted(results: ElectorateResults[]) {
-  const votesCounted = results.reduce((prev, x) => prev + x.votesCounted, 0);
-  const totalVotes = results.reduce((prev, x) => {
-    const pct = x.votePercentageCounted;
-    return pct > 0 && Number.isFinite(pct) ? prev + x.votesCounted / pct : prev;
-  }, 0);
-
-  return { votesCounted, totalVotes };
-}
-
 function calculatePartyVoteWithPercentages(
-  results: ElectorateResults[],
-  confidence: number
+  results: ElectorateResults[]
 ): (VotingResults & WithPercentages)[] {
-  const { votesCounted, totalVotes } = aggregateVotesCounted(results);
+  const votesCounted = results.reduce((prev, x) => prev + x.votesCounted, 0);
   const votes = calculatePartyVote(results);
-
-  if (votesCounted <= 0) {
-    return votes.map((x) => ({
-      ...x,
-      percentage: 0,
-      marginOfError: 0,
-    }));
-  }
 
   return votes.map((x) => ({
     ...x,
-    percentage: x.votes / votesCounted,
-    marginOfError: calculateMarginOfError(
-      x.votes / votesCounted,
-      votesCounted,
-      totalVotes,
-      confidence
-    ),
+    percentage: votesCounted > 0 ? x.votes / votesCounted : 0,
   }));
 }
 
@@ -187,8 +75,8 @@ function calculatePartyVoteWithPercentages(
  *
  * Seats are not ours to derive: `election.xml` publishes list, electorate and
  * total seats per party, including the threshold rule and any overhang, and it
- * is the same table the results website renders. The only thing we add is the
- * margin of error, which is a property of the count, not of the seat rules.
+ * is the same table the results website renders. The party's own share comes
+ * from our count; the seat numbers are the Commission's.
  */
 function buildPartyVoteWithSeats(
   partyVotes: (VotingResults & WithPercentages)[],
@@ -202,13 +90,14 @@ function buildPartyVoteWithSeats(
         candidate: p.party,
         votes: p.votes,
         percentage: aggregate?.percentage ?? 0,
-        marginOfError: aggregate?.marginOfError ?? 0,
         seats: p.totalSeats,
         electorateSeats: p.electorateSeats,
         listSeats: p.listSeats,
       };
     })
-    .sort((a, b) => b.votes - a.votes || a.candidate.localeCompare(b.candidate));
+    .sort(
+      (a, b) => b.votes - a.votes || a.candidate.localeCompare(b.candidate)
+    );
 }
 
 function getElectorateWinners(
@@ -269,20 +158,19 @@ function calculatePartyList(
  *
  * Shared by the live scrape loop and by `ElectionResultsService` when it
  * fetches an archived cycle, so a historical year goes through exactly the
- * same leaders, margin-of-error and seat maths as the live one.
+ * same leaders and seat maths as the live one.
  */
 function buildResultsPayload(
   results: ElectorateResults[],
   partyListRecords: PartyList[],
-  nationalStatus: NationalStatus,
-  confidence: number = config.predictionConfidence
+  nationalStatus: NationalStatus
 ): ResultsPayload {
-  const withPredictions = results
-    .map((x) => calculateLead({ ...x, candidateVotes: [...x.candidateVotes] }))
-    .map((x) => predictWinner(x, confidence));
+  const withPredictions = results.map((x) =>
+    calculateLead({ ...x, candidateVotes: [...x.candidateVotes] })
+  );
 
   const partyVote = buildPartyVoteWithSeats(
-    calculatePartyVoteWithPercentages(withPredictions, confidence),
+    calculatePartyVoteWithPercentages(withPredictions),
     nationalStatus
   );
 
@@ -299,8 +187,6 @@ function buildResultsPayload(
 
 export {
   calculateLead,
-  predictWinner,
-  predictionStatusFromRatio,
   calculatePartyVoteWithPercentages,
   buildPartyVoteWithSeats,
   calculatePartyList,

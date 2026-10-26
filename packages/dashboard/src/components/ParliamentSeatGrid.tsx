@@ -31,8 +31,12 @@ export function ParliamentSeatGrid({
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
   const seatRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [keyboardDragIndex, setKeyboardDragIndex] = useState<number | null>(null);
-  const [keyboardDropIndex, setKeyboardDropIndex] = useState<number | null>(null);
+  const [keyboardDragIndex, setKeyboardDragIndex] = useState<number | null>(
+    null
+  );
+  const [keyboardDropIndex, setKeyboardDropIndex] = useState<number | null>(
+    null
+  );
 
   const isKeyboardDragging = keyboardDragIndex !== null;
 
@@ -122,19 +126,28 @@ export function ParliamentSeatGrid({
           const isHovered = hoveredParty === s.party && !draggingParty;
           const isSelected = selectedSeat === i && s.party !== 'Vacant';
           const isKeyboardDragSource = keyboardDragIndex === i;
-          const isKeyboardDropTarget = keyboardDropIndex === i && isKeyboardDragging;
+          const isKeyboardDropTarget =
+            keyboardDropIndex === i && isKeyboardDragging;
           const canDrag = s.party !== 'Vacant';
 
           return (
             <div
               key={`${s.party}-${i}`}
-              ref={(el) => { seatRefs.current[i] = el; }}
+              ref={(el) => {
+                seatRefs.current[i] = el;
+              }}
               tabIndex={s.party === 'Vacant' ? -1 : 0}
               role="button"
               aria-roledescription={canDrag ? 'draggable seat' : 'seat'}
               aria-label={`${s.party} ${s.type} seat`}
-              aria-grabbed={canDrag ? isKeyboardDragging && isKeyboardDragSource : undefined}
-              aria-dropeffect={canDrag && isKeyboardDragging && !isKeyboardDragSource ? 'move' : undefined}
+              aria-grabbed={
+                canDrag ? isKeyboardDragging && isKeyboardDragSource : undefined
+              }
+              aria-dropeffect={
+                canDrag && isKeyboardDragging && !isKeyboardDragSource
+                  ? 'move'
+                  : undefined
+              }
               draggable={canDrag}
               onDragStart={() => onDragStart(s.party)}
               onDragEnter={() => onDragEnter(s.party)}
@@ -160,7 +173,12 @@ export function ParliamentSeatGrid({
                     cancelKeyboardDrag();
                     return;
                   }
-                  if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                  if (
+                    e.key === 'ArrowUp' ||
+                    e.key === 'ArrowDown' ||
+                    e.key === 'ArrowLeft' ||
+                    e.key === 'ArrowRight'
+                  ) {
                     e.preventDefault();
                     moveDropTarget(
                       e.key === 'ArrowUp'
@@ -195,7 +213,8 @@ export function ParliamentSeatGrid({
               }}
               className={cn(
                 'aspect-square transition-opacity duration-100 focus:outline-none focus:ring-2 focus:ring-ring/60 focus:z-10',
-                (isDragging || isKeyboardDragSource) && 'opacity-50 ring-2 ring-foreground/60',
+                (isDragging || isKeyboardDragSource) &&
+                  'opacity-50 ring-2 ring-foreground/60',
                 (isDropTarget || isKeyboardDropTarget) && 'ring-2 ring-brand',
                 isHovered && 'ring-2 ring-foreground/50 z-10',
                 isSelected && 'ring-2 ring-foreground z-20',

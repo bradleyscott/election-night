@@ -6,15 +6,19 @@ import { Toggle } from '../components/Toggle.js';
 import { ElectorateRacesView } from '../components/ElectorateRacesView.js';
 import { ListCutLinesView } from '../components/ListCutLinesView.js';
 import { splitParties } from '../lib/constants.js';
+import { useApi } from '../hooks/useApi.js';
+import type { RuntimeConfig } from '@election-night/core/polls-close';
+import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
+import { normalizeElectorateName } from '../lib/electorates.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 type PartyListEntry = PartyList & WithAdjustedRank;
 
 export default function CloseCalls() {
@@ -23,6 +27,25 @@ export default function CloseCalls() {
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
   const partyLists = (results?.partyLists ?? []) as PartyListEntry[];
+  const { data: config } = useApi<RuntimeConfig>('/api/config');
+
+  // The chance of winning each seat, from the same call the seat page and the
+  // map use, so the three can never quote different numbers for one seat.
+  const electionYear = config?.electionYear ?? null;
+  const nationalSwing = useMemo(
+    () => nationalSwingOf(electorates, electionYear),
+    [electorates, electionYear]
+  );
+  const chances = useMemo(() => {
+    const map = new Map<string, SeatChance>();
+    for (const result of electorates) {
+      map.set(
+        normalizeElectorateName(result.electorateName),
+        seatChanceFor(result, electionYear, nationalSwing)
+      );
+    }
+    return map;
+  }, [electorates, electionYear, nationalSwing]);
 
   const allParties = useMemo(
     () => [...new Set(partyLists.map((l) => l.party))],
@@ -122,12 +145,8 @@ export default function CloseCalls() {
       </div>
 
       {view === 'electorates' ? (
-        <div
-          className={cn(
-            'border opacity-0 animate-fade-in-up'
-          )}
-        >
-          <ElectorateRacesView electorates={electorates} />
+        <div className={cn('border opacity-0 animate-fade-in-up')}>
+          <ElectorateRacesView electorates={electorates} chances={chances} />
         </div>
       ) : (
         <ListCutLinesView

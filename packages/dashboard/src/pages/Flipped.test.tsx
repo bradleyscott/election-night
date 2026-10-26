@@ -8,18 +8,16 @@ import type {
   ResultsPayload,
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 import type { PriorWinnersResponse } from '../lib/history-types.js';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 function electorate(
   name: string,
   party: string,
   candidate: string,
   margin: number,
-  status: 'projected' | 'leaning' | 'too-close',
   votesCounted = 25_000
 ): ElectorateResult {
   const leading = Math.round(votesCounted * 0.6);
@@ -36,6 +34,9 @@ function electorate(
     partyVotes: [{ candidate: party, votes: leading }],
     votesCounted,
     votePercentageCounted: 0.8,
+    // Turnout, which is what makes a chance of winning computable at all: the
+    // model recovers enrolment from these two rather than from the baseline.
+    percentVotesCast: 0.55,
     leaders: {
       leadingCandidate: candidate,
       leadingCandidateParty: party,
@@ -43,9 +44,7 @@ function electorate(
       secondCandidateParty: 'Green Party',
       margin,
       marginPercent: margin / votesCounted,
-      predictionStatus: status,
     },
-    marginOfError: 0.02,
   };
 }
 
@@ -53,31 +52,12 @@ const liveResults: ResultsPayload = {
   electorateResults: [
     // 5,000 in a big seat is only 10.0% — the raw-vote leader, but not the
     // biggest share, which is what the list sorts on.
-    electorate(
-      'Ōtāhuhu',
-      'ACT New Zealand',
-      'TURAI, Hana',
-      5_000,
-      'too-close',
-      50_000
-    ),
+    electorate('Ōtāhuhu', 'ACT New Zealand', 'TURAI, Hana', 5_000, 50_000),
     // Smaller raw lead (4,000) but the bigger share (16.0%).
-    electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_000, 'projected'),
-    electorate(
-      'Remutaka',
-      'Labour Party',
-      'HIPKINS, Chris',
-      6_000,
-      'projected'
-    ),
-    electorate('Kelston', 'National Party', 'SMITH, John', 900, 'leaning'),
-    electorate(
-      'Tāmaki Makaurau',
-      'Te Pāti Māori',
-      'KEMP, Rawiri',
-      2_000,
-      'leaning'
-    ),
+    electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_000),
+    electorate('Remutaka', 'Labour Party', 'HIPKINS, Chris', 6_000),
+    electorate('Kelston', 'National Party', 'SMITH, John', 900),
+    electorate('Tāmaki Makaurau', 'Te Pāti Māori', 'KEMP, Rawiri', 2_000),
   ],
   partyVote: [],
   partyLists: [],
@@ -184,17 +164,18 @@ describe('Flipped page', () => {
     expect(screen.getByText('9.2%')).toBeInTheDocument();
     expect(screen.getByText('5,000')).toBeInTheDocument();
     // The lead is a share of the votes counted — not the count progress (the
-    // fixture counts 80%) — carrying its 95% error band in the same units.
-    expect(screen.getByText('10.0% ±2.0%')).toBeInTheDocument();
+    // fixture counts 80%) — and it is left bare: a margin of error describes a
+    // sample, and this is a count part-way through.
+    expect(screen.getByText('10.0%')).toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
     // …with the percentage left bare. "10.0% of votes counted" reads as count
-    // progress, not as a lead, so the denominator is explained once in the
-    // footnote instead.
+    // progress, not as a lead.
     expect(screen.queryByText(/of votes|of counted/)).not.toBeInTheDocument();
+    // Nothing explains the column underneath: the footnote that used to sit at
+    // the bottom of the table is gone.
     expect(
-      screen.getByText(
-        /Percentages are each margin as a share of the votes counted/
-      )
-    ).toBeInTheDocument();
+      screen.queryByText(/Percentages are each margin/)
+    ).not.toBeInTheDocument();
   });
 
   test('sorts by share of the vote, not raw votes', async () => {
@@ -246,18 +227,21 @@ describe('Flipped page', () => {
     ).toBeInTheDocument();
   });
 
-  test('uses the same status vocabulary as the electorate page', async () => {
+  test('shows a chance of winning instead of a status chip', async () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    expect(screen.getByText('Too close to call')).toBeInTheDocument();
-    expect(screen.getByText('Likely winner')).toBeInTheDocument();
+    // The qualitative label is gone; the column carries the number the rest of
+    // the app quotes for this seat.
+    expect(screen.queryByText('Too close to call')).not.toBeInTheDocument();
+    expect(screen.queryByText('Likely winner')).not.toBeInTheDocument();
+    // A whole-number percentage, unlike the lead's one decimal place.
+    expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
 
     // The qualifier columns drop out on narrow screens so the four columns
     // that make the comparison stay readable.
-    expect(screen.getByText('Status')).toHaveClass('hidden', 'sm:table-cell');
-    // The error band is folded into the lead column, so there is no MoE column
-    // to qualify — the two are the same kind of number.
+    expect(screen.getByText('Win %')).toHaveClass('hidden', 'sm:table-cell');
+    // There is no MoE column left to qualify.
     expect(screen.queryByText('MoE')).toBeNull();
     expect(screen.getByText('Lead')).toHaveClass('hidden', 'sm:table-cell');
     expect(screen.getByText('Held 2023')).not.toHaveClass('hidden');
@@ -319,13 +303,7 @@ describe('Flipped page', () => {
         <MockSocketProvider
           results={{
             electorateResults: names.map((name, i) =>
-              electorate(
-                name,
-                'National Party',
-                `CANDIDATE ${i}`,
-                1_000 + i,
-                'leaning'
-              )
+              electorate(name, 'National Party', `CANDIDATE ${i}`, 1_000 + i)
             ),
             partyVote: [],
             partyLists: [],

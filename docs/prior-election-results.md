@@ -6,7 +6,7 @@ are served by one mechanism, `ElectionResultsService` in
 
 - **Flipped** (`/flipped`) lists seats whose previous holder's party is not the
   party leading tonight, with the previous holder's margin of victory beside
-  tonight's lead and margin of error.
+  tonight's lead and its chance of winning.
 - **Past winners** on the electorate page lists the winner of each earlier cycle
   the archive still serves. It states only finished results: no claim about who
   is leading tonight, which on a partial count is not a verdict yet.
@@ -113,9 +113,10 @@ disappears from the comparison.
   `ELECTION_YEAR=2023 npm run start:collector` (prior cycles 2020 and 2017).
 - **Only 2020, 2017 and 2023 archives exist.** `electionresults_2014` and
   earlier 404, which is what bounds "as far back as there is XML".
-- **A final count has no polling error.** Against an archive, every seat is
-  100% counted, so the margin of error is 0 and every status reads "Likely
-  winner". On election night the same components show the real band.
+- **A final count has no live number.** Against an archive every seat is 100%
+  counted, so the chance model reports a state of `complete` and the panel shows
+  the winning margin rather than a probability. On election night the same
+  components show a live chance.
 - **2017's electorates come from the feed, not the boundary files.** The
   dashboard ships boundaries for 2023 and 2026 only; prior-winner matching uses
   names, not geometry, so this needs nothing further.

@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
   calculateLead,
-  predictWinner,
   calculatePartyVoteWithPercentages,
   buildResultsPayload,
 } from './reducers.js';
@@ -27,31 +26,11 @@ function makeElectorate(
   };
 }
 
-describe('predictWinner', () => {
-  test('returns too-close and zero MoE when no votes have been counted', () => {
-    const r = calculateLead(makeElectorate({ votesCounted: 0 }));
-    const predicted = predictWinner(r, 0.95);
-
-    expect(predicted.marginOfError).toBe(0);
-    expect(predicted.leaders.predictionStatus).toBe('too-close');
-  });
-
-  test('returns too-close and zero MoE when percentage counted is zero', () => {
-    const r = calculateLead(
-      makeElectorate({ votesCounted: 1000, votePercentageCounted: 0 })
-    );
-    const predicted = predictWinner(r, 0.95);
-
-    expect(predicted.marginOfError).toBe(0);
-    expect(predicted.leaders.predictionStatus).toBe('too-close');
-  });
-
-  test('computes normally for valid partial counts', () => {
+describe('calculateLead', () => {
+  test('computes the margin for valid partial counts', () => {
     const r = calculateLead(makeElectorate());
-    const predicted = predictWinner(r, 0.95);
-
-    expect(predicted.marginOfError).toBeGreaterThan(0);
-    expect(predicted.leaders.predictionStatus).not.toBe('too-close');
+    expect(r.leaders.margin).toBe(1000);
+    expect(r.leaders.marginPercent).toBeCloseTo(1000 / 9000, 6);
   });
 });
 
@@ -81,15 +60,13 @@ describe('calculateLead party resolution', () => {
 });
 
 describe('calculatePartyVoteWithPercentages', () => {
-  test('returns zero percentages and zero MoE when no votes counted', () => {
+  test('returns zero percentages when no votes are counted', () => {
     const r = makeElectorate({ votesCounted: 0, votePercentageCounted: 0 });
     const withLead = calculateLead(r);
-    const predicted = predictWinner(withLead, 0.95);
-    const partyVote = calculatePartyVoteWithPercentages([predicted], 0.95);
+    const partyVote = calculatePartyVoteWithPercentages([withLead]);
 
     for (const p of partyVote) {
       expect(p.percentage).toBe(0);
-      expect(p.marginOfError).toBe(0);
     }
   });
 
@@ -111,16 +88,12 @@ describe('calculatePartyVoteWithPercentages', () => {
       candidateVotes: [],
     });
 
-    const withLead = [
-      predictWinner(calculateLead(valid), 0.95),
-      predictWinner(calculateLead(invalid), 0.95),
-    ];
+    const withLead = [calculateLead(valid), calculateLead(invalid)];
 
-    const partyVote = calculatePartyVoteWithPercentages(withLead, 0.95);
+    const partyVote = calculatePartyVoteWithPercentages(withLead);
     const red = partyVote.find((p) => p.candidate === 'Red Party');
 
     expect(red).toBeDefined();
-    expect(red!.marginOfError).toBeGreaterThan(0);
     expect(red!.percentage).toBeCloseTo(4000 / 7000, 6);
   });
 });

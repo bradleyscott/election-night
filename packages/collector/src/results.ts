@@ -10,6 +10,10 @@ import {
   determineWebhookEvents,
   type ComparableResult,
 } from '@election-night/core/diff';
+import {
+  CALL_THRESHOLD,
+  type SeatChance,
+} from '@election-night/core/seat-probability';
 import { fetchWithRetry } from './retry.js';
 import { publishMetrics } from './ws-client.js';
 import { emitWebhookPublish, emitWebhookPublishDuration } from './metrics.js';
@@ -114,17 +118,20 @@ export function readResults(): Results[] {
 export async function sendWebhook(
   event: WebhookEventType,
   result: Results,
-  diff: ElectorateDiff
+  diff: ElectorateDiff,
+  chanceFor?: (result: Results) => SeatChance | null
 ): Promise<void> {
   const url = collectorConfig.webhookUrl;
   if (!url) return;
 
+  const chance = chanceFor?.(result) ?? null;
   const payload: WebhookPayload = {
     event,
     timestamp: Date.now(),
     electorateName: result.electorateName,
     result,
     diff,
+    probability: chance?.state === 'counting' ? chance.probability : null,
   };
 
   const startedAt = performance.now();
@@ -165,19 +172,35 @@ export async function sendWebhook(
  * Call this *before* calling `cacheResults()` so the cached snapshot still
  * represents the previous cycle for comparison.
  */
-export async function processResults(currentResults: Results[]): Promise<void> {
+export async function processResults(
+  currentResults: Results[],
+  chanceFor?: (result: Results) => SeatChance | null
+): Promise<void> {
   const cachedResults = readResults();
   const cacheMap = new Map(cachedResults.map((r) => [r.electorateName, r]));
+
+  // A seat is "called" on the same rule the feed uses, so a subscriber that
+  // reads both is told about the same event twice, not two different ones.
+  const called = (result: Results | null): boolean => {
+    if (!result || !chanceFor) return false;
+    const chance = chanceFor(result);
+    return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;
+  };
 
   const promises: Promise<void>[] = [];
 
   for (const result of currentResults) {
     const previous = cacheMap.get(result.electorateName) ?? null;
     const diff = computeDiff(previous, result);
-    const events = determineWebhookEvents(diff);
+    const events = determineWebhookEvents(
+      diff,
+      chanceFor
+        ? { called: called(result), wasCalled: called(previous) }
+        : undefined
+    );
 
     for (const event of events) {
-      promises.push(sendWebhook(event, result, diff));
+      promises.push(sendWebhook(event, result, diff, chanceFor));
     }
   }
 

@@ -6,36 +6,43 @@ import { cn } from '../lib/utils.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
-  VotingResults,
 } from '@election-night/core/types';
 import type {
   ElectorateHistoryPoint,
   PriorWinner,
 } from '../lib/history-types.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 export function ElectorateDetail({
   result,
   showPartyVote,
   onTogglePartyVote,
   historyData,
+  votingPlaces,
   priorWinners,
   priorUnavailable,
+  chance,
+  updatedAt,
+  pollsCloseLabel,
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
   onTogglePartyVote: (showPartyVote: boolean) => void;
   historyData: ElectorateHistoryPoint[] | null;
+  /** The seat's voting places, for the receipt rug on the count chart. */
+  votingPlaces?: { counted: number; total: number; receipts: number[] };
   /** This seat's prior-cycle winners, newest first; empty when none apply. */
   priorWinners?: PriorWinner[];
   priorUnavailable?: boolean;
+  /** Chance of winning, computed by the page from the cycle's baseline. */
+  chance?: SeatChance | null;
+  /** When this browser's results last changed. */
+  updatedAt?: Date | null;
+  /** Polls-close label for the before-counting state, e.g. "7pm". */
+  pollsCloseLabel?: string | null;
 }) {
-  const leadingPartyVote = [...result.partyVotes].sort(
-    (a, b) => b.votes - a.votes
-  )[0] as VotingResults | undefined;
-
   return (
     <div
       className="space-y-3 sm:space-y-4 opacity-0 animate-fade-in-up"
@@ -62,7 +69,7 @@ export function ElectorateDetail({
               'px-3 py-1.5 transition-colors border-r border-border last:border-r-0',
               showPartyVote
                 ? 'bg-foreground text-background'
-              : 'bg-background text-muted-foreground hover:text-foreground'
+                : 'bg-background text-muted-foreground hover:text-foreground'
             )}
             onClick={() => onTogglePartyVote(true)}
           >
@@ -74,12 +81,18 @@ export function ElectorateDetail({
       <ElectorateStats
         result={result}
         showPartyVote={showPartyVote}
-        leadingPartyVote={leadingPartyVote ?? null}
+        chance={chance}
+        updatedAt={updatedAt}
+        pollsCloseLabel={pollsCloseLabel}
       />
 
       <ElectorateResultsTable result={result} showPartyVote={showPartyVote} />
 
-      {priorWinners !== undefined && (
+      {/* Prior winners are who won the seat, and a seat is won on the
+          candidate vote. In party view the table below is the party vote, so
+          the two are not about the same contest and would read as a claim that
+          the party must repeat what its candidate did. */}
+      {!showPartyVote && priorWinners !== undefined && (
         <PastWinners
           winners={priorWinners}
           unavailable={priorUnavailable ?? false}
@@ -91,6 +104,7 @@ export function ElectorateDetail({
           history={historyData}
           mode="votes"
           showParty={showPartyVote}
+          votingPlaces={votingPlaces}
         />
       )}
     </div>

@@ -1,4 +1,3 @@
-import { predictionStatusFromRatio } from '@election-night/core/reducers';
 import type {
   ResultsPayload,
   ElectorateResults,
@@ -6,7 +5,6 @@ import type {
   WithParty,
   PartyList,
   WithLeaders,
-  WithMarginOfError,
   WithSeats,
   WithAdjustedRank,
 } from '@election-night/core/types';
@@ -26,24 +24,81 @@ type SyntheticElectorate = {
 };
 
 const GENERAL_ELECTORATES = [
-  'Auckland Central', 'Banks Peninsula', 'Bay of Plenty', 'Botany',
-  'Christchurch Central', 'Christchurch East', 'Coromandel', 'Dunedin',
-  'East Coast', 'East Coast Bays', 'Epsom', 'Hamilton East', 'Hamilton West',
-  'Hutt South', 'Ilam', 'Invercargill', 'Kaikōura', 'Kaipara ki Mahurangi',
-  'Kelston', 'Mana', 'Māngere', 'Manurewa', 'Maungakiekie', 'Mt Albert',
-  'Mt Roskill', 'Napier', 'Nelson', 'New Lynn', 'New Plymouth', 'North Shore',
-  'Northcote', 'Northland', 'Ōhāriu', 'Ōtaki', 'Pakuranga',
-  'Palmerston North', 'Panmure-Ōtāhuhu', 'Papakura', 'Port Waikato',
-  'Rangitata', 'Rangitīkei', 'Remutaka', 'Rongotai', 'Rotorua', 'Selwyn',
-  'Southland', 'Taieri', 'Takanini', 'Tāmaki', 'Taranaki-King Country',
-  'Taupō', 'Tauranga', 'Te Atatū', 'Tukituki', 'Upper Harbour', 'Waikato',
-  'Waimakariri', 'Wairarapa', 'Waitaki', 'Wellington Central',
-  'West Coast-Tasman', 'Whanganui', 'Whangaparāoa', 'Whangārei', 'Wigram',
+  'Auckland Central',
+  'Banks Peninsula',
+  'Bay of Plenty',
+  'Botany',
+  'Christchurch Central',
+  'Christchurch East',
+  'Coromandel',
+  'Dunedin',
+  'East Coast',
+  'East Coast Bays',
+  'Epsom',
+  'Hamilton East',
+  'Hamilton West',
+  'Hutt South',
+  'Ilam',
+  'Invercargill',
+  'Kaikōura',
+  'Kaipara ki Mahurangi',
+  'Kelston',
+  'Mana',
+  'Māngere',
+  'Manurewa',
+  'Maungakiekie',
+  'Mt Albert',
+  'Mt Roskill',
+  'Napier',
+  'Nelson',
+  'New Lynn',
+  'New Plymouth',
+  'North Shore',
+  'Northcote',
+  'Northland',
+  'Ōhāriu',
+  'Ōtaki',
+  'Pakuranga',
+  'Palmerston North',
+  'Panmure-Ōtāhuhu',
+  'Papakura',
+  'Port Waikato',
+  'Rangitata',
+  'Rangitīkei',
+  'Remutaka',
+  'Rongotai',
+  'Rotorua',
+  'Selwyn',
+  'Southland',
+  'Taieri',
+  'Takanini',
+  'Tāmaki',
+  'Taranaki-King Country',
+  'Taupō',
+  'Tauranga',
+  'Te Atatū',
+  'Tukituki',
+  'Upper Harbour',
+  'Waikato',
+  'Waimakariri',
+  'Wairarapa',
+  'Waitaki',
+  'Wellington Central',
+  'West Coast-Tasman',
+  'Whanganui',
+  'Whangaparāoa',
+  'Whangārei',
+  'Wigram',
 ];
 
 const MAORI_ELECTORATES = [
-  'Hauraki-Waikato', 'Ikaroa-Rāwhiti', 'Tāmaki Makaurau',
-  'Te Tai Hauāuru', 'Te Tai Tokerau', 'Te Tai Tonga', 'Waiariki',
+  'Hauraki-Waikato',
+  'Ikaroa-Rāwhiti',
+  'Tāmaki Makaurau',
+  'Te Tai Hauāuru',
+  'Te Tai Tokerau',
+  'Te Tai Tonga',
+  'Waiariki',
 ];
 
 function adjustRounding(votes: number[], targetTotal: number): number[] {
@@ -102,9 +157,15 @@ const SCENARIO_LANDSLIDE = {
     { name: 'Gray, Amy', finalVotes: 300 },
   ],
   parties: [
-    'National Party', 'Labour Party', 'Green Party', 'ACT New Zealand',
-    'New Zealand First Party', 'Te Pāti Māori', 'The Opportunities Party (TOP)',
-    'New Conservative', 'Advance NZ',
+    'National Party',
+    'Labour Party',
+    'Green Party',
+    'ACT New Zealand',
+    'New Zealand First Party',
+    'Te Pāti Māori',
+    'The Opportunities Party (TOP)',
+    'New Conservative',
+    'Advance NZ',
   ],
   partyVoteFinal: [15_500, 6_000, 3_000, 2_000, 1_500, 700, 500, 300, 500],
 };
@@ -116,16 +177,30 @@ const SCENARIO_STRONG = {
     { name: 'Thompson, James', party: 'National Party', finalVotes: 6_000 },
     { name: 'Taylor, David', party: 'Green Party', finalVotes: 5_000 },
     { name: 'Clark, Robert', party: 'ACT New Zealand', finalVotes: 2_000 },
-    { name: 'Baker, Helen', party: 'New Zealand First Party', finalVotes: 1_800 },
+    {
+      name: 'Baker, Helen',
+      party: 'New Zealand First Party',
+      finalVotes: 1_800,
+    },
     { name: 'Noble, Rachel', party: 'Te Pāti Māori', finalVotes: 1_200 },
     { name: 'Adams, Peter', finalVotes: 1_000 },
     { name: 'Knight, Steven', finalVotes: 600 },
-    { name: 'Lee, Emma', party: 'The Opportunities Party (TOP)', finalVotes: 400 },
+    {
+      name: 'Lee, Emma',
+      party: 'The Opportunities Party (TOP)',
+      finalVotes: 400,
+    },
   ],
   parties: [
-    'Labour Party', 'National Party', 'Green Party', 'ACT New Zealand',
-    'New Zealand First Party', 'Te Pāti Māori', 'The Opportunities Party (TOP)',
-    'New Conservative', 'Advance NZ',
+    'Labour Party',
+    'National Party',
+    'Green Party',
+    'ACT New Zealand',
+    'New Zealand First Party',
+    'Te Pāti Māori',
+    'The Opportunities Party (TOP)',
+    'New Conservative',
+    'Advance NZ',
   ],
   partyVoteFinal: [11_500, 6_000, 5_200, 2_000, 1_800, 1_200, 800, 700, 800],
 };
@@ -143,9 +218,15 @@ const SCENARIO_MARGINAL = {
     { name: 'Young, Claire', finalVotes: 100 },
   ],
   parties: [
-    'National Party', 'Labour Party', 'Green Party', 'ACT New Zealand',
-    'New Zealand First Party', 'Te Pāti Māori', 'The Opportunities Party (TOP)',
-    'New Conservative', 'Advance NZ',
+    'National Party',
+    'Labour Party',
+    'Green Party',
+    'ACT New Zealand',
+    'New Zealand First Party',
+    'Te Pāti Māori',
+    'The Opportunities Party (TOP)',
+    'New Conservative',
+    'Advance NZ',
   ],
   partyVoteFinal: [11_800, 11_500, 2_600, 1_800, 1_000, 500, 400, 200, 200],
 };
@@ -163,9 +244,15 @@ const SCENARIO_CLOSE = {
     { name: 'Reed, Molly', finalVotes: 100 },
   ],
   parties: [
-    'National Party', 'Labour Party', 'Green Party', 'ACT New Zealand',
-    'New Zealand First Party', 'Te Pāti Māori', 'The Opportunities Party (TOP)',
-    'New Conservative', 'Advance NZ',
+    'National Party',
+    'Labour Party',
+    'Green Party',
+    'ACT New Zealand',
+    'New Zealand First Party',
+    'Te Pāti Māori',
+    'The Opportunities Party (TOP)',
+    'New Conservative',
+    'Advance NZ',
   ],
   partyVoteFinal: [11_800, 11_500, 2_600, 1_800, 1_000, 500, 400, 200, 200],
 };
@@ -183,9 +270,15 @@ const SCENARIO_EXTREMELY_CLOSE = {
     { name: 'Fox, Lily', finalVotes: 100 },
   ],
   parties: [
-    'Labour Party', 'National Party', 'Green Party', 'ACT New Zealand',
-    'New Zealand First Party', 'Te Pāti Māori', 'The Opportunities Party (TOP)',
-    'New Conservative', 'Advance NZ',
+    'Labour Party',
+    'National Party',
+    'Green Party',
+    'ACT New Zealand',
+    'New Zealand First Party',
+    'Te Pāti Māori',
+    'The Opportunities Party (TOP)',
+    'New Conservative',
+    'Advance NZ',
   ],
   partyVoteFinal: [11_500, 11_800, 2_600, 1_800, 1_000, 500, 400, 200, 200],
 };
@@ -197,15 +290,25 @@ const SCENARIO_TIED = {
     { name: 'Collins, Patricia', party: 'Labour Party', finalVotes: 12_500 },
     { name: 'Ward, Michael', party: 'Green Party', finalVotes: 2_200 },
     { name: 'Barnes, Angela', party: 'ACT New Zealand', finalVotes: 1_400 },
-    { name: 'Murphy, Daniel', party: 'New Zealand First Party', finalVotes: 800 },
+    {
+      name: 'Murphy, Daniel',
+      party: 'New Zealand First Party',
+      finalVotes: 800,
+    },
     { name: 'Bennett, Hannah', party: 'Te Pāti Māori', finalVotes: 350 },
     { name: 'Crawford, Samuel', finalVotes: 150 },
     { name: 'Fisher, Amelia', finalVotes: 100 },
   ],
   parties: [
-    'National Party', 'Labour Party', 'Green Party', 'ACT New Zealand',
-    'New Zealand First Party', 'Te Pāti Māori', 'The Opportunities Party (TOP)',
-    'New Conservative', 'Advance NZ',
+    'National Party',
+    'Labour Party',
+    'Green Party',
+    'ACT New Zealand',
+    'New Zealand First Party',
+    'Te Pāti Māori',
+    'The Opportunities Party (TOP)',
+    'New Conservative',
+    'Advance NZ',
   ],
   partyVoteFinal: [11_800, 11_500, 2_600, 1_800, 1_000, 500, 400, 200, 200],
 };
@@ -226,13 +329,15 @@ function calculateLeadElectorate(
     (a, b) => b.votes - a.votes
   );
   const leadingCandidate = sortedCandidates[0].candidate;
-  const leadingCandidateParty = 'party' in sortedCandidates[0]
-    ? (sortedCandidates[0] as VotingResults & WithParty).party
-    : undefined;
+  const leadingCandidateParty =
+    'party' in sortedCandidates[0]
+      ? (sortedCandidates[0] as VotingResults & WithParty).party
+      : undefined;
   const secondCandidate = sortedCandidates[1].candidate;
-  const secondCandidateParty = 'party' in sortedCandidates[1]
-    ? (sortedCandidates[1] as VotingResults & WithParty).party
-    : undefined;
+  const secondCandidateParty =
+    'party' in sortedCandidates[1]
+      ? (sortedCandidates[1] as VotingResults & WithParty).party
+      : undefined;
   const margin = sortedCandidates[0].votes - sortedCandidates[1].votes;
   const marginPercent = margin / results.votesCounted;
 
@@ -245,57 +350,20 @@ function calculateLeadElectorate(
       secondCandidateParty,
       margin,
       marginPercent,
-      predictionStatus: 'too-close',
-    },
-  };
-}
-
-function predictElectorateWinner(
-  results: ElectorateResults & WithLeaders,
-  confidence: number
-): ElectorateResults & WithLeaders & WithMarginOfError {
-  const votesCounted = results.votesCounted;
-  const totalVotes = votesCounted / results.votePercentageCounted;
-  const candidateVotes = [...results.candidateVotes].sort(
-    (a, b) => b.votes - a.votes
-  );
-  const leadingShare = candidateVotes[0].votes / votesCounted;
-  const secondShare = candidateVotes[1].votes / votesCounted;
-  const leadPercent = leadingShare - secondShare;
-
-  const zScore = 1.96;
-  const finitePopulationCorrection = Math.sqrt(
-    (totalVotes - votesCounted) / (totalVotes - 1)
-  );
-  const diffVariance =
-    (leadingShare + secondShare - leadPercent * leadPercent) / votesCounted;
-
-  const marginOfError =
-    zScore * Math.sqrt(diffVariance) * finitePopulationCorrection;
-
-  const ratio = marginOfError > 0
-    ? leadPercent / marginOfError
-    : leadPercent > 0
-      ? Infinity
-      : 0;
-
-  return {
-    ...results,
-    marginOfError,
-    leaders: {
-      ...results.leaders,
-      predictionStatus: predictionStatusFromRatio(ratio),
     },
   };
 }
 
 function calculatePartyVote(
-  results: (ElectorateResults & WithLeaders & WithMarginOfError)[]
+  results: (ElectorateResults & WithLeaders)[]
 ): VotingResults[] {
   const partyVoteMap = new Map<string, number>();
   const allPartyVotes = results.flatMap((x) => x.partyVotes);
   allPartyVotes.forEach((x) => {
-    partyVoteMap.set(x.candidate, (partyVoteMap.get(x.candidate) ?? 0) + x.votes);
+    partyVoteMap.set(
+      x.candidate,
+      (partyVoteMap.get(x.candidate) ?? 0) + x.votes
+    );
   });
   return Array.from(partyVoteMap.entries()).map(([candidate, votes]) => ({
     candidate,
@@ -363,7 +431,9 @@ function calculatePartyVoteWithSeats(
   );
 
   const eligible = partyVotes.filter(
-    (x) => x.votes / totalVotes >= 0.05 || partiesWithElectorateWins.includes(x.candidate)
+    (x) =>
+      x.votes / totalVotes >= 0.05 ||
+      partiesWithElectorateWins.includes(x.candidate)
   );
 
   const eligibleVotes: Record<string, number> = {};
@@ -419,8 +489,16 @@ const PARTY_LISTS: PartyList[] = [
   { party: 'New Zealand First Party', candidate: 'Baker, Tom', listRank: 3 },
   { party: 'New Zealand First Party', candidate: 'Turner, Ben', listRank: 4 },
   { party: 'New Zealand First Party', candidate: 'Ross, Liam', listRank: 5 },
-  { party: 'New Zealand First Party', candidate: 'Murphy, Daniel', listRank: 6 },
-  { party: 'New Zealand First Party', candidate: 'Peters, Winston', listRank: 7 },
+  {
+    party: 'New Zealand First Party',
+    candidate: 'Murphy, Daniel',
+    listRank: 6,
+  },
+  {
+    party: 'New Zealand First Party',
+    candidate: 'Peters, Winston',
+    listRank: 7,
+  },
   { party: 'New Zealand First Party', candidate: 'Peters, Shane', listRank: 8 },
   { party: 'Te Pāti Māori', candidate: 'Te Rangi, Hana', listRank: 1 },
   { party: 'Te Pāti Māori', candidate: 'Noble, Rachel', listRank: 2 },
@@ -430,9 +508,21 @@ const PARTY_LISTS: PartyList[] = [
   { party: 'Te Pāti Māori', candidate: 'Bennett, Hannah', listRank: 6 },
   { party: 'Te Pāti Māori', candidate: 'Waititi, Rawiri', listRank: 7 },
   { party: 'Te Pāti Māori', candidate: 'Ngarewa-Packer, Debbie', listRank: 8 },
-  { party: 'The Opportunities Party (TOP)', candidate: 'Lee, Emma', listRank: 1 },
-  { party: 'The Opportunities Party (TOP)', candidate: 'Rue, Jack', listRank: 2 },
-  { party: 'The Opportunities Party (TOP)', candidate: 'Curtis, Jess', listRank: 3 },
+  {
+    party: 'The Opportunities Party (TOP)',
+    candidate: 'Lee, Emma',
+    listRank: 1,
+  },
+  {
+    party: 'The Opportunities Party (TOP)',
+    candidate: 'Rue, Jack',
+    listRank: 2,
+  },
+  {
+    party: 'The Opportunities Party (TOP)',
+    candidate: 'Curtis, Jess',
+    listRank: 3,
+  },
   { party: 'New Conservative', candidate: 'Simmons, Craig', listRank: 1 },
   { party: 'New Conservative', candidate: 'Jones, Esther', listRank: 2 },
   { party: 'Advance NZ', candidate: 'Wilson, Mark', listRank: 1 },
@@ -488,21 +578,17 @@ export function generateSeedData(): ResultsPayload {
 
   const withLeaders = electorateResults.map((e) => calculateLeadElectorate(e));
 
-  const withPredictions = withLeaders.map((e) =>
-    predictElectorateWinner(e, 0.95)
-  );
-
-  const pv = calculatePartyVote(withPredictions);
-  const partyVote = calculatePartyVoteWithSeats(pv, withPredictions);
+  const pv = calculatePartyVote(withLeaders);
+  const partyVote = calculatePartyVoteWithSeats(pv, withLeaders);
 
   const partyLists = calculatePartyListSeed(
-    withPredictions,
+    withLeaders,
     partyVote,
     PARTY_LISTS
   );
 
   return {
-    electorateResults: withPredictions,
+    electorateResults: withLeaders,
     partyVote,
     partyLists,
   };

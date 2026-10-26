@@ -27,11 +27,15 @@ import {
 } from './retention.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
+import { resolveFeedBaseUrl } from '@election-night/core/sources';
 import { scrapeCycle } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
 import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
 import { createHistoryHandler, closeHistoryDb } from './history-server.js';
+import { VotingPlaceStatusService } from './voting-place-status.js';
+import { loadNotionalBaseline } from './notional-baseline.js';
+import { chanceLookupFor } from '@election-night/core/notional-baseline';
 
 if (process.argv[2] === 'clear') {
   const { runClear } = await import('./clear.js');
@@ -56,6 +60,31 @@ let source: ElectionSource | null = null;
 let electorateConfigs: ElectorateConfig[] = [];
 
 const resultsService = createResultsService();
+
+/**
+ * The previous cycle's votes on this cycle's boundaries, read once.
+ *
+ * The webhook has to speak the same language as the feed, and the feed calls a
+ * seat on a chance of winning — which needs a prior. Without a baseline for the
+ * cycle the collector still runs; it just publishes counts, never predictions.
+ */
+const notionalBaseline = loadNotionalBaseline(collectorConfig.electionYear);
+
+/**
+ * Per-place count status, served on demand for the seat a visitor opened.
+ * Fetches from the same feed the scrape loop reads, but not on the loop: the
+ * register is 632 KB and a seat's places ~70 files, so it answers only what is
+ * asked for and caches each seat briefly.
+ */
+const votingPlaces = new VotingPlaceStatusService({
+  baseUrl: resolveFeedBaseUrl({
+    year: collectorConfig.electionYear,
+    baseUrl: collectorConfig.xmlFeedBaseUrl,
+  }),
+  electionYear: collectorConfig.electionYear,
+  timeoutMs: collectorConfig.fetchTimeoutMs,
+  onLog: (message, error) => log.warn(message, error ?? ''),
+});
 
 health.electionYear = collectorConfig.electionYear;
 
@@ -170,7 +199,12 @@ async function runOnce(current: ElectionSource): Promise<void> {
         payload.electorateResults,
         payload.partyVote,
         payload.partyLists,
-        collectorConfig.electionYear
+        collectorConfig.electionYear,
+        chanceLookupFor(
+          notionalBaseline,
+          payload.electorateResults,
+          collectorConfig.electionYear
+        )
       );
       publishMetrics(
         emitSnapshotWrite(
@@ -184,7 +218,14 @@ async function runOnce(current: ElectionSource): Promise<void> {
       );
       throw err;
     }
-    await processResults(payload.electorateResults);
+    await processResults(
+      payload.electorateResults,
+      chanceLookupFor(
+        notionalBaseline,
+        payload.electorateResults,
+        collectorConfig.electionYear
+      )
+    );
     cacheResults(payload.electorateResults);
     health.cacheYear = cacheCycle();
     resultsService.setLiveResults(payload);
@@ -313,6 +354,7 @@ async function main(): Promise<void> {
         dbPath: collectorConfig.dbPath,
         electionYear: collectorConfig.electionYear,
         resultsService,
+        votingPlaces,
       })
     );
   } catch (err) {
