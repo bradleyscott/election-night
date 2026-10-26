@@ -91,7 +91,7 @@ describe('ElectorateRacesView', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Probability')).toBeInTheDocument();
+    expect(screen.getByText('Win %')).toBeInTheDocument();
     expect(screen.getByText('44%')).toBeInTheDocument();
     expect(screen.queryByText('MoE')).not.toBeInTheDocument();
     expect(screen.queryByText(/±/)).not.toBeInTheDocument();

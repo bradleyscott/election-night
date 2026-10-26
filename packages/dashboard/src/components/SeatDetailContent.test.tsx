@@ -51,7 +51,7 @@ describe('SeatDetailContent', () => {
   it('shows the chance of winning instead of a prediction chip', () => {
     renderSeat(seat({ chance: counting }));
 
-    expect(screen.getByText('Chance')).toBeInTheDocument();
+    expect(screen.getByText('Win %')).toBeInTheDocument();
     expect(screen.getByText('91%')).toBeInTheDocument();
     expect(screen.queryByText(/Likely winner|Leaning|Too close to call/)).toBeNull();
   });
@@ -74,12 +74,12 @@ describe('SeatDetailContent', () => {
       })
     );
 
-    expect(screen.queryByText('Chance')).toBeNull();
+    expect(screen.queryByText('Win %')).toBeNull();
     expect(screen.getByText('396 votes')).toBeInTheDocument();
   });
 
   it('omits the chance when there are no votes yet', () => {
     renderSeat(seat({ chance: { state: 'waiting' } }));
-    expect(screen.queryByText('Chance')).toBeNull();
+    expect(screen.queryByText('Win %')).toBeNull();
   });
 });

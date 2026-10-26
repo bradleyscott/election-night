@@ -72,7 +72,7 @@ export function ElectorateRacesView({
                 Lead %
               </th>
               <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Probability
+                Win %
               </th>
             </tr>
           </thead>
@@ -145,7 +145,7 @@ export function ElectorateRacesView({
                     {(l.marginPercent * 100).toFixed(2)}%
                   </td>
                   <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
-                    <ProbabilityCell
+                    <WinPercentCell
                       chance={chances?.get(
                         normalizeElectorateName(er.electorateName)
                       )}
@@ -168,7 +168,7 @@ export function ElectorateRacesView({
  * sample, and this is not a sample — it is a count part-way through, so the
  * honest figure is the chance the lead survives the votes still to come.
  */
-function ProbabilityCell({ chance }: { chance?: SeatChance }) {
+function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'counting') {
     return <span>{Math.round(chance.probability * 100)}%</span>;
   }

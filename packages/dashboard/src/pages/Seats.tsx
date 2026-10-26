@@ -50,7 +50,7 @@ function AnimatedStat({
 }
 
 /**
- * What the Certainty column means for a seat: the chance this candidate holds
+ * What the Win % column means for a seat: the chance this candidate holds
  * it, not how far the lead is from a sampling error. Once the count is in,
  * there is no probability left to quote, so it states the margin the count
  * produced instead.
@@ -215,7 +215,7 @@ function SuccessfulCandidates({
                 className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('certainty')}
               >
-                Certainty
+                Win %
                 <SortIndicator column="certainty" />
               </th>
             </tr>
@@ -273,8 +273,8 @@ function SuccessfulCandidates({
                       >
                         List
                       </Link>
-                      <span className="sm:hidden font-mono text-xs font-semibold text-foreground tabular-nums">
-                        +{Math.round(c.certainty)}
+                      <span className="font-mono text-xs font-semibold text-foreground tabular-nums">
+                        +{Math.round(c.certainty)} from cut
                       </span>
                     </span>
                   )}
@@ -283,9 +283,7 @@ function SuccessfulCandidates({
                   {c.isElectorate ? (
                     <ElectorateCertainty chance={c.chance} />
                   ) : (
-                    <span className="text-foreground">
-                      +{Math.round(c.certainty)} from cut
-                    </span>
+                    <span className="text-muted-foreground">&mdash;</span>
                   )}
                 </td>
               </tr>

@@ -246,7 +246,7 @@ describe('Flipped page', () => {
 
     // The qualifier columns drop out on narrow screens so the four columns
     // that make the comparison stay readable.
-    expect(screen.getByText('Chance')).toHaveClass('hidden', 'sm:table-cell');
+    expect(screen.getByText('Win %')).toHaveClass('hidden', 'sm:table-cell');
     // There is no MoE column left to qualify.
     expect(screen.queryByText('MoE')).toBeNull();
     expect(screen.getByText('Lead')).toHaveClass('hidden', 'sm:table-cell');

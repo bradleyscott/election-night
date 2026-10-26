@@ -112,24 +112,32 @@ function renderCopy(
 
   if (diff.previousMargin !== null && diff.previousMarginPercent !== null) {
     const marginDelta = l.margin - diff.previousMargin;
+    // The lead is quoted as a share of votes counted, so one more ballot moves
+    // both halves of the fraction. A vote or two can therefore widen the count
+    // while the percentage rounds to zero — "extended their lead by -0.00%" is
+    // what that looks like if the two are printed without checking. Fall back
+    // to the vote count when the share has not visibly moved.
+    const widened = Math.abs(
+      (l.marginPercent - diff.previousMarginPercent) * 100
+    );
     if (marginDelta > 0) {
-      const widenedPct = (
-        (l.marginPercent - diff.previousMarginPercent) *
-        100
-      ).toFixed(2);
+      const growth =
+        widened < 0.005
+          ? `${marginDelta.toLocaleString()} votes`
+          : `${widened.toFixed(2)}%`;
       return {
-        summary: `${name}: ${leader} extended their lead by ${widenedPct}% to ${marginPct}% at ${pct}% counted.`,
-        commentary: `${leader} extended their lead by ${widenedPct}% to ${marginPct}% in ${name} at ${pct}% counted.`,
+        summary: `${name}: ${leader} extended their lead by ${growth} to ${marginPct}% at ${pct}% counted.`,
+        commentary: `${leader} extended their lead by ${growth} to ${marginPct}% in ${name} at ${pct}% counted.`,
       };
     }
     if (marginDelta < 0) {
-      const narrowedPct = (
-        (diff.previousMarginPercent - l.marginPercent) *
-        100
-      ).toFixed(2);
+      const shrink =
+        widened < 0.005
+          ? `${Math.abs(marginDelta).toLocaleString()} votes`
+          : `${widened.toFixed(2)}%`;
       return {
-        summary: `${name}: ${leader} leads by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`,
-        commentary: `${leader} leads in ${name} by ${marginPct}% at ${pct}% counted — the gap narrowed by ${narrowedPct}%.`,
+        summary: `${name}: ${leader} leads by ${marginPct}% at ${pct}% counted — the gap narrowed by ${shrink}.`,
+        commentary: `${leader} leads in ${name} by ${marginPct}% at ${pct}% counted — the gap narrowed by ${shrink}.`,
       };
     }
   }

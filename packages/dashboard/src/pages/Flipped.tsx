@@ -222,7 +222,7 @@ export default function Flipped() {
                   {/* The chance is a qualifier, not part of the comparison, so
                       it goes last. */}
                   <Th align="right" className="hidden sm:table-cell">
-                    Chance
+                    Win %
                   </Th>
                 </tr>
               </thead>
@@ -303,7 +303,7 @@ export default function Flipped() {
                         </span>
                       </td>
                       <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
-                        <ChanceCell
+                        <WinPercentCell
                           chance={chances.get(
                             normalizeElectorateName(electorate.electorateName)
                           )}
@@ -334,7 +334,7 @@ export default function Flipped() {
  * and a count part-way through is not a sample — the honest figure is how
  * likely the lead is to survive the votes still to count.
  */
-function ChanceCell({ chance }: { chance?: SeatChance }) {
+function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'counting') {
     return (
       <span className="font-bold tabular-nums">

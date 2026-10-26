@@ -92,7 +92,7 @@ export function SeatDetailContent({ info, onClose }: { info: SeatInfo; onClose: 
 
         {chance !== null && (
           <div>
-            <div className="text-muted-foreground">Chance</div>
+            <div className="text-muted-foreground">Win %</div>
             <div className="font-semibold tabular-nums">{chance}</div>
           </div>
         )}

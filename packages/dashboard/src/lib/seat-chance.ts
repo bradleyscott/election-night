@@ -130,7 +130,12 @@ export function countProgress(
   return {
     votesCounted,
     expected,
-    fraction: expected > 0 ? votesCounted / expected : null,
+    // Clamped at 1: the denominator is built from each cycle's turnout, so a
+    // seat that outruns the last cycle's turnout passes its expectation, and a
+    // page reading "101.5% counted" invites the reader to distrust every other
+    // number on it.
+    fraction:
+      expected > 0 ? Math.min(1, votesCounted / expected) : null,
   };
 }
 
