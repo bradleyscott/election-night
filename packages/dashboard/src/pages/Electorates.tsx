@@ -9,8 +9,9 @@ import { ElectorateSearch } from '../components/ElectorateSearch.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateDetail } from '../components/ElectorateDetail.js';
 import ElectorateMap from '../components/ElectorateMap.js';
-import { isMaoriElectorate } from '../lib/electorates.js';
+import { isMaoriElectorate, normalizeElectorateName } from '../lib/electorates.js';
 import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { usePollsClose } from '../hooks/usePollsClose.js';
 import { useApi } from '../hooks/useApi.js';
 import type { RuntimeConfig } from '@election-night/core/polls-close';
@@ -60,13 +61,24 @@ export default function Electorates() {
     [electorates, electionYear]
   );
 
-  const chance = useMemo(
-    () =>
-      selectedElectorate
-        ? seatChanceFor(selectedElectorate, electionYear, nationalSwing)
-        : null,
-    [selectedElectorate, electionYear, nationalSwing]
-  );
+  // Every seat's chance, not just the open one: the map's shading is this
+  // number, so a seat at even odds is painted pale and one that is gone is
+  // solid. Cheap — the swing above is computed once and shared.
+  const chances = useMemo(() => {
+    const byName = new Map<string, SeatChance>();
+    for (const electorate of electorates) {
+      byName.set(
+        normalizeElectorateName(electorate.electorateName),
+        seatChanceFor(electorate, electionYear, nationalSwing)
+      );
+    }
+    return byName;
+  }, [electorates, electionYear, nationalSwing]);
+
+  const chance = selectedElectorate
+    ? (chances.get(normalizeElectorateName(selectedElectorate.electorateName)) ??
+      null)
+    : null;
 
   const pollsCloseLabel = useMemo(() => {
     if (!closesAt || closesAt.getTime() <= Date.now()) return null;
@@ -163,6 +175,7 @@ export default function Electorates() {
             selectedName={selectedName ?? undefined}
             showMaori={showMaori}
             showPartyVote={showPartyVote}
+            chances={chances}
           />
         </div>
 

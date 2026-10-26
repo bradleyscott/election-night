@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ElectorateResult } from './seat-chance.js';
 import {
   enrolmentForSeat,
+  mapFillOpacity,
   nationalSwingOf,
   priorForSeat,
   seatChanceFor,
@@ -102,5 +103,42 @@ describe('seatChanceFor', () => {
     const swing = nationalSwingOf([seat()], '2026');
     expect(swing).toHaveProperty('National');
     expect(Math.abs(swing.National ?? 0)).toBeLessThan(1);
+  });
+});
+
+describe('mapFillOpacity', () => {
+  const counting = (probability: number) =>
+    ({ state: 'counting', probability }) as const;
+
+  it('paints a seat with no votes palest and a finished count solid', () => {
+    expect(mapFillOpacity(null)).toBeCloseTo(0.15, 3);
+    expect(mapFillOpacity({ state: 'waiting' })).toBeCloseTo(0.15, 3);
+    expect(
+      mapFillOpacity({
+        state: 'complete',
+        margin: 400,
+        leader: { name: 'A', votes: 1 },
+        runnerUp: { name: 'B', votes: 2 },
+      } as never)
+    ).toBeCloseTo(0.8, 3);
+  });
+
+  it('leaves a toss-up pale whoever leads it', () => {
+    // 45% and 55% are the same state of knowledge, so they paint the same.
+    expect(mapFillOpacity(counting(0.5) as never)).toBeCloseTo(0.2, 3);
+    expect(mapFillOpacity(counting(0.55) as never)).toBeCloseTo(
+      mapFillOpacity(counting(0.45) as never),
+      3
+    );
+  });
+
+  it('deepens with the chance and never exceeds the finished fill', () => {
+    const opacities = [0.5, 0.6, 0.75, 0.9, 0.99].map((p) =>
+      mapFillOpacity(counting(p) as never)
+    );
+    for (let i = 1; i < opacities.length; i++) {
+      expect(opacities[i]).toBeGreaterThan(opacities[i - 1]);
+    }
+    expect(Math.max(...opacities)).toBeLessThanOrEqual(0.8);
   });
 });

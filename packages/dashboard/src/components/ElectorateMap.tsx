@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { partyColors } from '../lib/constants.js';
+import { mapFillOpacity } from '../lib/seat-chance.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 import { dashboardClientConfig } from '../config.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import {
@@ -48,6 +50,8 @@ interface ElectorateMapProps {
   selectedName?: string;
   showMaori: boolean;
   showPartyVote?: boolean;
+  /** Chance of winning, keyed by normalised electorate name. */
+  chances?: Map<string, SeatChance>;
 }
 
 const GEO_KINDS: Record<'general' | 'maori', BoundaryKind> = {
@@ -118,16 +122,6 @@ function leadingPartyVote(
     if (partyVotes[i].votes > top.votes) top = partyVotes[i];
   }
   return top;
-}
-
-function getCandidateOpacity(result: ElectorateResult): number {
-  const moe = result.marginOfError;
-  const marginPercent = result.leaders.marginPercent;
-  if (!Number.isFinite(moe) || moe <= 0) return 0.2;
-  const ratio = marginPercent / moe;
-  if (ratio >= 2) return 0.8;
-  if (ratio <= 1) return 0.2;
-  return 0.2 + (ratio - 1) * 0.6;
 }
 
 function getPartyOpacity(
@@ -236,6 +230,7 @@ export default function ElectorateMap({
   selectedName,
   showMaori,
   showPartyVote,
+  chances,
 }: ElectorateMapProps) {
   const [boundary, setBoundary] = useState<LoadedBoundary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -279,15 +274,17 @@ export default function ElectorateMap({
           opacity: getPartyOpacity(leading, e.votesCounted),
         });
       } else {
+        // Shading follows the chance of winning, so the map says how decided a
+        // seat is rather than who happens to lead it right now.
         map.set(key, {
           color:
             partyColors[e.leaders.leadingCandidateParty ?? ''] || '#9ca3af',
-          opacity: getCandidateOpacity(e),
+          opacity: mapFillOpacity(chances?.get(key)),
         });
       }
     }
     return map;
-  }, [electorates, showPartyVote]);
+  }, [electorates, showPartyVote, chances]);
 
   useEffect(() => {
     setBoundary(null);
@@ -442,6 +439,22 @@ export default function ElectorateMap({
       )}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <span className="chip-print">{boundary.year} electorates</span>
+        {chances && !showPartyVote ? (
+          <span className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-4 bg-[#9ca3af]"
+              style={{ opacity: 0.25 }}
+            />
+            <span>too close to call</span>
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-4 bg-[#9ca3af]"
+              style={{ opacity: 0.8 }}
+            />
+            <span>decided</span>
+          </span>
+        ) : null}
         {places ? <VotingPlaceLegend /> : null}
         <span className="text-[0.625rem] text-muted-foreground">
           Boundaries: Stats NZ (CC BY 4.0)

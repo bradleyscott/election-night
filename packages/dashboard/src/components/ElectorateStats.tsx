@@ -136,6 +136,12 @@ export function ElectorateStats({
       <p className="mt-3 font-label text-xs text-muted-foreground">
         {outstandingSentence(chance)}
       </p>
+      {chance.provisionalPrior && (
+        <p className="mt-1 font-label text-xs text-muted-foreground">
+          This seat has no comparable result from last time, so the number rests
+          on tonight&rsquo;s count alone.
+        </p>
+      )}
     </div>
   );
 }

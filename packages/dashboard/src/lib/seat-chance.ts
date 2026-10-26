@@ -192,6 +192,23 @@ export function seatChanceFor(
 }
 
 /** "4 min ago", "just now", "2 hours ago". */
+/**
+ * How solidly a seat is painted on the map.
+ *
+ * The map answers one question — how decided is this seat — so the shading runs
+ * on the chance of winning, not on the margin: a 50/50 seat is left pale
+ * whichever party happens to be a hundred votes ahead, and colour deepens as
+ * one side's chance grows. A seat with no votes counted gets the palest fill
+ * and no claim; a finished count gets the fullest.
+ */
+export function mapFillOpacity(chance: SeatChance | null | undefined): number {
+  if (!chance || chance.state === 'waiting') return 0.15;
+  if (chance.state === 'complete') return 0.8;
+  // 0.5 → 0.2, 0.99 → 0.8. A seat at even odds is nearly invisible on purpose:
+  // painting it solid in the leader's colour is the mistake this replaces.
+  return 0.2 + Math.min(1, Math.abs(chance.probability - 0.5) / 0.49) * 0.6;
+}
+
 export function formatUpdatedAgo(
   updatedAt: Date | null,
   now = new Date()
