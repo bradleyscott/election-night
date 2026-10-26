@@ -87,7 +87,7 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes, but the chance of holding it has fallen to ${share} at ${pct}% counted.`,
-      commentary: `${leader} still leads ${name} by ${votes} votes, with ${pct}% counted. Later votes have cut their chance of holding the seat to ${share}, so the seat is back inside the count.`,
+      commentary: `${leader} still leads ${name} by ${votes} votes, with ${pct}% counted. Later votes have cut their chance of holding the seat to ${share}.`,
     };
   }
 
