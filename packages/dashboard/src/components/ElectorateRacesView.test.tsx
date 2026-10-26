@@ -4,6 +4,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type * as ReactRouter from 'react-router-dom';
 import { BrowserRouter } from 'react-router-dom';
 import { ElectorateRacesView } from './ElectorateRacesView.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
+import { normalizeElectorateName } from '../lib/electorates.js';
 import type {
   ElectorateResults,
   WithLeaders,
@@ -34,6 +36,25 @@ const baseElectorate = {
   },
 } as ElectorateResults & WithLeaders & WithMarginOfError;
 
+const counting: SeatChance = {
+  state: 'counting',
+  leader: { name: 'SMITH, John', party: 'National Party', votes: 5400 },
+  runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 5300 },
+  othersProbability: 0,
+  probability: 0.44,
+  margin: 100,
+  remainingVotes: 9000,
+  remainingLow: 6000,
+  remainingHigh: 12000,
+  progress: 0.375,
+  enrolment: 45407,
+  assumedCycle: false,
+  insideOutstanding: true,
+  specialsOutstanding: 5000,
+  insideSpecials: true,
+  provisionalPrior: false,
+};
+
 describe('ElectorateRacesView', () => {
   test('table rows are keyboard accessible', () => {
     render(
@@ -57,5 +78,25 @@ describe('ElectorateRacesView', () => {
     expect(mockNavigate).toHaveBeenCalledWith(
       '/electorates/Auckland%20Central'
     );
+  });
+
+  test('shows a chance of winning instead of a margin of error', () => {
+    render(
+      <BrowserRouter>
+        <ElectorateRacesView
+          electorates={[baseElectorate]}
+          chances={
+            new Map([
+              [normalizeElectorateName('Auckland Central'), counting],
+            ])
+          }
+        />
+      </BrowserRouter>
+    );
+
+    expect(screen.getByText('Probability')).toBeInTheDocument();
+    expect(screen.getByText('44%')).toBeInTheDocument();
+    expect(screen.queryByText('MoE')).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
   });
 });
