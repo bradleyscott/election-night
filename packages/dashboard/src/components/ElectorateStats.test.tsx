@@ -61,22 +61,30 @@ describe('ElectorateStats', () => {
     renderStats({ state: 'waiting' }, { pollsCloseLabel: '7pm' });
     expect(screen.getByText('No votes counted yet')).toBeInTheDocument();
     expect(screen.getByText('Polls close 7pm')).toBeInTheDocument();
-    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+%/)).not.toBeInTheDocument();
   });
 
   it('shows a chance of winning and the count state', () => {
     renderStats(counting);
     expect(screen.getByText('54')).toBeInTheDocument();
     expect(screen.getByText('46')).toBeInTheDocument();
-    expect(screen.getByText(/68% counted/i)).toBeInTheDocument();
+    // The count and the votes still out share one strip: the same fact told
+    // from both ends, rather than a chip in the header and a footnote below.
+    expect(screen.getByText('68%')).toBeInTheDocument();
+    expect(screen.getByText(/31,590 votes/)).toBeInTheDocument();
+    expect(screen.getByText(/about 15,300 votes/)).toBeInTheDocument();
+  });
+
+  it('keeps the header quiet — nothing framed competes with the number', () => {
+    const { container } = renderStats(counting);
+    expect(container.querySelector('.chip-print')).toBeNull();
+    expect(screen.getByText(/updated just now/i)).toBeInTheDocument();
   });
 
   it('puts the margin and its share under the leading candidate only', () => {
     renderStats(counting);
     // 340 ahead of 31,590 counted = 1.1%.
-    expect(
-      screen.getByText('11,860 votes · ahead by 340 (1.1%)')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Ahead by 340 (1.1%)')).toBeInTheDocument();
     expect(screen.getByText('11,520 votes')).toBeInTheDocument();
   });
 
@@ -136,8 +144,8 @@ describe('ElectorateStats', () => {
 
     // The count's own state stays with the candidate who leads it.
     const leaderRow = screen.getByText(/^WEENINK,/).closest('div.py-3');
-    expect(leaderRow?.textContent).toContain('ahead by 340');
+    expect(leaderRow?.textContent).toContain('Ahead by 340');
     const favouriteRow = screen.getByText(/^McLELLAN,/).closest('div.py-3');
-    expect(favouriteRow?.textContent).not.toContain('ahead by');
+    expect(favouriteRow?.textContent).not.toContain('Ahead by');
   });
 });

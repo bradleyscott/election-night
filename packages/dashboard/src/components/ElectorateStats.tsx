@@ -26,6 +26,11 @@ const percent = (fraction: number) => (fraction * 100).toFixed(1);
  * Deliberately absent: a percentage that means "safe", a margin of error, and
  * a total vote count. The first two are the model this replaces; the total is
  * not knowable mid-count, so printing one would be a guess dressed as a fact.
+ *
+ * While the count is live the card answers one question — who is likely to win
+ * — and then shows why in one strip: how much of tonight's vote is in, and how
+ * much is still out. Those are the same fact told from both ends, so they are
+ * drawn together instead of split between a header chip and a footnote.
  */
 export function ElectorateStats({
   result,
@@ -38,25 +43,22 @@ export function ElectorateStats({
   showPartyVote: boolean;
   /** The computed chance, from `seatChanceFor`. Absent renders the count only. */
   chance?: SeatChance | null;
-  /** When this browser's results last changed, for the count chip. */
+  /** When this browser's results last changed, printed quietly in the header. */
   updatedAt?: Date | null;
   /** "7pm" — shown before the first result, when the cycle's close is known. */
   pollsCloseLabel?: string | null;
 }) {
-  const countChip = countChipText(chance, updatedAt);
-
   // The party view has no verdict to give: a seat's chance of winning is a
   // candidate-vote fact, and the party vote decides a different contest. Rather
   // than relabel the card, or print a party number that would teach the same
   // percentage two meanings, the card is simply not there.
   if (showPartyVote) return null;
 
-
   if (!chance || chance.state === 'waiting') {
     return (
       <div className="border panel-print p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="kicker">Chance of winning</div>
+          <div className="kicker">Win %</div>
           {pollsCloseLabel && (
             <span className="chip-print">Polls close {pollsCloseLabel}</span>
           )}
@@ -90,17 +92,20 @@ export function ElectorateStats({
       leadsCount: false,
     },
   ].sort((a, b) => b.share - a.share);
+  const updated = formatUpdatedAgo(updatedAt ?? null);
 
   return (
     <div className="border panel-print p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="kicker">Chance of winning</div>
-        {countChip && (
-          <span className="chip-print chip-print--ink">{countChip}</span>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="kicker">Win %</div>
+        {updated && (
+          <span className="font-label text-[11px] text-muted-foreground">
+            Updated {updated}
+          </span>
         )}
       </div>
 
-      <div className="mt-2 divide-y divide-border">
+      <div className="mt-1 divide-y divide-border">
         {rows.map((row) => (
           <ChanceRow
             key={row.candidate.name}
@@ -117,6 +122,59 @@ export function ElectorateStats({
             }
           />
         ))}
+      </div>
+
+      <CountStrip
+        counted={result.votesCounted}
+        progress={chance.progress}
+        remaining={chance.remainingVotes}
+      />
+    </div>
+  );
+}
+
+/**
+ * The votes in and the votes out, drawn as one bar: the solid share has been
+ * counted, the hatched share is still to come. The percentage and the vote
+ * counts sit either end so the reader can see both without reading the bar.
+ */
+function CountStrip({
+  counted,
+  progress,
+  remaining,
+}: {
+  counted: number;
+  progress: number;
+  remaining: number;
+}) {
+  const share = Math.max(0, Math.min(1, progress));
+
+  return (
+    <div className="mt-1 border-t pt-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="kicker">Counted</div>
+          <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-sm font-bold text-foreground">
+              {Math.round(share * 100)}%
+            </span>
+            {' \u00b7 '}
+            {counted.toLocaleString()} votes
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="kicker">Still out</div>
+          <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+            about {remaining.toLocaleString()} votes
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 flex h-2 w-full" aria-hidden="true">
+        <div
+          className="bg-foreground/70"
+          style={{ width: `${share * 100}%` }}
+        />
+        <div className="hatch-outstanding flex-1" />
       </div>
     </div>
   );
@@ -166,18 +224,6 @@ function ChanceRow({
           </div>
           <div className="font-label text-xs tabular-nums text-muted-foreground">
             {candidate.votes.toLocaleString()} votes
-            {margin !== undefined && (
-              <>
-                {' \u00b7 '}
-                {margin === 0
-                  ? 'level'
-                  : `ahead by ${margin.toLocaleString()}${
-                      marginPercent != null
-                        ? ` (${(marginPercent * 100).toFixed(1)}%)`
-                        : ''
-                    }`}
-              </>
-            )}
           </div>
         </div>
         <div className="flex-shrink-0 text-right">
@@ -190,15 +236,33 @@ function ChanceRow({
           </div>
         </div>
       </div>
-      <div className="mt-2 h-2 w-full bg-secondary">
+      {/* The track runs the full hundred so the fill is a share of it, and the
+          hairline at the halfway mark says where even sits — at 45% the fill
+          stops short of it, at 55% it passes it. */}
+      <div className="relative mt-2 h-2 w-full bg-foreground/15">
         <div
-          className="h-full"
+          className="absolute inset-y-0 left-0"
           style={{
             width: `${Math.max(0, Math.min(100, share * 100))}%`,
             backgroundColor: partyColour(candidate.party),
           }}
         />
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-[-3px] left-1/2 w-px bg-foreground/40"
+        />
       </div>
+      {margin !== undefined && (
+        <div className="kicker mt-1.5">
+          {margin === 0
+            ? 'Level'
+            : `Ahead by ${margin.toLocaleString()}${
+                marginPercent != null
+                  ? ` (${(marginPercent * 100).toFixed(1)}%)`
+                  : ''
+              }`}
+        </div>
+      )}
     </div>
   );
 }
@@ -264,23 +328,6 @@ function CompleteVerdict({
           </div>
         ))}
       </div>
-
     </div>
   );
-}
-
-function countChipText(
-  chance: SeatChance | null | undefined,
-  updatedAt: Date | null | undefined
-): string | null {
-  if (!chance || chance.state !== 'counting') {
-    if (chance?.state === 'complete') {
-      const ago = formatUpdatedAgo(updatedAt ?? null);
-      return ago ? `Updated ${ago}` : null;
-    }
-    return null;
-  }
-  const counted = `${Math.round(chance.progress * 100)}% counted`;
-  const ago = formatUpdatedAgo(updatedAt ?? null);
-  return ago ? `${counted} · updated ${ago}` : counted;
 }

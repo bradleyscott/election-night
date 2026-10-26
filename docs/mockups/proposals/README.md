@@ -106,3 +106,63 @@ cd packages/dashboard
   "file://$PWD/../../docs/mockups/proposals/electorate-map-controls.html"
 ```
 
+## `chance-card` (`.html` / `.png`)
+
+The electorate panel's **chance of winning** card, in its counting state, drawn
+five ways at the 512px the detail column gives it on a 1400px page: **Today** as
+it ships, then **A** one bar split 54 / 45, **B** the number with a 100-square
+pictogram, **C** a position on an axis whose centre is marked *coin toss*, and
+**D** today's two rows over a strip showing the count in and the votes still
+out. Every card holds the same seat at the same moment (Banks Peninsula, 68%
+counted, 54%, margin 393, about 9,300 still out), so only the design moves.
+
+**Decided: D**, amended twice before shipping. The count left the header chip
+and joined the strip, because *68% counted* and *9,300 still out* are the same
+fact told from both ends and the strip is where the votes are; and the count
+line's companion, *updated 4 min ago*, lost its box and its capitals — the
+header now reads `Win %` with a plain muted *Updated 4 min ago* opposite it, so
+there is no framed chip left on the card at all. A, B and C are rejected
+alternatives and can be deleted.
+
+**Shipped.** `packages/dashboard/src/components/ElectorateStats.tsx` draws the
+counting state as `ChanceRow` + `CountStrip`: the row keeps its track across the
+full hundred (so the fill is a share of one) and marks even with a hairline, and
+the strip's hatched end is `.hatch-outstanding` in
+`packages/dashboard/src/styles/index.css` — a token-level utility, because
+"counted" and "still to come" must read as two states in both colour modes. The
+percentage in the strip is `votesCounted / (votesCounted + remainingVotes)`, not
+`percent_voting_places_counted`. `ElectorateStats.test.tsx` pins that the header
+carries no chip.
+
+The page also repeats all four on a nearly settled seat (92%, margin 4,120,
+about 900 still out). A card that only works at 54 is not a card: at 92 the bar
+is nearly one colour, the pictogram is nearly full and the marker sits at the
+end of its scale, and each design has to stay legible without reading as a
+call — which is why the printed number, not the drawing, carries the caution.
+
+Two states are deliberately not redesigned and appear once at the foot of the
+file: the settled count prints the winner, the votes and the margin as facts
+(a completed count's percentage could only read 100%), and before the first
+result the card says when results are expected rather than showing a number.
+Party view renders nothing at all — all of that is shipped behaviour, not a
+choice on this page.
+
+The figures are illustrative but self-consistent: 19,846 counted, about 9,300
+out, a 393 margin, 8,412 / 8,019 for the top two, and a settled count of 12,904
+/ 12,188 of 25,092.
+
+```bash
+cd packages/dashboard
+./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
+  -o /tmp/chance.css \
+  --content "../../docs/mockups/proposals/chance-card.html"
+
+# inline /tmp/chance.css into the <style> block, then capture 1400×3838 at 2x
+# (the height is document.documentElement.scrollHeight; re-measure after copy
+# changes — an over-tall window pads the bottom with the page background)
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
+  --window-size=1400,3838 --virtual-time-budget=12000 \
+  --screenshot=chance-card.png \
+  "file://$PWD/../../docs/mockups/proposals/chance-card.html"
+```

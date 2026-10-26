@@ -238,6 +238,16 @@
     border-top: 2px solid hsl(var(--primary));
   }
 
+  /* the share of a vote still to come: a hatch rather than an empty channel,
+     so "not counted yet" reads as a state and not as missing data */
+  .hatch-outstanding {
+    background-image: repeating-linear-gradient(
+      45deg,
+      hsl(var(--border)) 0 2px,
+      transparent 2px 5px
+    );
+  }
+
   /* voting place marks: shape = where the place stands, fill = counted.
      Solid for a count received, outlined while outstanding, and a halo in the
      page colour so a mark reads against a party-coloured fill either way. */
