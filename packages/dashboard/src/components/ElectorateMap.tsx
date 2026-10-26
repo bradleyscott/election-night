@@ -438,7 +438,6 @@ export default function ElectorateMap({
         />
       )}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <span className="chip-print">{boundary.year} electorates</span>
         {chances && !showPartyVote ? (
           <span className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
             <span
