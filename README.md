@@ -191,11 +191,12 @@ Set `ELECTION_YEAR=2026` too (not just the mock flag): it tags snapshots with th
 
 `/flipped` and the **Past winners** table on an electorate page are fed by the collector's results service, which fetches any earlier cycle from the same XML archive on demand, caches it in memory, and matches its seats to today's electorates through a checked-in rename table. Only seats that continued under the same electoral area are compared — a seat created by a merge or split has no prior holder and is left out rather than given a guess.
 
-The mock feed replays a single cycle, so a run pointed at it reports prior results unavailable by design. To exercise these pages, use the real archive:
+The mock feed replays a single cycle, so `XML_FEED_BASE_URL` is only ever used for the cycle being counted. Prior years fall through to the real archive, which is the authority for them and needs no override — a mocked 2026 run still gets real 2023, 2020 and 2017 winners, so `/flipped` and the past-winners table are populated instead of blank.
+
+Set `PRIOR_RESULTS=off` to serve no prior cycle at all. That is what the tests that spawn the collector do, so they never touch the network:
 
 ```bash
-ELECTION_YEAR=2023 npm run start:collector   # prior cycles 2020 and 2017
-npm run dev
+PRIOR_RESULTS=off ELECTION_YEAR=2026 XML_FEED_BASE_URL=http://localhost:3457/ npm run start:collector
 ```
 
 See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the contract, the comparability rule and its sources, and the design captures in [`docs/mockups/`](docs/mockups/).

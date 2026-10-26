@@ -94,6 +94,9 @@ describe('collector startup without a published feed', () => {
         ...process.env,
         ELECTION_YEAR: '2026',
         XML_FEED_BASE_URL: `http://127.0.0.1:${feedPort}/`,
+        // Keep the spawned collector off the network: prior cycles fall back to
+        // the real archive unless this is off.
+        PRIOR_RESULTS: 'off',
         DB_PATH: join(dir, 'election_results.db'),
         HEALTH_PORT: String(healthPort),
         WS_URL: 'ws://127.0.0.1:1',

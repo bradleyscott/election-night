@@ -173,6 +173,9 @@ describe('collector against a published but uncounted feed', () => {
         ...process.env,
         ELECTION_YEAR: '2026',
         XML_FEED_BASE_URL: `http://127.0.0.1:${feedPort}/`,
+        // Keep the spawned collector off the network: prior cycles fall back to
+        // the real archive unless this is off.
+        PRIOR_RESULTS: 'off',
         DB_PATH: join(dir, 'election_results.db'),
         RESULTS_CACHE_PATH: join(dir, 'electorate_results.json'),
         HEALTH_PORT: String(healthPort),

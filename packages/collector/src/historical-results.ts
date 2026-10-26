@@ -15,15 +15,21 @@ import { log } from './logger.js';
  * `XML_FEED_BASE_URL` points at a mock feed that replays exactly one cycle, so
  * it is only ever used for the cycle being counted. Answering a prior year
  * from it would silently label tonight's candidates as the last election's
- * winners, which the UI could not detect — better to report the year
- * unavailable. Against the live archive (no override) each year gets its own
- * official URL.
+ * winners, which the UI could not detect.
+ *
+ * A prior year therefore goes to the archive, which is the authority for it and
+ * needs no override: the year in the URL *is* the cycle. Falling back rather
+ * than refusing keeps a mocked run able to fill in /flipped and the per-seat
+ * past-winners table with real winners, instead of blanking every comparison
+ * because tonight's feed is synthetic.
  */
 export function createSourceForYear(year: string) {
-  const { electionYear, xmlFeedBaseUrl, fetchTimeoutMs } = collectorConfig;
+  const { electionYear, xmlFeedBaseUrl, fetchTimeoutMs, priorResults } =
+    collectorConfig;
 
-  if (xmlFeedBaseUrl) {
-    if (year !== electionYear) return null;
+  if (priorResults === 'off' && year !== electionYear) return null;
+
+  if (xmlFeedBaseUrl && year === electionYear) {
     return new NzElectionXmlSource({
       year,
       baseUrl: xmlFeedBaseUrl,
