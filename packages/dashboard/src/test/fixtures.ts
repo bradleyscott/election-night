@@ -6,11 +6,10 @@ import type {
   VotingResults,
   WithAdjustedRank,
   WithLeaders,
-  WithMarginOfError,
   WithSeats,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 export const mockElectorateResult: ElectorateResult = {
   electorateName: 'Auckland Central',
@@ -35,9 +34,7 @@ export const mockElectorateResult: ElectorateResult = {
     secondCandidateParty: 'Labour Party',
     margin: 1000,
     marginPercent: 0.04,
-    predictionStatus: 'leaning',
   },
-  marginOfError: 0.02,
 };
 
 export const mockPartyVote: (VotingResults & WithSeats)[] = [
@@ -92,8 +89,6 @@ export const mockFeedEvent: FeedEvent = {
   timestamp: Date.now(),
   type: 'result_updated',
   electorateName: 'Auckland Central',
-  predictionStatus: 'leaning',
-  marginOfError: 0.02,
   summary: 'Auckland Central updated.',
   commentary: 'SMITH, John leads by 4.00% at 95% counted.',
   diff: {
@@ -109,9 +104,6 @@ export const mockFeedEvent: FeedEvent = {
     leaderChanged: false,
     previousLeaderName: null,
     previousLeaderParty: null,
-    predictionStatusChanged: false,
-    previousPredictionStatus: null,
-    currentPredictionStatus: 'leaning',
   },
 };
 

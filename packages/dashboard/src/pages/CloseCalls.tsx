@@ -17,12 +17,11 @@ import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 type PartyListEntry = PartyList & WithAdjustedRank;
 
 export default function CloseCalls() {

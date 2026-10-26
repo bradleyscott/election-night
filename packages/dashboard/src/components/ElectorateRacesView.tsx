@@ -8,11 +8,10 @@ import { normalizeElectorateName } from '../lib/electorates.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 const PAGE_SIZE = 10;
 

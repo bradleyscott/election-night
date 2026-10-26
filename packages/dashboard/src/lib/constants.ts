@@ -14,6 +14,37 @@ export const partyColors: Record<string, string> = {
 };
 
 /**
+ * Party names from an earlier cycle that now belong to a registered party.
+ *
+ * Only a rename belongs here: a party that merged or split is a different
+ * party and must not inherit another's colour or its place in the filter row.
+ * Both spellings stay in `partyColors` so a 2023 archive still draws its lines
+ * in TOP's teal; this table is what collapses them into one entry on screen.
+ */
+export const PARTY_RENAMES: Record<string, string> = {
+  'The Opportunities Party (TOP)': 'Opportunity Party',
+};
+
+/** The current name for a party that has been renamed since an earlier cycle. */
+export function canonicalPartyName(party: string): string {
+  return PARTY_RENAMES[party] ?? party;
+}
+
+/** A party's brand colour, looked up under either spelling. */
+export function partyColor(party: string): string {
+  return partyColors[party] ?? partyColors[canonicalPartyName(party)] ?? '#666';
+}
+
+/**
+ * Every party that has a colour, under its current name, in palette order.
+ * One per party: the filter row on the Trends page is built from this, so a
+ * renamed party cannot appear twice.
+ */
+export const PARTY_FILTER_NAMES: string[] = [
+  ...new Set(Object.keys(partyColors).map(canonicalPartyName)),
+];
+
+/**
  * Parties that get their own button, in this order, on the Close Calls
  * list-cut rotation and the party list rankings page. Everything outside this
  * list is reachable from the "More…" menu instead.

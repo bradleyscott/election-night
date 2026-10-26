@@ -6,7 +6,7 @@ import { partyColors } from '../lib/constants.js';
 import { mapFillOpacity } from '../lib/seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { dashboardClientConfig } from '../config.js';
-import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
+import type { VotingPlaceSummary } from '../hooks/useVotingPlaces.js';
 import {
   VotingPlaceLedger,
   VotingPlaceLegend,
@@ -39,11 +39,10 @@ L.Icon.Default.mergeOptions({
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   VotingResults,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 interface ElectorateMapProps {
   electorates: ElectorateResult[];
@@ -52,6 +51,12 @@ interface ElectorateMapProps {
   showPartyVote?: boolean;
   /** Chance of winning, keyed by normalised electorate name. */
   chances?: Map<string, SeatChance>;
+  /**
+   * The selected seat's voting places. Owned by the page so the count chart can
+   * draw the same receipts without a second request.
+   */
+  places?: VotingPlaceSummary | null;
+  placesLoading?: boolean;
 }
 
 const GEO_KINDS: Record<'general' | 'maori', BoundaryKind> = {
@@ -231,17 +236,12 @@ export default function ElectorateMap({
   showMaori,
   showPartyVote,
   chances,
+  places,
+  placesLoading,
 }: ElectorateMapProps) {
   const [boundary, setBoundary] = useState<LoadedBoundary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-
-  // Which places count towards the selected seat, and which have reported.
-  // Only asked for once a seat is picked: the collector answers per seat, not
-  // for the whole country.
-  const { summary: places, loading: placesLoading } = useVotingPlaces(
-    selectedName ?? null
-  );
 
   const geoKey = showMaori ? 'maori' : 'general';
 

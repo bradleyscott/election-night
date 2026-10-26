@@ -6,10 +6,9 @@ import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 function result(overrides: Partial<ElectorateResult> = {}): ElectorateResult {
   return {
@@ -22,7 +21,6 @@ function result(overrides: Partial<ElectorateResult> = {}): ElectorateResult {
       { candidate: 'PHAM, Lan', party: 'Green', votes: 5470 },
     ],
     partyVotes: [],
-    marginOfError: 0.031,
     leaders: [],
     ...overrides,
   } as ElectorateResult;

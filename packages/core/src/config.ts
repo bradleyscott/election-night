@@ -7,6 +7,4 @@ import type { Config } from './types.js';
  * `dashboardServerConfig`. Feed URLs and source options belong to the source
  * adapter (`NzElectionXmlSource`), not shared config.
  */
-export const config: Config = {
-  predictionConfidence: 0.95,
-};
+export const config: Config = {};

@@ -1,9 +1,9 @@
-import type {
-  ElectorateDiff,
-  FeedEvent,
-  PredictionStatus,
-} from '@election-night/core/types';
-import { computeDiff, diffFacts, type ComparableResult } from '@election-night/core/diff';
+import type { ElectorateDiff, FeedEvent } from '@election-night/core/types';
+import {
+  computeDiff,
+  diffFacts,
+  type ComparableResult,
+} from '@election-night/core/diff';
 import {
   CALL_THRESHOLD,
   LEANING_THRESHOLD,
@@ -19,25 +19,6 @@ import {
 export type ChanceLookup = (result: ComparableResult) => SeatChance | null;
 
 /**
- * Translate a chance into the vocabulary the payload already carries.
- *
- * The old status came from `lead / marginOfError`, which is a sampling ratio
- * and said nothing about the votes still outstanding. These bands come from the
- * model the page displays, so the feed event and the seat panel can never
- * describe the same count two different ways.
- */
-export function predictionStatusFromChance(
-  chance: SeatChance | null | undefined
-): PredictionStatus {
-  if (!chance) return 'too-close';
-  if (chance.state === 'complete') return 'projected';
-  if (chance.state === 'waiting') return 'too-close';
-  if (chance.probability >= CALL_THRESHOLD) return 'likely';
-  if (chance.probability >= LEANING_THRESHOLD) return 'leaning';
-  return 'too-close';
-}
-
-/**
  * A seat is "called" only while it is being counted: a finished count has a
  * margin, not a probability, and is described as a fact by `countCompleted`.
  */
@@ -45,7 +26,9 @@ function isCalled(chance: SeatChance | null | undefined): boolean {
   return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;
 }
 
-function chancePercent(chance: Extract<SeatChance, { state: 'counting' }>): string {
+function chancePercent(
+  chance: Extract<SeatChance, { state: 'counting' }>
+): string {
   return `${Math.round(chance.probability * 100)}%`;
 }
 
@@ -55,9 +38,7 @@ function chancePercent(chance: Extract<SeatChance, { state: 'counting' }>): stri
  * between them.
  *
  * Every line here describes the count in votes and in the chance of holding
- * the seat. The margin of error is deliberately absent: it was a property of a
- * sampling formula, and telling a reader about a ± band invited them to
- * interpret it as the swing the seat could still take.
+ * the seat.
  */
 function renderCopy(
   diff: ElectorateDiff,
@@ -184,7 +165,9 @@ export function buildFeedEvents(
     if (facts.isFirstResult) continue;
 
     const chance = chanceFor?.(result) ?? null;
-    const previousChance = previousResult ? (chanceFor?.(previousResult) ?? null) : null;
+    const previousChance = previousResult
+      ? (chanceFor?.(previousResult) ?? null)
+      : null;
     const called = isCalled(chance);
     const wasCalled = isCalled(previousChance);
     const callChanged = called !== wasCalled;
@@ -202,17 +185,6 @@ export function buildFeedEvents(
       wasCalled,
     });
 
-    // The stored diff describes what the feed said, so the status it carries is
-    // the one derived from the chance — not the payload's sampling-ratio status.
-    const status = predictionStatusFromChance(chance);
-    const previousStatus = predictionStatusFromChance(previousChance);
-    const statedDiff: ElectorateDiff = {
-      ...diff,
-      predictionStatusChanged: status !== previousStatus,
-      previousPredictionStatus: previousResult ? previousStatus : null,
-      currentPredictionStatus: status,
-    };
-
     const type = diff.leaderChanged
       ? 'leader_change'
       : facts.countCompleted
@@ -222,19 +194,19 @@ export function buildFeedEvents(
           : 'result_updated';
 
     events.push({
+      // The chance, not a status word, identifies the state the event
+      // describes: two events on the same count with different probabilities
+      // are different claims.
       id: `${result.electorateName}-${diff.currentVotesCounted}-${Math.round(
         diff.currentMargin * 100
-      )}-${status}`,
+      )}-${chance?.state === 'counting' ? Math.round(chance.probability * 100) : (chance?.state ?? 'none')}`,
       timestamp: Date.now(),
       type,
       electorateName: result.electorateName,
-      predictionStatus: status,
-      marginOfError: result.marginOfError,
-      probability:
-        chance?.state === 'counting' ? chance.probability : null,
+      probability: chance?.state === 'counting' ? chance.probability : null,
       summary,
       commentary,
-      diff: statedDiff,
+      diff,
     });
   }
 

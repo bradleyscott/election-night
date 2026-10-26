@@ -135,10 +135,8 @@ function getElectorateHistory(
          es.vote_pct_counted AS votePctCounted,
          es.leading_candidate AS leadingCandidate,
          es.leading_party AS leadingParty,
-         es.predicted_winner AS predictedWinner,
          es.margin AS margin,
-         es.margin_pct AS marginPct,
-         es.margin_of_error AS marginOfError
+         es.margin_pct AS marginPct
        FROM scrape_snapshots ss
        JOIN electorate_summary es ON es.scrape_id = ss.id
        WHERE es.electorate = ? AND ss.election_year = ?
@@ -150,7 +148,7 @@ function getElectorateHistory(
     ...row,
     candidates: handle
       .prepare(
-        `SELECT candidate, party, votes, is_predicted AS isPredicted
+        `SELECT candidate, party, votes
          FROM electorate_results
          WHERE scrape_id = ? AND electorate = ?
          ORDER BY votes DESC`

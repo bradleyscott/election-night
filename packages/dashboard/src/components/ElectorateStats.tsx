@@ -3,11 +3,10 @@ import { formatUpdatedAgo } from '../lib/seat-chance.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 type CandidateRow = {
   name: string;
@@ -79,7 +78,6 @@ export function ElectorateStats({
   const candidates: CandidateRow[] = [chance.leader, chance.runnerUp].map(
     (c) => ({ name: c.name, party: c.party ?? null, votes: c.votes })
   );
-  const others = chance.othersProbability;
   // Ordered by chance, not by votes. A seat 39% counted can have the trailing
   // candidate favoured, because the votes still to come are expected to favour
   // them; listing the count leader first reads as a contradiction when the two
@@ -120,26 +118,14 @@ export function ElectorateStats({
           />
         ))}
       </div>
-      {others >= 0.005 && (
-        <div className="pt-2 font-label text-xs text-muted-foreground">
-          All others {Math.round(others * 100)}%
-        </div>
-      )}
-
-      {chance.provisionalPrior && (
-        <p className="mt-1 font-label text-xs text-muted-foreground">
-          This seat has no comparable result from last time, so the number rests
-          on tonight&rsquo;s count alone.
-        </p>
-      )}
     </div>
   );
 }
 
 /**
  * The runner-up's chance is the leader's complement: two candidates, one seat.
- * A third candidate above a couple of percent is left in "All others" rather
- * than given a number that would have to compete for the same 100.
+ * A third candidate above a couple of percent is not given a number that would
+ * have to compete for the same 100.
  */
 function runnerUpProbability(
   chance: Extract<SeatChance, { state: 'counting' }>

@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
   calculateLead,
-  predictWinner,
   calculatePartyVoteWithPercentages,
 } from '@election-night/core/reducers';
 import {
@@ -29,64 +28,13 @@ describe('synthetic data', () => {
         candidateVotes: [...r.candidateVotes].reverse(),
       };
       const withLead = calculateLead(shuffled);
-      const prediction = predictWinner(withLead, 0.95);
 
-      expect(prediction.leaders.leadingCandidate).toBe('Smith, John');
-      expect(prediction.leaders.predictionStatus).toBe('projected');
-      expect(prediction.candidateVotes[0].votes).toBeGreaterThan(
-        prediction.candidateVotes[1].votes
+      expect(withLead.leaders.leadingCandidate).toBe('Smith, John');
+      expect(withLead.candidateVotes[0].votes).toBeGreaterThan(
+        withLead.candidateVotes[1].votes
       );
     });
 
-    const cases = [
-      {
-        fixtures: landslideFixtures,
-        name: 'landslide (National 75%)',
-        expected: { 0.1: true, 0.3: true, 0.5: true, 0.8: true, 1.0: true },
-      },
-      {
-        fixtures: strongFixtures,
-        name: 'strong Labour (20% margin)',
-        expected: { 0.1: true, 0.3: true, 0.5: true, 0.8: true, 1.0: true },
-      },
-      {
-        fixtures: marginalFixtures,
-        name: 'marginal National (1% margin)',
-        expected: { 0.1: false, 0.3: false, 0.5: false, 0.8: true, 1.0: true },
-      },
-      {
-        fixtures: closeFixtures,
-        name: 'close National (0.1% margin)',
-        expected: { 0.1: false, 0.3: false, 0.5: false, 0.8: false, 1.0: true },
-      },
-      {
-        fixtures: extremelyCloseFixtures,
-        name: 'extremely close Labour (0.013% margin)',
-        expected: { 0.1: false, 0.3: false, 0.5: false, 0.8: false, 1.0: true },
-      },
-      {
-        fixtures: tiedFixtures,
-        name: 'tied (0% margin)',
-        expected: {
-          0.1: false,
-          0.3: false,
-          0.5: false,
-          0.8: false,
-          1.0: false,
-        },
-      },
-    ];
-
-    for (const { fixtures, name, expected } of cases) {
-      for (const [pct, exp] of Object.entries(expected)) {
-        test(`${name} at ${+pct * 100}% → predicted=${exp}`, () => {
-          const r = fixtures[+pct as unknown as keyof typeof fixtures];
-          const withLead = calculateLead(r);
-          const prediction = predictWinner(withLead, 0.95);
-          expect(prediction.leaders.predictionStatus !== 'too-close').toBe(exp);
-        });
-      }
-    }
   });
 
   describe('vote counts scale proportionally', () => {
@@ -157,9 +105,9 @@ describe('synthetic data', () => {
 
   describe('national aggregate bias', () => {
     test('National party share declines early → mid → late', () => {
-      const early = calculatePartyVoteWithPercentages(earlyCountResults, 0.95);
-      const mid = calculatePartyVoteWithPercentages(midCountResults, 0.95);
-      const late = calculatePartyVoteWithPercentages(lateCountResults, 0.95);
+      const early = calculatePartyVoteWithPercentages(earlyCountResults);
+      const mid = calculatePartyVoteWithPercentages(midCountResults);
+      const late = calculatePartyVoteWithPercentages(lateCountResults);
 
       const earlyNat = early.find((x) => x.candidate === 'National Party');
       const midNat = mid.find((x) => x.candidate === 'National Party');
@@ -170,9 +118,9 @@ describe('synthetic data', () => {
     });
 
     test('Labour party share increases early → mid → late', () => {
-      const early = calculatePartyVoteWithPercentages(earlyCountResults, 0.95);
-      const mid = calculatePartyVoteWithPercentages(midCountResults, 0.95);
-      const late = calculatePartyVoteWithPercentages(lateCountResults, 0.95);
+      const early = calculatePartyVoteWithPercentages(earlyCountResults);
+      const mid = calculatePartyVoteWithPercentages(midCountResults);
+      const late = calculatePartyVoteWithPercentages(lateCountResults);
 
       const earlyLab = early.find((x) => x.candidate === 'Labour Party');
       const midLab = mid.find((x) => x.candidate === 'Labour Party');
@@ -190,15 +138,6 @@ describe('synthetic data', () => {
         const result = tiedFixtures[pct];
         const withLead = calculateLead(result);
         expect(withLead.leaders.margin).toBe(0);
-      });
-    }
-
-    for (const pct of PCTS) {
-      test(`no predicted winner at ${pct * 100}%`, () => {
-        const r = tiedFixtures[pct];
-        const withLead = calculateLead(r);
-        const result = predictWinner(withLead, 0.95);
-        expect(result.leaders.predictionStatus).toBe('too-close');
       });
     }
   });

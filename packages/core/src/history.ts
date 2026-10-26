@@ -11,7 +11,6 @@ export type CandidateSnapshot = {
   candidate: string;
   party: string | null;
   votes: number;
-  isPredicted: boolean;
 };
 
 /** A single party's vote data within a history snapshot for a specific electorate */
@@ -29,10 +28,10 @@ export type ElectorateHistoryPoint = {
   votePctCounted: number;
   leadingCandidate: string | null;
   leadingParty: string | null;
-  predictedWinner: number;
+
   margin: number | null;
   marginPct: number | null;
-  marginOfError: number | null;
+
   candidates: CandidateSnapshot[];
   partyVotes: PartyVoteSnapshot[];
 };

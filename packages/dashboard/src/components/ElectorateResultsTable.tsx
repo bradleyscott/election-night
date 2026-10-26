@@ -4,11 +4,10 @@ import type {
   ElectorateResults,
   VotingResults,
   WithLeaders,
-  WithMarginOfError,
   WithParty,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 function hasParty(
   v: VotingResults | (VotingResults & WithParty)

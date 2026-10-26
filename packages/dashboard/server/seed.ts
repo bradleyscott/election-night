@@ -1,4 +1,3 @@
-import { predictionStatusFromRatio } from '@election-night/core/reducers';
 import type {
   ResultsPayload,
   ElectorateResults,
@@ -6,7 +5,6 @@ import type {
   WithParty,
   PartyList,
   WithLeaders,
-  WithMarginOfError,
   WithSeats,
   WithAdjustedRank,
 } from '@election-night/core/types';
@@ -352,53 +350,12 @@ function calculateLeadElectorate(
       secondCandidateParty,
       margin,
       marginPercent,
-      predictionStatus: 'too-close',
-    },
-  };
-}
-
-function predictElectorateWinner(
-  results: ElectorateResults & WithLeaders,
-  confidence: number
-): ElectorateResults & WithLeaders & WithMarginOfError {
-  const votesCounted = results.votesCounted;
-  const totalVotes = votesCounted / results.votePercentageCounted;
-  const candidateVotes = [...results.candidateVotes].sort(
-    (a, b) => b.votes - a.votes
-  );
-  const leadingShare = candidateVotes[0].votes / votesCounted;
-  const secondShare = candidateVotes[1].votes / votesCounted;
-  const leadPercent = leadingShare - secondShare;
-
-  const zScore = 1.96;
-  const finitePopulationCorrection = Math.sqrt(
-    (totalVotes - votesCounted) / (totalVotes - 1)
-  );
-  const diffVariance =
-    (leadingShare + secondShare - leadPercent * leadPercent) / votesCounted;
-
-  const marginOfError =
-    zScore * Math.sqrt(diffVariance) * finitePopulationCorrection;
-
-  const ratio =
-    marginOfError > 0
-      ? leadPercent / marginOfError
-      : leadPercent > 0
-        ? Infinity
-        : 0;
-
-  return {
-    ...results,
-    marginOfError,
-    leaders: {
-      ...results.leaders,
-      predictionStatus: predictionStatusFromRatio(ratio),
     },
   };
 }
 
 function calculatePartyVote(
-  results: (ElectorateResults & WithLeaders & WithMarginOfError)[]
+  results: (ElectorateResults & WithLeaders)[]
 ): VotingResults[] {
   const partyVoteMap = new Map<string, number>();
   const allPartyVotes = results.flatMap((x) => x.partyVotes);
@@ -621,15 +578,11 @@ export function generateSeedData(): ResultsPayload {
 
   const withLeaders = electorateResults.map((e) => calculateLeadElectorate(e));
 
-  const withPredictions = withLeaders.map((e) =>
-    predictElectorateWinner(e, 0.95)
-  );
-
-  const pv = calculatePartyVote(withPredictions);
-  const partyVote = calculatePartyVoteWithSeats(pv, withPredictions);
+  const pv = calculatePartyVote(withLeaders);
+  const partyVote = calculatePartyVoteWithSeats(pv, withLeaders);
 
   const partyLists = calculatePartyListSeed(
-    withPredictions,
+    withLeaders,
     partyVote,
     PARTY_LISTS
   );

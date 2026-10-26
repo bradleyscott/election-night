@@ -1,20 +1,18 @@
 import { partyColors } from './constants.js';
 import { normalizeElectorateName } from './electorates.js';
+import { mapFillOpacity } from './seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
   VotingResults,
   WithSeats,
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
 
 export type PartyEntry = VotingResults & WithSeats;
-export type ElectorateEntry = ElectorateResults &
-  WithLeaders &
-  WithMarginOfError;
+export type ElectorateEntry = ElectorateResults & WithLeaders;
 export type PartyListEntry = PartyList & WithAdjustedRank;
 
 export const ROWS = 3;
@@ -52,25 +50,6 @@ export function defaultOrder(partyVote: PartyEntry[]): string[] {
   const secondBiggest = sorted[1].candidate;
   const rest = sorted.slice(2).map((p) => p.candidate);
   return [biggest, ...rest, secondBiggest];
-}
-
-export function getOpacity(result: ElectorateEntry): number {
-  const marginPercent = result.leaders.marginPercent;
-  const marginOfError = result.marginOfError;
-
-  // At a complete count marginOfError is 0 (and a deferred electorate with no
-  // candidate votes yet has marginPercent 0 too), so guard the division rather
-  // than producing Infinity/NaN in the opacity style. A decided race is solid;
-  // an unresolved one is dim.
-  if (!Number.isFinite(marginOfError) || marginOfError <= 0) {
-    return marginPercent > 0 ? 0.8 : 0.2;
-  }
-
-  const ratio = marginPercent / marginOfError;
-  if (!Number.isFinite(ratio)) return 0.2;
-  if (ratio >= 2) return 0.8;
-  if (ratio <= 1) return 0.2;
-  return 0.2 + (ratio - 1) * 0.6;
 }
 
 export function getListOpacity(distanceFromCut: number): number {
@@ -137,7 +116,10 @@ export function buildSeats(
       partySeats.push({
         party: name,
         color,
-        opacity: getOpacity(e),
+        // The arc answers the same question as the map: how decided is this
+        // seat. It runs on the chance of winning, so a 50/50 seat is pale
+        // whichever party happens to be a hundred votes ahead.
+        opacity: mapFillOpacity(chances?.get(normalizeElectorateName(e.electorateName))),
         type: 'electorate',
         name: e.electorateName,
         candidate: e.leaders.leadingCandidate,

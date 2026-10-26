@@ -8,18 +8,16 @@ import type {
   ResultsPayload,
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 import type { PriorWinnersResponse } from '../lib/history-types.js';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 function electorate(
   name: string,
   party: string,
   candidate: string,
   margin: number,
-  status: 'projected' | 'leaning' | 'too-close',
   votesCounted = 25_000
 ): ElectorateResult {
   const leading = Math.round(votesCounted * 0.6);
@@ -46,9 +44,7 @@ function electorate(
       secondCandidateParty: 'Green Party',
       margin,
       marginPercent: margin / votesCounted,
-      predictionStatus: status,
     },
-    marginOfError: 0.02,
   };
 }
 
@@ -61,26 +57,13 @@ const liveResults: ResultsPayload = {
       'ACT New Zealand',
       'TURAI, Hana',
       5_000,
-      'too-close',
       50_000
     ),
     // Smaller raw lead (4,000) but the bigger share (16.0%).
-    electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_000, 'projected'),
-    electorate(
-      'Remutaka',
-      'Labour Party',
-      'HIPKINS, Chris',
-      6_000,
-      'projected'
-    ),
-    electorate('Kelston', 'National Party', 'SMITH, John', 900, 'leaning'),
-    electorate(
-      'Tāmaki Makaurau',
-      'Te Pāti Māori',
-      'KEMP, Rawiri',
-      2_000,
-      'leaning'
-    ),
+    electorate('Kapiti', 'Labour Party', 'NGATA, Ana', 4_000),
+    electorate('Remutaka', 'Labour Party', 'HIPKINS, Chris', 6_000),
+    electorate('Kelston', 'National Party', 'SMITH, John', 900),
+    electorate('Tāmaki Makaurau', 'Te Pāti Māori', 'KEMP, Rawiri', 2_000),
   ],
   partyVote: [],
   partyLists: [],
@@ -330,8 +313,7 @@ describe('Flipped page', () => {
                 name,
                 'National Party',
                 `CANDIDATE ${i}`,
-                1_000 + i,
-                'leaning'
+                1_000 + i
               )
             ),
             partyVote: [],

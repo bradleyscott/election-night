@@ -3,9 +3,7 @@ export type ResultPageConfig = {
   url: string;
 };
 
-export type Config = {
-  predictionConfidence: number;
-};
+export type Config = Record<string, never>;
 
 export type ElectorateResults = {
   electorateName: string;
@@ -35,7 +33,6 @@ export type WithParty = {
 
 export type WithPercentages = {
   percentage: number;
-  marginOfError: number;
 };
 
 export type WithSeats = {
@@ -43,8 +40,6 @@ export type WithSeats = {
   electorateSeats: number;
   listSeats: number;
 };
-
-export type PredictionStatus = 'too-close' | 'leaning' | 'likely' | 'projected';
 
 export type WithLeaders = {
   leaders: {
@@ -54,12 +49,7 @@ export type WithLeaders = {
     secondCandidateParty: string | undefined;
     margin: number;
     marginPercent: number;
-    predictionStatus: PredictionStatus;
   };
-};
-
-export type WithMarginOfError = {
-  marginOfError: number;
 };
 
 export type PartyList = {
@@ -74,7 +64,7 @@ export type WithAdjustedRank = {
 };
 
 export type ResultsPayload = {
-  electorateResults: (ElectorateResults & WithLeaders & WithMarginOfError)[];
+  electorateResults: (ElectorateResults & WithLeaders)[];
   partyVote: (VotingResults & WithSeats)[];
   partyLists: (PartyList & WithAdjustedRank)[];
 };
@@ -150,7 +140,7 @@ export type WebhookPayload = {
   event: WebhookEventType;
   timestamp: number;
   electorateName: string;
-  result: ElectorateResults & WithLeaders & WithMarginOfError;
+  result: ElectorateResults & WithLeaders;
   diff: ElectorateDiff;
   /**
    * The seat's chance of being won, when the count is live and a prior exists.
@@ -177,9 +167,6 @@ export type ElectorateDiff = {
   leaderChanged: boolean;
   previousLeaderName: string | null;
   previousLeaderParty: string | null;
-  predictionStatusChanged: boolean;
-  previousPredictionStatus: PredictionStatus | null;
-  currentPredictionStatus: PredictionStatus;
 };
 
 export type FeedEvent = {
@@ -187,8 +174,6 @@ export type FeedEvent = {
   timestamp: number;
   type: FeedEventType;
   electorateName: string;
-  predictionStatus: PredictionStatus;
-  marginOfError: number;
   /**
    * The seat's chance of being won, when the count is live and a prior exists.
    * `null` once the ordinary count is complete (a finished count has a margin,

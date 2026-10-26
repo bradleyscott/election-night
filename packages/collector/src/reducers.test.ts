@@ -75,43 +75,36 @@ const aggregates = [
     candidate: 'National Party',
     votes: 1085851,
     percentage: 0.38,
-    marginOfError: 0.01,
   },
   {
     candidate: 'Labour Party',
     votes: 767540,
     percentage: 0.27,
-    marginOfError: 0.01,
   },
   {
     candidate: 'Green Party',
     votes: 330907,
     percentage: 0.116,
-    marginOfError: 0.01,
   },
   {
     candidate: 'ACT New Zealand',
     votes: 246473,
     percentage: 0.086,
-    marginOfError: 0.01,
   },
   {
     candidate: 'New Zealand First Party',
     votes: 173553,
     percentage: 0.061,
-    marginOfError: 0.01,
   },
   {
     candidate: 'Te Pāti Māori',
     votes: 87844,
     percentage: 0.031,
-    marginOfError: 0.01,
   },
   {
     candidate: 'The Opportunities Party (TOP)',
     votes: 63344,
     percentage: 0.022,
-    marginOfError: 0.01,
   },
 ];
 
@@ -133,13 +126,12 @@ describe('buildPartyVoteWithSeats', () => {
     expect(result.reduce((sum, p) => sum + p.seats, 0)).toBe(122);
   });
 
-  test('keeps the vote share and margin of error we compute ourselves', () => {
+  test('keeps the vote share we compute ourselves', () => {
     const result = buildPartyVoteWithSeats(aggregates, status);
     const national = result.find((p) => p.candidate === 'National Party');
 
     expect(national!.votes).toBe(1085851);
     expect(national!.percentage).toBeCloseTo(0.38);
-    expect(national!.marginOfError).toBeCloseTo(0.01);
   });
 
   test('sorts the party vote by votes, descending', () => {

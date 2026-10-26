@@ -12,8 +12,6 @@ function makeEvent(id: string): FeedEvent {
     timestamp: 1_790_370_873_234,
     type: 'leader_change',
     electorateName: 'Port Waikato',
-    predictionStatus: 'too-close',
-    marginOfError: 0,
     summary: 'summary',
     commentary: 'commentary',
     diff: {} as FeedEvent['diff'],

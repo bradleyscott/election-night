@@ -9,7 +9,6 @@ import * as schema from './db/schema.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   VotingResults,
   WithSeats,
   PartyList,
@@ -19,7 +18,7 @@ import { log } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-type Results = ElectorateResults & WithLeaders & WithMarginOfError;
+type Results = ElectorateResults & WithLeaders;
 type PartyVoteSummary = VotingResults & WithSeats;
 type PartyListEntry = PartyList & WithAdjustedRank;
 
@@ -82,11 +81,6 @@ export function writeResults(
             candidate: cv.candidate,
             party: cv.party ?? '',
             votes: cv.votes,
-            isPredicted:
-              r.leaders.predictionStatus === 'projected' &&
-              r.leaders.leadingCandidate === cv.candidate
-                ? 1
-                : 0,
           })
           .run();
       }
@@ -104,21 +98,10 @@ export function writeResults(
           votePctCounted: r.votePercentageCounted,
           leadingCandidate: r.leaders.leadingCandidate,
           leadingParty: r.leaders.leadingCandidateParty,
-          predictedWinner:
-            r.leaders.predictionStatus === 'projected'
-              ? 3
-              : r.leaders.predictionStatus === 'likely'
-                ? 2
-                : r.leaders.predictionStatus === 'leaning'
-                  ? 1
-                  : 0,
           margin: r.leaders.margin,
           marginPct: r.leaders.marginPercent,
           secondCandidate: r.leaders.secondCandidate,
           secondParty: r.leaders.secondCandidateParty,
-          marginOfError: Number.isFinite(r.marginOfError)
-            ? r.marginOfError
-            : null,
         })
         .run();
 

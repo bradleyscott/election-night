@@ -9,7 +9,6 @@ import {
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
   VotingResults,
 } from './types.js';
 
@@ -62,9 +61,7 @@ export type NotionalBaseline = {
   seats: Record<string, BaselineSeat>;
 };
 
-export type ElectorateResult = ElectorateResults &
-  WithLeaders &
-  WithMarginOfError;
+export type ElectorateResult = ElectorateResults & WithLeaders;
 
 /** The seat's prior result on the current boundaries, or null. */
 export function priorForSeat(

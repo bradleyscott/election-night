@@ -9,7 +9,6 @@ function makeResult(
   return {
     votesCounted: 1000,
     votePercentageCounted: 0.5,
-    marginOfError: 0.02,
     partyVotes: [],
     candidateVotes: [],
     leaders: {
@@ -19,7 +18,6 @@ function makeResult(
       secondCandidateParty: 'B',
       margin: 100,
       marginPercent: 0.05,
-      predictionStatus: 'too-close',
     },
     ...overrides,
   } as ComparableResult;
@@ -131,7 +129,6 @@ describe('buildFeedEvents with a chance lookup', () => {
 
     expect(events[0]!.type).toBe('prediction_called');
     expect(events[0]!.summary).toContain('fallen to');
-    expect(events[0]!.predictionStatus).toBe('too-close');
   });
 
   it('states a finished count as a margin, never a probability', () => {

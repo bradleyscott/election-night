@@ -16,14 +16,14 @@ import { usePollsClose } from '../hooks/usePollsClose.js';
 import { useApi } from '../hooks/useApi.js';
 import type { RuntimeConfig } from '@election-night/core/polls-close';
 import { WaitingState } from '../components/WaitingState.js';
+import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 export default function Electorates() {
   const { name } = useParams();
@@ -94,6 +94,23 @@ export default function Electorates() {
   }, [closesAt]);
 
   const { data: historyData } = useElectorateHistory(selectedName);
+  // Which places count towards the seat and which have reported: the map draws
+  // them, and the count chart draws their receipt times as a rug, so the page
+  // owns the request rather than each of them asking separately.
+  const { summary: places, loading: placesLoading } =
+    useVotingPlaces(selectedName);
+  const votingPlaces = useMemo(() => {
+    if (!places) return undefined;
+    return {
+      counted: places.counted,
+      total: places.total,
+      receipts: places.places
+        .map((p) => p.countedAt)
+        .filter((t): t is string => t !== null)
+        .map((t) => new Date(t).getTime())
+        .filter((t) => Number.isFinite(t)),
+    };
+  }, [places]);
   // Prior winners are only worth fetching once a seat is open: the collector
   // derives them lazily from the archive on first request.
   const {
@@ -176,6 +193,8 @@ export default function Electorates() {
             showMaori={showMaori}
             showPartyVote={showPartyVote}
             chances={chances}
+            places={places}
+            placesLoading={placesLoading}
           />
         </div>
 
@@ -185,6 +204,7 @@ export default function Electorates() {
             showPartyVote={showPartyVote}
             onTogglePartyVote={setShowPartyVote}
             historyData={historyData}
+            votingPlaces={votingPlaces}
             priorWinners={priorLoading ? undefined : priorWinners}
             priorUnavailable={priorUnavailable}
             chance={chance}

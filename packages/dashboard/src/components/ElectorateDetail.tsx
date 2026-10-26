@@ -6,7 +6,6 @@ import { cn } from '../lib/utils.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 import type {
   ElectorateHistoryPoint,
@@ -14,7 +13,7 @@ import type {
 } from '../lib/history-types.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
-type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders;
 
 export function ElectorateDetail({
   result,

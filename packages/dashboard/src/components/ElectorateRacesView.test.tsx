@@ -9,7 +9,6 @@ import { normalizeElectorateName } from '../lib/electorates.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  WithMarginOfError,
 } from '@election-night/core/types';
 
 const mockNavigate = vi.fn();
@@ -24,7 +23,6 @@ const baseElectorate = {
   partyVotes: [],
   votesCounted: 1000,
   votePercentageCounted: 0.5,
-  marginOfError: 0.02,
   leaders: {
     leadingCandidate: 'SMITH, John',
     leadingCandidateParty: 'National Party',
@@ -32,9 +30,8 @@ const baseElectorate = {
     secondCandidateParty: 'Labour Party',
     margin: 1000,
     marginPercent: 0.04,
-    predictionStatus: 'leaning',
   },
-} as ElectorateResults & WithLeaders & WithMarginOfError;
+} as ElectorateResults & WithLeaders;
 
 const counting: SeatChance = {
   state: 'counting',
