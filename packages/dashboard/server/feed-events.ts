@@ -36,7 +36,7 @@ function chancePercent(
  * Both variants are produced together so the facts can never drift
  * between them.
  *
- * Every line here describes the count in votes and in the chance of holding
+ * Every line here describes the count in votes and in the chance of winning
  * the seat.
  */
 function renderCopy(
@@ -79,15 +79,15 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} is likely to win — ${share} chance of winning with ${pct}% counted.`,
-      commentary: `${leader} is likely to win ${name}. Leading by ${votes} votes with ${pct}% counted, and about ${chance.remainingVotes.toLocaleString()} votes still to come, their chance of holding the seat is ${share}.`,
+      commentary: `${leader} is likely to win ${name}. Leading by ${votes} votes with ${pct}% counted, and about ${chance.remainingVotes.toLocaleString()} votes still to come, their chance of winning the seat is ${share}.`,
     };
   }
 
   if (chance?.state === 'counting' && !flags.called && flags.wasCalled) {
     const share = chancePercent(chance);
     return {
-      summary: `${name}: ${leader} leads by ${votes} votes, but the chance of holding it has fallen to ${share} at ${pct}% counted.`,
-      commentary: `${leader} still leads ${name} by ${votes} votes, with ${pct}% counted. Later votes have cut their chance of holding the seat to ${share}.`,
+      summary: `${name}: ${leader} leads by ${votes} votes, but the chance of winning it has fallen to ${share} at ${pct}% counted.`,
+      commentary: `${leader} still leads ${name} by ${votes} votes, with ${pct}% counted. Later votes have cut their chance of winning the seat to ${share}.`,
     };
   }
 
@@ -98,7 +98,7 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance of winning with ${pct}% counted.`,
-      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${chance.remainingVotes.toLocaleString()} votes are still to come, and their chance of holding the seat is ${share}.`,
+      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${chance.remainingVotes.toLocaleString()} votes are still to come, and their chance of winning the seat is ${share}.`,
     };
   }
 

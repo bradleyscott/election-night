@@ -32,7 +32,7 @@ export default function CloseCalls() {
   const partyLists = (results?.partyLists ?? []) as PartyListEntry[];
   const { data: config } = useApi<RuntimeConfig>('/api/config');
 
-  // The chance of holding each seat, from the same call the seat page and the
+  // The chance of winning each seat, from the same call the seat page and the
   // map use, so the three can never quote different numbers for one seat.
   const electionYear = config?.electionYear ?? null;
   const nationalSwing = useMemo(

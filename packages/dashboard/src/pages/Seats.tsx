@@ -320,7 +320,7 @@ export default function Seats() {
   const overallVotePercentage =
     progress.fraction !== null ? progress.fraction * 100 : null;
 
-  // The chance of holding each seat, computed once for the whole table so a
+  // The chance of winning each seat, computed once for the whole table so a
   // row's number and the seat page's number come from the same call.
   const electionYear = config?.electionYear ?? null;
   const nationalSwing = useMemo(
