@@ -55,6 +55,33 @@ describe('Seats page', () => {
     expect(screen.queryByText(/±/)).toBeNull();
   });
 
+  test('states the margin a finished count produced, not a probability', () => {
+    // Votes past the roll's expected night total put the count over the
+    // model's completion threshold, which is what a finished seat looks like.
+    const complete = {
+      ...mockResults,
+      electorateResults: mockResults.electorateResults.map((er) => ({
+        ...er,
+        votesCounted: 30_000,
+        percentVotesCast: 0.7,
+      })),
+    };
+
+    const { container } = render(
+      <BrowserRouter>
+        <MockSocketProvider results={complete} connected>
+          <Seats />
+        </MockSocketProvider>
+      </BrowserRouter>
+    );
+
+    // The fixture's lead is 4% of the votes counted, and a finished count has
+    // no probability left to quote.
+    expect(container.textContent).toMatch(/4\.0%\s*margin/);
+    expect(screen.queryByText('100%')).toBeNull();
+    expect(screen.getByText('Certainty')).toBeInTheDocument();
+  });
+
   test('renders waiting state when no results are available', () => {
     render(
       <BrowserRouter>

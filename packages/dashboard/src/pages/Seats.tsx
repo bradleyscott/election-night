@@ -50,21 +50,31 @@ function AnimatedStat({
 }
 
 /**
- * What the Win % column means for a seat: the chance this candidate holds
+ * What the Certainty column means for a seat: the chance this candidate holds
  * it, not how far the lead is from a sampling error. Once the count is in,
  * there is no probability left to quote, so it states the margin the count
- * produced instead.
+ * produced instead — as a share of the votes counted, the same definition of
+ * margin the rest of the app uses.
  */
-function ElectorateCertainty({ chance }: { chance: SeatChance | null }) {
+function ElectorateCertainty({
+  chance,
+  marginPercent,
+}: {
+  chance: SeatChance | null;
+  marginPercent?: number | null;
+}) {
   if (!chance || chance.state === 'waiting') {
     return <span className="text-muted-foreground">—</span>;
   }
 
   if (chance.state === 'complete') {
+    if (marginPercent == null) {
+      return <span className="text-muted-foreground">—</span>;
+    }
     return (
       <span>
-        +{chance.margin.toLocaleString()}
-        <span className="text-muted-foreground font-medium"> votes</span>
+        {(marginPercent * 100).toFixed(1)}%
+        <span className="text-muted-foreground font-medium"> margin</span>
       </span>
     );
   }
@@ -105,6 +115,7 @@ function SuccessfulCandidates({
       electorateName: string | undefined;
       certainty: number;
       chance: SeatChance | null;
+      marginPercent: number | null;
       isElectorate: boolean;
     }[] = [];
 
@@ -123,6 +134,7 @@ function SuccessfulCandidates({
               ? 1
               : 0,
         chance,
+        marginPercent: er.leaders.marginPercent ?? null,
         isElectorate: true,
       });
     }
@@ -135,6 +147,7 @@ function SuccessfulCandidates({
           electorateName: undefined,
           certainty: pl.distanceFromCut,
           chance: null,
+          marginPercent: null,
           isElectorate: false,
         });
       }
@@ -215,7 +228,7 @@ function SuccessfulCandidates({
                 className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
                 onClick={() => toggleSort('certainty')}
               >
-                Win %
+                Certainty
                 <SortIndicator column="certainty" />
               </th>
             </tr>
@@ -273,17 +286,22 @@ function SuccessfulCandidates({
                       >
                         List
                       </Link>
-                      <span className="font-mono text-xs font-semibold text-foreground tabular-nums">
-                        +{Math.round(c.certainty)} from cut
+                      <span className="sm:hidden font-mono text-xs font-semibold text-foreground tabular-nums">
+                        +{Math.round(c.certainty)}
                       </span>
                     </span>
                   )}
                 </td>
                 <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums font-semibold">
                   {c.isElectorate ? (
-                    <ElectorateCertainty chance={c.chance} />
+                    <ElectorateCertainty
+                      chance={c.chance}
+                      marginPercent={c.marginPercent}
+                    />
                   ) : (
-                    <span className="text-muted-foreground">&mdash;</span>
+                    <span className="text-foreground">
+                      +{Math.round(c.certainty)} from cut
+                    </span>
                   )}
                 </td>
               </tr>
