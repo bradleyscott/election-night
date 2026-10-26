@@ -10,9 +10,7 @@ import type {
   WithSeats,
 } from '@election-night/core/types';
 
-type ElectorateResult = ElectorateResults &
-  WithLeaders &
-  WithMarginOfError;
+type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
 export const mockElectorateResult: ElectorateResult = {
   electorateName: 'Auckland Central',
@@ -40,14 +38,44 @@ export const mockElectorateResult: ElectorateResult = {
 };
 
 export const mockPartyVote: (VotingResults & WithSeats)[] = [
-  { candidate: 'National Party', votes: 1000000, seats: 50, electorateSeats: 35, listSeats: 15 },
-  { candidate: 'Labour Party', votes: 900000, seats: 45, electorateSeats: 30, listSeats: 15 },
-  { candidate: 'Green Party', votes: 200000, seats: 10, electorateSeats: 1, listSeats: 9 },
+  {
+    candidate: 'National Party',
+    votes: 1000000,
+    seats: 50,
+    electorateSeats: 35,
+    listSeats: 15,
+  },
+  {
+    candidate: 'Labour Party',
+    votes: 900000,
+    seats: 45,
+    electorateSeats: 30,
+    listSeats: 15,
+  },
+  {
+    candidate: 'Green Party',
+    votes: 200000,
+    seats: 10,
+    electorateSeats: 1,
+    listSeats: 9,
+  },
 ];
 
 export const mockPartyList = [
-  { party: 'National Party', candidate: 'BROWN, Sam', listRank: 1, adjustedRank: 1, distanceFromCut: 5 },
-  { party: 'Labour Party', candidate: 'WHITE, Sue', listRank: 1, adjustedRank: 1, distanceFromCut: 3 },
+  {
+    party: 'National Party',
+    candidate: 'BROWN, Sam',
+    listRank: 1,
+    adjustedRank: 1,
+    distanceFromCut: 5,
+  },
+  {
+    party: 'Labour Party',
+    candidate: 'WHITE, Sue',
+    listRank: 1,
+    adjustedRank: 1,
+    distanceFromCut: 3,
+  },
 ] as (PartyList & WithAdjustedRank)[];
 
 export const mockResults: ResultsPayload = {

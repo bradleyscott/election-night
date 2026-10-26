@@ -334,6 +334,7 @@ export class NzElectionXmlSource implements ElectionSource {
         statistics?: {
           total_votes_cast?: string;
           percent_voting_places_counted?: string;
+          percent_votes_cast?: string;
         };
         partyvotes?: { party?: unknown };
         candidatevotes?: { candidate?: unknown };
@@ -349,6 +350,9 @@ export class NzElectionXmlSource implements ElectionSource {
     const votesCounted = Number(stats.total_votes_cast ?? 0);
     const votePercentageCounted =
       Number(stats.percent_voting_places_counted ?? 0) / 100;
+    // Turnout, not progress: the share of enrolled electors who have voted so
+    // far. See ElectorateResults.percentVotesCast.
+    const percentVotesCast = Number(stats.percent_votes_cast ?? 0) / 100;
 
     const partyVotes = this.parsePartyVotes(root.partyvotes?.party);
     const candidateVotes = this.parseCandidateVotes(
@@ -361,6 +365,7 @@ export class NzElectionXmlSource implements ElectionSource {
       candidateVotes,
       votesCounted,
       votePercentageCounted,
+      percentVotesCast,
     };
   }
 

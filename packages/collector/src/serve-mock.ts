@@ -186,9 +186,14 @@ function renderElectionXml(): string {
     totalVotesCast += result.votesCounted;
     if (result.votesCounted > 0) electoratesFinal += 1;
     for (const party of result.partyVotes) {
-      votes.set(party.candidate, (votes.get(party.candidate) ?? 0) + party.votes);
+      votes.set(
+        party.candidate,
+        (votes.get(party.candidate) ?? 0) + party.votes
+      );
     }
-    const leader = [...result.candidateVotes].sort((a, b) => b.votes - a.votes)[0];
+    const leader = [...result.candidateVotes].sort(
+      (a, b) => b.votes - a.votes
+    )[0];
     if (leader?.party && result.votesCounted > 0) {
       electorateSeats.set(
         leader.party,
@@ -215,9 +220,16 @@ function renderElectionXml(): string {
       allocated += base;
     }
     const remainders = quotients
-      .map((q) => ({ party: q.party, remainder: q.exact - Math.floor(q.exact) }))
+      .map((q) => ({
+        party: q.party,
+        remainder: q.exact - Math.floor(q.exact),
+      }))
       .sort((a, b) => b.remainder - a.remainder);
-    for (let i = 0; allocated < 120 && remainders.length > 0; i++, allocated++) {
+    for (
+      let i = 0;
+      allocated < 120 && remainders.length > 0;
+      i++, allocated++
+    ) {
       const { party } = remainders[i % remainders.length]!;
       listSeats.set(party, (listSeats.get(party) ?? 0) + 1);
     }
@@ -246,7 +258,7 @@ function renderElectionXml(): string {
         <total_voting_places_counted>${stage.length}</total_voting_places_counted>
         <percent_voting_places_counted>${percentFinal}</percent_voting_places_counted>
         <total_votes_cast>${totalVotesCast}</total_votes_cast>
-        <percent_votes_cast>${percentFinal}</percent_votes_cast>
+        <percent_votes_cast>${turnout(totalVotesCast, MOCK_ELECTORATES.length)}</percent_votes_cast>
         <total_electorates_final>${electoratesFinal}</total_electorates_final>
         <percent_electorates_final>${percentFinal}</percent_electorates_final>
         <total_minimal_votes>0</total_minimal_votes>
@@ -258,6 +270,27 @@ ${rows}
     </partystatus>
 </election>
 `;
+}
+
+/**
+ * Enrolled electors the mock models per seat. Flat on purpose: the point is
+ * that `percent_votes_cast` is turnout — papers counted over the roll — and a
+ * flat roll makes the arithmetic checkable by hand. The real feed varies
+ * between roughly 30,000 and 70,000.
+ */
+const MOCK_ENROLMENT = 45_000;
+
+/**
+ * Turnout for a vote count, as a percentage.
+ *
+ * The feed's `percent_votes_cast` is votes ÷ enrolled. The mock used to write
+ * counting progress here, which is the one field the app cannot afford to be
+ * wrong about: progress overstates itself as turnout approaches 100%, so the
+ * votes still to count look like they vanish.
+ */
+function turnout(votesCounted: number, seats = 1): string {
+  const roll = MOCK_ENROLMENT * seats;
+  return ((votesCounted / roll) * 100).toFixed(1);
 }
 
 function electoratesFinally(stage: ElectorateResults[]): number {
@@ -310,7 +343,7 @@ function renderElectorateXml(results: ElectorateResults, eNo: number): string {
         <total_voting_places_counted>${Math.round(pctNumber)}</total_voting_places_counted>
         <percent_voting_places_counted>${pct}</percent_voting_places_counted>
         <total_votes_cast>${results.votesCounted}</total_votes_cast>
-        <percent_votes_cast>${pct}</percent_votes_cast>
+        <percent_votes_cast>${turnout(results.votesCounted)}</percent_votes_cast>
         <total_party_informals>0</total_party_informals>
         <total_candidate_informals>0</total_candidate_informals>
         <total_registered_parties>${MOCK_PARTIES.length}</total_registered_parties>

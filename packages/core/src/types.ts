@@ -13,6 +13,15 @@ export type ElectorateResults = {
   candidateVotes: (VotingResults & WithParty)[];
   votesCounted: number;
   votePercentageCounted: number;
+  /**
+   * Turnout in this seat so far: votes counted ÷ enrolled electors, as a
+   * fraction. This is the feed's `percent_votes_cast`.
+   *
+   * It is **not** counting progress. `votePercentageCounted` counts voting
+   * places; this counts people, and it is the only field that can turn a
+   * count into a share of the vote still to come.
+   */
+  percentVotesCast?: number;
 };
 
 export type VotingResults = {
@@ -108,6 +117,8 @@ export type RawElectorateResults = {
   partyVotes: VotingResults[];
   votesCounted: number;
   votePercentageCounted: number;
+  /** Turnout so far (feed `percent_votes_cast`), as a fraction. */
+  percentVotesCast?: number;
 };
 
 export interface ElectionSource {

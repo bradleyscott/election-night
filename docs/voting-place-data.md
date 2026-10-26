@@ -115,30 +115,41 @@ probes `1..260` per seat, about 18,700 requests, and caches the responses in
 cycle's boundaries, so the seat probability model has a prior for seats whose
 boundaries changed. It:
 
-1. fetches the source cycle's reference files and per-place results;
-2. keeps results whose votes are geographically attributable — that is, where
-   `e_no === vp_e_no`;
-3. apportions each place into the target cycle's electorate polygons by
+1. reads each source seat's own file (`e{E}/e{E}.xml`) — the authoritative
+   result, every vote the seat received, with its enrolment;
+2. probes the source cycle's per-place results and keeps those whose votes are
+   geographically attributable — that is, where `e_no === vp_e_no`;
+3. apportions those places into the target cycle's electorate polygons by
    point-in-polygon against Stats NZ GeoJSON;
-4. emits `partyShare` and `candidateShare` per seat plus a measured `tau`.
+4. emits `partyShare`, `candidateShare`, `partyCandidateShare` and `enrolment`
+   per seat plus a measured `tau`.
+
+**A continuing seat takes route 1, not route 3.** Where the seat's name carries
+over, its own published result is the prior: it counts every vote the seat
+received, including advance votes cast at hubs in other electorates. Geometry can
+only see results filed under a place standing inside the seat, and in 2023 that is
+roughly half a seat's ballots — and the missing half leans National by 2.4 points
+nationally. Only seats that are new or renamed (10 of 71 in 2026) are built from
+geometry, and they carry `method: 'place-apportioned'` to say so; the rest carry
+`method: 'same-name'`.
 
 Its deliberate limits, in order of how much they matter:
 
-- **Out-of-seat votes are dropped, not apportioned.** Advance votes cast outside
-  a seat cannot be attributed to where the voter lives. They are a minority of
-  each seat's votes, but they are not a random minority: they are disproportionately
-  urban and disproportionately party-organised.
+- **Out-of-seat votes are dropped from geometry, not apportioned.** Advance votes
+  cast outside a seat cannot be attributed to where the voter lives. They are not
+  a random minority: they are disproportionately urban and party-organised, which
+  is why seats that keep their name never use the geometry route at all.
 - **Places are apportioned as whole points.** A place's voters are not spread
   across the polygon evenly, and a place near a boundary is assigned entirely to
   the seat containing its coordinates.
-- **Māori seats have no baseline.** The filename encodes the home electorate,
-  so a Māori result is `{M}-{G}{vp_no}.xml` — a name that cannot be enumerated
-  from the seven Māori electorates alone. v1 only probes a seat's own results
-  (`{E}-{E}{vp_no}.xml`), and since no place stands in a Māori electorate, no
-  result file for a Māori seat is ever found. The page therefore shows
-  `provisionalPrior` for those seven seats: they lean on their own count until
-  one exists. Extending the probe to every known (home electorate, vp_no) pair
-  would cost about 18,000 more requests and is the obvious next step.
+- **Māori seats need the name route, not the geometry route.** The filename
+  encodes the home electorate, so a Māori result is `{M}-{G}{vp_no}.xml` — a name
+  that cannot be enumerated from the seven Māori electorates alone, and since no
+  place stands in a Māori electorate, no result file for a Māori seat is found by
+  probing. They are covered instead by the same-name route: the seven names are
+  unchanged between cycles, so their own previous seat result is the prior. They
+  are permanently `place-apportioned`-free, and the geometry probe for them was
+  not worth 18,000 more requests.
 - **It is a prior, not a result.** It exists so the model can say "this seat
   started 8 points further left than the country" — a claim with an error bar, not
   a published figure.

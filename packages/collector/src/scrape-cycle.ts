@@ -157,6 +157,7 @@ export async function scrapeCycle(
         candidateVotes: raw.candidateVotes,
         votesCounted: raw.votesCounted,
         votePercentageCounted: raw.votePercentageCounted,
+        percentVotesCast: raw.percentVotesCast,
       };
       log.debug(
         `${electorateResults.electorateName}: ${electorateResults.candidateVotes.length} candidates, ${electorateResults.partyVotes.length} party entries, votesCounted=${electorateResults.votesCounted}, pct=${electorateResults.votePercentageCounted}`

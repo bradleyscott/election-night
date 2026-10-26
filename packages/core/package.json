@@ -46,6 +46,10 @@
       "types": "./dist/polls-close.d.ts",
       "default": "./dist/polls-close.js"
     },
+    "./seat-probability": {
+      "types": "./dist/seat-probability.d.ts",
+      "default": "./dist/seat-probability.js"
+    },
     "./election-results-service": {
       "types": "./dist/election-results-service.d.ts",
       "default": "./dist/election-results-service.js"

@@ -13,6 +13,7 @@ import type {
   ElectorateHistoryPoint,
   PriorWinner,
 } from '../lib/history-types.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
 
 type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
@@ -23,6 +24,9 @@ export function ElectorateDetail({
   historyData,
   priorWinners,
   priorUnavailable,
+  chance,
+  updatedAt,
+  pollsCloseLabel,
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
@@ -31,6 +35,12 @@ export function ElectorateDetail({
   /** This seat's prior-cycle winners, newest first; empty when none apply. */
   priorWinners?: PriorWinner[];
   priorUnavailable?: boolean;
+  /** Chance of winning, computed by the page from the cycle's baseline. */
+  chance?: SeatChance | null;
+  /** When this browser's results last changed. */
+  updatedAt?: Date | null;
+  /** Polls-close label for the before-counting state, e.g. "7pm". */
+  pollsCloseLabel?: string | null;
 }) {
   const leadingPartyVote = [...result.partyVotes].sort(
     (a, b) => b.votes - a.votes
@@ -62,7 +72,7 @@ export function ElectorateDetail({
               'px-3 py-1.5 transition-colors border-r border-border last:border-r-0',
               showPartyVote
                 ? 'bg-foreground text-background'
-              : 'bg-background text-muted-foreground hover:text-foreground'
+                : 'bg-background text-muted-foreground hover:text-foreground'
             )}
             onClick={() => onTogglePartyVote(true)}
           >
@@ -75,6 +85,9 @@ export function ElectorateDetail({
         result={result}
         showPartyVote={showPartyVote}
         leadingPartyVote={leadingPartyVote ?? null}
+        chance={chance}
+        updatedAt={updatedAt}
+        pollsCloseLabel={pollsCloseLabel}
       />
 
       <ElectorateResultsTable result={result} showPartyVote={showPartyVote} />

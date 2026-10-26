@@ -10,6 +10,10 @@ import { Toggle } from '../components/Toggle.js';
 import { ElectorateDetail } from '../components/ElectorateDetail.js';
 import ElectorateMap from '../components/ElectorateMap.js';
 import { isMaoriElectorate } from '../lib/electorates.js';
+import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
+import { usePollsClose } from '../hooks/usePollsClose.js';
+import { useApi } from '../hooks/useApi.js';
+import type { RuntimeConfig } from '@election-night/core/polls-close';
 import { WaitingState } from '../components/WaitingState.js';
 import { cn } from '../lib/utils.js';
 import type {
@@ -22,7 +26,10 @@ type ElectorateResult = ElectorateResults & WithLeaders & WithMarginOfError;
 
 export default function Electorates() {
   const { name } = useParams();
-  const { results } = useResults();
+  const { results, updatedAt } = useResults();
+  const { data: config } = useApi<RuntimeConfig>('/api/config');
+  const { closesAt } = usePollsClose();
+  const electionYear = config?.electionYear ?? null;
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
 
@@ -44,6 +51,35 @@ export default function Electorates() {
   const selectedElectorate = selectedName
     ? electorates.find((e) => e.electorateName === selectedName)
     : null;
+
+  // Uniform swing across the seats counted so far, which is what a seat's own
+  // prior is adjusted by. Computed from the whole payload, so it is identical
+  // for every seat viewed in this update.
+  const nationalSwing = useMemo(
+    () => nationalSwingOf(electorates, electionYear),
+    [electorates, electionYear]
+  );
+
+  const chance = useMemo(
+    () =>
+      selectedElectorate
+        ? seatChanceFor(selectedElectorate, electionYear, nationalSwing)
+        : null,
+    [selectedElectorate, electionYear, nationalSwing]
+  );
+
+  const pollsCloseLabel = useMemo(() => {
+    if (!closesAt || closesAt.getTime() <= Date.now()) return null;
+    return new Intl.DateTimeFormat('en-NZ', {
+      hour: 'numeric',
+      hour12: true,
+      timeZone: 'Pacific/Auckland',
+    })
+      .format(closesAt)
+      .replace('\u00a0', '')
+      .replace(' ', '')
+      .toLowerCase();
+  }, [closesAt]);
 
   const { data: historyData } = useElectorateHistory(selectedName);
   // Prior winners are only worth fetching once a seat is open: the collector
@@ -138,6 +174,9 @@ export default function Electorates() {
             historyData={historyData}
             priorWinners={priorLoading ? undefined : priorWinners}
             priorUnavailable={priorUnavailable}
+            chance={chance}
+            updatedAt={updatedAt}
+            pollsCloseLabel={pollsCloseLabel}
           />
         )}
       </div>
