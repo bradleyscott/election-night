@@ -5,7 +5,12 @@ export const partyColors: Record<string, string> = {
   'ACT New Zealand': '#FFD700',
   'New Zealand First Party': '#333333',
   'Te Pāti Māori': '#000000',
-  'The Opportunities Party (TOP)': '#4B0082',
+  // TOP's own brand teal (`--brand-teal` on opportunity.org.nz, and the fill in
+  // their logo), not the greener teal some indexes list.
+  'Opportunity Party': '#00B9BC',
+  // The same party's name before it was registered as "Opportunity Party" on
+  // 28 January 2026; the 2023 archive and the mock feed still say this.
+  'The Opportunities Party (TOP)': '#00B9BC',
 };
 
 export const MAJOR_PARTY_ORDER = [
