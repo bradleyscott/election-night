@@ -80,6 +80,18 @@ export function ElectorateStats({
     (c) => ({ name: c.name, party: c.party ?? null, votes: c.votes })
   );
   const others = chance.othersProbability;
+  // Ordered by chance, not by votes. A seat 39% counted can have the trailing
+  // candidate favoured, because the votes still to come are expected to favour
+  // them; listing the count leader first reads as a contradiction when the two
+  // numbers disagree. The count's own state stays on whichever row leads it.
+  const rows = [
+    { candidate: candidates[0], share: chance.probability, leadsCount: true },
+    {
+      candidate: candidates[1],
+      share: runnerUpProbability(chance),
+      leadsCount: false,
+    },
+  ].sort((a, b) => b.share - a.share);
 
   return (
     <div className="border panel-print p-4 sm:p-5">
@@ -91,20 +103,22 @@ export function ElectorateStats({
       </div>
 
       <div className="mt-2 divide-y divide-border">
-        <ChanceRow
-          candidate={candidates[0]}
-          share={chance.probability}
-          label="chance of winning"
-          margin={chance.margin}
-          marginPercent={
-            result.votesCounted ? chance.margin / result.votesCounted : null
-          }
-        />
-        <ChanceRow
-          candidate={candidates[1]}
-          share={runnerUpProbability(chance)}
-          label="chance of winning"
-        />
+        {rows.map((row) => (
+          <ChanceRow
+            key={row.candidate.name}
+            candidate={row.candidate}
+            share={row.share}
+            label="chance of winning"
+            margin={row.leadsCount ? chance.margin : undefined}
+            marginPercent={
+              row.leadsCount
+                ? result.votesCounted
+                  ? chance.margin / result.votesCounted
+                  : null
+                : undefined
+            }
+          />
+        ))}
       </div>
       {others >= 0.005 && (
         <div className="pt-2 font-label text-xs text-muted-foreground">

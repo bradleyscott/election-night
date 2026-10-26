@@ -125,4 +125,21 @@ describe('ElectorateStats', () => {
     expect(screen.queryByText(/chance of winning/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/leading party/i)).not.toBeInTheDocument();
   });
+
+  it('puts the favourite first even when it trails in the count', () => {
+    // 44/56 with the count leader on the wrong side of the coin: ordering by
+    // votes would put a 44% row above a 56% one and read as a bug.
+    renderStats({ ...counting, probability: 0.44 });
+
+    const names = screen
+      .getAllByText(/^(WEENINK|McLELLAN),/)
+      .map((node) => node.textContent);
+    expect(names[0]).toContain('McLELLAN');
+
+    // The count's own state stays with the candidate who leads it.
+    const leaderRow = screen.getByText(/^WEENINK,/).closest('div.py-3');
+    expect(leaderRow?.textContent).toContain('ahead by 340');
+    const favouriteRow = screen.getByText(/^McLELLAN,/).closest('div.py-3');
+    expect(favouriteRow?.textContent).not.toContain('ahead by');
+  });
 });
