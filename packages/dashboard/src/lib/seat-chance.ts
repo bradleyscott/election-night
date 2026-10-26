@@ -1,6 +1,7 @@
 import {
   computeObservedSwing,
   computeSeatChance,
+  cycleConstantsFor,
   DEFAULT_TAU,
   type SeatChance,
   type SeatPrior,
@@ -192,6 +193,50 @@ export function seatChanceFor(
 }
 
 /** "4 min ago", "just now", "2 hours ago". */
+/**
+ * How far through tonight's count a set of seats is.
+ *
+ * `votePercentageCounted` is the share of *voting places* that have reported,
+ * and places do not carry equal numbers of votes: advance votes are counted
+ * from 9am and released in large blocks after 7pm. Dividing votes by that share
+ * therefore understates the count badly in the first hours. This instead
+ * divides by the votes those seats are expected to receive tonight, using the
+ * same enrolment-and-turnout arithmetic as the seat card, so the number on the
+ * page and the number under a seat cannot disagree.
+ */
+export function countProgress(
+  results: Array<{
+    electorateName: string;
+    votesCounted: number;
+    percentVotesCast?: number;
+  }>,
+  electionYear: string | number | null
+): { votesCounted: number; expected: number; fraction: number | null } {
+  const cycle = cycleConstantsFor(electionYear ? Number(electionYear) : null);
+  let votesCounted = 0;
+  let expected = 0;
+  for (const result of results) {
+    if (!(result.votesCounted > 0)) continue;
+    const recorded = enrolmentForSeat(
+      result.electorateName,
+      electionYear == null ? null : String(electionYear)
+    );
+    const turnout =
+      result.percentVotesCast && result.percentVotesCast > 0
+        ? result.percentVotesCast
+        : null;
+    const enrolment = recorded ?? (turnout ? result.votesCounted / turnout : null);
+    if (!enrolment) continue;
+    votesCounted += result.votesCounted;
+    expected += enrolment * cycle.turnout * cycle.nightShare;
+  }
+  return {
+    votesCounted,
+    expected,
+    fraction: expected > 0 ? votesCounted / expected : null,
+  };
+}
+
 /**
  * How solidly a seat is painted on the map.
  *

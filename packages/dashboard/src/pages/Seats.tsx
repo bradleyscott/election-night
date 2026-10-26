@@ -2,6 +2,9 @@ import { useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { partyColors } from '../lib/constants.js';
+import { countProgress } from '../lib/seat-chance.js';
+import { useApi } from '../hooks/useApi.js';
+import type { RuntimeConfig } from '@election-night/core/polls-close';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
@@ -265,6 +268,7 @@ function SuccessfulCandidates({
 
 export default function Seats() {
   const { results } = useResults();
+  const { data: config } = useApi<RuntimeConfig>('/api/config');
 
   const partyVote = results?.partyVote;
   const sorted = partyVote
@@ -274,18 +278,16 @@ export default function Seats() {
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 
   const electorateResults = results?.electorateResults ?? [];
-  const totalVotesCounted = electorateResults.reduce(
-    (s, e) => s + e.votesCounted,
-    0
-  );
-  const totalVotesEstimate = electorateResults.reduce(
-    (s, e) => s + e.votesCounted / (e.votePercentageCounted || 1),
-    0
+  // Counted votes and how far through the night that is. The denominator is
+  // the votes these seats are expected to receive tonight, not the share of
+  // voting places that have reported — places do not hold equal numbers of
+  // votes, and advance votes land in blocks after 7pm.
+  const progress = countProgress(
+    electorateResults,
+    config?.electionYear ?? null
   );
   const overallVotePercentage =
-    totalVotesCounted > 0
-      ? (totalVotesCounted / totalVotesEstimate) * 100
-      : null;
+    progress.fraction !== null ? progress.fraction * 100 : null;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -304,17 +306,22 @@ export default function Seats() {
               value={partiesInParliament}
               delay={2}
             />
-            <AnimatedStat
-              label="Votes cast"
-              value={Math.round(totalVotesEstimate)}
-              delay={3}
-            />
+            <div
+              className={cn(
+                'p-2.5 sm:p-3 opacity-0 animate-fade-in-up stagger-3'
+              )}
+            >
+              <div className="kicker mb-1">Votes counted</div>
+              <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight tabular-nums">
+                {progress.votesCounted.toLocaleString()}
+              </div>
+            </div>
             <div
               className={cn(
                 'p-2.5 sm:p-3 opacity-0 animate-fade-in-up stagger-4'
               )}
             >
-              <div className="kicker mb-1">Votes Counted</div>
+              <div className="kicker mb-1">Counted</div>
               <div className="font-mono text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">
                 {overallVotePercentage !== null
                   ? overallVotePercentage.toFixed(1) + '%'

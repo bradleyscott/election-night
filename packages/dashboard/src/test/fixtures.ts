@@ -24,6 +24,9 @@ export const mockElectorateResult: ElectorateResult = {
     { candidate: 'Green Party', votes: 5000 },
   ],
   votesCounted: 25000,
+  // 55% turnout on a ~45,000 roll: the night's expected votes follow from this,
+  // so the page can say how far through it is without counting places.
+  percentVotesCast: 0.55,
   votePercentageCounted: 0.95,
   leaders: {
     leadingCandidate: 'SMITH, John',

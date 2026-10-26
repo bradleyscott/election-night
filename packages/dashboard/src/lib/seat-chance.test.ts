@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ElectorateResult } from './seat-chance.js';
 import {
+  countProgress,
   enrolmentForSeat,
   mapFillOpacity,
   nationalSwingOf,
@@ -140,5 +141,58 @@ describe('mapFillOpacity', () => {
       expect(opacities[i]).toBeGreaterThan(opacities[i - 1]);
     }
     expect(Math.max(...opacities)).toBeLessThanOrEqual(0.8);
+  });
+});
+
+describe('countProgress', () => {
+  it('measures the count against the votes expected tonight, not places reported', () => {
+    // Recorded enrolment wins over anything backed out of the live turnout.
+    const progress = countProgress(
+      [{ electorateName: 'Auckland Central', votesCounted: 12_000 }],
+      '2026'
+    );
+    expect(progress.votesCounted).toBe(12_000);
+    expect(progress.expected).toBeCloseTo(45_407 * 0.777 * 0.783, 0);
+    expect(progress.fraction).toBeCloseTo(0.43, 1);
+  });
+
+  it('backs enrolment out of the live turnout when the seat has no record', () => {
+    const progress = countProgress(
+      [
+        {
+          electorateName: 'Not On File',
+          votesCounted: 900,
+          percentVotesCast: 0.2,
+        },
+      ],
+      '2026'
+    );
+    // 900 votes at 20% turnout implies 4,500 enrolled.
+    expect(progress.expected).toBeCloseTo(4_500 * 0.777 * 0.783, 0);
+  });
+
+  it('never divides by the share of voting places counted', () => {
+    // 90% of places reported with 10% of the votes in: the old arithmetic said
+    // 90%, which is how a night looks settled before any advance vote arrives.
+    const progress = countProgress(
+      [
+        {
+          electorateName: 'Auckland Central',
+          votesCounted: 4_000,
+          percentVotesCast: 0.05,
+        },
+      ],
+      '2026'
+    );
+    expect(progress.fraction).toBeLessThan(0.2);
+  });
+
+  it('reports no fraction when neither enrolment nor turnout is known', () => {
+    const progress = countProgress(
+      [{ electorateName: 'Nowhere', votesCounted: 500 }],
+      '2026'
+    );
+    expect(progress.fraction).toBeNull();
+    expect(progress.votesCounted).toBe(0);
   });
 });

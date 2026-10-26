@@ -22,7 +22,7 @@ describe('Seats page', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  test('shows the counted percentage without repeating the raw vote count', () => {
+  test('shows the votes counted and how far through tonight the count is', () => {
     render(
       <BrowserRouter>
         <MockSocketProvider results={mockResults} connected>
@@ -31,9 +31,12 @@ describe('Seats page', () => {
       </BrowserRouter>
     );
 
-    // 95% counted; the raw count lives in the "Votes cast" stat above.
-    expect(screen.getByText('95.0%')).toBeInTheDocument();
-    expect(screen.queryByText(`${(25000).toLocaleString()} votes`)).toBeNull();
+    // 25,000 votes at 55% turnout implies 45,455 enrolled, so tonight's count
+    // is about 27,660 votes and this is 90% of it. The 95% the feed reports is
+    // the share of *voting places* reported, which is a different question.
+    expect(screen.getByText('25,000')).toBeInTheDocument();
+    expect(screen.getByText('90.4%')).toBeInTheDocument();
+    expect(screen.queryByText('95.0%')).not.toBeInTheDocument();
   });
 
   test('renders waiting state when no results are available', () => {
