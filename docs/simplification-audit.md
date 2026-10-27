@@ -11,7 +11,9 @@ duplication that can be collapsed, and structure that costs more than it earns.
 > indexed baseline lookup, one baseline injection point, `health.ts` split out
 > of `static.ts`, configs ordered by `e_no`) and Tier 4 on
 > `refactor/tier4-design-system` (`PartyDot`, `PageHead`/`PageWaiting`, one
-> `Toggle`, one mode table in Trends). The bug list is still open.
+> `Toggle`, one mode table in Trends). The second pass's three defects (A1–A3)
+> are fixed on `fix/second-pass-defects`; its duplication, vestigial and nit
+> lists are open, as are two of the original bugs.
 >
 > Two items were dropped deliberately. Tier 3's tag helper for `serve-mock.ts`:
 > the mock's XML literals _are_ the fixture the pipeline tests compare against
@@ -197,15 +199,70 @@ tickets regardless of whether any tier is actioned.
    doc now sits above `canonicalParty`'s doc, so two stacked blocks describe the
    wrong function. `lib/seat-chance.ts:92`: `/** "4 min ago", "just now"… */` is
    stranded above `countProgress`.
-4. **The validation harness can validate stale numbers.**
+4. ~~**The validation harness can validate stale numbers.**~~ **Fixed** in the
+   second pass (A1) — the script reads `cycleConstantsFor(year)`. Its baseline
+   and cache paths were also stale, so it could not run at all.
    `scripts/validate-seat-probability.mjs:27-28` imports `FINAL_TURNOUT` and
    `NIGHT_SHARE_OF_FINAL`, while the app reads `CYCLE_CONSTANTS[2023]`. The 2023
    figures are written twice in `seat-probability.ts`; update one and the
    harness reports a Brier score for a model that does not exist. Have the
    script read `cycleConstantsFor(2023)`.
-5. **Docs describe `seed.ts` as live.** `AGENTS.md:89`, `AGENTS.md:151`,
-   `docs/2026-election-boundaries.md:66,148-150`. Deleting the file means fixing
-   these in the same commit.
+5. ~~**Docs describe `seed.ts` as live.**~~ **Fixed** with the Tier 1 deletion.
+
+## Second pass (after Tiers 1–4)
+
+The tree was re-scanned mechanically rather than by reading: 10-line and 7-line
+clone windows over every non-test file, a sweep for local symbols referenced
+once, and targeted checks of the seams the refactors had moved.
+
+### Fixed
+
+| Defect                      | Was                                                                                                                                                       | Now                                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **A1** harness inputs       | read the baseline from `packages/dashboard/src/data/` (gone since the baselines moved), cached nothing any script writes, and imported the 2023 constants | `packages/core/data/`, the builder's `.cache/notional-<year>-files-v2.json`, `cycleConstantsFor(year)`; both reads say what is missing |
+| **A2** dead route           | `/api/history/snapshots` proxied on the dashboard, with no client since `useSnapshotMetas` was deleted in Tier 1                                          | removed (the collector's route still answers the readiness probe)                                                                      |
+| **A3** two feed type tables | `pages/Feed.tsx` and `components/FeedSidebar.tsx` each mapped the four event types, and disagreed: `count_completed` was "Count Complete" and "Complete"  | one `FEED_EVENT_STYLE` behind `feedEventStyle()`; `TimelineItem` takes dot classes, so both dots come from one entry                   |
+
+### Open — duplication
+
+- **B1. The party-list table exists twice (~90 lines).** `ListCutLinesView.tsx`
+  and `pages/Parties.tsx` both render the chip row + "More…" select, the four
+  column headers, the cut-line divider and the elected/`From Cut` row. They
+  differ only around the table: Parties adds the electorate-leader toggle and
+  links, ListCutLines shows ±3 around the cut.
+- **B2. One table-header class string, 28 times, 6 files.** `Flipped.tsx`
+  already has a local `Th`; generalising it (with `align`) would delete the
+  literals in the six table components.
+- **B3. 29 composed row-type aliases across 20 files** — 14 ×
+  `type ElectorateResult = ElectorateResults & WithLeaders`, plus the
+  `PartyListEntry` and `PartyVoteSummary`/`PartyEntry` equivalents. Core
+  composes these three rows inside `ResultsPayload` without naming them.
+- **B4. `RawElectorateResults` and `ElectorateResults` are the same shape**, so
+  `toElectorateResults` (unified in Tier 2) is a key-order shuffle.
+- **B5. `/api/config` is fetched up to three times on one page** — `Layout` and
+  `Electorates` each call `usePollsClose`, and `useSeatChances` fetches it too;
+  `useApi` has no cache or in-flight dedupe.
+
+### Open — vestigial, needs a decision
+
+- **C1. The `MetricEvent` payload is built, sent and discarded.** The server's
+  handler reads nothing but the arrival; the collector's own registry is what
+  Fly scrapes. Either the server should record it, or the collector should send
+  a bare heartbeat and the union should go.
+- **C2. `components.json` configures an absent tool** (no `components/ui`, no
+  shadcn dependency, and its `aliases` name the `@/` path Tier 3 deleted).
+  `eslint.config.js` also ignores a `components/ui` folder that never existed.
+- **C3. `clsx` and `tailwind-merge` are devDependencies but imported by bundled
+  `src`** (`lib/utils.ts`); a production-only install would fail the build.
+
+### Open — nits
+
+Two relative-time formatters (`formatUpdatedAgo`, `relativeTime`); cache-file
+I/O boilerplate repeated in `server/index.ts`, `server/feed.ts` and
+`collector/results.ts`; `/ready` fetches every snapshot row to test liveness;
+`lib/history-types.ts` is a re-export shim; each `scripts/*.mjs` defines its own
+`arg`; the root `typecheck` script builds core twice; two CI workflows repeat
+the same checkout/setup block.
 
 ## What this audit deliberately left alone
 
