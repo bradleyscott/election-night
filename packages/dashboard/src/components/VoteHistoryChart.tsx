@@ -28,8 +28,16 @@ import { CountedTape } from './CountedTape.js';
 import { PartyLine } from './PartyLine.js';
 import type { TapePoint } from './CountedTape.js';
 import { PartyDot } from './PartyDot.js';
+import { Toggle } from './Toggle.js';
 
 type ChartMode = 'votes' | 'percentage' | 'candidateVotes' | 'counted';
+
+/** The modes the seat chart offers, in toggle order. */
+const MODE_OPTIONS: { value: ChartMode; label: string }[] = [
+  { value: 'votes', label: '# Votes' },
+  { value: 'percentage', label: '% of Vote' },
+  { value: 'counted', label: 'Counted' },
+];
 
 type ChartProps = {
   history: ElectorateHistoryPoint[];
@@ -230,41 +238,11 @@ export default function VoteHistoryChart({
     <div className={cn('border p-3 sm:p-4', className)}>
       <div className="flex items-center justify-between mb-3">
         <div className="kicker">{chartTitle}</div>
-        <div className="flex flex-wrap border border-border">
-          <button
-            onClick={() => setChartMode('votes')}
-            className={cn(
-              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              chartMode === 'votes'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            # Votes
-          </button>
-          <button
-            onClick={() => setChartMode('percentage')}
-            className={cn(
-              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              chartMode === 'percentage'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            % of Vote
-          </button>
-          <button
-            onClick={() => setChartMode('counted')}
-            className={cn(
-              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              chartMode === 'counted'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            Counted
-          </button>
-        </div>
+        <Toggle
+          options={MODE_OPTIONS}
+          value={chartMode}
+          onChange={setChartMode}
+        />
       </div>
       {chartMode === 'counted' ? (
         <CountedTape

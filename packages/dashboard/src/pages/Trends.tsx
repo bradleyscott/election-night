@@ -33,8 +33,42 @@ import { PartyLine } from '../components/PartyLine.js';
 import type { TapePoint } from '../components/CountedTape.js';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
+import { Toggle } from '../components/Toggle.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
+
+/** The four chart modes, in the order the toggle offers them. */
+const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'votes', label: '# Votes' },
+  { value: 'percent', label: '% of Vote' },
+  { value: 'seats', label: '# Seats' },
+  { value: 'counted', label: 'Counted' },
+];
+
+/** One sentence per mode, so the copy cannot drift from the control. */
+const MODE_DESCRIPTION: Record<Mode, string> = {
+  votes: 'Party vote totals over time.',
+  percent: 'Party vote share over time.',
+  seats: 'Party seat totals over time.',
+  counted: 'Vote count progress over time.',
+};
+
+/**
+ * Row field per mode. The rows are pre-aggregated under these keys in
+ * `chartData`, so the mode is a key prefix rather than a second pass.
+ */
+const MODE_KEY: Record<Mode, string> = {
+  votes: 'party:Votes:',
+  percent: 'party:Pct:',
+  seats: 'party:Seats:',
+  counted: '',
+};
+
+const MODE_TICK: Record<Exclude<Mode, 'counted'>, (value: number) => string> = {
+  votes: formatVoteAxis,
+  percent: formatPercentAxis,
+  seats: (value) => value.toLocaleString(),
+};
 
 function PartyLegend({
   payload,
@@ -226,70 +260,16 @@ export default function Trends() {
     );
   }
 
-  const dataKeyPrefix =
-    mode === 'votes'
-      ? 'party:Votes:'
-      : mode === 'seats'
-        ? 'party:Seats:'
-        : 'party:Pct:';
-
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHead title="Trends" />
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground font-semibold">
-          {mode === 'counted'
-            ? 'Vote count progress over time.'
-            : `Party ${mode === 'seats' ? 'seat totals' : mode === 'percent' ? 'vote share' : 'vote totals'} over time.`}
+          {MODE_DESCRIPTION[mode]}
         </p>
 
-        <div className="flex flex-wrap border border-border">
-          <button
-            onClick={() => setMode('votes')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'votes'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            # Votes
-          </button>
-          <button
-            onClick={() => setMode('percent')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'percent'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            % of Vote
-          </button>
-          <button
-            onClick={() => setMode('seats')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'seats'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            # Seats
-          </button>
-          <button
-            onClick={() => setMode('counted')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'counted'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            Counted
-          </button>
-        </div>
+        <Toggle options={MODE_OPTIONS} value={mode} onChange={setMode} />
       </div>
 
       {mode !== 'counted' && (
@@ -345,20 +325,14 @@ export default function Trends() {
                 stroke={AXIS_STROKE}
                 tickLine={false}
                 domain={['auto', 'auto']}
-                tickFormatter={
-                  mode === 'votes'
-                    ? formatVoteAxis
-                    : mode === 'seats'
-                      ? (v: number) => v.toLocaleString()
-                      : formatPercentAxis
-                }
+                tickFormatter={MODE_TICK[mode]}
               />
               <Tooltip content={<PartyTooltip mode={mode} />} />
               <Legend content={<PartyLegend />} />
               {visibleParties.map((party) => (
                 <PartyLine
                   key={party}
-                  dataKey={`${dataKeyPrefix}${party}`}
+                  dataKey={`${MODE_KEY[mode]}${party}`}
                   name={party}
                   color={partyColor(party)}
                 />
