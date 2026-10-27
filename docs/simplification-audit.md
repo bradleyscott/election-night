@@ -4,10 +4,12 @@ A whole-tree pass — `core`, `collector`, the dashboard server and client,
 `scripts/`, and the build config — looking for code that can be deleted,
 duplication that can be collapsed, and structure that costs more than it earns.
 
-> **Status.** Tier 1 is implemented on `chore/tier1-dead-code` (780 lines
-> removed). Tiers 2–4 and the bug list are still open. File and line references
-> describe the tree as it was audited, so the Tier 1 entries now point at code
-> that no longer exists.
+> **Status.** Tier 1 is implemented on `chore/tier1-dead-code` (~800 lines
+> removed) and Tier 2 on `refactor/tier2-duplication` (one tagged-cache reader,
+> one concurrency limiter, one XML configuration, one seat-chance lookup, one
+> set of chart helpers). Tiers 3–4 and the bug list are still open. File and line
+> references describe the tree as it was audited, so completed entries point at
+> code that has since moved or gone.
 
 The bias is deliberate: **deletion before abstraction**. A copy that is about to
 be deleted does not need unifying, and the cheapest line of code is the one that
