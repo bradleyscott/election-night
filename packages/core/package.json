@@ -60,6 +60,10 @@
       "types": "./dist/concurrency.d.ts",
       "default": "./dist/concurrency.js"
     },
+    "./xml": {
+      "types": "./dist/xml.d.ts",
+      "default": "./dist/xml.js"
+    },
     "./data/*": "./data/*"
   },
   "files": [

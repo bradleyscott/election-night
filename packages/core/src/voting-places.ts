@@ -29,7 +29,7 @@
  * and caching for the feed.
  */
 
-import { XMLParser } from 'fast-xml-parser';
+import { toArray, xmlParser } from './xml.js';
 
 /** One entry of `votingplaces.xml`. */
 export type VotingPlace = {
@@ -111,20 +111,6 @@ export type VotingPlacesResponse = {
   places: VotingPlaceStatus[];
 };
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: '',
-  parseTagValue: false,
-  parseAttributeValue: false,
-  trimValues: true,
-  htmlEntities: true,
-});
-
-function toArray<T>(value: unknown): T[] {
-  if (Array.isArray(value)) return value as T[];
-  return value ? [value as T] : [];
-}
-
 function asText(value: unknown): string {
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number') return String(value);
@@ -164,7 +150,7 @@ export function splitVotingPlaceAddress(raw: string): {
 /** Parse `votingplaces.xml` into register entries, in file order. */
 export function parseVotingPlaceRegistry(xml: string): VotingPlace[] {
   if (!xml.trim()) return [];
-  const doc = parser.parse(xml) as {
+  const doc = xmlParser.parse(xml) as {
     votingplaces?: { votingplace?: unknown };
   };
   const entries = toArray<Record<string, unknown>>(
@@ -219,7 +205,7 @@ export function parseVotingPlaceResult(xml: string): VotingPlaceCount | null {
   if (!xml.trim()) return null;
   let doc: { votingplace?: Record<string, unknown> };
   try {
-    doc = parser.parse(xml) as { votingplace?: Record<string, unknown> };
+    doc = xmlParser.parse(xml) as { votingplace?: Record<string, unknown> };
   } catch {
     return null;
   }

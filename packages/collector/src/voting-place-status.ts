@@ -20,9 +20,9 @@
  * rather than an empty map that reads as "nothing counted".
  */
 
-import { XMLParser } from 'fast-xml-parser';
 import { mapWithConcurrency } from '@election-night/core/concurrency';
 import { normalizeElectorateName } from '@election-night/core/electorate-names';
+import { toArray, xmlParser } from '@election-night/core/xml';
 import {
   parseVotingPlaceListing,
   parseVotingPlaceRegistry,
@@ -65,15 +65,6 @@ type References = {
   /** `vp_id` → register entry. */
   placeById: Map<number, VotingPlace>;
 };
-
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: '',
-  parseTagValue: false,
-  parseAttributeValue: false,
-  trimValues: true,
-  htmlEntities: true,
-});
 
 const DEFAULT_CONCURRENCY = 6;
 const DEFAULT_CACHE_TTL_MS = 30_000;
@@ -330,13 +321,10 @@ export class VotingPlaceStatusService {
     const doc = xmlParser.parse(electoratesBody) as {
       electorates?: { electorate?: unknown };
     };
-    const entries = doc.electorates?.electorate;
-    for (const entry of Array.isArray(entries)
-      ? entries
-      : entries
-        ? [entries]
-        : []) {
-      const record = entry as Record<string, unknown>;
+    const entries = toArray<Record<string, unknown>>(
+      doc.electorates?.electorate
+    );
+    for (const record of entries) {
       const no = Number(record.e_no);
       const name =
         typeof record.electorate_name === 'string'
