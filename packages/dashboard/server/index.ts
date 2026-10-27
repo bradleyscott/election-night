@@ -286,15 +286,12 @@ server.listen(PORT, () => {
   loadFeedEvents();
 });
 
-process.on('SIGINT', () => {
-  log.info('Shutting down...');
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  log.info('Shutting down...');
-  process.exit(0);
-});
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    log.info('Shutting down...');
+    process.exit(0);
+  });
+}
 
 export function stopDashboardServer(): void {
   io.close();
