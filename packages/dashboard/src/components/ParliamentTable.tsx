@@ -7,7 +7,9 @@ import {
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
 import { SortableRow } from './SortableRow.js';
-import type { PartyEntry } from '../lib/parliament.js';
+import { PartyDot } from './PartyDot.js';
+import type { PartyVoteResult } from '@election-night/core/types';
+import { Th, TH_CLASS } from './Table.js';
 
 const touchSensor = PointerSensor.configure({
   activationConstraints(event) {
@@ -32,9 +34,9 @@ export function ParliamentTable({
   onDragEnd,
 }: {
   order: string[];
-  partyVote: PartyEntry[];
+  partyVote: PartyVoteResult[];
   totalPartyVotes: number;
-  coalitionInfo: { parties: PartyEntry[]; cumulative: number };
+  coalitionInfo: { parties: PartyVoteResult[]; cumulative: number };
   hoveredParty: string | null;
   onHoveredPartyChange: (party: string | null) => void;
   showAllParties: boolean;
@@ -43,7 +45,7 @@ export function ParliamentTable({
 }) {
   const partiesWithSeats = order
     .map((name) => partyVote.find((p) => p.candidate === name))
-    .filter((p): p is PartyEntry => !!p && p.seats > 0);
+    .filter((p): p is PartyVoteResult => !!p && p.seats > 0);
 
   const displayParties = showAllParties
     ? [
@@ -60,21 +62,15 @@ export function ParliamentTable({
         <table className="w-full text-sm sm:text-base">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 sm:py-3 pr-4 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Party
-              </th>
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Party votes
-              </th>
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
+              <Th className="pr-4">Party</Th>
+              <th className={cn(TH_CLASS, 'px-2')}>Party votes</th>
+              <th className={cn(TH_CLASS, 'px-2 hidden sm:table-cell')}>
                 Electorate seats
               </th>
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
+              <th className={cn(TH_CLASS, 'px-2 hidden sm:table-cell')}>
                 List seats
               </th>
-              <th className="text-right pl-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Total seats
-              </th>
+              <th className={cn(TH_CLASS, 'pl-2')}>Total seats</th>
             </tr>
           </thead>
           <tbody>
@@ -87,11 +83,10 @@ export function ParliamentTable({
                   >
                     <td className="py-2 sm:py-3 pr-4 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0 ring-1 ring-foreground/15"
-                          style={{
-                            backgroundColor: partyColor(party.candidate),
-                          }}
+                        <PartyDot
+                          color={partyColor(party.candidate)}
+                          size="md"
+                          className="sm:h-3 sm:w-3"
                         />
                         <span className="font-bold truncate min-w-0">
                           {party.candidate}
@@ -149,12 +144,7 @@ export function ParliamentTable({
                               +
                             </span>
                           )}
-                          <span
-                            className="w-2.5 h-2.5 ring-1 ring-foreground/15 flex-shrink-0"
-                            style={{
-                              backgroundColor: partyColor(p.candidate),
-                            }}
-                          />
+                          <PartyDot color={partyColor(p.candidate)} size="md" />
                           <span className="font-bold">{p.candidate}</span>
                         </span>
                       ))}

@@ -4,9 +4,9 @@ import { resolve } from 'path';
 import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import type { ResultsPayload } from '@election-night/core/types';
-import type { ComparableResult } from '@election-night/core/diff';
 import { buildRuntimeConfig } from '@election-night/core/polls-close';
-import { nationalSwingOf, seatChanceFor } from '../src/lib/seat-chance.js';
+import { chanceLookupFor } from '@election-night/core/notional-baseline';
+import { baselineFor } from '../src/lib/seat-chance.js';
 import { createHistorySource, type HistorySource } from './history-upstream.js';
 import { dashboardServerConfig } from './config.js';
 import {
@@ -20,12 +20,8 @@ import {
   websocketClients,
 } from './metrics.js';
 import { routeLabel } from './routes.js';
-import {
-  serveHealth,
-  serveMetrics,
-  serveReady,
-  serveStatic,
-} from './static.js';
+import { serveHealth, serveMetrics, serveReady } from './health.js';
+import { serveStatic } from './static.js';
 import { serveApi } from './api.js';
 import {
   addFeedEvents,
@@ -36,10 +32,7 @@ import {
 } from './feed.js';
 import { withMutex, Mutex } from './mutex.js';
 import { isLoopbackAddress } from './publisher.js';
-import {
-  describeCacheSkip,
-  extractCachedElectorates,
-} from './results-cache.js';
+import { readTaggedCache } from '@election-night/core/tagged-cache';
 import { log } from './logger.js';
 
 const {
@@ -57,25 +50,6 @@ setBuildInfo(
 let latestResults: ResultsPayload | null = null;
 const feedMutex = new Mutex();
 
-/**
- * Build the chance lookup the feed needs for one payload.
- *
- * The seat model needs three things the payload does not carry: the previous
- * cycle's result on these boundaries, the seat's enrolled roll, and the served
- * cycle's turnout/finals constants. All three live on the dashboard side, which
- * is why the feed asks for a lookup rather than deriving a status itself.
- */
-function chanceLookupFor(
-  electorates: ResultsPayload['electorateResults']
-):
-  ((result: ComparableResult) => ReturnType<typeof seatChanceFor>) | undefined {
-  const electionYear = dashboardServerConfig.electionYear;
-  if (!electionYear) return undefined;
-  const results = electorates as Parameters<typeof nationalSwingOf>[0];
-  const swing = nationalSwingOf(results, electionYear);
-  return (result) => seatChanceFor(result, electionYear, swing);
-}
-
 function loadCachedResults() {
   if (existsSync(CACHE_PATH)) {
     let raw: string;
@@ -86,13 +60,17 @@ function loadCachedResults() {
       return;
     }
 
-    const electorates = extractCachedElectorates(
-      raw,
-      dashboardServerConfig.electionYear
+    const cached = readTaggedCache<ResultsPayload['electorateResults'][number]>(
+      {
+        raw,
+        key: 'results',
+        payloadNoun: 'results',
+        expectedYear: dashboardServerConfig.electionYear,
+      }
     );
-    if (electorates) {
+    if (cached.ok) {
       latestResults = {
-        electorateResults: electorates as ResultsPayload['electorateResults'],
+        electorateResults: cached.items,
         partyVote: [],
         partyLists: [],
       };
@@ -104,7 +82,7 @@ function loadCachedResults() {
     // different cycle, or written by an older version. None of those are worth
     // failing over — the first scrape replaces it within a poll interval.
     log.warn(
-      `Ignoring cached results at ${CACHE_PATH}: ${describeCacheSkip(raw, dashboardServerConfig.electionYear)}`
+      `Ignoring cached results at ${CACHE_PATH}: cache ${cached.reason}`
     );
   }
   log.info('No cached results found, waiting for first scrape...');
@@ -264,7 +242,11 @@ io.on('connection', (socket) => {
         // both read the same model, so the two cannot describe one count
         // differently. Without a served cycle there is no prior, and the events
         // fall back to count-only copy.
-        chanceLookupFor(payload.electorateResults)
+        chanceLookupFor(
+          baselineFor(dashboardServerConfig.electionYear),
+          payload.electorateResults,
+          dashboardServerConfig.electionYear
+        )
       );
       if (rawEvents.length === 0) return;
 
@@ -302,15 +284,12 @@ server.listen(PORT, () => {
   loadFeedEvents();
 });
 
-process.on('SIGINT', () => {
-  log.info('Shutting down...');
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  log.info('Shutting down...');
-  process.exit(0);
-});
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    log.info('Shutting down...');
+    process.exit(0);
+  });
+}
 
 export function stopDashboardServer(): void {
   io.close();

@@ -3,9 +3,13 @@ import { routeLabel } from '../../server/routes.js';
 
 describe('routeLabel', () => {
   it('labels history routes with templates, never raw names', () => {
-    expect(routeLabel('/api/history/snapshots')).toBe('/api/history/snapshots');
     expect(routeLabel('/api/history/electorate/Te%20Tai%20Tonga')).toBe(
       '/api/history/electorate/:name'
+    );
+    // Every place route is one series, not one per electorate: the voting-place
+    // layer is requested once per selected seat.
+    expect(routeLabel('/api/history/voting-places/Te%20Tai%20Tonga')).toBe(
+      '/api/history/voting-places/:name'
     );
     expect(routeLabel('/api/history/party-votes')).toBe(
       '/api/history/party-votes'

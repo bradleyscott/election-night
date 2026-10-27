@@ -1,0 +1,283 @@
+# Simplification audit
+
+A whole-tree pass — `core`, `collector`, the dashboard server and client,
+`scripts/`, and the build config — looking for code that can be deleted,
+duplication that can be collapsed, and structure that costs more than it earns.
+
+> **Status.** Tier 1 is implemented on `chore/tier1-dead-code` (~800 lines
+> removed), Tier 2 on `refactor/tier2-duplication` (one tagged-cache reader, one
+> concurrency limiter, one XML configuration, one seat-chance lookup, one set of
+> chart helpers), Tier 3 on `refactor/tier3-structure` (wildcard exports, an
+> indexed baseline lookup, one baseline injection point, `health.ts` split out
+> of `static.ts`, configs ordered by `e_no`) and Tier 4 on
+> `refactor/tier4-design-system` (`PartyDot`, `PageHead`/`PageWaiting`, one
+> `Toggle`, one mode table in Trends). The second pass is fixed through its
+> duplication block: the three defects (A1–A3) and the two `sendJson`/doc-comment
+> bugs on `fix/second-pass-defects`, and B1–B5 on
+> `refactor/second-pass-duplication`, and its vestigial list on
+> `chore/config-cleanup`. What remains is three judgement-call nits and a CI
+> tidy-up.
+>
+> Two items were dropped deliberately. Tier 3's tag helper for `serve-mock.ts`:
+> the mock's XML literals _are_ the fixture the pipeline tests compare against
+> the real feed, and a helper would hide the shape to save a dozen lines. Tier
+> 4's shared logo artwork: the masthead mark (`components/Logo.tsx`, brand reds,
+> white backdrop, drop shadow) and the icon artwork (`scripts/generate-icons.mjs`,
+> simplified orange silhouette sized for 32px) are two renderings of the same
+> character built for different jobs, so one source would be a redesign of one
+> of them, not a dedupe. Both copies are checked by tests that read the shipped
+> files.
+>
+> File and line references describe the tree as it was audited, so completed
+> entries point at code that has since moved or gone.
+
+The bias is deliberate: **deletion before abstraction**. A copy that is about to
+be deleted does not need unifying, and the cheapest line of code is the one that
+is not there. Every "delete" below was confirmed by counting references
+repo-wide, including `scripts/*.mjs` and excluding `dist/` — a symbol appearing
+exactly once is a declaration nobody reads.
+
+## How this was checked
+
+- **Export sweep.** Every `export` in `packages/**` counted against every other
+  `.ts`/`.tsx`/`.mjs` in the repo. One occurrence = dead. This is mechanical and
+  was re-run against each tier rather than eyeballed.
+- **Call-site tracing.** For each suspected duplication, every call site was
+  read, not just the definitions — which is what separates "same shape" from
+  "same thing" (`lib/history-types.ts` is a re-export, not a copy; the two
+  metrics registries are split on purpose).
+- **Config reality.** `package.json` `exports`, tsconfig `paths`, `vite.config`
+  aliases and `dist/` contents were compared with what `src/` actually contains.
+  Two of the findings below are configs that describe code which no longer
+  exists.
+
+## Tier 1 — Dead code, delete it (~800 lines)
+
+| Item                                             | Location                                                   | Evidence                                                                                                                                                                                          |
+| ------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`seed.ts`** (595 lines)                        | `packages/dashboard/server/seed.ts`                        | Nothing imports `generateSeedData` — no server, test, script or npm script. Four doc references still describe it as a working tool (see §Bugs, item 5).                                          |
+| **30 alias exports + `fullCountResults`**        | `collector/src/synthetic-data.ts:265-331`                  | `landslideAt10Pct` … `tiedAt100Pct` are `fixtures[0.1]` aliases with zero call sites; `fullCountResults` likewise. The `*Fixtures` maps and the test are the real API.                            |
+| **`computeSeatChanceForResult`**                 | `core/src/seat-probability.ts:597`                         | Dead wrapper. `notional-baseline.ts` calls `computeSeatChance` directly, which is the only path the app uses.                                                                                     |
+| **`SPECIAL_SHARE`**, **`CERTAINTY_FLOOR`**       | `core/src/seat-probability.ts:51,128`                      | Never referenced. The floor is derived as `1 - ceiling` (`:545`). `SPECIAL_SHARE` is also a second copy of `CYCLE_CONSTANTS[2023].specialShare`.                                                  |
+| **`ResultPageConfig`**                           | `core/src/types.ts:1`                                      | Unreferenced type from the HTML-scraping era.                                                                                                                                                     |
+| **`useSnapshotMetas`**                           | `dashboard/src/hooks/useVoteHistory.ts:27`                 | Unreferenced hook.                                                                                                                                                                                |
+| **`TimelineSeparator`**                          | `dashboard/src/components/Timeline.tsx:64`                 | Unreferenced component.                                                                                                                                                                           |
+| **`BASELINE_YEARS`**                             | `dashboard/src/lib/seat-chance.ts:37`                      | Unreferenced.                                                                                                                                                                                     |
+| **`core/src/index.ts` barrel + `"main"`**        | `packages/core/src/index.ts` (11 lines)                    | **Zero** imports of `@election-night/core`. All consumers deep-import subpaths (57 × `/types`, 19 × `/seat-probability`, and so on).                                                              |
+| **`"./config"` export + stale `dist/config.*`**  | `packages/core/package.json`                               | `src/config.ts` is gone (it held a single unused `predictionConfidence`), but the compiled file still sits in `dist/` and the export map still points at it. A clean build leaves a broken entry. |
+| **`@/` path alias**                              | `dashboard/tsconfig.json` `paths` + `vite.config.ts` alias | 0 usages of `from '@/…'`; the tree uses relative `.js` imports.                                                                                                                                   |
+| **`sampleDisk` / `DiskSample`**                  | `collector/src/retention.ts:31-35`                         | Pass-through to `sampleDiskUsage` in `metrics.ts`, one caller.                                                                                                                                    |
+| **`getListOpacity` (export only)**               | `dashboard/src/lib/parliament.ts:55`                       | Used only inside its own file — and its 0.2→0.8 curve is the same one `mapFillOpacity` draws for the map.                                                                                         |
+| **`collector/src/fixtures.ts` + 176 KB of JSON** | `packages/collector/src/fixtures/`                         | No file imports the module. Found by re-running the export sweep after the rest of Tier 1 landed.                                                                                                 |
+
+`NIGHT_SHARE_OF_FINAL` and `FINAL_TURNOUT` (`seat-probability.ts:42,45`) are
+**not** dead — `scripts/validate-seat-probability.mjs` reads them — but they are
+a second copy of `CYCLE_CONSTANTS[2023]`. See §Bugs item 4.
+
+## Tier 2 — Collapse real duplication
+
+### 1. Three readers for "a cycle-tagged JSON cache" (~150 lines)
+
+- `collector/src/results.ts:47-73` (`parseCache`, the diff baseline)
+- `dashboard/server/results-cache.ts` (80 lines)
+- `dashboard/server/feed-cache.ts` (100 lines)
+
+All three unpick a bare-array legacy shape, require `{ electionYear, <key> }`,
+compare the year, and then **parse the JSON a second time** to explain why a
+file was skipped (`describeCacheSkip` rebuilds the shape check
+`extractCachedElectorates` just did). One `core/src/tagged-cache.ts` exposing
+`readTagged<T>(raw, { key, expectedYear }) → { value } | { skipReason }` removes
+two files and the double parse. These modules already share their types through
+core; the reader belongs there too.
+
+The cycle tag itself is not negotiable — see the comments in both files about a
+volume outliving an election — so this is a consolidation, not a relaxation.
+
+### 2. Seat-chance plumbing, four times plus one
+
+The identical `nationalSwingOf → seatChanceFor → normalizeElectorateName` map
+block appears in `pages/Seats.tsx:336-352`, `pages/Electorates.tsx:59-76`,
+`pages/CloseCalls.tsx:33-49` and `pages/Flipped.tsx:55-71`. Extract
+`useSeatChances(electorates, electionYear)`; the comment in `Seats.tsx` already
+argues why the number must come from one call ("a row's number and the seat
+page's number come from the same call"), and four independent copies is how that
+promise breaks.
+
+Related: `dashboard/server/index.ts:68` defines its own `chanceLookupFor` with
+the same name and same job as `core/src/notional-baseline.ts:173`, which the
+collector uses. The server cannot reach the core one because `lib/seat-chance.ts`
+keeps `BASELINES` private. Expose `baselineFor(year)` (or a `chanceLookup`), and
+delete the server copy — then the seat model has one entry point again instead
+of one per process.
+
+### 3. Two hand-rolled concurrency limiters, with `p-limit` already a dependency
+
+`core/src/election-results-service.ts:120-137` and
+`collector/src/voting-place-status.ts:99-118` are the same worker pool, while
+`scrape-cycle.ts` uses `pLimit`. Pick one.
+
+### 4. Other same-thing-twice, each small
+
+| Duplication                                                                        | Where                                                                                                                 |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `toElectorateResults` vs the inline 6-field projection of the same fields          | `election-results-service.ts:104` vs `scrape-cycle.ts:146-153`                                                        |
+| The `XMLParser` options object                                                     | `core/src/sources/nz-election-xml.ts:149`, `core/src/voting-places.ts:114`, `collector/src/voting-place-status.ts:68` |
+| `toArray`                                                                          | named in two of those files, inlined a third time at `voting-place-status.ts:330`                                     |
+| `formatClockTime` is `formatClock`                                                 | `lib/feed.ts:16` vs `lib/chart-format.ts:47`                                                                          |
+| `const votes = … toLocaleString()` is `formatVotes`                                | `ElectorateStats.tsx:23` vs `lib/chart-format.ts:32`                                                                  |
+| `parseTimestamp` / `parseDate` (the SQLite naive-UTC `+ 'Z'` hack)                 | `Trends.tsx:46` and `VoteHistoryChart.tsx:45`                                                                         |
+| `isDarkColor` + the dark-line `strokeWidth` + `drop-shadow` block (~35 lines each) | `Trends.tsx:75,390-410` and `VoteHistoryChart.tsx:54,337-359`                                                         |
+| Startup prune → compact → describe → log vs `retentionSweep()` (~45 lines)         | `collector/src/index.ts:300-345` and `:259-284`                                                                       |
+| `chanceLookupFor(...)` computed twice with identical arguments                     | `collector/src/index.ts:203` and `:223`                                                                               |
+| `SIGINT`/`SIGTERM` handler pairs                                                   | `collector/src/index.ts:373,380`, `dashboard/server/index.ts:305,310`                                                 |
+
+The XML parser options are worth doing for a specific reason: the
+`htmlEntities: true` flag exists because the live feed writes `O&#39;CONNOR`
+where the archives write `O&apos;CONNOR`, and that bug reached the tables, map
+labels and legends. Three copies of the options object is three chances to miss
+it next time.
+
+## Tier 3 — Structure that costs more than it earns
+
+**1. `core/package.json` exports: 55 hand-maintained lines.** Thirteen entries
+mirror `src/` one-for-one, so adding a module means editing a second list by
+hand — and a missed entry is a runtime resolution failure, not a type error.
+The `./config` entry is that bug already. Replace with `"./*":
+"./dist/*.js"` plus the two genuinely irregular entries (`"./sources"` for the
+nested index, `"./data/*"`), ~78 lines → ~30.
+
+**2. `core/src/notional-baseline.ts` scans every seat, twice, per lookup.**
+`priorForSeat` and `enrolmentForSeat` each normalise every seat name and walk
+`Object.entries(baseline.seats)`; `seatChanceFor` calls both. On a 71-seat
+payload that is roughly 10k normalisations per payload for what should be a map
+lookup. Build the normalised index once (keyed off the baseline object) and the
+two functions collapse into one.
+
+**3. `lib/seat-chance.ts` is 173 lines of one-line pass-throughs**
+(`priorForSeat`, `tauFor`, `nationalSwingOf`, `enrolmentForSeat`,
+`seatChanceFor`), each existing only to inject `BASELINES`. Exposing the
+baseline removes ~60 lines and the "which wrapper do I call" ambiguity. What is
+left is genuinely dashboard-specific: `countProgress`, `mapFillOpacity`,
+`formatUpdatedAgo`.
+
+**4. `static.ts` serves four unrelated things** — `/health`, `/ready`,
+`/metrics` (including the loopback merge) and the Vite bundle. `ready-check.ts`
+is a module whose entire content is `ready = historyReachable` plus building a
+`checks` object. Either rename the module to `http-handlers.ts` and inline
+`evaluateReady`, or keep both and stop growing it.
+
+**5. `buildConfigs()` sorts by regexing the URL it just generated**
+(`nz-election-xml.ts:246-252`), though `eNo` is in hand. Trivial, but the regex
+is the kind of thing that quietly stops matching.
+
+**6. `serve-mock.ts` (864 lines)** repeats its XML templating. It is dev
+tooling, so only the cheap half is worth it (a `tag(name, body)` helper); the
+rest is fixture data that should stay literal.
+
+## Tier 4 — The design system is hand-cut at the call sites
+
+`design.md` and `styles/index.css` are in good shape, but the _markup_ that
+wears the tokens is copy-pasted, which is how a token drifts.
+
+| Pattern                            | Sites                                                                                                                                                                                                                                                                  | Proposal                                                                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Party colour swatch                | **16**: `Seats.tsx:250,259`, `Parties.tsx:86,147`, `Trends.tsx:339`, `ParliamentTable.tsx:93,155`, `ElectorateRacesView.tsx:117,130`, `ElectorateResultsTable.tsx:74,88`, `ListCutLinesView.tsx:80,111`, `PastWinners.tsx:64`, `SortableRow.tsx:42`, `Flipped.tsx:364` | `<PartyDot size="sm" \| "md" />`. `Flipped.tsx:360` **already defines one**; export it and delete fifteen copies.              |
+| Empty state + page head            | 6 pages × 2 blocks: `Parties.tsx:55/65`, `Feed.tsx:197/207`, `Flipped.tsx:138/152`, `Seats.tsx:355`, `Electorates.tsx:135/145`, `CloseCalls.tsx:106/117`, `Trends.tsx:248/265`                                                                                         | `<Page title>` rendering `pagehead` + `WaitingState`. Also removes the drift where a page's title lives in two places.         |
+| Segmented mode control             | `Trends.tsx:285-345` (4 × 15 lines), `VoteHistoryChart.tsx:250-290` (4), `ElectorateDetail.tsx:52-80` (2)                                                                                                                                                              | `components/Toggle.tsx` already does exactly this and is used by `MapControls` and `CloseCalls`. ~130 lines → ~10.             |
+| Mode → prefix/label/tick formatter | nested ternaries at `Trends.tsx:236,325,383` and `VoteHistoryChart.tsx:230,330`                                                                                                                                                                                        | One `CHART_MODES` table; the two chart bodies then differ only in height and label.                                            |
+| Logo artwork                       | `components/Logo.tsx` (React SVG, viewBox `-44 -10 208 160`) and `scripts/generate-icons.mjs:55-70` (a re-scaled hand copy)                                                                                                                                            | Move to `src/assets/logo.svg` and have both consume it. The squashed-mascot splash came from exactly this kind of second copy. |
+
+## Bugs and inconsistencies found on the way
+
+All five are closed; they are kept as a record of the kind of defect a reading
+pass trips over that a mechanical one does not:
+
+1. `routes.ts` had no label for `/api/history/voting-places/:name`, so every
+   seat a visitor opened landed in the `/api/other` series.
+2. The two `sendJson` helpers took `(res, status, body)` and
+   `(res, body, status = 200)`; the collector's now matches the server's.
+3. `priorShareFor`'s doc block was stranded above `canonicalParty`, which had
+   one of its own; `lib/seat-chance.ts` carried a second stray block.
+4. The seat-probability harness imported the 2023 constants instead of
+   `cycleConstantsFor(year)` — and read its baseline from a directory that no
+   longer existed, so it could not run at all.
+5. Three docs described the deleted `seed.ts` as a working tool.
+
+## Second pass (after Tiers 1–4)
+
+The tree was re-scanned mechanically rather than by reading: 10-line and 7-line
+clone windows over every non-test file, a sweep for local symbols referenced
+once, and targeted checks of the seams the refactors had moved.
+
+### Fixed
+
+| Defect                      | Was                                                                                                                                                       | Now                                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **A1** harness inputs       | read the baseline from `packages/dashboard/src/data/` (gone since the baselines moved), cached nothing any script writes, and imported the 2023 constants | `packages/core/data/`, the builder's `.cache/notional-<year>-files-v2.json`, `cycleConstantsFor(year)`; both reads say what is missing |
+| **A2** dead route           | `/api/history/snapshots` proxied on the dashboard, with no client since `useSnapshotMetas` was deleted in Tier 1                                          | removed (the collector's route still answers the readiness probe)                                                                      |
+| **A3** two feed type tables | `pages/Feed.tsx` and `components/FeedSidebar.tsx` each mapped the four event types, and disagreed: `count_completed` was "Count Complete" and "Complete"  | one `FEED_EVENT_STYLE` behind `feedEventStyle()`; `TimelineItem` takes dot classes, so both dots come from one entry                   |
+
+### Fixed — duplication
+
+| Item                                     | Was                                                                                                                        | Now                                                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **B1** party-list table twice            | the chip row, header, cut line and electorate-winner row in `ListCutLinesView.tsx` and `Parties.tsx`, ~90 lines each       | `PartyListCard` + `PartyFilterChips`; the two pages are 75 and 104 lines                                         |
+| **B2** header typography, 28 times       | six classes written out at every `<th>` in six tables, plus Flipped's local `Th`                                           | `TH_CLASS` and `Th` in `components/Table.tsx`; the compact tables compose the constant                           |
+| **B3** 29 row-type aliases, 20 files     | three payload rows recomposed under local names (`Results`, `PartyVoteSummary`, `PartyEntry`, …)                           | `ElectorateResult`/`PartyVoteResult`/`PartyListResult` exported from `core/types.ts`; `ResultsPayload` uses them |
+| **B4** two identical result types        | `RawElectorateResults` was a field-for-field copy of `ElectorateResults`, so `toElectorateResults` was a key-order shuffle | one shape under the source contract's name; the projection is gone                                               |
+| **B5** `/api/config` fetched three times | `Layout` and `Electorates` each ran `usePollsClose`, and `useSeatChances` fetched it too, with no dedupe                   | `useRuntimeConfig` shares one in-flight request                                                                  |
+
+### Fixed — vestigial
+
+| Item                                     | Was                                                                                                                                                                                                                                          | Now                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **C2** config for a tool that isn't here | `components.json` configured the shadcn CLI for a `components/ui` directory that exists in no commit, via the `@/` alias Tier 3 deleted; `eslint.config.js` ignored that directory too                                                       | both removed                                                     |
+| **C3** runtime deps filed as tooling     | `clsx` and `tailwind-merge` were devDependencies while `lib/utils.ts` imports them at runtime and Vite bundles them                                                                                                                          | moved to `dependencies`; the build no longer depends on dev deps |
+| **C3b** an unused Tailwind plugin        | `tailwindcss-animate` was the only registered plugin and supplied no utility the app uses (no `animate-in`/`animate-out` in the built stylesheet). It also made npm hoist `tailwindcss@4.3.3` to the repo root alongside the dashboard's 3.x | removed; the root copy of Tailwind 4 is gone                     |
+
+### Open — nits
+
+Two relative-time formatters (`formatUpdatedAgo`, `relativeTime`); cache-file
+I/O boilerplate repeated in `server/index.ts`, `server/feed.ts` and
+`collector/results.ts`; `/ready` fetches every snapshot row to test liveness;
+two CI workflows repeat the same checkout/setup block.
+
+The other two are done: the offline scripts share `scripts/lib/args.mjs` (which
+also fixed `--year 2020` being silently ignored by the validation harness), and
+`npm run typecheck` no longer builds core before `tsc -b` builds it.
+
+## What this audit deliberately left alone
+
+- **The two metrics registries.** They are split so no series has two sources;
+  the apparent duplication is the design (`docs/observability.md`).
+- **The `MetricEvent` payload.** The dashboard server's own handler ignores it,
+  but an external monitoring process consumes the events, so the union and the
+  `emit*` return values stay. (The server neither uses nor re-broadcasts them —
+  worth knowing if the consumer is ever moved.)
+- **`lib/history-types.ts`.** A re-export of the core contract, not a copy.
+- **`feed-events.ts renderCopy`.** Long, branchy, and correctly so: it is
+  editorial copy under a rule ("the number is the claim, no verdict adjective"),
+  not logic that can be table-driven.
+- **The `seat-probability` model itself.** The constants, pooling weight and
+  clamping all carry measured justifications; there is no shorter correct form.
+- **`docs/mockups/`.** Captures of the running app, not hand-drawn proposals.
+
+## What is left
+
+The D list: three judgement calls (whether `formatUpdatedAgo` and `relativeTime`
+should become one function with a register flag; whether the cache-file I/O
+boilerplate is worth a helper per process; whether `/ready` should test liveness
+with the `/health` probe it already makes instead of a snapshot query) and one
+CI tidy-up that would want a workflow run to validate.
+
+Everything else in this document has been applied.
+
+Verification has not changed:
+
+```bash
+npm run lint && npm run typecheck && npm test
+```
+
+One suggestion from the first pass still stands: `knip` as a dev dependency in
+`checks.yml`. The two passes found roughly fifty dead exports by hand; a static
+tool would have named each one on the day it became dead, and re-runs for free.

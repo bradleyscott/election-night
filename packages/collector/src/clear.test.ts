@@ -3,12 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import Database from 'better-sqlite3';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
-
-type Results = ElectorateResults & WithLeaders;
+import type { ElectorateResult } from '@election-night/core/types';
 
 vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -36,7 +31,7 @@ afterEach(() => {
 });
 
 /** One electorate snapshot, so the clear has real rows to remove. */
-const sampleResults: Results[] = [
+const sampleResults: ElectorateResult[] = [
   {
     electorateName: 'Test Electorate',
     partyVotes: [{ candidate: 'National Party', votes: 5000 }],

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,7 +15,6 @@ import {
   partyColor,
 } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
-import { WaitingState } from '../components/WaitingState.js';
 import {
   AXIS_STROKE,
   AXIS_TICK,
@@ -27,25 +25,50 @@ import {
   formatPercentAxis,
   formatTooltipStamp,
   formatVoteAxis,
+  parseDbTimestamp,
   timeTicks,
 } from '../lib/chart-format.js';
 import { CountedTape } from '../components/CountedTape.js';
+import { PartyLine } from '../components/PartyLine.js';
 import type { TapePoint } from '../components/CountedTape.js';
+import { PartyDot } from '../components/PartyDot.js';
+import { PageHead, PageWaiting } from '../components/Page.js';
+import { Toggle } from '../components/Toggle.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
 
-function formatDate(startedAt: string): string {
-  const d = new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
-  return d.toLocaleTimeString('en-NZ', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
+/** The four chart modes, in the order the toggle offers them. */
+const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'votes', label: '# Votes' },
+  { value: 'percent', label: '% of Vote' },
+  { value: 'seats', label: '# Seats' },
+  { value: 'counted', label: 'Counted' },
+];
 
-function parseTimestamp(startedAt: string): number {
-  return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z')).getTime();
-}
+/** One sentence per mode, so the copy cannot drift from the control. */
+const MODE_DESCRIPTION: Record<Mode, string> = {
+  votes: 'Party vote totals over time.',
+  percent: 'Party vote share over time.',
+  seats: 'Party seat totals over time.',
+  counted: 'Vote count progress over time.',
+};
+
+/**
+ * Row field per mode. The rows are pre-aggregated under these keys in
+ * `chartData`, so the mode is a key prefix rather than a second pass.
+ */
+const MODE_KEY: Record<Mode, string> = {
+  votes: 'party:Votes:',
+  percent: 'party:Pct:',
+  seats: 'party:Seats:',
+  counted: '',
+};
+
+const MODE_TICK: Record<Exclude<Mode, 'counted'>, (value: number) => string> = {
+  votes: formatVoteAxis,
+  percent: formatPercentAxis,
+  seats: (value) => value.toLocaleString(),
+};
 
 function PartyLegend({
   payload,
@@ -58,10 +81,7 @@ function PartyLegend({
       {payload.map((entry) => {
         return (
           <div key={entry.value} className="flex items-center gap-1.5">
-            <div
-              className="w-2.5 h-2.5 shrink-0 ring-1 ring-foreground/20"
-              style={{ backgroundColor: entry.color }}
-            />
+            <PartyDot color={entry.color} size="md" />
             <span className="font-label text-xs font-semibold text-foreground">
               {entry.value}
             </span>
@@ -70,14 +90,6 @@ function PartyLegend({
       })}
     </div>
   );
-}
-
-function isDarkColor(hex: string): boolean {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.35;
 }
 
 function PartyTooltip({
@@ -112,10 +124,7 @@ function PartyTooltip({
           className="flex items-center justify-between gap-3 py-0.5"
         >
           <div className="flex items-center gap-1.5 min-w-0">
-            <div
-              className="w-2 h-2 shrink-0 ring-1 ring-foreground/20"
-              style={{ backgroundColor: entry.color }}
-            />
+            <PartyDot color={entry.color} />
             <span className="font-semibold truncate">{entry.name}</span>
           </div>
           <span className="tabular-nums font-bold text-right shrink-0">
@@ -178,8 +187,7 @@ export default function Trends() {
     return data.map((point) => {
       const total = point.parties.reduce((s, p) => s + p.votes, 0);
       const row: Record<string, number | string> = {
-        time: formatDate(point.startedAt),
-        timestamp: parseTimestamp(point.startedAt),
+        timestamp: parseDbTimestamp(point.startedAt),
       };
       for (const p of point.parties) {
         // A renamed party keeps its rows under the current name, so a series
@@ -200,7 +208,7 @@ export default function Trends() {
   // than places, so this tape has no rug.
   const countedPoints = useMemo<TapePoint[]>(() => {
     return (data ?? []).map((point) => ({
-      t: parseTimestamp(point.startedAt),
+      t: parseDbTimestamp(point.startedAt),
       value: point.votePctCounted * 100,
       sub:
         point.votesCounted > 0
@@ -244,81 +252,24 @@ export default function Trends() {
 
   if (!hasData) {
     return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Trends</h1>
-        </div>
-        <WaitingState context="trends" title="Waiting for more results" />
-      </div>
+      <PageWaiting
+        title="Trends"
+        context="trends"
+        waitingTitle="Waiting for more results"
+      />
     );
   }
 
-  const dataKeyPrefix =
-    mode === 'votes'
-      ? 'party:Votes:'
-      : mode === 'seats'
-        ? 'party:Seats:'
-        : 'party:Pct:';
-
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="pagehead">
-        <h1>Trends</h1>
-      </div>
+      <PageHead title="Trends" />
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground font-semibold">
-          {mode === 'counted'
-            ? 'Vote count progress over time.'
-            : `Party ${mode === 'seats' ? 'seat totals' : mode === 'percent' ? 'vote share' : 'vote totals'} over time.`}
+          {MODE_DESCRIPTION[mode]}
         </p>
 
-        <div className="flex flex-wrap border border-border">
-          <button
-            onClick={() => setMode('votes')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'votes'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            # Votes
-          </button>
-          <button
-            onClick={() => setMode('percent')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'percent'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            % of Vote
-          </button>
-          <button
-            onClick={() => setMode('seats')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'seats'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            # Seats
-          </button>
-          <button
-            onClick={() => setMode('counted')}
-            className={cn(
-              'px-3 py-1.5 font-label text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              mode === 'counted'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            Counted
-          </button>
-        </div>
+        <Toggle options={MODE_OPTIONS} value={mode} onChange={setMode} />
       </div>
 
       {mode !== 'counted' && (
@@ -334,10 +285,7 @@ export default function Trends() {
                   : 'hover:bg-muted/40'
               )}
             >
-              <span
-                className="inline-block w-2 h-2 ring-1 ring-foreground/25 shrink-0"
-                style={{ backgroundColor: partyColor(party) }}
-              />
+              <PartyDot color={partyColor(party)} />
               {party}
             </button>
           ))}
@@ -377,40 +325,18 @@ export default function Trends() {
                 stroke={AXIS_STROKE}
                 tickLine={false}
                 domain={['auto', 'auto']}
-                tickFormatter={
-                  mode === 'votes'
-                    ? formatVoteAxis
-                    : mode === 'seats'
-                      ? (v: number) => v.toLocaleString()
-                      : formatPercentAxis
-                }
+                tickFormatter={MODE_TICK[mode]}
               />
               <Tooltip content={<PartyTooltip mode={mode} />} />
               <Legend content={<PartyLegend />} />
-              {visibleParties.map((party) => {
-                const color = partyColor(party);
-                const dark = isDarkColor(color);
-                return (
-                  <Line
-                    key={party}
-                    type="monotone"
-                    dataKey={`${dataKeyPrefix}${party}`}
-                    name={party}
-                    stroke={color}
-                    strokeWidth={dark ? 3 : 2}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                    style={
-                      dark
-                        ? {
-                            filter:
-                              'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
+              {visibleParties.map((party) => (
+                <PartyLine
+                  key={party}
+                  dataKey={`${MODE_KEY[mode]}${party}`}
+                  name={party}
+                  color={partyColor(party)}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}

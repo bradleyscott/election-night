@@ -2,38 +2,12 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useFeed } from '../hooks/useFeed.js';
 import { cn } from '../lib/utils.js';
-import { relativeTime } from '../lib/feed.js';
+import { feedEventStyle, relativeTime } from '../lib/feed.js';
 import { WaitingState } from './WaitingState.js';
 import type { FeedEvent } from '@election-night/core/types';
 
-const TYPE_CONFIG: Record<
-  string,
-  { label: string; dotClass: string; ringClass: string }
-> = {
-  result_updated: {
-    label: 'Updated',
-    dotClass: 'bg-blue-700 dark:bg-blue-400',
-    ringClass: 'ring-blue-700/20 dark:ring-blue-400/25',
-  },
-  prediction_called: {
-    label: 'Prediction',
-    dotClass: 'bg-green-700 dark:bg-green-400',
-    ringClass: 'ring-green-700/20 dark:ring-green-400/25',
-  },
-  leader_change: {
-    label: 'Leader Change',
-    dotClass: 'bg-amber-600 dark:bg-amber-400',
-    ringClass: 'ring-amber-600/25 dark:ring-amber-400/30',
-  },
-  count_completed: {
-    label: 'Complete',
-    dotClass: 'bg-green-700 dark:bg-green-400',
-    ringClass: 'ring-green-700/20 dark:ring-green-400/25',
-  },
-};
-
 function SidebarEvent({ event }: { event: FeedEvent }) {
-  const config = TYPE_CONFIG[event.type] ?? TYPE_CONFIG.result_updated;
+  const style = feedEventStyle(event.type);
   const d = event.diff;
 
   return (
@@ -41,8 +15,8 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
       <div
         className={cn(
           'w-2 h-2 rounded-full ring-[2px] mt-1.5 shrink-0',
-          config.dotClass,
-          config.ringClass
+          style.dot,
+          style.ring
         )}
       />
       <div className="min-w-0 flex-1">
@@ -54,7 +28,7 @@ function SidebarEvent({ event }: { event: FeedEvent }) {
             {event.electorateName}
           </Link>
           <span className="chip-print chip-print--ink leading-none">
-            {config.label}
+            {style.label}
           </span>
         </div>
         {event.commentary && (

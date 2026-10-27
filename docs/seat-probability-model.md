@@ -179,8 +179,9 @@ p(win)   = Φ(mean / sd)
 - `remaining × τ` is the possibility that the missing votes are not like the
   counted ones — the real reason a 60% count is not decisive.
 
-The reported percentage is `Φ(mean/sd)`, clamped to the interval
-`[CERTAINTY_FLOOR, CERTAINTY_CEILING]` (1%–99%) and rounded to a whole number on
+The reported percentage is `Φ(mean/sd)`, clamped to `[1 − ceiling, ceiling]` —
+1%–99% for a seat with a name-matched prior, and 5%–95% when the prior is only
+party-level (`PROVISIONAL_CEILING`) — and rounded to a whole number on
 the page. The clamp is deliberate: a normal tail reaches 99.99% and would round
 to 100%, which reads as a call the count has not made — and a seat reported at
 100% that later changes hands discredits every other number beside it.
@@ -269,7 +270,10 @@ seat from the archived per-voting-place results, releasing votes cast away from
 home first (those are advance votes by construction — nobody can vote at another
 electorate's booth on election day) and then the seat's own places. It
 recomputes the national swing at every checkpoint across the seats, the way the
-live pipeline does, and scores 374 checkpoints from 27 seats.
+live pipeline does, and scores 374 checkpoints from 27 seats. It reads the
+archive cache that `scripts/build-notional-baseline.mjs` writes
+(`.cache/notional-<year>-files-v2.json`, override with `--cache=<path>`), so the
+seat count is whatever that run fetched — the table below used a 27-seat cache.
 
 | composition             | Brier      | early  | late       | mean p on flips | ≥95% calls | of those wrong |
 | ----------------------- | ---------- | ------ | ---------- | --------------- | ---------- | -------------- |

@@ -2,20 +2,18 @@ import { useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { partyColor } from '../lib/constants.js';
-import {
-  countProgress,
-  nationalSwingOf,
-  seatChanceFor,
-} from '../lib/seat-chance.js';
+import { countProgress } from '../lib/seat-chance.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
-import { useApi } from '../hooks/useApi.js';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
+import { useSeatChances } from '../hooks/useSeatChances.js';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
+import { PartyDot } from '../components/PartyDot.js';
+import { PageHead } from '../components/Page.js';
+import { Th, TH_CLASS } from '../components/Table.js';
 
 function AnimatedStat({
   label,
@@ -208,24 +206,31 @@ function SuccessfulCandidates({
           <thead>
             <tr className="border-b border-border">
               <th
-                className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className={cn(
+                  TH_CLASS,
+                  'text-left py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
+                )}
                 onClick={() => toggleSort('name')}
               >
                 Candidate
                 <SortIndicator column="name" />
               </th>
               <th
-                className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className={cn(
+                  TH_CLASS,
+                  'hidden sm:table-cell text-left py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
+                )}
                 onClick={() => toggleSort('party')}
               >
                 Party
                 <SortIndicator column="party" />
               </th>
-              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Seat
-              </th>
+              <Th>Seat</Th>
               <th
-                className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className={cn(
+                  TH_CLASS,
+                  'hidden sm:table-cell text-right py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
+                )}
                 onClick={() => toggleSort('certainty')}
               >
                 Certainty
@@ -245,19 +250,16 @@ function SuccessfulCandidates({
               >
                 <td className="py-2 sm:py-3 px-3 font-medium">
                   <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-2 h-2 flex-shrink-0 sm:hidden"
-                      style={{ backgroundColor: partyColor(c.party) }}
+                    <PartyDot
+                      color={partyColor(c.party)}
+                      className="sm:hidden"
                     />
                     {c.name}
                   </div>
                 </td>
                 <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
                   <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-2 h-2 flex-shrink-0"
-                      style={{ backgroundColor: partyColor(c.party) }}
-                    />
+                    <PartyDot color={partyColor(c.party)} />
                     <span>{c.party || 'Independent'}</span>
                   </div>
                 </td>
@@ -311,7 +313,6 @@ function SuccessfulCandidates({
 
 export default function Seats() {
   const { results } = useResults();
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
 
   const partyVote = results?.partyVote;
   const sorted = partyVote
@@ -321,40 +322,21 @@ export default function Seats() {
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 
   const electorateResults = results?.electorateResults ?? [];
+  // The chance of winning each seat, computed once for the whole table so a
+  // row's number and the seat page's number come from the same call.
+  const { electionYear, chances } = useSeatChances(electorateResults);
+
   // Counted votes and how far through the night that is. The denominator is
   // the votes these seats are expected to receive tonight, not the share of
   // voting places that have reported — places do not hold equal numbers of
   // votes, and advance votes land in blocks after 7pm.
-  const progress = countProgress(
-    electorateResults,
-    config?.electionYear ?? null
-  );
+  const progress = countProgress(electorateResults, electionYear);
   const overallVotePercentage =
     progress.fraction !== null ? progress.fraction * 100 : null;
 
-  // The chance of winning each seat, computed once for the whole table so a
-  // row's number and the seat page's number come from the same call.
-  const electionYear = config?.electionYear ?? null;
-  const nationalSwing = useMemo(
-    () => nationalSwingOf(electorateResults, electionYear),
-    [electorateResults, electionYear]
-  );
-  const chances = useMemo(() => {
-    const map = new Map<string, SeatChance>();
-    for (const result of electorateResults) {
-      map.set(
-        normalizeElectorateName(result.electorateName),
-        seatChanceFor(result, electionYear, nationalSwing)
-      );
-    }
-    return map;
-  }, [electorateResults, electionYear, nationalSwing]);
-
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="pagehead">
-        <h1>Seats</h1>
-      </div>
+      <PageHead title="Seats" />
 
       {!results ? (
         <WaitingState variant="full" context="default" />

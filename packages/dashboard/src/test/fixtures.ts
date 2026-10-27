@@ -1,15 +1,12 @@
 import type {
-  ElectorateResults,
   FeedEvent,
   PartyList,
   ResultsPayload,
   VotingResults,
   WithAdjustedRank,
-  WithLeaders,
   WithSeats,
+  ElectorateResult,
 } from '@election-night/core/types';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 export const mockElectorateResult: ElectorateResult = {
   electorateName: 'Auckland Central',

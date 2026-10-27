@@ -5,13 +5,10 @@ import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import { Pagination } from './Pagination.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
+import { PartyDot } from './PartyDot.js';
+import { Th } from './Table.js';
 
 const PAGE_SIZE = 10;
 
@@ -56,24 +53,18 @@ export function ElectorateRacesView({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Electorate
-              </th>
-              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Leading
-              </th>
-              <th className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Second
-              </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+              <Th>Electorate</Th>
+              <Th>Leading</Th>
+              <Th className="hidden sm:table-cell">Second</Th>
+              <Th align="right" className="px-3">
                 Lead (votes)
-              </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+              </Th>
+              <Th align="right" className="px-3">
                 Lead %
-              </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+              </Th>
+              <Th align="right" className="px-3">
                 Win %
-              </th>
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -111,12 +102,7 @@ export function ElectorateRacesView({
                   </td>
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                        style={{
-                          backgroundColor: partyColor(l.leadingCandidateParty),
-                        }}
-                      />
+                      <PartyDot color={partyColor(l.leadingCandidateParty)} />
                       <span className="font-semibold">
                         {l.leadingCandidate}
                       </span>
@@ -124,12 +110,7 @@ export function ElectorateRacesView({
                   </td>
                   <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                        style={{
-                          backgroundColor: partyColor(l.secondCandidateParty),
-                        }}
-                      />
+                      <PartyDot color={partyColor(l.secondCandidateParty)} />
                       <span className="text-muted-foreground">
                         {l.secondCandidate}
                       </span>

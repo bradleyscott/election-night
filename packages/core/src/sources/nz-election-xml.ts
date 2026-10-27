@@ -1,4 +1,3 @@
-import { XMLParser } from 'fast-xml-parser';
 import type {
   ElectorateConfig,
   ElectionSource,
@@ -9,6 +8,7 @@ import type {
   VotingResults,
   WithParty,
 } from '../types.js';
+import { toArray, xmlParser } from '../xml.js';
 
 const DEFAULT_YEAR = '2023';
 
@@ -71,12 +71,6 @@ type XmlPartyStatus = {
   total_seats: string;
 };
 
-/** fast-xml-parser returns a single object instead of an array for one child. */
-function toArray<T>(value: unknown): T[] {
-  if (Array.isArray(value)) return value as T[];
-  return value ? [value as T] : [];
-}
-
 function withTrailingSlash(url: string): string {
   return url.endsWith('/') ? url : `${url}/`;
 }
@@ -124,7 +118,6 @@ export class NzElectionXmlSource implements ElectionSource {
   private baseUrl: string;
   private fetchHtml: (url: string) => Promise<string>;
   private verbose: boolean;
-  private parser: XMLParser;
 
   private candidateMap = new Map<string, XmlCandidate>();
   private partyMap = new Map<string, XmlParty>();
@@ -137,23 +130,6 @@ export class NzElectionXmlSource implements ElectionSource {
     this.baseUrl = buildBaseUrl(options);
     this.fetchHtml = options.fetch ?? makeFetch(options.timeoutMs ?? 30_000);
     this.verbose = options.verbose ?? false;
-    // Keep every value as a string: numeric IDs (`party`, `electorate`,
-    // `list_no`, `p_no`, `c_no`) must not be coerced to numbers or the
-    // string-keyed lookups below will miss. Votes are converted explicitly.
-    //
-    // `htmlEntities` decodes numeric character references, which the live feed
-    // uses for apostrophes (`O&#39;CONNOR, Simon`) where the 2017 and 2020
-    // archives use the named form (`O&apos;CONNOR`). Without it the parser
-    // leaves the reference intact and the name reaches the dashboard — table,
-    // map label and chart legend — rendered literally as "O&#39;CONNOR".
-    this.parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '',
-      parseTagValue: false,
-      parseAttributeValue: false,
-      trimValues: true,
-      htmlEntities: true,
-    });
   }
 
   getName(): string {
@@ -214,7 +190,7 @@ export class NzElectionXmlSource implements ElectionSource {
     const url = `${this.baseUrl}${path}`;
     this.debug(`Loading ${url}`);
     const xml = await this.fetchHtml(url);
-    return this.parser.parse(xml);
+    return xmlParser.parse(xml);
   }
 
   private buildCandidateMap(parsed: unknown): void {
@@ -239,22 +215,22 @@ export class NzElectionXmlSource implements ElectionSource {
   }
 
   private buildConfigs(): void {
-    const configs: ElectorateConfig[] = [];
-    for (const [eNo, electorate] of this.electorateMap) {
-      const index = Number(eNo);
+    // Ordered by the feed's own numbering — general electorates first, then
+    // Māori, which is the order `electorates.xml` is written in. Recovering the
+    // number by re-parsing the URL we just built was both indirect and fragile.
+    const numbered = [...this.electorateMap].map(([eNo, electorate]) => ({
+      index: Number(eNo),
+      electorate,
+    }));
+    numbered.sort((a, b) => a.index - b.index);
+
+    this.configs = numbered.map(({ index, electorate }) => {
       const padded = String(index).padStart(2, '0');
-      configs.push({
+      return {
         electorateName: electorate.electorate_name,
         url: `${this.baseUrl}e${padded}/e${padded}.xml`,
-      });
-    }
-    // Sort by electorate number so the order is deterministic.
-    configs.sort((a, b) => {
-      const indexA = Number(a.url.match(/e(\d+)\/e\d+\.xml$/)?.[1] ?? 0);
-      const indexB = Number(b.url.match(/e(\d+)\/e\d+\.xml$/)?.[1] ?? 0);
-      return indexA - indexB;
+      };
     });
-    this.configs = configs;
   }
 
   private buildPartyList(): void {
@@ -329,7 +305,7 @@ export class NzElectionXmlSource implements ElectionSource {
     xml: string,
     electorateName: string
   ): RawElectorateResults {
-    const parsed = this.parser.parse(xml) as {
+    const parsed = xmlParser.parse(xml) as {
       electorate?: {
         statistics?: {
           total_votes_cast?: string;

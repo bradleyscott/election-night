@@ -4,10 +4,7 @@ import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import type { ElectorateResult } from '@election-night/core/types';
 import { createHistoryHandler } from './history-server.js';
 import type { ElectionResultsService } from '@election-night/core/election-results-service';
 import type { PriorWinnersResponse } from '@election-night/core/history';
@@ -16,12 +13,10 @@ vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-type Results = ElectorateResults & WithLeaders;
-
 function makeResult(
   votes: number,
   electorateName = 'Test Electorate'
-): Results {
+): ElectorateResult {
   return {
     electorateName,
     partyVotes: [

@@ -3,7 +3,6 @@ import type {
   ElectorateHistoryPoint,
   PartyVoteHistoryPoint,
   PriorWinnersResponse,
-  SnapshotMeta,
 } from '../lib/history-types.js';
 
 const API_BASE = '/api/history';
@@ -22,10 +21,6 @@ export function usePartyVoteHistory() {
     `${API_BASE}/party-votes`
   );
   return { data, loading, error, refetch };
-}
-
-export function useSnapshotMetas() {
-  return useApi<SnapshotMeta[]>(`${API_BASE}/snapshots`).data;
 }
 
 /**

@@ -18,9 +18,7 @@
 
 import type {
   ElectorateConfig,
-  ElectorateResults,
   ElectionSource,
-  RawElectorateResults,
   ResultsPayload,
 } from './types.js';
 import type {
@@ -30,6 +28,7 @@ import type {
   ResultsForYear,
 } from './history.js';
 import { buildResultsPayload } from './reducers.js';
+import { mapWithConcurrency } from './concurrency.js';
 import { NzElectionXmlSource } from './sources/nz-election-xml.js';
 import { normalizeElectorateName } from './electorate-names.js';
 import { resolvePriorElectorateName } from './electorate-successions.js';
@@ -94,49 +93,12 @@ export function defaultPriorYears(currentYear: string): string[] {
   return years;
 }
 
-function toElectorateResults(raw: RawElectorateResults): ElectorateResults {
-  return {
-    electorateName: raw.electorateName,
-    partyVotes: raw.partyVotes,
-    candidateVotes: raw.candidateVotes,
-    votesCounted: raw.votesCounted,
-    votePercentageCounted: raw.votePercentageCounted,
-    percentVotesCast: raw.percentVotesCast,
-  };
-}
-
 const DEFAULT_UNAVAILABLE_RETRY_MS = 5 * 60_000;
 
 const sleep = (ms: number) =>
   ms > 0
     ? new Promise((resolve) => setTimeout(resolve, ms))
     : Promise.resolve();
-
-/**
- * Run `fn` over `items` with a fixed number of workers. Rejects on the first
- * failure — a partially fetched cycle is not a year we are willing to call
- * final, so the caller retries the whole year later instead.
- */
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-  const workers = Array.from(
-    { length: Math.max(1, Math.min(limit, items.length)) },
-    async () => {
-      for (;;) {
-        const index = next++;
-        if (index >= items.length) return;
-        results[index] = await fn(items[index]);
-      }
-    }
-  );
-  await Promise.all(workers);
-  return results;
-}
 
 export class ElectionResultsService {
   private readonly currentYear: string;
@@ -303,11 +265,7 @@ export class ElectionResultsService {
         }
       );
 
-      const payload = buildResultsPayload(
-        raw.map(toElectorateResults),
-        partyList,
-        nationalStatus
-      );
+      const payload = buildResultsPayload(raw, partyList, nationalStatus);
       this.cache.set(year, payload);
       this.onLog(
         'info',

@@ -2,18 +2,19 @@ import { ElectorateStats } from './ElectorateStats.js';
 import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import { PastWinners } from './PastWinners.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
-import { cn } from '../lib/utils.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import { Toggle } from './Toggle.js';
+import type { ElectorateResult } from '@election-night/core/types';
 import type {
   ElectorateHistoryPoint,
   PriorWinner,
 } from '../lib/history-types.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
-type ElectorateResult = ElectorateResults & WithLeaders;
+/** The two contests the table can show; the seat is won on the first. */
+const VIEW_OPTIONS: { value: 'candidate' | 'party'; label: string }[] = [
+  { value: 'candidate', label: 'Candidate' },
+  { value: 'party', label: 'Party' },
+];
 
 export function ElectorateDetail({
   result,
@@ -52,30 +53,11 @@ export function ElectorateDetail({
         <h2 className="font-display font-bold text-2xl sm:text-3xl tracking-tight">
           {result.electorateName}
         </h2>
-        <div className="flex border overflow-hidden font-label text-sm font-semibold flex-shrink-0">
-          <button
-            className={cn(
-              'px-3 py-1.5 transition-colors border-r border-border last:border-r-0',
-              !showPartyVote
-                ? 'bg-foreground text-background'
-                : 'bg-background text-muted-foreground hover:text-foreground'
-            )}
-            onClick={() => onTogglePartyVote(false)}
-          >
-            Candidate
-          </button>
-          <button
-            className={cn(
-              'px-3 py-1.5 transition-colors border-r border-border last:border-r-0',
-              showPartyVote
-                ? 'bg-foreground text-background'
-                : 'bg-background text-muted-foreground hover:text-foreground'
-            )}
-            onClick={() => onTogglePartyVote(true)}
-          >
-            Party
-          </button>
-        </div>
+        <Toggle
+          options={VIEW_OPTIONS}
+          value={showPartyVote ? 'party' : 'candidate'}
+          onChange={(view) => onTogglePartyVote(view === 'party')}
+        />
       </div>
 
       <ElectorateStats

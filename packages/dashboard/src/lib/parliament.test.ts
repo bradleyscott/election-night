@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import {
-  buildSeats,
-  type ElectorateEntry,
-  type PartyEntry,
-} from './parliament.js';
+import { buildSeats } from './parliament.js';
 import { normalizeElectorateName } from './electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import type {
+  ElectorateResult,
+  PartyVoteResult,
+} from '@election-night/core/types';
 
-function electorate(name = 'Test'): ElectorateEntry {
+function electorate(name = 'Test'): ElectorateResult {
   return {
     electorateName: name,
     partyVotes: [],
@@ -33,7 +33,7 @@ const partyVote = [
     electorateSeats: 1,
     listSeats: 0,
   },
-] as unknown as PartyEntry[];
+] as unknown as PartyVoteResult[];
 
 function counting(probability: number): SeatChance {
   return {

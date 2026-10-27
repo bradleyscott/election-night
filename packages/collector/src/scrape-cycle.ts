@@ -1,4 +1,3 @@
-import pLimit from 'p-limit';
 import type {
   ElectorateConfig,
   ElectorateFetchErrorReason,
@@ -10,6 +9,10 @@ import type {
   ResultsPayload,
 } from '@election-night/core/types';
 import { buildResultsPayload } from '@election-night/core/reducers';
+import {
+  mapSettledWithConcurrency,
+  type Settled,
+} from '@election-night/core/concurrency';
 import { log } from './logger.js';
 import { sleep } from './util.js';
 import { collectorConfig } from './config.js';
@@ -69,7 +72,6 @@ export async function scrapeCycle(
   options: ScrapeCycleOptions
 ): Promise<ResultsPayload> {
   const { source, configs, partyListRecords, concurrency } = options;
-  const limit = pLimit(concurrency);
 
   // Metrics for work that happens inside the fetch stage, collected here and
   // published with the rest of the cycle's events.
@@ -109,8 +111,8 @@ export async function scrapeCycle(
   const cachedResults = readResults();
   const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
-  const settled = await Promise.allSettled(
-    configs.map((cfg) => limit(() => fetchWithPacing(cfg)))
+  const settled = await mapSettledWithConcurrency(configs, concurrency, (cfg) =>
+    fetchWithPacing(cfg)
   );
 
   const failedIndexes: number[] = [];
@@ -121,12 +123,14 @@ export async function scrapeCycle(
   // One retry pass over failures. Skipped entirely when nothing succeeded at
   // all — retrying would just double the burn time while the feed is down.
   type FetchResult = { raw: RawElectorateResults; config: ElectorateConfig };
-  const retried = new Map<number, PromiseSettledResult<FetchResult>>();
+  const retried = new Map<number, Settled<FetchResult>>();
   const anySucceeded = settled.some((s) => s.status === 'fulfilled');
   if (failedIndexes.length > 0 && anySucceeded) {
     log.info(`Retrying ${failedIndexes.length} failed electorates...`);
-    const retryResults = await Promise.allSettled(
-      failedIndexes.map((i) => limit(() => fetchWithPacing(configs[i])))
+    const retryResults = await mapSettledWithConcurrency(
+      failedIndexes.map((i) => configs[i]),
+      concurrency,
+      (cfg) => fetchWithPacing(cfg)
     );
     failedIndexes.forEach((originalIndex, k) => {
       retried.set(originalIndex, retryResults[k]);
@@ -151,14 +155,7 @@ export async function scrapeCycle(
     const cfg = configs[i];
     if (s.status === 'fulfilled') {
       const raw = s.value.raw;
-      const electorateResults: ElectorateResults = {
-        electorateName: raw.electorateName,
-        partyVotes: raw.partyVotes,
-        candidateVotes: raw.candidateVotes,
-        votesCounted: raw.votesCounted,
-        votePercentageCounted: raw.votePercentageCounted,
-        percentVotesCast: raw.percentVotesCast,
-      };
+      const electorateResults = raw;
       log.debug(
         `${electorateResults.electorateName}: ${electorateResults.candidateVotes.length} candidates, ${electorateResults.partyVotes.length} party entries, votesCounted=${electorateResults.votesCounted}, pct=${electorateResults.votePercentageCounted}`
       );

@@ -18,13 +18,12 @@ import {
   publishMetrics,
   disconnectWs,
 } from './ws-client.js';
-import { emitSnapshotWrite, recordDiskUsage } from './metrics.js';
 import {
-  describeSweep,
-  effectiveKeepHours,
-  sampleDisk,
-  shouldSweep,
-} from './retention.js';
+  emitSnapshotWrite,
+  recordDiskUsage,
+  sampleDiskUsage,
+} from './metrics.js';
+import { describeSweep, effectiveKeepHours, shouldSweep } from './retention.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
@@ -193,6 +192,15 @@ async function runOnce(current: ElectionSource): Promise<void> {
       return;
     }
 
+    // One lookup for the whole payload: the swing behind it depends on every
+    // seat at once, so the snapshot write and the webhook diff must share it or
+    // the two could describe the same seat differently.
+    const liveChanceLookup = chanceLookupFor(
+      notionalBaseline,
+      payload.electorateResults,
+      collectorConfig.electionYear
+    );
+
     const writeStartedAt = performance.now();
     try {
       writeResults(
@@ -200,11 +208,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
         payload.partyVote,
         payload.partyLists,
         collectorConfig.electionYear,
-        chanceLookupFor(
-          notionalBaseline,
-          payload.electorateResults,
-          collectorConfig.electionYear
-        )
+        liveChanceLookup
       );
       publishMetrics(
         emitSnapshotWrite(
@@ -218,14 +222,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
       );
       throw err;
     }
-    await processResults(
-      payload.electorateResults,
-      chanceLookupFor(
-        notionalBaseline,
-        payload.electorateResults,
-        collectorConfig.electionYear
-      )
-    );
+    await processResults(payload.electorateResults, liveChanceLookup);
     cacheResults(payload.electorateResults);
     health.cacheYear = cacheCycle();
     resultsService.setLiveResults(payload);
@@ -251,7 +248,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
 function retentionSweep(now = Date.now()): void {
   if (RETENTION_HOURS <= 0) return;
 
-  const disk = sampleDisk(dbPath);
+  const disk = sampleDiskUsage(dbPath);
   const keepHours = effectiveKeepHours(RETENTION_HOURS, disk);
   const interval = RETENTION_SWEEP_MS;
 
@@ -263,7 +260,17 @@ function retentionSweep(now = Date.now()): void {
     return;
   }
   lastSweepAt = now;
+  pruneAndCompact(keepHours);
+}
 
+/**
+ * One prune-and-compact pass, shared by the startup prune and every sweep.
+ *
+ * Neither caller may fail: an unprunable database (a full volume) still needs
+ * the collector to run and report why it cannot write, so a failure is logged
+ * and the process continues.
+ */
+function pruneAndCompact(keepHours: number): void {
   try {
     const { deletedSnapshots } = pruneSnapshots(keepHours);
     const freedPages = compactDatabase();
@@ -325,25 +332,10 @@ async function main(): Promise<void> {
   }
 
   // Retention: keep the volume bounded before the first write of this process.
-  // Failure is not fatal — an unprunable database (a full volume) still needs
-  // the collector to run and report why it cannot write.
-  try {
-    const pruned = pruneSnapshots(RETENTION_HOURS);
-    const freedPages = compactDatabase();
-    lastSweepAt = Date.now();
-    if (pruned.deletedSnapshots > 0 || freedPages > 0) {
-      log.info(
-        describeSweep({
-          deletedSnapshots: pruned.deletedSnapshots,
-          freedPages,
-          keepHours: RETENTION_HOURS,
-          underPressure: false,
-        })
-      );
-    }
-  } catch (err) {
-    log.error('Retention prune failed', err);
-  }
+  // A full sweep, not `retentionSweep()`: the schedule is irrelevant at boot,
+  // and the configured window applies even if the volume is under pressure.
+  pruneAndCompact(RETENTION_HOURS);
+  lastSweepAt = Date.now();
 
   connectWs(WS_URL);
 
@@ -370,16 +362,13 @@ async function main(): Promise<void> {
 
 main();
 
-process.on('SIGINT', () => {
-  disconnectWs();
-  closeDb();
-  closeHistoryDb();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  disconnectWs();
-  closeDb();
-  closeHistoryDb();
-  process.exit(0);
-});
+// One shutdown path for both signals: disconnect first so the dashboard stops
+// waiting on us, then close both SQLite handles.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    disconnectWs();
+    closeDb();
+    closeHistoryDb();
+    process.exit(0);
+  });
+}

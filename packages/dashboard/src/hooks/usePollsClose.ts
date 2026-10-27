@@ -4,9 +4,8 @@ import {
   pollsCountdown,
   type PollsClosePhase,
   type PollsCountdown,
-  type RuntimeConfig,
 } from '@election-night/core/polls-close';
-import { useApi } from './useApi.js';
+import { useRuntimeConfig } from './useRuntimeConfig.js';
 
 /** Outside the final hour the display only shows minutes, so a 30s tick is plenty. */
 const MINUTE_TICK_MS = 30_000;
@@ -41,11 +40,11 @@ function parseInstant(iso: string | null | undefined): Date | null {
  * callers fall back to the plain clock.
  */
 export function usePollsClose(): PollsCloseState {
-  const { data } = useApi<RuntimeConfig>('/api/config');
+  const config = useRuntimeConfig();
 
   const closesAt = useMemo(
-    () => parseInstant(data?.pollsCloseAt),
-    [data?.pollsCloseAt]
+    () => parseInstant(config?.pollsCloseAt),
+    [config?.pollsCloseAt]
   );
 
   const [nowMs, setNowMs] = useState(() => Date.now());

@@ -1,22 +1,14 @@
 import {
   cycleConstantsFor,
   type SeatChance,
-  type SeatPrior,
 } from '@election-night/core/seat-probability';
 import {
-  enrolmentForSeat as enrolmentIn,
-  nationalSwingOf as nationalSwingIn,
-  priorForSeat as priorIn,
-  seatChanceFor as seatChanceIn,
-  tauFor as tauIn,
-  type ElectorateResult,
+  enrolmentForSeat,
   type NotionalBaseline,
 } from '@election-night/core/notional-baseline';
 
 import baseline2023 from '@election-night/core/data/notional-baseline-2023.json';
 import baseline2026 from '@election-night/core/data/notional-baseline-2026.json';
-
-export type { ElectorateResult };
 
 /**
  * Prior results rebuilt on each cycle's boundaries, keyed by the cycle they
@@ -33,63 +25,21 @@ const BASELINES: Record<string, NotionalBaseline> = {
   '2026': baseline2026 as unknown as NotionalBaseline,
 };
 
-/** The cycle whose boundaries these results are drawn on. */
-export const BASELINE_YEARS = Object.keys(BASELINES);
-
-function baselineFor(
-  electionYear: string | null | undefined
+/**
+ * The generated baseline for a cycle, or null when that cycle has none.
+ *
+ * This is the one thing a caller must inject: the lookups themselves live in
+ * core (`@election-night/core/notional-baseline`), so the collector and the
+ * page cannot drift apart. Resolve it once per payload — every model call
+ * takes it as an argument, and a per-seat call would re-derive the same object.
+ */
+export function baselineFor(
+  electionYear: string | number | null | undefined
 ): NotionalBaseline | null {
-  if (!electionYear) return null;
+  if (electionYear === null || electionYear === undefined) return null;
   return BASELINES[String(electionYear)] ?? null;
 }
 
-/**
- * The seat's prior result on the current boundaries, or null when the cycle has
- * no baseline (an archived year, or a run without `ELECTION_YEAR`).
- */
-export function priorForSeat(
-  seatName: string | null | undefined,
-  electionYear: string | null | undefined
-): SeatPrior | null {
-  return priorIn(baselineFor(electionYear), seatName);
-}
-
-/** How far seats typically stray from uniform national swing. */
-export function tauFor(electionYear: string | null | undefined): number {
-  return tauIn(baselineFor(electionYear));
-}
-
-/** National swing measured across the seats counted so far. */
-export function nationalSwingOf(
-  electorates: ElectorateResult[],
-  electionYear: string | null | undefined
-): Record<string, number> {
-  return nationalSwingIn(baselineFor(electionYear), electorates);
-}
-
-/** The seat's enrolled electors in the baseline cycle, when recorded. */
-export function enrolmentForSeat(
-  seatName: string | null | undefined,
-  electionYear: string | null | undefined
-): number | null {
-  return enrolmentIn(baselineFor(electionYear), seatName);
-}
-
-/** The chance of winning the seat, given everything already computed. */
-export function seatChanceFor(
-  result: ElectorateResult,
-  electionYear: string | null | undefined,
-  nationalSwing: Record<string, number>
-): SeatChance {
-  return seatChanceIn(
-    result,
-    baselineFor(electionYear),
-    nationalSwing,
-    electionYear
-  );
-}
-
-/** "4 min ago", "just now", "2 hours ago". */
 /**
  * How far through tonight's count a set of seats is.
  *
@@ -110,14 +60,12 @@ export function countProgress(
   electionYear: string | number | null
 ): { votesCounted: number; expected: number; fraction: number | null } {
   const cycle = cycleConstantsFor(electionYear ? Number(electionYear) : null);
+  const baseline = baselineFor(electionYear);
   let votesCounted = 0;
   let expected = 0;
   for (const result of results) {
     if (!(result.votesCounted > 0)) continue;
-    const recorded = enrolmentForSeat(
-      result.electorateName,
-      electionYear == null ? null : String(electionYear)
-    );
+    const recorded = enrolmentForSeat(baseline, result.electorateName);
     const turnout =
       result.percentVotesCast && result.percentVotesCast > 0
         ? result.percentVotesCast
@@ -156,6 +104,7 @@ export function mapFillOpacity(chance: SeatChance | null | undefined): number {
   return 0.2 + Math.min(1, Math.abs(chance.probability - 0.5) / 0.49) * 0.6;
 }
 
+/** "4 min ago", "just now", "2 hours ago". */
 export function formatUpdatedAgo(
   updatedAt: Date | null,
   now = new Date()

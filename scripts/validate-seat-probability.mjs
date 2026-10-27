@@ -16,37 +16,54 @@
 //   node scripts/validate-seat-probability.mjs
 //   node scripts/validate-seat-probability.mjs --year 2023 --checkpoints 24
 //
-// Requires `npm run build:core` first, and the archive cache produced by
-// `scripts/build-notional-baseline.mjs` (or the ad-hoc probe in `.cache/`).
+// Requires `npm run build:core` first, and the archive cache that
+// `scripts/build-notional-baseline.mjs` writes to
+// `.cache/notional-<year>-files-v2.json` (override with `--cache=<path>`).
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { arg } from './lib/args.mjs';
 
 import {
   computeSeatChance,
-  FINAL_TURNOUT,
-  NIGHT_SHARE_OF_FINAL,
+  cycleConstantsFor,
 } from '../packages/core/dist/seat-probability.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 
-const arg = (name, fallback) =>
-  process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ??
-  fallback;
-
 const YEAR = arg('year', '2023');
 const CHECKPOINTS = Number(arg('checkpoints', '20'));
 const STRENGTHS = arg('strengths', '0,0.5,1,1.5,2').split(',').map(Number);
 
-const CACHE = arg('cache', `${ROOT}/.cache/advance-results-${YEAR}.json`);
-const placeCache = JSON.parse(await readFile(CACHE, 'utf8'));
-const baseline = JSON.parse(
-  await readFile(
-    `${ROOT}/packages/dashboard/src/data/notional-baseline-${YEAR}.json`,
-    'utf8'
-  )
+const CACHE = arg('cache', `${ROOT}/.cache/notional-${YEAR}-files-v2.json`);
+const BASELINE = `${ROOT}/packages/core/data/notional-baseline-${YEAR}.json`;
+
+/** Read a JSON file, or say what is missing and how to produce it. */
+async function readJson(path, hint) {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch (err) {
+    console.error(`could not read ${path}: ${err.message}`);
+    console.error(hint);
+    process.exit(1);
+  }
+}
+
+// The builder's cache maps each archived result URL to its parsed body (or to
+// null for a 404), which is exactly the per-place record this replay needs.
+const placeCache = await readJson(
+  CACHE,
+  'Build it with: node scripts/build-notional-baseline.mjs (it caches the archive under .cache/), or pass --cache=<path>.'
 );
+const baseline = await readJson(
+  BASELINE,
+  'Regenerate it with: node scripts/build-notional-baseline.mjs'
+);
+
+// Turnout and the night share are per cycle; reading the 2023 duplicates here
+// would validate a model the app no longer runs.
+const cycle = cycleConstantsFor(Number(YEAR));
 
 const seats = Object.entries(baseline.seats);
 const tau = (baseline.tau.sdSwingDeviation ?? 6.8) / 100;
@@ -208,12 +225,12 @@ for (const fraction of fractions) {
       .map(([party, votes]) => ({ name: party, party, votes }));
     if (candidates.length < 2) return;
 
-    const nightTotal = replay.total * NIGHT_SHARE_OF_FINAL;
+    const nightTotal = replay.total * cycle.nightShare;
     const progress = used / nightTotal;
     if (progress >= 0.99 || progress < 0.02) return;
 
     // Turnout the way the feed reports it: counted votes over enrolment.
-    const percentVotesCast = (fraction * FINAL_TURNOUT) / 1;
+    const percentVotesCast = fraction * cycle.turnout;
     const leaderNow = candidates[0].name;
     const outcome = finalLeaders.get(replay.seatName);
     const y = leaderNow === outcome ? 1 : 0;

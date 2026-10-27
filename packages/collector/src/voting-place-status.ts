@@ -20,8 +20,9 @@
  * rather than an empty map that reads as "nothing counted".
  */
 
-import { XMLParser } from 'fast-xml-parser';
+import { mapWithConcurrency } from '@election-night/core/concurrency';
 import { normalizeElectorateName } from '@election-night/core/electorate-names';
+import { toArray, xmlParser } from '@election-night/core/xml';
 import {
   parseVotingPlaceListing,
   parseVotingPlaceRegistry,
@@ -65,15 +66,6 @@ type References = {
   placeById: Map<number, VotingPlace>;
 };
 
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: '',
-  parseTagValue: false,
-  parseAttributeValue: false,
-  trimValues: true,
-  htmlEntities: true,
-});
-
 const DEFAULT_CONCURRENCY = 6;
 const DEFAULT_CACHE_TTL_MS = 30_000;
 const DEFAULT_REFERENCE_TTL_MS = 6 * 60 * 60 * 1_000;
@@ -94,27 +86,6 @@ function makeFetchText(timeoutMs: number) {
     });
     return { status: res.status, body: await res.text() };
   };
-}
-
-/** Run `worker` over `items` with at most `limit` in flight. */
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
-    (async () => {
-      for (;;) {
-        const index = next++;
-        if (index >= items.length) return;
-        results[index] = await worker(items[index]!, index);
-      }
-    })()
-  );
-  await Promise.all(runners);
-  return results;
 }
 
 export class VotingPlaceStatusService {
@@ -350,13 +321,10 @@ export class VotingPlaceStatusService {
     const doc = xmlParser.parse(electoratesBody) as {
       electorates?: { electorate?: unknown };
     };
-    const entries = doc.electorates?.electorate;
-    for (const entry of Array.isArray(entries)
-      ? entries
-      : entries
-        ? [entries]
-        : []) {
-      const record = entry as Record<string, unknown>;
+    const entries = toArray<Record<string, unknown>>(
+      doc.electorates?.electorate
+    );
+    for (const record of entries) {
       const no = Number(record.e_no);
       const name =
         typeof record.electorate_name === 'string'

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { defaultOrder } from '../lib/parliament.js';
-import type { PartyEntry } from '../lib/parliament.js';
+import type { PartyVoteResult } from '@election-night/core/types';
 
 const STORAGE_KEY = 'parliament-party-order';
 
-export function usePartyOrder(partyVote: PartyEntry[]) {
+export function usePartyOrder(partyVote: PartyVoteResult[]) {
   const [order, setOrder] = useState<string[]>([]);
 
   useEffect(() => {

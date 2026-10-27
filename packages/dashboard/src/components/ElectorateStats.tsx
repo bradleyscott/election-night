@@ -1,12 +1,9 @@
 import { partyColor } from '../lib/constants.js';
 import { formatUpdatedAgo } from '../lib/seat-chance.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import { formatVotes } from '../lib/chart-format.js';
+import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
+import { PartyDot } from './PartyDot.js';
 
 type CandidateRow = {
   name: string;
@@ -15,12 +12,6 @@ type CandidateRow = {
 };
 
 const partyColour = (party: string | null | undefined) => partyColor(party);
-
-/**
- * Vote counts leave the model as estimates (enrolment × turnout × share), so
- * they are fractional. The card says "about 9,700 votes", never "6,307.826".
- */
-const votes = (count: number) => Math.round(count).toLocaleString();
 
 /**
  * The electorate verdict: a chance of winning while the count is live, a
@@ -183,13 +174,13 @@ function CountStrip({
               {Math.round(share * 100)}%
             </span>
             {' \u00b7 '}
-            {votes(counted)} votes
+            {formatVotes(counted)} votes
           </div>
         </div>
         <div className="text-right">
           <div className="kicker">Still out</div>
           <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
-            about {votes(remaining)} votes
+            about {formatVotes(remaining)} votes
           </div>
         </div>
       </div>
@@ -221,7 +212,7 @@ function SpecialsStrip({
           <div className="kicker">Counted</div>
           <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
             <span className="text-sm font-bold text-foreground">
-              {votes(counted)}
+              {formatVotes(counted)}
             </span>{' '}
             votes
           </div>
@@ -229,7 +220,7 @@ function SpecialsStrip({
         <div className="text-right">
           <div className="kicker">Specials to come</div>
           <div className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
-            about {votes(specials)} votes
+            about {formatVotes(specials)} votes
           </div>
         </div>
       </div>
@@ -281,10 +272,7 @@ function ChanceRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
-              style={{ backgroundColor: partyColour(candidate.party) }}
-            />
+            <PartyDot color={partyColour(candidate.party)} size="md" />
             <span className="font-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {candidate.party ?? 'Independent'}
             </span>
@@ -293,7 +281,7 @@ function ChanceRow({
             {candidate.name}
           </div>
           <div className="font-label text-xs tabular-nums text-muted-foreground">
-            {votes(candidate.votes)} votes
+            {formatVotes(candidate.votes)} votes
           </div>
         </div>
         <div className="flex-shrink-0 text-right">
@@ -328,7 +316,7 @@ function ChanceRow({
         <div className="kicker mt-1.5">
           {margin === 0
             ? 'Level'
-            : `Ahead by ${votes(margin)}${
+            : `Ahead by ${formatVotes(margin)}${
                 marginPercent != null
                   ? ` (${(marginPercent * 100).toFixed(1)}%${
                       marginUnit ? ` ${marginUnit}` : ''

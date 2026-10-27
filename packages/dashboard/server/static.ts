@@ -1,11 +1,15 @@
+/**
+ * Serving the built Vite bundle: MIME lookup, a path-traversal guard, and the
+ * SPA fallback.
+ *
+ * The operational endpoints (`/health`, `/ready`, `/metrics`) are in
+ * `health.ts`, and the data routes are in `api.ts`.
+ */
+
 import { existsSync, readFileSync, statSync } from 'fs';
 import { extname, resolve, sep } from 'path';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { register } from './metrics.js';
-import { collectMetricsBody } from './collector-metrics.js';
 import { dashboardServerConfig } from './config.js';
-import type { HistorySource } from './history-upstream.js';
-import { evaluateReady } from './ready-check.js';
 import { log } from './logger.js';
 
 const DIST_DIR = dashboardServerConfig.distDir;
@@ -41,79 +45,7 @@ function sendFile(
   }
 }
 
-export async function serveMetrics(_req: IncomingMessage, res: ServerResponse) {
-  const metrics = await collectMetricsBody();
-  res.writeHead(200, { 'Content-Type': register.contentType });
-  res.end(metrics);
-}
-
-export function serveHealth(_req: IncomingMessage, res: ServerResponse) {
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ status: 'ok' }));
-}
-
-async function isHistoryReachable(source: HistorySource): Promise<boolean> {
-  try {
-    await source.snapshotMetas();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * What the collector actually loaded, as opposed to what this server was
- * configured with. The 2026 launch left production publishing 2023 data while
- * `/api/config` happily reported 2026; the only way to tell was to dump a
- * Socket.io frame. Surfacing the source name and the diff-cache cycle here makes
- * "wrong feed", "stale cache" and "no feed yet" distinguishable at a glance.
- */
-async function collectorIdentity(): Promise<{
-  source: string | null;
-  cacheYear: string | null;
-  electionYear: string | null;
-}> {
-  const empty = { source: null, cacheYear: null, electionYear: null };
-  try {
-    const base = dashboardServerConfig.historyUpstream.replace(/\/+$/, '');
-    const res = await fetch(`${base}/health`, {
-      signal: AbortSignal.timeout(1500),
-    });
-    if (!res.ok) return empty;
-    const body = (await res.json()) as Record<string, unknown>;
-    return {
-      source: typeof body.source === 'string' ? body.source : null,
-      cacheYear: typeof body.cacheYear === 'string' ? body.cacheYear : null,
-      electionYear:
-        typeof body.electionYear === 'string' ? body.electionYear : null,
-    };
-  } catch {
-    return empty;
-  }
-}
-
-export async function serveReady(
-  _req: IncomingMessage,
-  res: ServerResponse,
-  historySource: HistorySource,
-  feedEvents: { timestamp: number }[]
-) {
-  const historyReachable = await isHistoryReachable(historySource);
-  const collector = await collectorIdentity();
-
-  const lastEvent = feedEvents[feedEvents.length - 1];
-  const lastScrape = lastEvent ? lastEvent.timestamp : 'none';
-
-  const { ready, checks } = evaluateReady(historyReachable, lastScrape);
-
-  res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ ready, checks: { ...checks, ...collector } }));
-}
-
-/**
- * Serve the built Vite bundle with an SPA fallback for client-side routes.
- * (Health/ready/metrics have simpler handlers of their own.)
- */
+/** Serve the built Vite bundle with an SPA fallback for client-side routes. */
 export function serveStatic(req: IncomingMessage, res: ServerResponse) {
   const url = new URL(req.url!, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;

@@ -1,13 +1,12 @@
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
 import type {
-  ElectorateResults,
   VotingResults,
-  WithLeaders,
   WithParty,
+  ElectorateResult,
 } from '@election-night/core/types';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
+import { PartyDot } from './PartyDot.js';
+import { Th, TH_CLASS } from './Table.js';
 
 function hasParty(
   v: VotingResults | (VotingResults & WithParty)
@@ -32,26 +31,12 @@ export function ElectorateResultsTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              {showPartyVote ? (
-                <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                  Party
-                </th>
-              ) : (
-                <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                  Candidate
-                </th>
-              )}
+              {showPartyVote ? <Th>Party</Th> : <Th>Candidate</Th>}
               {!showPartyVote && (
-                <th className="text-left px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                  Party
-                </th>
+                <th className={cn(TH_CLASS, 'px-2')}>Party</th>
               )}
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Votes
-              </th>
-              <th className="text-right px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                %
-              </th>
+              <th className={cn(TH_CLASS, 'px-2')}>Votes</th>
+              <th className={cn(TH_CLASS, 'px-3')}>%</th>
             </tr>
           </thead>
           <tbody>
@@ -68,12 +53,7 @@ export function ElectorateResultsTable({
                 {showPartyVote ? (
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                        style={{
-                          backgroundColor: partyColor(c.candidate),
-                        }}
-                      />
+                      <PartyDot color={partyColor(c.candidate)} />
                       {c.candidate}
                     </div>
                   </td>
@@ -82,13 +62,8 @@ export function ElectorateResultsTable({
                     <td className="py-2 sm:py-3 px-3">{c.candidate}</td>
                     <td className="px-2">
                       <div className="flex items-center gap-1.5">
-                        <div
-                          className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                          style={{
-                            backgroundColor: partyColor(
-                              hasParty(c) ? c.party : null
-                            ),
-                          }}
+                        <PartyDot
+                          color={partyColor(hasParty(c) ? c.party : null)}
                         />
                         {hasParty(c)
                           ? (c.party ?? 'Independent')

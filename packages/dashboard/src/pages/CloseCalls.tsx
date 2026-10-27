@@ -1,51 +1,27 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useResults } from '../hooks/useResults.js';
 import { cn } from '../lib/utils.js';
-import { WaitingState } from '../components/WaitingState.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateRacesView } from '../components/ElectorateRacesView.js';
 import { ListCutLinesView } from '../components/ListCutLinesView.js';
 import { splitParties } from '../lib/constants.js';
-import { useApi } from '../hooks/useApi.js';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
-import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
-import { normalizeElectorateName } from '../lib/electorates.js';
-import type { SeatChance } from '@election-night/core/seat-probability';
+import { useSeatChances } from '../hooks/useSeatChances.js';
 import type {
-  ElectorateResults,
-  WithLeaders,
-  PartyList,
-  WithAdjustedRank,
+  ElectorateResult,
+  PartyListResult,
 } from '@election-night/core/types';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
-type PartyListEntry = PartyList & WithAdjustedRank;
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 export default function CloseCalls() {
   const { results } = useResults();
   const [view, setView] = useState('electorates');
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
-  const partyLists = (results?.partyLists ?? []) as PartyListEntry[];
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
+  const partyLists = (results?.partyLists ?? []) as PartyListResult[];
 
   // The chance of winning each seat, from the same call the seat page and the
   // map use, so the three can never quote different numbers for one seat.
-  const electionYear = config?.electionYear ?? null;
-  const nationalSwing = useMemo(
-    () => nationalSwingOf(electorates, electionYear),
-    [electorates, electionYear]
-  );
-  const chances = useMemo(() => {
-    const map = new Map<string, SeatChance>();
-    for (const result of electorates) {
-      map.set(
-        normalizeElectorateName(result.electorateName),
-        seatChanceFor(result, electionYear, nationalSwing)
-      );
-    }
-    return map;
-  }, [electorates, electionYear, nationalSwing]);
+  const { chances } = useSeatChances(electorates);
 
   const allParties = useMemo(
     () => [...new Set(partyLists.map((l) => l.party))],
@@ -101,22 +77,13 @@ export default function CloseCalls() {
   const isEmpty = !electorates.length && !partyLists.length;
 
   if (isEmpty) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Close Calls</h1>
-        </div>
-        <WaitingState context="closecalls" />
-      </div>
-    );
+    return <PageWaiting title="Close Calls" context="closecalls" />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="pagehead mb-0">
-          <h1>Close Calls</h1>
-        </div>
+        <PageHead title="Close Calls" className="mb-0" />
         <div className="flex items-center gap-3">
           {view === 'list' && majorParties.length > 0 && (
             <div className="flex items-center gap-2 text-sm font-bold tabular-nums">

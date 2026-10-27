@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
-import { useApi } from '../hooks/useApi.js';
 import { usePriorWinners } from '../hooks/useVoteHistory.js';
+import { useSeatChances } from '../hooks/useSeatChances.js';
 import { Toggle } from '../components/Toggle.js';
 import { Pagination } from '../components/Pagination.js';
 import { WaitingState } from '../components/WaitingState.js';
@@ -11,15 +11,13 @@ import {
   isMaoriElectorate,
   normalizeElectorateName,
 } from '../lib/electorates.js';
-import {
-  nationalSwingOf,
-  seatChanceFor,
-  type ElectorateResult,
-} from '../lib/seat-chance.js';
-import { cn } from '../lib/utils.js';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import { cn } from '../lib/utils.js';
+import { Th } from '../components/Table.js';
 import type { PriorWinner } from '../lib/history-types.js';
+import { PartyDot } from '../components/PartyDot.js';
+import { PageHead, PageWaiting } from '../components/Page.js';
+import type { ElectorateResult } from '@election-night/core/types';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
 
@@ -50,25 +48,10 @@ export default function Flipped() {
   const [page, setPage] = useState(0);
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
 
   // The same figure the seat page, the map, Seats and Close Calls quote, so no
   // two surfaces can disagree about one seat.
-  const electionYear = config?.electionYear ?? null;
-  const nationalSwing = useMemo(
-    () => nationalSwingOf(electorates, electionYear),
-    [electorates, electionYear]
-  );
-  const chances = useMemo(() => {
-    const map = new Map<string, SeatChance>();
-    for (const result of electorates) {
-      map.set(
-        normalizeElectorateName(result.electorateName),
-        seatChanceFor(result, electionYear, nationalSwing)
-      );
-    }
-    return map;
-  }, [electorates, electionYear, nationalSwing]);
+  const { chances } = useSeatChances(electorates);
 
   const primaryYear = prior?.primaryYear ?? null;
 
@@ -133,14 +116,7 @@ export default function Flipped() {
   }, [totalPages, page]);
 
   if (!electorates.length) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Flipped</h1>
-        </div>
-        <WaitingState context="electorates" />
-      </div>
-    );
+    return <PageWaiting title="Flipped" context="electorates" />;
   }
 
   const open = (name: string) =>
@@ -149,14 +125,13 @@ export default function Flipped() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div className="pagehead mb-0">
-          <h1>Flipped</h1>
+        <PageHead title="Flipped" className="mb-0">
           <span className="kicker">
             {primaryYear
               ? `Seats changing hands since ${primaryYear}`
               : 'Seats changing hands'}
           </span>
-        </div>
+        </PageHead>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative w-full text-sm sm:w-auto">
             <label className="sr-only" htmlFor="flipped-search-input">
@@ -255,7 +230,7 @@ export default function Flipped() {
                       </td>
                       <td className="px-2 py-2 sm:px-3 sm:py-3">
                         <div className="flex items-center gap-1.5">
-                          <PartyDot party={winner.party} />
+                          <PartyDot color={partyColor(winner.party)} />
                           <span className="font-semibold">
                             {winner.candidate}
                           </span>
@@ -281,7 +256,9 @@ export default function Flipped() {
                       </td>
                       <td className="px-2 py-2 sm:px-3 sm:py-3">
                         <div className="flex items-center gap-1.5">
-                          <PartyDot party={l.leadingCandidateParty} />
+                          <PartyDot
+                            color={partyColor(l.leadingCandidateParty)}
+                          />
                           <span className="font-semibold">
                             {l.leadingCandidate}
                           </span>
@@ -354,37 +331,6 @@ function WinPercentCell({ chance }: { chance?: SeatChance }) {
     >
       &mdash;
     </span>
-  );
-}
-
-function PartyDot({ party }: { party: string | undefined | null }) {
-  return (
-    <div
-      className="h-2 w-2 flex-shrink-0 ring-1 ring-foreground/15"
-      style={{ backgroundColor: partyColor(party) }}
-    />
-  );
-}
-
-function Th({
-  children,
-  align,
-  className,
-}: {
-  children: React.ReactNode;
-  align: 'left' | 'right';
-  className?: string;
-}) {
-  return (
-    <th
-      className={cn(
-        'px-3 py-2 font-label text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:py-3',
-        align === 'right' ? 'text-right' : 'text-left',
-        className
-      )}
-    >
-      {children}
-    </th>
   );
 }
 

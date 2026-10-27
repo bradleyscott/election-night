@@ -33,11 +33,11 @@ describe('dashboard metrics', () => {
     socketMessagesTotal.inc({ direction: 'out', event: 'feed_update' });
     httpRequestsTotal.inc({
       method: 'GET',
-      route: '/api/history/snapshots',
+      route: '/api/history/party-votes',
       status_code: '200',
     });
     httpRequestDuration.observe(
-      { method: 'GET', route: '/api/history/snapshots' },
+      { method: 'GET', route: '/api/history/party-votes' },
       0.02
     );
     historyCacheEvents.inc({ result: 'hit' });
@@ -63,10 +63,10 @@ describe('dashboard metrics', () => {
       'election_socket_messages_total{direction="out",event="feed_update"} 1'
     );
     expect(output).toContain(
-      'election_http_requests_total{method="GET",route="/api/history/snapshots",status_code="200"} 1'
+      'election_http_requests_total{method="GET",route="/api/history/party-votes",status_code="200"} 1'
     );
     expect(output).toContain(
-      'election_http_request_duration_seconds_count{method="GET",route="/api/history/snapshots"} 1'
+      'election_http_request_duration_seconds_count{method="GET",route="/api/history/party-votes"} 1'
     );
     expect(output).toContain(
       'election_history_cache_events_total{result="hit"} 1'

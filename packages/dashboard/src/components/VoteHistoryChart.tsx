@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,12 +21,23 @@ import {
   formatTooltipStamp,
   formatVoteAxis,
   formatVotes,
+  parseDbTimestamp,
   timeTicks,
 } from '../lib/chart-format.js';
 import { CountedTape } from './CountedTape.js';
+import { PartyLine } from './PartyLine.js';
 import type { TapePoint } from './CountedTape.js';
+import { PartyDot } from './PartyDot.js';
+import { Toggle } from './Toggle.js';
 
 type ChartMode = 'votes' | 'percentage' | 'candidateVotes' | 'counted';
+
+/** The modes the seat chart offers, in toggle order. */
+const MODE_OPTIONS: { value: ChartMode; label: string }[] = [
+  { value: 'votes', label: '# Votes' },
+  { value: 'percentage', label: '% of Vote' },
+  { value: 'counted', label: 'Counted' },
+];
 
 type ChartProps = {
   history: ElectorateHistoryPoint[];
@@ -42,22 +52,6 @@ type ChartProps = {
    */
   votingPlaces?: { counted: number; total: number; receipts: number[] };
 };
-
-function parseDate(startedAt: string): Date {
-  return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
-}
-
-function getEntityColor(party: string | null): string {
-  return partyColor(party);
-}
-
-function isDarkColor(hex: string): boolean {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.35;
-}
 
 function VoteChartTooltip({
   active,
@@ -92,10 +86,7 @@ function VoteChartTooltip({
             className="flex items-center justify-between gap-3 py-0.5"
           >
             <div className="flex items-center gap-1.5 min-w-0">
-              <div
-                className="w-2 h-2 shrink-0 ring-1 ring-foreground/20"
-                style={{ backgroundColor: entry.color }}
-              />
+              <PartyDot color={entry.color} />
               <span className="font-semibold truncate">{entry.name}</span>
             </div>
             <span className="tabular-nums font-bold text-right shrink-0">
@@ -127,13 +118,10 @@ function VoteChartLegend({
     <div className="mt-2">
       <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center">
         {visible.map((entry) => {
-          const color = entry.color ?? getEntityColor(entry.party);
+          const color = entry.color ?? partyColor(entry.party);
           return (
             <div key={entry.name} className="flex items-center gap-1.5">
-              <div
-                className="w-2.5 h-2.5 shrink-0 ring-1 ring-foreground/20"
-                style={{ backgroundColor: color }}
-              />
+              <PartyDot color={color} size="md" />
               <span
                 className="font-label text-xs font-semibold text-foreground"
                 title={entry.name}
@@ -170,7 +158,7 @@ export default function VoteHistoryChart({
   // rug of receipts below the axis is the same measure at a finer resolution.
   const countedPoints = useMemo<TapePoint[]>(() => {
     return history.map((point) => ({
-      t: parseDate(point.startedAt).getTime(),
+      t: parseDbTimestamp(point.startedAt),
       value: point.votePctCounted * 100,
       sub:
         point.votesCounted > 0
@@ -182,7 +170,7 @@ export default function VoteHistoryChart({
   const chartData = useMemo(() => {
     return history.map((point) => {
       const total = point.votesCounted || 1;
-      const ts = parseDate(point.startedAt).getTime();
+      const ts = parseDbTimestamp(point.startedAt);
       const row: Record<string, number | string> = {
         ts,
       };
@@ -210,8 +198,8 @@ export default function VoteHistoryChart({
   const xTicks = useMemo(() => {
     if (history.length < 2) return [];
     return timeTicks(
-      parseDate(history[0].startedAt).getTime(),
-      parseDate(history[history.length - 1].startedAt).getTime()
+      parseDbTimestamp(history[0].startedAt),
+      parseDbTimestamp(history[history.length - 1].startedAt)
     );
   }, [history]);
 
@@ -250,41 +238,11 @@ export default function VoteHistoryChart({
     <div className={cn('border p-3 sm:p-4', className)}>
       <div className="flex items-center justify-between mb-3">
         <div className="kicker">{chartTitle}</div>
-        <div className="flex flex-wrap border border-border">
-          <button
-            onClick={() => setChartMode('votes')}
-            className={cn(
-              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              chartMode === 'votes'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            # Votes
-          </button>
-          <button
-            onClick={() => setChartMode('percentage')}
-            className={cn(
-              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              chartMode === 'percentage'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            % of Vote
-          </button>
-          <button
-            onClick={() => setChartMode('counted')}
-            className={cn(
-              'px-2.5 py-1 font-label text-xs sm:text-sm font-semibold tracking-wide transition-colors border-r border-border last:border-r-0',
-              chartMode === 'counted'
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            )}
-          >
-            Counted
-          </button>
-        </div>
+        <Toggle
+          options={MODE_OPTIONS}
+          value={chartMode}
+          onChange={setChartMode}
+        />
       </div>
       {chartMode === 'counted' ? (
         <CountedTape
@@ -335,26 +293,12 @@ export default function VoteHistoryChart({
             />
             <Tooltip content={<VoteChartTooltip mode={chartMode} />} />
             {entities.map((e) => {
-              const color = getEntityColor(e.party);
-              const dark = isDarkColor(color);
               return (
-                <Line
+                <PartyLine
                   key={e.name}
-                  type="monotone"
                   dataKey={`${prefix}${e.name}`}
                   name={e.name}
-                  stroke={color}
-                  strokeWidth={dark ? 3 : 2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                  style={
-                    dark
-                      ? {
-                          filter:
-                            'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
-                        }
-                      : undefined
-                  }
+                  color={partyColor(e.party)}
                 />
               );
             })}

@@ -14,13 +14,15 @@ import {
   CALL_THRESHOLD,
   type SeatChance,
 } from '@election-night/core/seat-probability';
+import {
+  readTaggedCache,
+  serializeTaggedCache,
+} from '@election-night/core/tagged-cache';
 import { fetchWithRetry } from './retry.js';
 import { publishMetrics } from './ws-client.js';
 import { emitWebhookPublish, emitWebhookPublishDuration } from './metrics.js';
 import { collectorConfig } from './config.js';
 import { log } from './logger.js';
-
-export type Results = ComparableResult;
 
 export { computeDiff, determineWebhookEvents };
 
@@ -28,17 +30,16 @@ export { computeDiff, determineWebhookEvents };
  * On-disk shape of the diff baseline.
  *
  * The cache is the previous scrape of the *current* cycle, so it has to record
- * which cycle it belongs to. Without the year, a cache left over from the 2023
+ * which cycle it belongs to: without the year, a cache left over from the 2023
  * run (or committed in a dev `.data/` directory) would be diffed against the
- * first 2026 scrape — producing a flood of bogus `count_completed` and
- * `leader_change` events on election night.
+ * first 2026 scrape, producing a flood of bogus `count_completed` and
+ * `leader_change` events on election night. The envelope and the rules for
+ * reading it are in `@election-night/core/tagged-cache`, shared with the
+ * dashboard server, which preloads the same file.
  */
-type CachedResults = {
-  electionYear: string;
-  results: Results[];
-};
+const CACHE_KEY = 'results';
 
-let electorateResults: Results[];
+let electorateResults: ComparableResult[];
 
 /**
  * Cycle tag of the cache the collector is currently relying on — written by
@@ -52,42 +53,17 @@ export function cacheCycle(): string | null {
   return cachedYear;
 }
 
-function parseCache(raw: string): CachedResults | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  // Legacy format: a bare array with no cycle attribution. Treated as belonging
-  // to no cycle, so it is never used as a baseline.
-  if (Array.isArray(parsed)) return null;
-  if (typeof parsed !== 'object' || parsed === null) return null;
-  const cached = parsed as Partial<CachedResults>;
-  if (
-    typeof cached.electionYear !== 'string' ||
-    !Array.isArray(cached.results)
-  ) {
-    return null;
-  }
-  return { electionYear: cached.electionYear, results: cached.results };
-}
-
-export function cacheResults(toCache: Results[]) {
+export function cacheResults(toCache: ComparableResult[]) {
   electorateResults = toCache;
   cachedYear = collectorConfig.electionYear;
-  const payload: CachedResults = {
-    electionYear: collectorConfig.electionYear,
-    results: toCache,
-  };
   mkdirSync(dirname(collectorConfig.resultsCachePath), { recursive: true });
   writeFileSync(
     collectorConfig.resultsCachePath,
-    JSON.stringify(payload, null, 2)
+    serializeTaggedCache(toCache, CACHE_KEY, collectorConfig.electionYear)
   );
 }
 
-export function readResults(): Results[] {
+export function readResults(): ComparableResult[] {
   if (electorateResults) {
     return electorateResults;
   }
@@ -98,28 +74,29 @@ export function readResults(): Results[] {
     return [];
   }
 
-  const cached = parseCache(raw);
-  if (!cached) {
+  // `ELECTION_YEAR` is always set for the collector, so an untagged cache is
+  // never used as a baseline.
+  const cached = readTaggedCache<ComparableResult>({
+    raw,
+    key: CACHE_KEY,
+    payloadNoun: 'results',
+    expectedYear: collectorConfig.electionYear,
+  });
+  if (!cached.ok) {
     log.warn(
-      `Diff cache at ${collectorConfig.resultsCachePath} has no election year; ignoring it so the first scrape of ${collectorConfig.electionYear} starts from a clean baseline`
-    );
-    return [];
-  }
-  if (cached.electionYear !== collectorConfig.electionYear) {
-    log.warn(
-      `Diff cache belongs to the ${cached.electionYear} election, not ${collectorConfig.electionYear}; ignoring it so the first scrape starts from a clean baseline`
+      `Ignoring diff cache at ${collectorConfig.resultsCachePath}: ${cached.reason}. Starting from a clean baseline.`
     );
     return [];
   }
   cachedYear = cached.electionYear;
-  return cached.results;
+  return cached.items;
 }
 
 export async function sendWebhook(
   event: WebhookEventType,
-  result: Results,
+  result: ComparableResult,
   diff: ElectorateDiff,
-  chanceFor?: (result: Results) => SeatChance | null
+  chanceFor?: (result: ComparableResult) => SeatChance | null
 ): Promise<void> {
   const url = collectorConfig.webhookUrl;
   if (!url) return;
@@ -173,15 +150,15 @@ export async function sendWebhook(
  * represents the previous cycle for comparison.
  */
 export async function processResults(
-  currentResults: Results[],
-  chanceFor?: (result: Results) => SeatChance | null
+  currentResults: ComparableResult[],
+  chanceFor?: (result: ComparableResult) => SeatChance | null
 ): Promise<void> {
   const cachedResults = readResults();
   const cacheMap = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   // A seat is "called" on the same rule the feed uses, so a subscriber that
   // reads both is told about the same event twice, not two different ones.
-  const called = (result: Results | null): boolean => {
+  const called = (result: ComparableResult | null): boolean => {
     if (!result || !chanceFor) return false;
     const chance = chanceFor(result);
     return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;

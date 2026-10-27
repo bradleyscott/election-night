@@ -3,23 +3,18 @@ import { mkdtempSync, rmSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import type {
-  ElectorateResults,
-  WithLeaders,
-  VotingResults,
-  WithSeats,
-  PartyList,
-  WithAdjustedRank,
+  ElectorateResult,
+  PartyVoteResult,
+  PartyListResult,
 } from '@election-night/core/types';
 
 vi.mock('./logger.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-type Results = ElectorateResults & WithLeaders;
-type PartyVoteSummary = VotingResults & WithSeats;
-type PartyListEntry = PartyList & WithAdjustedRank;
-
-function makeResult(overrides: Partial<Results> = {}): Results {
+function makeResult(
+  overrides: Partial<ElectorateResult> = {}
+): ElectorateResult {
   return {
     electorateName: 'Test Electorate',
     partyVotes: [{ candidate: 'National Party', votes: 5000 }],
@@ -42,8 +37,8 @@ function makeResult(overrides: Partial<Results> = {}): Results {
 }
 
 function makePartyVote(
-  overrides: Partial<PartyVoteSummary> = {}
-): PartyVoteSummary {
+  overrides: Partial<PartyVoteResult> = {}
+): PartyVoteResult {
   return {
     candidate: 'National Party',
     votes: 10000,
@@ -55,8 +50,8 @@ function makePartyVote(
 }
 
 function makePartyList(
-  overrides: Partial<PartyListEntry> = {}
-): PartyListEntry {
+  overrides: Partial<PartyListResult> = {}
+): PartyListResult {
   return {
     party: 'National Party',
     candidate: 'Smith, John',

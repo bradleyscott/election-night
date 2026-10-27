@@ -9,12 +9,9 @@ import {
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type {
-  ElectorateResults,
-  WithLeaders,
   WebhookPayload,
+  ElectorateResult,
 } from '@election-night/core/types';
-
-type Results = ElectorateResults & WithLeaders;
 
 const mockConfig: {
   resultsCachePath: string;
@@ -30,7 +27,9 @@ vi.mock('./config.js', () => ({
   collectorConfig: mockConfig,
 }));
 
-function makeResult(overrides: Partial<Results> = {}): Results {
+function makeResult(
+  overrides: Partial<ElectorateResult> = {}
+): ElectorateResult {
   return {
     electorateName: 'Test Electorate',
     partyVotes: [],

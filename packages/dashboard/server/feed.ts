@@ -3,10 +3,9 @@ import { dirname } from 'path';
 import type { FeedEvent } from '@election-night/core/types';
 import { dashboardServerConfig } from './config.js';
 import {
-  describeFeedCacheSkip,
-  extractCachedFeedEvents,
-  serializeFeedEvents,
-} from './feed-cache.js';
+  readTaggedCache,
+  serializeTaggedCache,
+} from '@election-night/core/tagged-cache';
 import { feedEventsTotal, feedEventsStored } from './metrics.js';
 import { log } from './logger.js';
 
@@ -39,10 +38,15 @@ function readFeedEventsFromDisk(): FeedEvent[] {
   const expectedYear = dashboardServerConfig.electionYear;
   try {
     const raw = readFileSync(FEED_CACHE_PATH, 'utf-8');
-    const events = extractCachedFeedEvents(raw, expectedYear);
-    if (events) return events;
+    const cached = readTaggedCache<FeedEvent>({
+      raw,
+      key: 'events',
+      payloadNoun: 'feed-event',
+      expectedYear,
+    });
+    if (cached.ok) return cached.items;
     log.warn(
-      `Ignoring feed cache at ${FEED_CACHE_PATH}: ${describeFeedCacheSkip(raw, expectedYear)}`
+      `Ignoring feed cache at ${FEED_CACHE_PATH}: feed cache ${cached.reason}`
     );
   } catch (err) {
     log.error('Failed to load cached feed events:', err);
@@ -60,7 +64,7 @@ function saveFeedEvents(events: FeedEvent[]) {
     mkdirSync(dirname(FEED_CACHE_PATH), { recursive: true });
     writeFileSync(
       FEED_CACHE_PATH,
-      serializeFeedEvents(events, dashboardServerConfig.electionYear)
+      serializeTaggedCache(events, 'events', dashboardServerConfig.electionYear)
     );
   } catch (err) {
     log.error('Failed to save feed events:', err);
