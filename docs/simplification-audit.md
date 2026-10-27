@@ -7,14 +7,24 @@ duplication that can be collapsed, and structure that costs more than it earns.
 > **Status.** Tier 1 is implemented on `chore/tier1-dead-code` (~800 lines
 > removed), Tier 2 on `refactor/tier2-duplication` (one tagged-cache reader, one
 > concurrency limiter, one XML configuration, one seat-chance lookup, one set of
-> chart helpers) and Tier 3 on `refactor/tier3-structure` (wildcard exports, an
+> chart helpers), Tier 3 on `refactor/tier3-structure` (wildcard exports, an
 > indexed baseline lookup, one baseline injection point, `health.ts` split out
-> of `static.ts`, configs ordered by `e_no`). Tier 3's sixth item — a tag helper
-> for `serve-mock.ts` — was deliberately dropped: the mock's XML literals _are_
-> the fixture the pipeline tests compare against the real feed, and a helper
-> would hide the shape to save a dozen lines. Tier 4 and the bug list are still
-> open. File and line references describe the tree as it was audited, so
-> completed entries point at code that has since moved or gone.
+> of `static.ts`, configs ordered by `e_no`) and Tier 4 on
+> `refactor/tier4-design-system` (`PartyDot`, `PageHead`/`PageWaiting`, one
+> `Toggle`, one mode table in Trends). The bug list is still open.
+>
+> Two items were dropped deliberately. Tier 3's tag helper for `serve-mock.ts`:
+> the mock's XML literals _are_ the fixture the pipeline tests compare against
+> the real feed, and a helper would hide the shape to save a dozen lines. Tier
+> 4's shared logo artwork: the masthead mark (`components/Logo.tsx`, brand reds,
+> white backdrop, drop shadow) and the icon artwork (`scripts/generate-icons.mjs`,
+> simplified orange silhouette sized for 32px) are two renderings of the same
+> character built for different jobs, so one source would be a redesign of one
+> of them, not a dedupe. Both copies are checked by tests that read the shipped
+> files.
+>
+> File and line references describe the tree as it was audited, so completed
+> entries point at code that has since moved or gone.
 
 The bias is deliberate: **deletion before abstraction**. A copy that is about to
 be deleted does not need unifying, and the cheapest line of code is the one that
