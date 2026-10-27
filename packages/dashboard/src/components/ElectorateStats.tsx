@@ -3,6 +3,11 @@ import { formatUpdatedAgo } from '../lib/seat-chance.js';
 import { formatVotes } from '../lib/chart-format.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import {
+  formatPollsCountdown,
+  type PollsClosePhase,
+} from '@election-night/core/polls-close';
+import type { PollsCloseState } from '../hooks/usePollsClose.js';
 import { PartyDot } from './PartyDot.js';
 
 type CandidateRow = {
@@ -12,6 +17,43 @@ type CandidateRow = {
 };
 
 const partyColour = (party: string | null | undefined) => partyColor(party);
+
+/**
+ * The header chip before this seat has counted: a live countdown while the
+ * polls are open, the same "counting" phrase the masthead uses once they shut.
+ *
+ * Nothing is shown for a cycle with no known close instant (`stale` when an
+ * archived cycle is replayed, `unknown` when the server did not say), because
+ * a countdown to another election's date is worse than no countdown.
+ */
+function closeChip(
+  pollsClose: PollsCloseState | null | undefined
+): string | null {
+  if (pollsClose?.phase === 'upcoming' && pollsClose.countdown) {
+    return `Polls close in ${formatPollsCountdown(pollsClose.countdown)}`;
+  }
+  if (pollsClose?.phase === 'counting') return 'Polls closed · counting';
+  return null;
+}
+
+/**
+ * What happens, and when, before this seat has counted.
+ *
+ * The old copy — "first results usually follow within about half an hour" —
+ * named no anchor, so before the close it read as half an hour from *now*.
+ * Each phase now says its own half of one fact: counting starts at the close,
+ * and preliminary results are published progressively from 7pm
+ * (electionresults.govt.nz).
+ */
+function waitingNote(phase: PollsClosePhase | undefined): string {
+  if (phase === 'upcoming') {
+    return 'Counting starts when voting closes. Preliminary results are published progressively from then.';
+  }
+  if (phase === 'counting') {
+    return 'Preliminary results are published progressively from 7pm.';
+  }
+  return 'Results appear here as counting gets underway.';
+}
 
 /**
  * The electorate verdict: a chance of winning while the count is live, a
@@ -31,7 +73,7 @@ export function ElectorateStats({
   showPartyVote,
   chance,
   updatedAt,
-  pollsCloseLabel,
+  pollsClose,
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
@@ -39,8 +81,11 @@ export function ElectorateStats({
   chance?: SeatChance | null;
   /** When this browser's results last changed, printed quietly in the header. */
   updatedAt?: Date | null;
-  /** "7pm" — shown before the first result, when the cycle's close is known. */
-  pollsCloseLabel?: string | null;
+  /**
+   * The cycle's polls-close state, for the before-counting copy. Absent (or
+   * `stale`/`unknown`) when the server cannot say when this cycle closes.
+   */
+  pollsClose?: PollsCloseState | null;
 }) {
   // The party view has no verdict to give: a seat's chance of winning is a
   // candidate-vote fact, and the party vote decides a different contest. Rather
@@ -49,19 +94,18 @@ export function ElectorateStats({
   if (showPartyVote) return null;
 
   if (!chance || chance.state === 'waiting') {
+    const chip = closeChip(pollsClose);
     return (
       <div className="border panel-print p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="kicker">Win %</div>
-          {pollsCloseLabel && (
-            <span className="chip-print">Polls close {pollsCloseLabel}</span>
-          )}
+          {chip && <span className="chip-print">{chip}</span>}
         </div>
         <div className="mt-3 font-display text-2xl font-bold tracking-tight">
           No votes counted yet
         </div>
         <p className="mt-1 font-label text-xs text-muted-foreground">
-          First results usually follow within about half an hour.
+          {waitingNote(pollsClose?.phase)}
         </p>
       </div>
     );
