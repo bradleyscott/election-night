@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateReady } from '../../server/ready-check.js';
+import { evaluateReady } from './health.js';
 
 describe('serveReady /ready behavior', () => {
   it('returns ready=true when upstream is reachable even without feed events', () => {

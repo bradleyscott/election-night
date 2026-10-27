@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import type { RuntimeConfig } from '@election-night/core/polls-close';
 import type { SeatChance } from '@election-night/core/seat-probability';
-import { normalizeElectorateName } from '../lib/electorates.js';
 import {
   nationalSwingOf,
   seatChanceFor,
   type ElectorateResult,
-} from '../lib/seat-chance.js';
+} from '@election-night/core/notional-baseline';
+import { normalizeElectorateName } from '../lib/electorates.js';
+import { baselineFor } from '../lib/seat-chance.js';
 import { useApi } from './useApi.js';
 
 /**
@@ -30,10 +31,11 @@ export function useSeatChances(electorates: ElectorateResult[]): {
 } {
   const { data: config } = useApi<RuntimeConfig>('/api/config');
   const electionYear = config?.electionYear ?? null;
+  const baseline = useMemo(() => baselineFor(electionYear), [electionYear]);
 
   const nationalSwing = useMemo(
-    () => nationalSwingOf(electorates, electionYear),
-    [electorates, electionYear]
+    () => nationalSwingOf(baseline, electorates),
+    [baseline, electorates]
   );
 
   const chances = useMemo(() => {
@@ -41,11 +43,11 @@ export function useSeatChances(electorates: ElectorateResult[]): {
     for (const electorate of electorates) {
       byName.set(
         normalizeElectorateName(electorate.electorateName),
-        seatChanceFor(electorate, electionYear, nationalSwing)
+        seatChanceFor(electorate, baseline, nationalSwing, electionYear)
       );
     }
     return byName;
-  }, [electorates, electionYear, nationalSwing]);
+  }, [baseline, electorates, electionYear, nationalSwing]);
 
   return { electionYear, chances };
 }

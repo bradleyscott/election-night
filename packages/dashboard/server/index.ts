@@ -5,7 +5,8 @@ import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import type { ResultsPayload } from '@election-night/core/types';
 import { buildRuntimeConfig } from '@election-night/core/polls-close';
-import { chanceLookupFor } from '../src/lib/seat-chance.js';
+import { chanceLookupFor } from '@election-night/core/notional-baseline';
+import { baselineFor } from '../src/lib/seat-chance.js';
 import { createHistorySource, type HistorySource } from './history-upstream.js';
 import { dashboardServerConfig } from './config.js';
 import {
@@ -19,12 +20,8 @@ import {
   websocketClients,
 } from './metrics.js';
 import { routeLabel } from './routes.js';
-import {
-  serveHealth,
-  serveMetrics,
-  serveReady,
-  serveStatic,
-} from './static.js';
+import { serveHealth, serveMetrics, serveReady } from './health.js';
+import { serveStatic } from './static.js';
 import { serveApi } from './api.js';
 import {
   addFeedEvents,
@@ -246,6 +243,7 @@ io.on('connection', (socket) => {
         // differently. Without a served cycle there is no prior, and the events
         // fall back to count-only copy.
         chanceLookupFor(
+          baselineFor(dashboardServerConfig.electionYear),
           payload.electorateResults,
           dashboardServerConfig.electionYear
         )
