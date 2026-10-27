@@ -2,15 +2,10 @@ import { useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { partyColor } from '../lib/constants.js';
-import {
-  countProgress,
-  nationalSwingOf,
-  seatChanceFor,
-} from '../lib/seat-chance.js';
+import { countProgress } from '../lib/seat-chance.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
-import { useApi } from '../hooks/useApi.js';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
+import { useSeatChances } from '../hooks/useSeatChances.js';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
@@ -311,7 +306,6 @@ function SuccessfulCandidates({
 
 export default function Seats() {
   const { results } = useResults();
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
 
   const partyVote = results?.partyVote;
   const sorted = partyVote
@@ -321,34 +315,17 @@ export default function Seats() {
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 
   const electorateResults = results?.electorateResults ?? [];
+  // The chance of winning each seat, computed once for the whole table so a
+  // row's number and the seat page's number come from the same call.
+  const { electionYear, chances } = useSeatChances(electorateResults);
+
   // Counted votes and how far through the night that is. The denominator is
   // the votes these seats are expected to receive tonight, not the share of
   // voting places that have reported — places do not hold equal numbers of
   // votes, and advance votes land in blocks after 7pm.
-  const progress = countProgress(
-    electorateResults,
-    config?.electionYear ?? null
-  );
+  const progress = countProgress(electorateResults, electionYear);
   const overallVotePercentage =
     progress.fraction !== null ? progress.fraction * 100 : null;
-
-  // The chance of winning each seat, computed once for the whole table so a
-  // row's number and the seat page's number come from the same call.
-  const electionYear = config?.electionYear ?? null;
-  const nationalSwing = useMemo(
-    () => nationalSwingOf(electorateResults, electionYear),
-    [electorateResults, electionYear]
-  );
-  const chances = useMemo(() => {
-    const map = new Map<string, SeatChance>();
-    for (const result of electorateResults) {
-      map.set(
-        normalizeElectorateName(result.electorateName),
-        seatChanceFor(result, electionYear, nationalSwing)
-      );
-    }
-    return map;
-  }, [electorateResults, electionYear, nationalSwing]);
 
   return (
     <div className="space-y-4 sm:space-y-6">

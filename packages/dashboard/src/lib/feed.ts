@@ -1,4 +1,4 @@
-/** Shared feed time formatting helpers used by the feed page and sidebar. */
+/** Relative feed times, e.g. "4m ago". Clock formatting is in `chart-format`. */
 
 export function relativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -11,12 +11,4 @@ export function relativeTime(timestamp: number): string {
   if (hours < 24) return mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
-}
-
-export function formatClockTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('en-NZ', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
 }

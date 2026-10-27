@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,9 +21,11 @@ import {
   formatTooltipStamp,
   formatVoteAxis,
   formatVotes,
+  parseDbTimestamp,
   timeTicks,
 } from '../lib/chart-format.js';
 import { CountedTape } from './CountedTape.js';
+import { PartyLine } from './PartyLine.js';
 import type { TapePoint } from './CountedTape.js';
 
 type ChartMode = 'votes' | 'percentage' | 'candidateVotes' | 'counted';
@@ -42,22 +43,6 @@ type ChartProps = {
    */
   votingPlaces?: { counted: number; total: number; receipts: number[] };
 };
-
-function parseDate(startedAt: string): Date {
-  return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
-}
-
-function getEntityColor(party: string | null): string {
-  return partyColor(party);
-}
-
-function isDarkColor(hex: string): boolean {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.35;
-}
 
 function VoteChartTooltip({
   active,
@@ -127,7 +112,7 @@ function VoteChartLegend({
     <div className="mt-2">
       <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center">
         {visible.map((entry) => {
-          const color = entry.color ?? getEntityColor(entry.party);
+          const color = entry.color ?? partyColor(entry.party);
           return (
             <div key={entry.name} className="flex items-center gap-1.5">
               <div
@@ -170,7 +155,7 @@ export default function VoteHistoryChart({
   // rug of receipts below the axis is the same measure at a finer resolution.
   const countedPoints = useMemo<TapePoint[]>(() => {
     return history.map((point) => ({
-      t: parseDate(point.startedAt).getTime(),
+      t: parseDbTimestamp(point.startedAt),
       value: point.votePctCounted * 100,
       sub:
         point.votesCounted > 0
@@ -182,7 +167,7 @@ export default function VoteHistoryChart({
   const chartData = useMemo(() => {
     return history.map((point) => {
       const total = point.votesCounted || 1;
-      const ts = parseDate(point.startedAt).getTime();
+      const ts = parseDbTimestamp(point.startedAt);
       const row: Record<string, number | string> = {
         ts,
       };
@@ -210,8 +195,8 @@ export default function VoteHistoryChart({
   const xTicks = useMemo(() => {
     if (history.length < 2) return [];
     return timeTicks(
-      parseDate(history[0].startedAt).getTime(),
-      parseDate(history[history.length - 1].startedAt).getTime()
+      parseDbTimestamp(history[0].startedAt),
+      parseDbTimestamp(history[history.length - 1].startedAt)
     );
   }, [history]);
 
@@ -335,26 +320,12 @@ export default function VoteHistoryChart({
             />
             <Tooltip content={<VoteChartTooltip mode={chartMode} />} />
             {entities.map((e) => {
-              const color = getEntityColor(e.party);
-              const dark = isDarkColor(color);
               return (
-                <Line
+                <PartyLine
                   key={e.name}
-                  type="monotone"
                   dataKey={`${prefix}${e.name}`}
                   name={e.name}
-                  stroke={color}
-                  strokeWidth={dark ? 3 : 2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                  style={
-                    dark
-                      ? {
-                          filter:
-                            'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
-                        }
-                      : undefined
-                  }
+                  color={partyColor(e.party)}
                 />
               );
             })}

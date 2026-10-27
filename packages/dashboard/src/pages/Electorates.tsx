@@ -12,11 +12,8 @@ import {
   isMaoriElectorate,
   normalizeElectorateName,
 } from '../lib/electorates.js';
-import { nationalSwingOf, seatChanceFor } from '../lib/seat-chance.js';
-import type { SeatChance } from '@election-night/core/seat-probability';
+import { useSeatChances } from '../hooks/useSeatChances.js';
 import { usePollsClose } from '../hooks/usePollsClose.js';
-import { useApi } from '../hooks/useApi.js';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
 import { WaitingState } from '../components/WaitingState.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
@@ -30,9 +27,7 @@ type ElectorateResult = ElectorateResults & WithLeaders;
 export default function Electorates() {
   const { name } = useParams();
   const { results, updatedAt } = useResults();
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
   const { closesAt } = usePollsClose();
-  const electionYear = config?.electionYear ?? null;
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
 
@@ -55,27 +50,10 @@ export default function Electorates() {
     ? electorates.find((e) => e.electorateName === selectedName)
     : null;
 
-  // Uniform swing across the seats counted so far, which is what a seat's own
-  // prior is adjusted by. Computed from the whole payload, so it is identical
-  // for every seat viewed in this update.
-  const nationalSwing = useMemo(
-    () => nationalSwingOf(electorates, electionYear),
-    [electorates, electionYear]
-  );
-
   // Every seat's chance, not just the open one: the map's shading is this
   // number, so a seat at even odds is painted pale and one that is gone is
-  // solid. Cheap — the swing above is computed once and shared.
-  const chances = useMemo(() => {
-    const byName = new Map<string, SeatChance>();
-    for (const electorate of electorates) {
-      byName.set(
-        normalizeElectorateName(electorate.electorateName),
-        seatChanceFor(electorate, electionYear, nationalSwing)
-      );
-    }
-    return byName;
-  }, [electorates, electionYear, nationalSwing]);
+  // solid. The swing behind it is measured across every seat at once.
+  const { chances } = useSeatChances(electorates);
 
   const chance = selectedElectorate
     ? (chances.get(

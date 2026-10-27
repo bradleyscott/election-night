@@ -28,7 +28,13 @@ export function formatVoteAxis(value: number): string {
   return value.toLocaleString();
 }
 
-/** Readouts keep every digit: a count is not abbreviated away in a tooltip. */
+/**
+ * Readouts keep every digit: a count is not abbreviated away in a tooltip.
+ *
+ * This is also the display boundary for the seat model's estimates — enrolment
+ * × turnout × share is fractional — so the card says "about 6,308 votes",
+ * never "6,307.826".
+ */
 export function formatVotes(value: number): string {
   return Math.round(value).toLocaleString();
 }
@@ -50,6 +56,19 @@ export function formatClock(ts: number): string {
     minute: '2-digit',
     hour12: true,
   });
+}
+
+/**
+ * Parse a timestamp in the form the history API writes it.
+ *
+ * `started_at` comes from SQLite's `CURRENT_TIMESTAMP` as `2023-10-14
+ * 07:04:05` with no zone. It is UTC, but a bare date-time string is parsed as
+ * local time, which would shift every point on a chart by the reader's own
+ * offset. Appending `Z` (when the string does not already carry a zone) is
+ * what makes a tape's x-axis agree with the feed's wall clock.
+ */
+export function parseDbTimestamp(startedAt: string): number {
+  return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z')).getTime();
 }
 
 /** Tooltip heading: Nov 7 · 6:04pm — one stamp for every chart. */

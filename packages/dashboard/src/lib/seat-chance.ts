@@ -4,6 +4,7 @@ import {
   type SeatPrior,
 } from '@election-night/core/seat-probability';
 import {
+  chanceLookupFor as chanceLookupIn,
   enrolmentForSeat as enrolmentIn,
   nationalSwingOf as nationalSwingIn,
   priorForSeat as priorIn,
@@ -86,7 +87,18 @@ export function seatChanceFor(
   );
 }
 
-/** "4 min ago", "just now", "2 hours ago". */
+/**
+ * The per-seat chance lookup for one payload, or undefined when the cycle has
+ * no baseline. The swing behind it depends on every seat at once, so it is
+ * built here rather than per row — the same contract the collector's feed uses.
+ */
+export function chanceLookupFor(
+  electorates: ElectorateResult[],
+  electionYear: string | null | undefined
+): ((result: ElectorateResult) => SeatChance) | undefined {
+  return chanceLookupIn(baselineFor(electionYear), electorates, electionYear);
+}
+
 /**
  * How far through tonight's count a set of seats is.
  *
@@ -153,6 +165,7 @@ export function mapFillOpacity(chance: SeatChance | null | undefined): number {
   return 0.2 + Math.min(1, Math.abs(chance.probability - 0.5) / 0.49) * 0.6;
 }
 
+/** "4 min ago", "just now", "2 hours ago". */
 export function formatUpdatedAgo(
   updatedAt: Date | null,
   now = new Date()

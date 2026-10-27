@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -27,25 +26,14 @@ import {
   formatPercentAxis,
   formatTooltipStamp,
   formatVoteAxis,
+  parseDbTimestamp,
   timeTicks,
 } from '../lib/chart-format.js';
 import { CountedTape } from '../components/CountedTape.js';
+import { PartyLine } from '../components/PartyLine.js';
 import type { TapePoint } from '../components/CountedTape.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
-
-function formatDate(startedAt: string): string {
-  const d = new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z'));
-  return d.toLocaleTimeString('en-NZ', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
-function parseTimestamp(startedAt: string): number {
-  return new Date(startedAt + (startedAt.endsWith('Z') ? '' : 'Z')).getTime();
-}
 
 function PartyLegend({
   payload,
@@ -70,14 +58,6 @@ function PartyLegend({
       })}
     </div>
   );
-}
-
-function isDarkColor(hex: string): boolean {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.35;
 }
 
 function PartyTooltip({
@@ -178,8 +158,7 @@ export default function Trends() {
     return data.map((point) => {
       const total = point.parties.reduce((s, p) => s + p.votes, 0);
       const row: Record<string, number | string> = {
-        time: formatDate(point.startedAt),
-        timestamp: parseTimestamp(point.startedAt),
+        timestamp: parseDbTimestamp(point.startedAt),
       };
       for (const p of point.parties) {
         // A renamed party keeps its rows under the current name, so a series
@@ -200,7 +179,7 @@ export default function Trends() {
   // than places, so this tape has no rug.
   const countedPoints = useMemo<TapePoint[]>(() => {
     return (data ?? []).map((point) => ({
-      t: parseTimestamp(point.startedAt),
+      t: parseDbTimestamp(point.startedAt),
       value: point.votePctCounted * 100,
       sub:
         point.votesCounted > 0
@@ -387,30 +366,14 @@ export default function Trends() {
               />
               <Tooltip content={<PartyTooltip mode={mode} />} />
               <Legend content={<PartyLegend />} />
-              {visibleParties.map((party) => {
-                const color = partyColor(party);
-                const dark = isDarkColor(color);
-                return (
-                  <Line
-                    key={party}
-                    type="monotone"
-                    dataKey={`${dataKeyPrefix}${party}`}
-                    name={party}
-                    stroke={color}
-                    strokeWidth={dark ? 3 : 2}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                    style={
-                      dark
-                        ? {
-                            filter:
-                              'drop-shadow(0px 0px 2px rgba(255,255,255,0.5))',
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
+              {visibleParties.map((party) => (
+                <PartyLine
+                  key={party}
+                  dataKey={`${dataKeyPrefix}${party}`}
+                  name={party}
+                  color={partyColor(party)}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}

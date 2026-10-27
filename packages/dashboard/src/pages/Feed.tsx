@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useFeed } from '../hooks/useFeed.js';
 import { cn } from '../lib/utils.js';
-import { relativeTime, formatClockTime } from '../lib/feed.js';
+import { relativeTime } from '../lib/feed.js';
+import { formatClock } from '../lib/chart-format.js';
 import { TimelineItem, TimelineGroupHeader } from '../components/Timeline.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { FeedEvent } from '@election-night/core/types';
@@ -228,7 +229,7 @@ export default function Feed() {
             >
               <TimelineGroupHeader
                 label={relativeTime(bucket)}
-                time={formatClockTime(bucket)}
+                time={formatClock(bucket)}
               />
               {events.map((event, itemIndex) => (
                 <TimelineItem

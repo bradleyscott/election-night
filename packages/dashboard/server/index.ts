@@ -4,9 +4,8 @@ import { resolve } from 'path';
 import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import type { ResultsPayload } from '@election-night/core/types';
-import type { ComparableResult } from '@election-night/core/diff';
 import { buildRuntimeConfig } from '@election-night/core/polls-close';
-import { nationalSwingOf, seatChanceFor } from '../src/lib/seat-chance.js';
+import { chanceLookupFor } from '../src/lib/seat-chance.js';
 import { createHistorySource, type HistorySource } from './history-upstream.js';
 import { dashboardServerConfig } from './config.js';
 import {
@@ -53,25 +52,6 @@ setBuildInfo(
 
 let latestResults: ResultsPayload | null = null;
 const feedMutex = new Mutex();
-
-/**
- * Build the chance lookup the feed needs for one payload.
- *
- * The seat model needs three things the payload does not carry: the previous
- * cycle's result on these boundaries, the seat's enrolled roll, and the served
- * cycle's turnout/finals constants. All three live on the dashboard side, which
- * is why the feed asks for a lookup rather than deriving a status itself.
- */
-function chanceLookupFor(
-  electorates: ResultsPayload['electorateResults']
-):
-  ((result: ComparableResult) => ReturnType<typeof seatChanceFor>) | undefined {
-  const electionYear = dashboardServerConfig.electionYear;
-  if (!electionYear) return undefined;
-  const results = electorates as Parameters<typeof nationalSwingOf>[0];
-  const swing = nationalSwingOf(results, electionYear);
-  return (result) => seatChanceFor(result, electionYear, swing);
-}
 
 function loadCachedResults() {
   if (existsSync(CACHE_PATH)) {
@@ -265,7 +245,10 @@ io.on('connection', (socket) => {
         // both read the same model, so the two cannot describe one count
         // differently. Without a served cycle there is no prior, and the events
         // fall back to count-only copy.
-        chanceLookupFor(payload.electorateResults)
+        chanceLookupFor(
+          payload.electorateResults,
+          dashboardServerConfig.electionYear
+        )
       );
       if (rawEvents.length === 0) return;
 

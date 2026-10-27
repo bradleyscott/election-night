@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
-import { useApi } from '../hooks/useApi.js';
 import { usePriorWinners } from '../hooks/useVoteHistory.js';
+import { useSeatChances } from '../hooks/useSeatChances.js';
 import { Toggle } from '../components/Toggle.js';
 import { Pagination } from '../components/Pagination.js';
 import { WaitingState } from '../components/WaitingState.js';
@@ -11,14 +11,9 @@ import {
   isMaoriElectorate,
   normalizeElectorateName,
 } from '../lib/electorates.js';
-import {
-  nationalSwingOf,
-  seatChanceFor,
-  type ElectorateResult,
-} from '../lib/seat-chance.js';
-import { cn } from '../lib/utils.js';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import type { ElectorateResult } from '@election-night/core/notional-baseline';
+import { cn } from '../lib/utils.js';
 import type { PriorWinner } from '../lib/history-types.js';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
@@ -50,25 +45,10 @@ export default function Flipped() {
   const [page, setPage] = useState(0);
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
 
   // The same figure the seat page, the map, Seats and Close Calls quote, so no
   // two surfaces can disagree about one seat.
-  const electionYear = config?.electionYear ?? null;
-  const nationalSwing = useMemo(
-    () => nationalSwingOf(electorates, electionYear),
-    [electorates, electionYear]
-  );
-  const chances = useMemo(() => {
-    const map = new Map<string, SeatChance>();
-    for (const result of electorates) {
-      map.set(
-        normalizeElectorateName(result.electorateName),
-        seatChanceFor(result, electionYear, nationalSwing)
-      );
-    }
-    return map;
-  }, [electorates, electionYear, nationalSwing]);
+  const { chances } = useSeatChances(electorates);
 
   const primaryYear = prior?.primaryYear ?? null;
 
