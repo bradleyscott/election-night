@@ -7,6 +7,12 @@ import type {
   PartyListResult,
 } from '@election-night/core/types';
 
+/**
+ * Candidates shown on each side of the cut. Five each way keeps the cut line
+ * reading as a boundary in a list rather than as a fragment of one.
+ */
+const ROWS_EACH_SIDE = 5;
+
 export function ListCutLinesView({
   partyLists,
   electorateResults,
@@ -39,8 +45,8 @@ export function ListCutLinesView({
     const aboveCut = sorted.filter((m) => m.distanceFromCut >= 0);
     const belowCut = sorted.filter((m) => m.distanceFromCut < 0);
 
-    const above = aboveCut.slice(-3);
-    const below = belowCut.slice(0, 3);
+    const above = aboveCut.slice(-ROWS_EACH_SIDE);
+    const below = belowCut.slice(0, ROWS_EACH_SIDE);
 
     return { above, below };
   }, [partyLists, activeParty, electorateForCandidate]);
