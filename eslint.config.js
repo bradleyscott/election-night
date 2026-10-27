@@ -23,7 +23,6 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.cache/**',
       '**/.data/**',
-      '**/components/ui/**',
     ],
   }
 );
