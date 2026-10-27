@@ -11,9 +11,10 @@ duplication that can be collapsed, and structure that costs more than it earns.
 > indexed baseline lookup, one baseline injection point, `health.ts` split out
 > of `static.ts`, configs ordered by `e_no`) and Tier 4 on
 > `refactor/tier4-design-system` (`PartyDot`, `PageHead`/`PageWaiting`, one
-> `Toggle`, one mode table in Trends). The second pass's three defects (A1–A3)
-> are fixed on `fix/second-pass-defects`; its duplication, vestigial and nit
-> lists are open, as are two of the original bugs.
+> `Toggle`, one mode table in Trends). The second pass is fixed through its
+> duplication block: the three defects (A1–A3) and the two `sendJson`/doc-comment
+> bugs on `fix/second-pass-defects`, and B1–B5 on
+> `refactor/second-pass-duplication`. Only its vestigial and nit lists are open.
 >
 > Two items were dropped deliberately. Tier 3's tag helper for `serve-mock.ts`:
 > the mock's XML literals _are_ the fixture the pipeline tests compare against
@@ -186,28 +187,19 @@ wears the tokens is copy-pasted, which is how a token drifts.
 
 ## Bugs and inconsistencies found on the way
 
-These are not simplifications; they are defects the audit tripped over. Worth
-tickets regardless of whether any tier is actioned.
+All five are closed; they are kept as a record of the kind of defect a reading
+pass trips over that a mechanical one does not:
 
-1. **`routes.ts` has no `/api/history/voting-places/:name`.** Every voting-place
-   request is labelled `route="/api/other"` in `election_http_requests_total`.
-   The file exists precisely so route labels stay bounded and meaningful.
-2. **`sendJson` has two opposite argument orders.** Collector:
-   `(res, status, body)` (`history-server.ts:69`). Server: `(res, body, status =
-200)` (`api.ts:4`). Same name, incompatible signatures, adjacent layers.
-3. **Misplaced doc comments.** `seat-probability.ts:328-345`: the `priorShareFor`
-   doc now sits above `canonicalParty`'s doc, so two stacked blocks describe the
-   wrong function. `lib/seat-chance.ts:92`: `/** "4 min ago", "just now"… */` is
-   stranded above `countProgress`.
-4. ~~**The validation harness can validate stale numbers.**~~ **Fixed** in the
-   second pass (A1) — the script reads `cycleConstantsFor(year)`. Its baseline
-   and cache paths were also stale, so it could not run at all.
-   `scripts/validate-seat-probability.mjs:27-28` imports `FINAL_TURNOUT` and
-   `NIGHT_SHARE_OF_FINAL`, while the app reads `CYCLE_CONSTANTS[2023]`. The 2023
-   figures are written twice in `seat-probability.ts`; update one and the
-   harness reports a Brier score for a model that does not exist. Have the
-   script read `cycleConstantsFor(2023)`.
-5. ~~**Docs describe `seed.ts` as live.**~~ **Fixed** with the Tier 1 deletion.
+1. `routes.ts` had no label for `/api/history/voting-places/:name`, so every
+   seat a visitor opened landed in the `/api/other` series.
+2. The two `sendJson` helpers took `(res, status, body)` and
+   `(res, body, status = 200)`; the collector's now matches the server's.
+3. `priorShareFor`'s doc block was stranded above `canonicalParty`, which had
+   one of its own; `lib/seat-chance.ts` carried a second stray block.
+4. The seat-probability harness imported the 2023 constants instead of
+   `cycleConstantsFor(year)` — and read its baseline from a directory that no
+   longer existed, so it could not run at all.
+5. Three docs described the deleted `seed.ts` as a working tool.
 
 ## Second pass (after Tiers 1–4)
 
@@ -223,25 +215,15 @@ once, and targeted checks of the seams the refactors had moved.
 | **A2** dead route           | `/api/history/snapshots` proxied on the dashboard, with no client since `useSnapshotMetas` was deleted in Tier 1                                          | removed (the collector's route still answers the readiness probe)                                                                      |
 | **A3** two feed type tables | `pages/Feed.tsx` and `components/FeedSidebar.tsx` each mapped the four event types, and disagreed: `count_completed` was "Count Complete" and "Complete"  | one `FEED_EVENT_STYLE` behind `feedEventStyle()`; `TimelineItem` takes dot classes, so both dots come from one entry                   |
 
-### Open — duplication
+### Fixed — duplication
 
-- **B1. The party-list table exists twice (~90 lines).** `ListCutLinesView.tsx`
-  and `pages/Parties.tsx` both render the chip row + "More…" select, the four
-  column headers, the cut-line divider and the elected/`From Cut` row. They
-  differ only around the table: Parties adds the electorate-leader toggle and
-  links, ListCutLines shows ±3 around the cut.
-- **B2. One table-header class string, 28 times, 6 files.** `Flipped.tsx`
-  already has a local `Th`; generalising it (with `align`) would delete the
-  literals in the six table components.
-- **B3. 29 composed row-type aliases across 20 files** — 14 ×
-  `type ElectorateResult = ElectorateResults & WithLeaders`, plus the
-  `PartyListEntry` and `PartyVoteSummary`/`PartyEntry` equivalents. Core
-  composes these three rows inside `ResultsPayload` without naming them.
-- **B4. `RawElectorateResults` and `ElectorateResults` are the same shape**, so
-  `toElectorateResults` (unified in Tier 2) is a key-order shuffle.
-- **B5. `/api/config` is fetched up to three times on one page** — `Layout` and
-  `Electorates` each call `usePollsClose`, and `useSeatChances` fetches it too;
-  `useApi` has no cache or in-flight dedupe.
+| Item                                     | Was                                                                                                                        | Now                                                                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **B1** party-list table twice            | the chip row, header, cut line and electorate-winner row in `ListCutLinesView.tsx` and `Parties.tsx`, ~90 lines each       | `PartyListCard` + `PartyFilterChips`; the two pages are 75 and 104 lines                                         |
+| **B2** header typography, 28 times       | six classes written out at every `<th>` in six tables, plus Flipped's local `Th`                                           | `TH_CLASS` and `Th` in `components/Table.tsx`; the compact tables compose the constant                           |
+| **B3** 29 row-type aliases, 20 files     | three payload rows recomposed under local names (`Results`, `PartyVoteSummary`, `PartyEntry`, …)                           | `ElectorateResult`/`PartyVoteResult`/`PartyListResult` exported from `core/types.ts`; `ResultsPayload` uses them |
+| **B4** two identical result types        | `RawElectorateResults` was a field-for-field copy of `ElectorateResults`, so `toElectorateResults` was a key-order shuffle | one shape under the source contract's name; the projection is gone                                               |
+| **B5** `/api/config` fetched three times | `Layout` and `Electorates` each ran `usePollsClose`, and `useSeatChances` fetched it too, with no dedupe                   | `useRuntimeConfig` shares one in-flight request                                                                  |
 
 ### Open — vestigial, needs a decision
 
@@ -260,9 +242,8 @@ once, and targeted checks of the seams the refactors had moved.
 Two relative-time formatters (`formatUpdatedAgo`, `relativeTime`); cache-file
 I/O boilerplate repeated in `server/index.ts`, `server/feed.ts` and
 `collector/results.ts`; `/ready` fetches every snapshot row to test liveness;
-`lib/history-types.ts` is a re-export shim; each `scripts/*.mjs` defines its own
-`arg`; the root `typecheck` script builds core twice; two CI workflows repeat
-the same checkout/setup block.
+each `scripts/*.mjs` defines its own `arg`; the root `typecheck` script builds
+core twice; two CI workflows repeat the same checkout/setup block.
 
 ## What this audit deliberately left alone
 
@@ -276,26 +257,19 @@ the same checkout/setup block.
   clamping all carry measured justifications; there is no shorter correct form.
 - **`docs/mockups/`.** Captures of the running app, not hand-drawn proposals.
 
-## Suggested sequence
+## What is left
 
-1. **Tier 1 deletions** plus the doc fixes. Pure subtraction; `lint`,
-   `typecheck` and `test` should pass untouched. ~800 lines.
-2. **The `exports` map and the barrel/`./config` cleanup.** Small, and it stops
-   new core modules failing at runtime.
-3. **The tagged-cache consolidation.** One new core module, three call sites,
-   existing tests move with it.
-4. **The rest of Tier 2.** Mechanical, reviewable area by area.
-5. **The Tier 4 design pass.** Highest visible payoff and zero logic risk, but
-   it touches ~20 files — do it alone so a visual diff is readable.
-6. **The baseline index and seat-chance wrappers last.** The only change with
-   performance and model surface, and the one worth a careful read.
+The C list needs a decision before any code moves (does the server want the
+metric payload, or should the collector send a bare heartbeat?), and the D list
+is small enough to ride along with whatever comes next. Everything else in this
+document has been applied.
 
-Verification stays as it is today:
+Verification has not changed:
 
 ```bash
 npm run lint && npm run typecheck && npm test
 ```
 
-Optional add-on: `knip` as a dev dependency in `checks.yml`. This pass found
-roughly fifty dead exports that a static tool would have flagged on the day each
-one became dead, and it re-runs on every PR for free.
+One suggestion from the first pass still stands: `knip` as a dev dependency in
+`checks.yml`. The two passes found roughly fifty dead exports by hand; a static
+tool would have named each one on the day it became dead, and re-runs for free.
