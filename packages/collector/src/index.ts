@@ -18,13 +18,12 @@ import {
   publishMetrics,
   disconnectWs,
 } from './ws-client.js';
-import { emitSnapshotWrite, recordDiskUsage } from './metrics.js';
 import {
-  describeSweep,
-  effectiveKeepHours,
-  sampleDisk,
-  shouldSweep,
-} from './retention.js';
+  emitSnapshotWrite,
+  recordDiskUsage,
+  sampleDiskUsage,
+} from './metrics.js';
+import { describeSweep, effectiveKeepHours, shouldSweep } from './retention.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
@@ -251,7 +250,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
 function retentionSweep(now = Date.now()): void {
   if (RETENTION_HOURS <= 0) return;
 
-  const disk = sampleDisk(dbPath);
+  const disk = sampleDiskUsage(dbPath);
   const keepHours = effectiveKeepHours(RETENTION_HOURS, disk);
   const interval = RETENTION_SWEEP_MS;
 

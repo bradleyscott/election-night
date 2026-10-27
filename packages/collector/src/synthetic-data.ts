@@ -232,15 +232,6 @@ export const SCENARIO_TIED: SyntheticElectorate = {
   partyVoteFinal: [11_800, 11_500, 2_600, 1_800, 1_000, 500, 400, 200, 200],
 };
 
-export const ALL_SCENARIOS: SyntheticElectorate[] = [
-  SCENARIO_LANDSLIDE,
-  SCENARIO_STRONG,
-  SCENARIO_MARGINAL,
-  SCENARIO_CLOSE,
-  SCENARIO_EXTREMELY_CLOSE,
-  SCENARIO_TIED,
-];
-
 const PCT_POINTS = [0.1, 0.3, 0.5, 0.8, 1.0] as const;
 type PctPoint = (typeof PCT_POINTS)[number];
 
@@ -261,42 +252,6 @@ export const extremelyCloseFixtures = generateFixtures(
   SCENARIO_EXTREMELY_CLOSE
 );
 export const tiedFixtures = generateFixtures(SCENARIO_TIED);
-
-export const landslideAt10Pct = landslideFixtures[0.1];
-export const landslideAt30Pct = landslideFixtures[0.3];
-export const landslideAt50Pct = landslideFixtures[0.5];
-export const landslideAt80Pct = landslideFixtures[0.8];
-export const landslideAt100Pct = landslideFixtures[1.0];
-
-export const strongAt10Pct = strongFixtures[0.1];
-export const strongAt30Pct = strongFixtures[0.3];
-export const strongAt50Pct = strongFixtures[0.5];
-export const strongAt80Pct = strongFixtures[0.8];
-export const strongAt100Pct = strongFixtures[1.0];
-
-export const marginalAt10Pct = marginalFixtures[0.1];
-export const marginalAt30Pct = marginalFixtures[0.3];
-export const marginalAt50Pct = marginalFixtures[0.5];
-export const marginalAt80Pct = marginalFixtures[0.8];
-export const marginalAt100Pct = marginalFixtures[1.0];
-
-export const closeAt10Pct = closeFixtures[0.1];
-export const closeAt30Pct = closeFixtures[0.3];
-export const closeAt50Pct = closeFixtures[0.5];
-export const closeAt80Pct = closeFixtures[0.8];
-export const closeAt100Pct = closeFixtures[1.0];
-
-export const extremelyCloseAt10Pct = extremelyCloseFixtures[0.1];
-export const extremelyCloseAt30Pct = extremelyCloseFixtures[0.3];
-export const extremelyCloseAt50Pct = extremelyCloseFixtures[0.5];
-export const extremelyCloseAt80Pct = extremelyCloseFixtures[0.8];
-export const extremelyCloseAt100Pct = extremelyCloseFixtures[1.0];
-
-export const tiedAt10Pct = tiedFixtures[0.1];
-export const tiedAt30Pct = tiedFixtures[0.3];
-export const tiedAt50Pct = tiedFixtures[0.5];
-export const tiedAt80Pct = tiedFixtures[0.8];
-export const tiedAt100Pct = tiedFixtures[1.0];
 
 export type ElectorateAtPct = {
   scenario: SyntheticElectorate;
@@ -344,11 +299,6 @@ export function makeLateCount(): ElectorateResults[] {
   ]);
 }
 
-export function makeFullCount(): ElectorateResults[] {
-  return ALL_SCENARIOS.map((scenario) => generatePartialResults(scenario, 1.0));
-}
-
 export const earlyCountResults = makeEarlyCount();
 export const midCountResults = makeMidCount();
 export const lateCountResults = makeLateCount();
-export const fullCountResults = makeFullCount();

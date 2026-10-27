@@ -1,5 +1,5 @@
 import jstat from 'jstat';
-import type { ElectorateResults, VotingResults } from './types.js';
+import type { VotingResults } from './types.js';
 
 /**
  * Chance of winning a seat on election night.
@@ -43,12 +43,6 @@ export const NIGHT_SHARE_OF_FINAL = 0.783;
 
 /** Final turnout as a share of enrolled electors, 2023: 77.7%. */
 export const FINAL_TURNOUT = 0.777;
-
-/**
- * Special votes as a share of all votes, 2023: 603,257 of 2,867,478 — 21.0%.
- * Counted after election night.
- */
-export const SPECIAL_SHARE = 0.21;
 
 /**
  * What a night looked like, per cycle.
@@ -126,7 +120,6 @@ export const DEFAULT_TAU = 0.03;
  * count has not made.
  */
 export const CERTAINTY_CEILING = 0.99;
-export const CERTAINTY_FLOOR = 0.01;
 
 /**
  * Size of the composition term, as a multiple of `tau`.
@@ -591,31 +584,4 @@ export function computeSeatChance(input: SeatChanceInput): SeatChance {
     insideSpecials: margin < specialsOutstanding * 0.2,
     provisionalPrior,
   };
-}
-
-/** Convenience wrapper for a dashboard result row. */
-export function computeSeatChanceForResult(
-  result: ElectorateResults,
-  options: {
-    prior?: SeatPrior | null;
-    nationalSwing?: Record<string, number>;
-    tau?: number;
-    enrolment?: number;
-    electionYear?: number | null;
-  }
-): SeatChance {
-  return computeSeatChance({
-    candidates: result.candidateVotes.map((c) => ({
-      name: c.candidate,
-      party: c.party,
-      votes: c.votes,
-    })),
-    votesCounted: result.votesCounted,
-    percentVotesCast: result.percentVotesCast,
-    enrolment: options.enrolment,
-    electionYear: options.electionYear,
-    prior: options.prior,
-    nationalSwing: options.nationalSwing,
-    tau: options.tau,
-  });
 }

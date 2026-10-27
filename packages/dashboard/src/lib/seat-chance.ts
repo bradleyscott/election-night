@@ -33,9 +33,6 @@ const BASELINES: Record<string, NotionalBaseline> = {
   '2026': baseline2026 as unknown as NotionalBaseline,
 };
 
-/** The cycle whose boundaries these results are drawn on. */
-export const BASELINE_YEARS = Object.keys(BASELINES);
-
 function baselineFor(
   electionYear: string | null | undefined
 ): NotionalBaseline | null {

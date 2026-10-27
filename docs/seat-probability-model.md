@@ -179,8 +179,9 @@ p(win)   = Φ(mean / sd)
 - `remaining × τ` is the possibility that the missing votes are not like the
   counted ones — the real reason a 60% count is not decisive.
 
-The reported percentage is `Φ(mean/sd)`, clamped to the interval
-`[CERTAINTY_FLOOR, CERTAINTY_CEILING]` (1%–99%) and rounded to a whole number on
+The reported percentage is `Φ(mean/sd)`, clamped to `[1 − ceiling, ceiling]` —
+1%–99% for a seat with a name-matched prior, and 5%–95% when the prior is only
+party-level (`PROVISIONAL_CEILING`) — and rounded to a whole number on
 the page. The clamp is deliberate: a normal tail reaches 99.99% and would round
 to 100%, which reads as a call the count has not made — and a seat reported at
 100% that later changes hands discredits every other number beside it.

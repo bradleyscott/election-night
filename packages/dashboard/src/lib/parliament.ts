@@ -52,7 +52,7 @@ export function defaultOrder(partyVote: PartyEntry[]): string[] {
   return [biggest, ...rest, secondBiggest];
 }
 
-export function getListOpacity(distanceFromCut: number): number {
+function getListOpacity(distanceFromCut: number): number {
   if (distanceFromCut >= 10) return 0.8;
   if (distanceFromCut <= 0) return 0.2;
   return 0.2 + (distanceFromCut / 10) * 0.6;

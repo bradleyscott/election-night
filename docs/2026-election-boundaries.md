@@ -62,9 +62,9 @@ uncoloured electorates and clickable-but-empty polygons.
   list in the production path.
 - Seat maths is not ours: `election.xml` publishes list, electorate and total
   seats per party — threshold rule and overhang included — and those numbers are
-  rendered as published. The only Sainte-Laguë left in the repo is in the dev
-  seed (`packages/dashboard/server/seed.ts`), which fabricates a parliament
-  when there is no feed at all.
+  rendered as published. Nothing in the product derives seats; the mock feed
+  (`packages/collector/src/serve-mock.ts`) invents them in the fixture it
+  serves, and that is the only allocation arithmetic in the repo.
 
 **Changed for 2026:**
 
@@ -145,10 +145,6 @@ uncoloured electorates and clickable-but-empty polygons.
   live results XML feed is provided to media after polls close and that access
   and testing are arranged through its media team, so confirm the election-night
   URL and schema before relying on the archive path.
-- **The dev seed still uses the 2023 electorate list.** The mock server replays
-  2023 by default and 2026 on request (`--year 2026`), but
-  `packages/dashboard/server/seed.ts` hardcodes the 65 + 7 names, so a seeded
-  dashboard shows the 2023 topology.
 - **Pre-existing data on the Fly volume.** The year filter hides older rows
   rather than deleting them. Run `npm run clear` before the night if you want
   the volume clean as well.

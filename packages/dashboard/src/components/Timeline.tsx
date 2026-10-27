@@ -60,29 +60,3 @@ export function TimelineGroupHeader({
     </div>
   );
 }
-
-export function TimelineSeparator({
-  label,
-  time,
-}: {
-  label: string;
-  time?: string;
-}) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center">
-        <div className="w-px flex-1 bg-border/30" />
-      </div>
-      <div className="pb-1 flex-1 min-w-0">
-        <span className="text-xs font-bold text-muted-foreground tracking-wider uppercase">
-          {label}
-        </span>
-        {time && (
-          <span className="text-[11px] text-muted-foreground/50 ml-2 tabular-nums">
-            {time}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
