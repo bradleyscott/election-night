@@ -5,14 +5,9 @@ import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import { Pagination } from './Pagination.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { PartyDot } from './PartyDot.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 const PAGE_SIZE = 10;
 

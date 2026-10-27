@@ -37,12 +37,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 import type {
-  ElectorateResults,
-  WithLeaders,
   VotingResults,
+  ElectorateResult,
 } from '@election-night/core/types';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 interface ElectorateMapProps {
   electorates: ElectorateResult[];

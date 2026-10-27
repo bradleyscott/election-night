@@ -3,15 +3,10 @@ import { partyColor, buildElectorateLookup } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import type {
-  ElectorateResults,
-  WithLeaders,
-  PartyList,
-  WithAdjustedRank,
+  ElectorateResult,
+  PartyListResult,
 } from '@election-night/core/types';
 import { PartyDot } from './PartyDot.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
-type PartyListEntry = PartyList & WithAdjustedRank;
 
 export function ListCutLinesView({
   partyLists,
@@ -21,7 +16,7 @@ export function ListCutLinesView({
   otherParties,
   onPartyClick,
 }: {
-  partyLists: PartyListEntry[];
+  partyLists: PartyListResult[];
   electorateResults: ElectorateResult[];
   selectedParty: string;
   majorParties: string[];

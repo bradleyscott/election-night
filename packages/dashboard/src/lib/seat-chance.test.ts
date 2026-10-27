@@ -5,9 +5,9 @@ import {
   priorForSeat,
   seatChanceFor,
   tauFor,
-  type ElectorateResult,
 } from '@election-night/core/notional-baseline';
 import { baselineFor, countProgress, mapFillOpacity } from './seat-chance.js';
+import type { ElectorateResult } from '@election-night/core/types';
 
 /** The shipped 2026 baseline, which every lookup below reads through. */
 const baseline2026 = baselineFor('2026');

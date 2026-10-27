@@ -2,7 +2,6 @@ import {
   ElectorateResults,
   NationalStatus,
   PartyList,
-  RawElectorateResults,
   ResultsPayload,
   VotingResults,
   WithLeaders,
@@ -154,25 +153,6 @@ function calculatePartyList(
 }
 
 /**
- * Keep exactly the fields the dashboard consumes.
- *
- * A source adapter is free to carry more (the XML parser's intermediate shapes
- * do), so the projection is the seam: the scrape loop and the historical
- * service both build payloads from this shape, and nothing downstream sees a
- * field the contract does not name.
- */
-function toElectorateResults(raw: RawElectorateResults): ElectorateResults {
-  return {
-    electorateName: raw.electorateName,
-    partyVotes: raw.partyVotes,
-    candidateVotes: raw.candidateVotes,
-    votesCounted: raw.votesCounted,
-    votePercentageCounted: raw.votePercentageCounted,
-    percentVotesCast: raw.percentVotesCast,
-  };
-}
-
-/**
  * The whole reduction, raw electorate results + party lists → the payload the
  * dashboard consumes.
  *
@@ -211,5 +191,4 @@ export {
   buildPartyVoteWithSeats,
   calculatePartyList,
   buildResultsPayload,
-  toElectorateResults,
 };

@@ -24,8 +24,6 @@ import { emitWebhookPublish, emitWebhookPublishDuration } from './metrics.js';
 import { collectorConfig } from './config.js';
 import { log } from './logger.js';
 
-export type Results = ComparableResult;
-
 export { computeDiff, determineWebhookEvents };
 
 /**
@@ -41,7 +39,7 @@ export { computeDiff, determineWebhookEvents };
  */
 const CACHE_KEY = 'results';
 
-let electorateResults: Results[];
+let electorateResults: ComparableResult[];
 
 /**
  * Cycle tag of the cache the collector is currently relying on — written by
@@ -55,7 +53,7 @@ export function cacheCycle(): string | null {
   return cachedYear;
 }
 
-export function cacheResults(toCache: Results[]) {
+export function cacheResults(toCache: ComparableResult[]) {
   electorateResults = toCache;
   cachedYear = collectorConfig.electionYear;
   mkdirSync(dirname(collectorConfig.resultsCachePath), { recursive: true });
@@ -65,7 +63,7 @@ export function cacheResults(toCache: Results[]) {
   );
 }
 
-export function readResults(): Results[] {
+export function readResults(): ComparableResult[] {
   if (electorateResults) {
     return electorateResults;
   }
@@ -78,7 +76,7 @@ export function readResults(): Results[] {
 
   // `ELECTION_YEAR` is always set for the collector, so an untagged cache is
   // never used as a baseline.
-  const cached = readTaggedCache<Results>({
+  const cached = readTaggedCache<ComparableResult>({
     raw,
     key: CACHE_KEY,
     payloadNoun: 'results',
@@ -96,9 +94,9 @@ export function readResults(): Results[] {
 
 export async function sendWebhook(
   event: WebhookEventType,
-  result: Results,
+  result: ComparableResult,
   diff: ElectorateDiff,
-  chanceFor?: (result: Results) => SeatChance | null
+  chanceFor?: (result: ComparableResult) => SeatChance | null
 ): Promise<void> {
   const url = collectorConfig.webhookUrl;
   if (!url) return;
@@ -152,15 +150,15 @@ export async function sendWebhook(
  * represents the previous cycle for comparison.
  */
 export async function processResults(
-  currentResults: Results[],
-  chanceFor?: (result: Results) => SeatChance | null
+  currentResults: ComparableResult[],
+  chanceFor?: (result: ComparableResult) => SeatChance | null
 ): Promise<void> {
   const cachedResults = readResults();
   const cacheMap = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   // A seat is "called" on the same rule the feed uses, so a subscriber that
   // reads both is told about the same event twice, not two different ones.
-  const called = (result: Results | null): boolean => {
+  const called = (result: ComparableResult | null): boolean => {
     if (!result || !chanceFor) return false;
     const chance = chanceFor(result);
     return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;

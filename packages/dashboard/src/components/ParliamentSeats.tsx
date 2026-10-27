@@ -16,11 +16,6 @@ import {
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { usePartyOrder } from '../hooks/usePartyOrder.js';
 import { buildSeats } from '../lib/parliament.js';
-import type {
-  PartyEntry,
-  ElectorateEntry,
-  PartyListEntry,
-} from '../lib/parliament.js';
 import { WaitingState } from './WaitingState.js';
 import BottomSheet from './BottomSheet.js';
 import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
@@ -29,6 +24,11 @@ import { SeatDetailContent } from './SeatDetailContent.js';
 import { type DragEndEvent } from '@dnd-kit/dom';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { isSortable } from '@dnd-kit/react/sortable';
+import type {
+  ElectorateResult,
+  PartyListResult,
+  PartyVoteResult,
+} from '@election-night/core/types';
 
 const ROWS = 3;
 
@@ -38,9 +38,9 @@ export default function ParliamentSeats({
   partyLists,
   chances,
 }: {
-  partyVote: PartyEntry[];
-  electorateResults: ElectorateEntry[];
-  partyLists: PartyListEntry[];
+  partyVote: PartyVoteResult[];
+  electorateResults: ElectorateResult[];
+  partyLists: PartyListResult[];
   chances?: Map<string, SeatChance>;
 }) {
   const { order, setOrder, resetOrder } = usePartyOrder(partyVote);
@@ -162,7 +162,7 @@ export default function ParliamentSeats({
 
   const coalitionInfo = useMemo(() => {
     let cumulative = 0;
-    const parties: PartyEntry[] = [];
+    const parties: PartyVoteResult[] = [];
     for (const name of order) {
       const party = partyVote.find((p) => p.candidate === name);
       if (!party || party.seats <= 0) continue;

@@ -1,11 +1,11 @@
 import type {
   ElectorateDiff,
-  ElectorateResults,
+  ElectorateResult,
   WebhookEventType,
-  WithLeaders,
 } from './types.js';
 
-export type ComparableResult = ElectorateResults & WithLeaders;
+/** The shape a scrape-to-scrape diff needs: one seat's result. */
+export type ComparableResult = ElectorateResult;
 
 /**
  * Compute the delta between two scrape cycles for one electorate.

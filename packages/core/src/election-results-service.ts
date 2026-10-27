@@ -27,7 +27,7 @@ import type {
   PriorWinnersYear,
   ResultsForYear,
 } from './history.js';
-import { buildResultsPayload, toElectorateResults } from './reducers.js';
+import { buildResultsPayload } from './reducers.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { NzElectionXmlSource } from './sources/nz-election-xml.js';
 import { normalizeElectorateName } from './electorate-names.js';
@@ -265,11 +265,7 @@ export class ElectionResultsService {
         }
       );
 
-      const payload = buildResultsPayload(
-        raw.map(toElectorateResults),
-        partyList,
-        nationalStatus
-      );
+      const payload = buildResultsPayload(raw, partyList, nationalStatus);
       this.cache.set(year, payload);
       this.onLog(
         'info',

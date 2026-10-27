@@ -4,11 +4,11 @@ import type { SeatChance } from '@election-night/core/seat-probability';
 import {
   nationalSwingOf,
   seatChanceFor,
-  type ElectorateResult,
 } from '@election-night/core/notional-baseline';
 import { normalizeElectorateName } from '../lib/electorates.js';
 import { baselineFor } from '../lib/seat-chance.js';
 import { useApi } from './useApi.js';
+import type { ElectorateResult } from '@election-night/core/types';
 
 /**
  * Every seat's chance of winning, keyed by normalised electorate name.

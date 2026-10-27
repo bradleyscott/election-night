@@ -16,13 +16,8 @@ import { useSeatChances } from '../hooks/useSeatChances.js';
 import { usePollsClose } from '../hooks/usePollsClose.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import type { ElectorateResult } from '@election-night/core/types';
 import { PageHead, PageWaiting } from '../components/Page.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 export default function Electorates() {
   const { name } = useParams();

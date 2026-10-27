@@ -5,14 +5,11 @@ import Parties from './Parties.js';
 import { mockResults } from '../test/fixtures.js';
 import { renderWithProvidersAndData } from '../test/test-utils.js';
 import type {
-  PartyList,
   ResultsPayload,
-  WithAdjustedRank,
+  PartyListResult,
 } from '@election-night/core/types';
 
-type PartyListEntry = PartyList & WithAdjustedRank;
-
-function listEntry(party: string, candidate: string): PartyListEntry {
+function listEntry(party: string, candidate: string): PartyListResult {
   return {
     party,
     candidate,

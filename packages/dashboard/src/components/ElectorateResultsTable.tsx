@@ -1,14 +1,11 @@
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
 import type {
-  ElectorateResults,
   VotingResults,
-  WithLeaders,
   WithParty,
+  ElectorateResult,
 } from '@election-night/core/types';
 import { PartyDot } from './PartyDot.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 function hasParty(
   v: VotingResults | (VotingResults & WithParty)

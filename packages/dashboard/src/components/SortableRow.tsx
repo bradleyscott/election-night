@@ -1,8 +1,8 @@
 import { useSortable } from '@dnd-kit/react/sortable';
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
-import type { PartyEntry } from '../lib/parliament.js';
 import { PartyDot } from './PartyDot.js';
+import type { PartyVoteResult } from '@election-night/core/types';
 
 export function SortableRow({
   party,
@@ -11,7 +11,7 @@ export function SortableRow({
   hoveredParty,
   onHoveredPartyChange,
 }: {
-  party: PartyEntry;
+  party: PartyVoteResult;
   totalPartyVotes: number;
   index: number;
   hoveredParty: string | null;

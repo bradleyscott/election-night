@@ -8,11 +8,9 @@ import {
   splitParties,
   buildElectorateLookup,
 } from '../lib/constants.js';
-import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
+import type { PartyListResult } from '@election-night/core/types';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
-
-type PartyListEntry = PartyList & WithAdjustedRank;
 
 export default function Parties() {
   const { results } = useResults();
@@ -26,7 +24,7 @@ export default function Parties() {
     setSelectedParty(searchParams.get('party') ?? '');
   }, [searchParams]);
 
-  const partyLists = (results?.partyLists ?? []) as PartyListEntry[];
+  const partyLists = (results?.partyLists ?? []) as PartyListResult[];
 
   const electorateForCandidate = useMemo(
     () =>

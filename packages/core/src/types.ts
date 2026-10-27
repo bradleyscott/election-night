@@ -56,10 +56,23 @@ export type WithAdjustedRank = {
   distanceFromCut: number;
 };
 
+/**
+ * A seat's result as the pipeline publishes it: the counts, plus the leaders
+ * the reducers derived. The dashboard's components take this rather than
+ * repeating `ElectorateResults & WithLeaders` at each of their boundaries.
+ */
+export type ElectorateResult = ElectorateResults & WithLeaders;
+
+/** A party's national vote and the seat allocation the feed published. */
+export type PartyVoteResult = VotingResults & WithSeats;
+
+/** A candidate on a party list, with the rank the cut maths produces. */
+export type PartyListResult = PartyList & WithAdjustedRank;
+
 export type ResultsPayload = {
-  electorateResults: (ElectorateResults & WithLeaders)[];
-  partyVote: (VotingResults & WithSeats)[];
-  partyLists: (PartyList & WithAdjustedRank)[];
+  electorateResults: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
 };
 
 /**
@@ -94,15 +107,16 @@ export interface ElectorateConfig {
   url: string;
 }
 
-export type RawElectorateResults = {
-  electorateName: string;
-  candidateVotes: (VotingResults & WithParty)[];
-  partyVotes: VotingResults[];
-  votesCounted: number;
-  votePercentageCounted: number;
-  /** Turnout so far (feed `percent_votes_cast`), as a fraction. */
-  percentVotesCast?: number;
-};
+/**
+ * What a source adapter returns for one seat.
+ *
+ * The same shape the pipeline publishes (`ElectorateResults`) under the name
+ * the source contract uses: an adapter is written against what it must return,
+ * not against the payload the dashboard consumes, and the two happen to be one
+ * shape today. They were two identical declarations, which meant a change to
+ * one silently left the other behind.
+ */
+export type RawElectorateResults = ElectorateResults;
 
 export interface ElectionSource {
   /** Human-readable source name, used for logging. */

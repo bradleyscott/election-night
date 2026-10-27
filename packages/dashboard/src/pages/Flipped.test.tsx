@@ -6,12 +6,9 @@ import Flipped from './Flipped.js';
 import { MockSocketProvider } from '../test/test-utils.js';
 import type {
   ResultsPayload,
-  ElectorateResults,
-  WithLeaders,
+  ElectorateResult,
 } from '@election-night/core/types';
 import type { PriorWinnersResponse } from '../lib/history-types.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 function electorate(
   name: string,

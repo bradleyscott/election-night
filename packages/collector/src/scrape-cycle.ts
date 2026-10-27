@@ -8,10 +8,7 @@ import type {
   RawElectorateResults,
   ResultsPayload,
 } from '@election-night/core/types';
-import {
-  buildResultsPayload,
-  toElectorateResults,
-} from '@election-night/core/reducers';
+import { buildResultsPayload } from '@election-night/core/reducers';
 import {
   mapSettledWithConcurrency,
   type Settled,
@@ -158,7 +155,7 @@ export async function scrapeCycle(
     const cfg = configs[i];
     if (s.status === 'fulfilled') {
       const raw = s.value.raw;
-      const electorateResults = toElectorateResults(raw);
+      const electorateResults = raw;
       log.debug(
         `${electorateResults.electorateName}: ${electorateResults.candidateVotes.length} candidates, ${electorateResults.partyVotes.length} party entries, votesCounted=${electorateResults.votesCounted}, pct=${electorateResults.votePercentageCounted}`
       );

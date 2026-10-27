@@ -3,12 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ElectorateStats } from './ElectorateStats.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
+import type { ElectorateResult } from '@election-night/core/types';
 
 function result(overrides: Partial<ElectorateResult> = {}): ElectorateResult {
   return {

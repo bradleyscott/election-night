@@ -6,7 +6,7 @@ import {
   type SeatChance,
   type SeatPrior,
 } from './seat-probability.js';
-import type { ElectorateResults, WithLeaders, VotingResults } from './types.js';
+import type { ElectorateResult, VotingResults } from './types.js';
 
 /**
  * Notional results: the previous cycle's votes rebuilt on this cycle's
@@ -56,8 +56,6 @@ export type NotionalBaseline = {
   };
   seats: Record<string, BaselineSeat>;
 };
-
-export type ElectorateResult = ElectorateResults & WithLeaders;
 
 /**
  * Normalised seat name → baseline seat, built once per baseline object.

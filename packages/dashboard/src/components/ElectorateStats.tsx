@@ -1,14 +1,9 @@
 import { partyColor } from '../lib/constants.js';
 import { formatUpdatedAgo } from '../lib/seat-chance.js';
 import { formatVotes } from '../lib/chart-format.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { PartyDot } from './PartyDot.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 type CandidateRow = {
   name: string;

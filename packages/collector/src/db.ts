@@ -9,19 +9,14 @@ import * as schema from './db/schema.js';
 import type {
   ElectorateResults,
   WithLeaders,
-  VotingResults,
-  WithSeats,
-  PartyList,
-  WithAdjustedRank,
+  ElectorateResult,
+  PartyVoteResult,
+  PartyListResult,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { log } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-type Results = ElectorateResults & WithLeaders;
-type PartyVoteSummary = VotingResults & WithSeats;
-type PartyListEntry = PartyList & WithAdjustedRank;
 
 let sqliteDb: Database.Database;
 let drizzleDb: ReturnType<typeof drizzle<typeof schema>>;
@@ -54,9 +49,9 @@ export function closeDb() {
 }
 
 export function writeResults(
-  results: Results[],
-  partyVote: PartyVoteSummary[],
-  partyLists: PartyListEntry[],
+  results: ElectorateResult[],
+  partyVote: PartyVoteResult[],
+  partyLists: PartyListResult[],
   /**
    * Election cycle this scrape belongs to. Stored on the snapshot so
    * `/history/*` can scope itself to one cycle instead of blending whatever

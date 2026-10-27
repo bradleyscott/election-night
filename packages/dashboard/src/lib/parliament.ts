@@ -3,17 +3,10 @@ import { normalizeElectorateName } from './electorates.js';
 import { mapFillOpacity } from './seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
-  VotingResults,
-  WithSeats,
-  ElectorateResults,
-  WithLeaders,
-  PartyList,
-  WithAdjustedRank,
+  ElectorateResult,
+  PartyListResult,
+  PartyVoteResult,
 } from '@election-night/core/types';
-
-export type PartyEntry = VotingResults & WithSeats;
-export type ElectorateEntry = ElectorateResults & WithLeaders;
-export type PartyListEntry = PartyList & WithAdjustedRank;
 
 export const ROWS = 3;
 
@@ -37,7 +30,7 @@ export type SeatInfo = {
   distanceFromCut?: number;
 };
 
-export function defaultOrder(partyVote: PartyEntry[]): string[] {
+export function defaultOrder(partyVote: PartyVoteResult[]): string[] {
   const sorted = [...partyVote]
     .filter((p) => p.seats > 0)
     .sort((a, b) => b.seats - a.seats);
@@ -60,15 +53,15 @@ function getListOpacity(distanceFromCut: number): number {
 
 export function buildSeats(
   order: string[],
-  partyVote: PartyEntry[],
-  electorates: ElectorateEntry[],
-  partyLists: PartyListEntry[],
+  partyVote: PartyVoteResult[],
+  electorates: ElectorateResult[],
+  partyLists: PartyListResult[],
   totalSeats: number,
   chances?: Map<string, SeatChance>
 ): SeatInfo[] {
   const out: SeatInfo[] = [];
 
-  const partyElectorates = new Map<string, ElectorateEntry[]>();
+  const partyElectorates = new Map<string, ElectorateResult[]>();
   for (const e of electorates) {
     const p = e.leaders.leadingCandidateParty;
     if (!p) continue;
@@ -82,7 +75,7 @@ export function buildSeats(
     electorateWinner.set(e.leaders.leadingCandidate, e.electorateName);
   }
 
-  const listCandidatesByParty = new Map<string, PartyListEntry[]>();
+  const listCandidatesByParty = new Map<string, PartyListResult[]>();
   for (const entry of partyLists) {
     const arr = listCandidatesByParty.get(entry.party) ?? [];
     arr.push(entry);

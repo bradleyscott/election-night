@@ -12,11 +12,11 @@ import {
   normalizeElectorateName,
 } from '../lib/electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
-import type { ElectorateResult } from '@election-night/core/notional-baseline';
 import { cn } from '../lib/utils.js';
 import type { PriorWinner } from '../lib/history-types.js';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
+import type { ElectorateResult } from '@election-night/core/types';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
 

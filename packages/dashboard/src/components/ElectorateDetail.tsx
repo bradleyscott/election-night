@@ -3,17 +3,12 @@ import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import { PastWinners } from './PastWinners.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
 import { Toggle } from './Toggle.js';
-import type {
-  ElectorateResults,
-  WithLeaders,
-} from '@election-night/core/types';
+import type { ElectorateResult } from '@election-night/core/types';
 import type {
   ElectorateHistoryPoint,
   PriorWinner,
 } from '../lib/history-types.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
 
 /** The two contests the table can show; the seat is won on the first. */
 const VIEW_OPTIONS: { value: 'candidate' | 'party'; label: string }[] = [

@@ -7,22 +7,17 @@ import { ListCutLinesView } from '../components/ListCutLinesView.js';
 import { splitParties } from '../lib/constants.js';
 import { useSeatChances } from '../hooks/useSeatChances.js';
 import type {
-  ElectorateResults,
-  WithLeaders,
-  PartyList,
-  WithAdjustedRank,
+  ElectorateResult,
+  PartyListResult,
 } from '@election-night/core/types';
 import { PageHead, PageWaiting } from '../components/Page.js';
-
-type ElectorateResult = ElectorateResults & WithLeaders;
-type PartyListEntry = PartyList & WithAdjustedRank;
 
 export default function CloseCalls() {
   const { results } = useResults();
   const [view, setView] = useState('electorates');
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
-  const partyLists = (results?.partyLists ?? []) as PartyListEntry[];
+  const partyLists = (results?.partyLists ?? []) as PartyListResult[];
 
   // The chance of winning each seat, from the same call the seat page and the
   // map use, so the three can never quote different numbers for one seat.

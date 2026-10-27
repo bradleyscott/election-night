@@ -7,8 +7,8 @@ import {
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
 import { SortableRow } from './SortableRow.js';
-import type { PartyEntry } from '../lib/parliament.js';
 import { PartyDot } from './PartyDot.js';
+import type { PartyVoteResult } from '@election-night/core/types';
 
 const touchSensor = PointerSensor.configure({
   activationConstraints(event) {
@@ -33,9 +33,9 @@ export function ParliamentTable({
   onDragEnd,
 }: {
   order: string[];
-  partyVote: PartyEntry[];
+  partyVote: PartyVoteResult[];
   totalPartyVotes: number;
-  coalitionInfo: { parties: PartyEntry[]; cumulative: number };
+  coalitionInfo: { parties: PartyVoteResult[]; cumulative: number };
   hoveredParty: string | null;
   onHoveredPartyChange: (party: string | null) => void;
   showAllParties: boolean;
@@ -44,7 +44,7 @@ export function ParliamentTable({
 }) {
   const partiesWithSeats = order
     .map((name) => partyVote.find((p) => p.candidate === name))
-    .filter((p): p is PartyEntry => !!p && p.seats > 0);
+    .filter((p): p is PartyVoteResult => !!p && p.seats > 0);
 
   const displayParties = showAllParties
     ? [
