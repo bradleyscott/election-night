@@ -14,7 +14,9 @@ duplication that can be collapsed, and structure that costs more than it earns.
 > `Toggle`, one mode table in Trends). The second pass is fixed through its
 > duplication block: the three defects (A1–A3) and the two `sendJson`/doc-comment
 > bugs on `fix/second-pass-defects`, and B1–B5 on
-> `refactor/second-pass-duplication`. Only its vestigial and nit lists are open.
+> `refactor/second-pass-duplication`, and its vestigial list on
+> `chore/config-cleanup`. What remains is three judgement-call nits and a CI
+> tidy-up.
 >
 > Two items were dropped deliberately. Tier 3's tag helper for `serve-mock.ts`:
 > the mock's XML literals _are_ the fixture the pipeline tests compare against
@@ -225,30 +227,33 @@ once, and targeted checks of the seams the refactors had moved.
 | **B4** two identical result types        | `RawElectorateResults` was a field-for-field copy of `ElectorateResults`, so `toElectorateResults` was a key-order shuffle | one shape under the source contract's name; the projection is gone                                               |
 | **B5** `/api/config` fetched three times | `Layout` and `Electorates` each ran `usePollsClose`, and `useSeatChances` fetched it too, with no dedupe                   | `useRuntimeConfig` shares one in-flight request                                                                  |
 
-### Open — vestigial, needs a decision
+### Fixed — vestigial
 
-- **C1. The `MetricEvent` payload is built, sent and discarded.** The server's
-  handler reads nothing but the arrival; the collector's own registry is what
-  Fly scrapes. Either the server should record it, or the collector should send
-  a bare heartbeat and the union should go.
-- **C2. `components.json` configures an absent tool** (no `components/ui`, no
-  shadcn dependency, and its `aliases` name the `@/` path Tier 3 deleted).
-  `eslint.config.js` also ignores a `components/ui` folder that never existed.
-- **C3. `clsx` and `tailwind-merge` are devDependencies but imported by bundled
-  `src`** (`lib/utils.ts`); a production-only install would fail the build.
+| Item                                     | Was                                                                                                                                                                                                                                          | Now                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **C2** config for a tool that isn't here | `components.json` configured the shadcn CLI for a `components/ui` directory that exists in no commit, via the `@/` alias Tier 3 deleted; `eslint.config.js` ignored that directory too                                                       | both removed                                                     |
+| **C3** runtime deps filed as tooling     | `clsx` and `tailwind-merge` were devDependencies while `lib/utils.ts` imports them at runtime and Vite bundles them                                                                                                                          | moved to `dependencies`; the build no longer depends on dev deps |
+| **C3b** an unused Tailwind plugin        | `tailwindcss-animate` was the only registered plugin and supplied no utility the app uses (no `animate-in`/`animate-out` in the built stylesheet). It also made npm hoist `tailwindcss@4.3.3` to the repo root alongside the dashboard's 3.x | removed; the root copy of Tailwind 4 is gone                     |
 
 ### Open — nits
 
 Two relative-time formatters (`formatUpdatedAgo`, `relativeTime`); cache-file
 I/O boilerplate repeated in `server/index.ts`, `server/feed.ts` and
 `collector/results.ts`; `/ready` fetches every snapshot row to test liveness;
-each `scripts/*.mjs` defines its own `arg`; the root `typecheck` script builds
-core twice; two CI workflows repeat the same checkout/setup block.
+two CI workflows repeat the same checkout/setup block.
+
+The other two are done: the offline scripts share `scripts/lib/args.mjs` (which
+also fixed `--year 2020` being silently ignored by the validation harness), and
+`npm run typecheck` no longer builds core before `tsc -b` builds it.
 
 ## What this audit deliberately left alone
 
 - **The two metrics registries.** They are split so no series has two sources;
   the apparent duplication is the design (`docs/observability.md`).
+- **The `MetricEvent` payload.** The dashboard server's own handler ignores it,
+  but an external monitoring process consumes the events, so the union and the
+  `emit*` return values stay. (The server neither uses nor re-broadcasts them —
+  worth knowing if the consumer is ever moved.)
 - **`lib/history-types.ts`.** A re-export of the core contract, not a copy.
 - **`feed-events.ts renderCopy`.** Long, branchy, and correctly so: it is
   editorial copy under a rule ("the number is the claim, no verdict adjective"),
@@ -259,10 +264,13 @@ core twice; two CI workflows repeat the same checkout/setup block.
 
 ## What is left
 
-The C list needs a decision before any code moves (does the server want the
-metric payload, or should the collector send a bare heartbeat?), and the D list
-is small enough to ride along with whatever comes next. Everything else in this
-document has been applied.
+The D list: three judgement calls (whether `formatUpdatedAgo` and `relativeTime`
+should become one function with a register flag; whether the cache-file I/O
+boilerplate is worth a helper per process; whether `/ready` should test liveness
+with the `/health` probe it already makes instead of a snapshot query) and one
+CI tidy-up that would want a workflow run to validate.
+
+Everything else in this document has been applied.
 
 Verification has not changed:
 
