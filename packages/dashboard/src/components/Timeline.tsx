@@ -1,22 +1,14 @@
 import { type ReactNode } from 'react';
 import { cn } from '../lib/utils.js';
 
-const dotVariants = {
-  blue: 'bg-blue-700 dark:bg-blue-400',
-  green: 'bg-green-700 dark:bg-green-400',
-  amber: 'bg-amber-600 dark:bg-amber-400',
-  yellow: 'bg-amber-500 ring-amber-500/40',
-} as const;
-
-export type TimelineDotColor = keyof typeof dotVariants;
-
 export function TimelineItem({
-  dotColor = 'blue',
+  dot = 'bg-blue-700 dark:bg-blue-400',
   isLast = false,
   children,
   className,
 }: {
-  dotColor?: TimelineDotColor;
+  /** The dot's fill classes, e.g. `feedEventStyle(type).dot`. */
+  dot?: string;
   isLast?: boolean;
   children: ReactNode;
   className?: string;
@@ -27,7 +19,7 @@ export function TimelineItem({
         <div
           className={cn(
             'w-2.5 h-2.5 rounded-full ring-[3px] ring-background shrink-0 mt-[5px]',
-            dotVariants[dotColor]
+            dot
           )}
         />
         {!isLast && <div className="w-0.5 flex-1 bg-border/80" />}

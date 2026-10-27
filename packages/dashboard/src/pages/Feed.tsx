@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useFeed } from '../hooks/useFeed.js';
 import { cn } from '../lib/utils.js';
-import { relativeTime } from '../lib/feed.js';
+import { feedEventStyle, relativeTime } from '../lib/feed.js';
 import { formatClock } from '../lib/chart-format.js';
 import { TimelineItem, TimelineGroupHeader } from '../components/Timeline.js';
 import type { FeedEvent } from '@election-night/core/types';
@@ -11,32 +11,6 @@ import { PageHead, PageWaiting } from '../components/Page.js';
 function timeBucket(timestamp: number): number {
   return Math.floor(timestamp / 10000) * 10000;
 }
-
-const TYPE_CONFIG: Record<
-  string,
-  { label: string; dotColor: 'blue' | 'green' | 'amber'; textColor: string }
-> = {
-  result_updated: {
-    label: 'Updated',
-    dotColor: 'blue',
-    textColor: 'text-blue-700 dark:text-blue-400',
-  },
-  prediction_called: {
-    label: 'Prediction',
-    dotColor: 'green',
-    textColor: 'text-green-700 dark:text-green-400',
-  },
-  leader_change: {
-    label: 'Leader Change',
-    dotColor: 'amber',
-    textColor: 'text-amber-700 dark:text-amber-400',
-  },
-  count_completed: {
-    label: 'Count Complete',
-    dotColor: 'green',
-    textColor: 'text-green-700 dark:text-green-400',
-  },
-};
 
 function linkifyElectorate(text: string, electorateName: string) {
   const parts = text.split(
@@ -61,7 +35,7 @@ function linkifyElectorate(text: string, electorateName: string) {
 }
 
 function EventContent({ event }: { event: FeedEvent }) {
-  const typeConfig = TYPE_CONFIG[event.type] ?? TYPE_CONFIG.result_updated;
+  const style = feedEventStyle(event.type);
   const d = event.diff;
   const percentageDelta =
     d.previousPercentageCounted !== null
@@ -71,13 +45,8 @@ function EventContent({ event }: { event: FeedEvent }) {
   return (
     <>
       <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 text-sm text-muted-foreground font-semibold mb-px">
-        <span
-          className={cn(
-            'font-bold tracking-wide uppercase',
-            typeConfig.textColor
-          )}
-        >
-          {typeConfig.label}
+        <span className={cn('font-bold tracking-wide uppercase', style.text)}>
+          {style.label}
         </span>
       </div>
 
@@ -225,7 +194,7 @@ export default function Feed() {
               {events.map((event, itemIndex) => (
                 <TimelineItem
                   key={event.id}
-                  dotColor={TYPE_CONFIG[event.type]?.dotColor ?? 'blue'}
+                  dot={feedEventStyle(event.type).dot}
                   isLast={itemIndex === events.length - 1}
                 >
                   <EventContent event={event} />
