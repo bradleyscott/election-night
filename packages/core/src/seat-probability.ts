@@ -319,15 +319,6 @@ export function computeObservedSwing(
 }
 
 /**
- * What this seat says a candidate's party should start from.
- *
- * Order of preference: the party's share of the candidate vote here (stable
- * across a change of candidate), then the candidate's own result if the party
- * figure is missing, then the party's party-vote share as a last resort. A
- * candidate who did not stand last time is not a reason to lose the prior — in
- * a projection the candidate is an avatar of the party.
- */
-/**
  * A party name reduced to a key both sides of a comparison agree on.
  *
  * The archive and the live feed name parties in `parties.xml` ("National
@@ -354,6 +345,15 @@ export function canonicalParty(name: string | null | undefined): string {
   return flat.replace(/party$/, '');
 }
 
+/**
+ * What this seat says a candidate's party should start from.
+ *
+ * Order of preference: the party's share of the candidate vote here (stable
+ * across a change of candidate), then the candidate's own result if the party
+ * figure is missing, then the party's party-vote share as a last resort. A
+ * candidate who did not stand last time is not a reason to lose the prior — in
+ * a projection the candidate is an avatar of the party.
+ */
 function priorShareFor(
   prior: SeatPrior | null | undefined,
   candidate: { name: string; party?: string }
