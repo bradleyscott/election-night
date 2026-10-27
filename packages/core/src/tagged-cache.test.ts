@@ -71,7 +71,13 @@ describe('readTaggedCache', () => {
   });
 
   test('rejects anything else', () => {
-    for (const raw of ['not json', 'null', '"a string"', '{}', '{"results":[]}'])
+    for (const raw of [
+      'not json',
+      'null',
+      '"a string"',
+      '{}',
+      '{"results":[]}',
+    ])
       expect(read(raw, '2026')).toMatchObject({ ok: false });
 
     // Tagged shape but missing the fields we need.

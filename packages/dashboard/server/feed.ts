@@ -2,7 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import type { FeedEvent } from '@election-night/core/types';
 import { dashboardServerConfig } from './config.js';
-import { readTaggedCache, serializeTaggedCache } from '@election-night/core/tagged-cache';
+import {
+  readTaggedCache,
+  serializeTaggedCache,
+} from '@election-night/core/tagged-cache';
 import { feedEventsTotal, feedEventsStored } from './metrics.js';
 import { log } from './logger.js';
 
