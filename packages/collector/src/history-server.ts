@@ -70,7 +70,7 @@ export function closeHistoryDb(): void {
   dbPath = undefined;
 }
 
-function sendJson(res: ServerResponse, status: number, body: unknown): void {
+function sendJson(res: ServerResponse, body: unknown, status = 200): void {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify(body));
 }
@@ -222,7 +222,7 @@ export function createHistoryHandler(
     const url = req.url ?? '';
     if (!url.startsWith('/history')) return false;
     if (req.method !== 'GET') {
-      sendJson(res, 405, { error: 'method not allowed' });
+      sendJson(res, { error: 'method not allowed' }, 405);
       return true;
     }
 
@@ -236,10 +236,10 @@ export function createHistoryHandler(
     if (resultsService) {
       if (pathname === '/history/prior-winners') {
         resultsService.getPriorWinners().then(
-          (prior) => sendJson(res, 200, prior),
+          (prior) => sendJson(res, prior),
           (err) => {
             log.error('Prior winners lookup failed', err);
-            sendJson(res, 500, { error: 'query failed' });
+            sendJson(res, { error: 'query failed' }, 500);
           }
         );
         return true;
@@ -251,13 +251,15 @@ export function createHistoryHandler(
         resultsService.getResults(requested).then(
           (results) =>
             results
-              ? sendJson(res, 200, results)
-              : sendJson(res, 404, {
-                  error: `no results available for ${requested}`,
-                }),
+              ? sendJson(res, results)
+              : sendJson(
+                  res,
+                  { error: `no results available for ${requested}` },
+                  404
+                ),
           (err) => {
             log.error(`Results lookup failed for ${requested}`, err);
-            sendJson(res, 500, { error: 'query failed' });
+            sendJson(res, { error: 'query failed' }, 500);
           }
         );
         return true;
@@ -275,13 +277,17 @@ export function createHistoryHandler(
         votingPlaces.placesFor(name).then(
           (places) =>
             places
-              ? sendJson(res, 200, places)
-              : sendJson(res, 404, {
-                  error: `no voting places for ${name} in ${electionYear ?? 'this cycle'}`,
-                }),
+              ? sendJson(res, places)
+              : sendJson(
+                  res,
+                  {
+                    error: `no voting places for ${name} in ${electionYear ?? 'this cycle'}`,
+                  },
+                  404
+                ),
           (err) => {
             log.error(`Voting place lookup failed for ${name}`, err);
-            sendJson(res, 500, { error: 'query failed' });
+            sendJson(res, { error: 'query failed' }, 500);
           }
         );
         return true;
@@ -290,27 +296,26 @@ export function createHistoryHandler(
 
     const handle = getDb(dbPath);
     if (!handle) {
-      sendJson(res, 503, { error: 'database not available yet' });
+      sendJson(res, { error: 'database not available yet' }, 503);
       return true;
     }
 
     const requestedYear = new URLSearchParams(query ?? '').get('year');
     const year = resolveElectionYear(handle, requestedYear, electionYear);
     if (!year) {
-      sendJson(res, 200, []);
+      sendJson(res, []);
       return true;
     }
 
     try {
       if (pathname === '/history/snapshots') {
-        sendJson(res, 200, getSnapshotMetas(handle, year));
+        sendJson(res, getSnapshotMetas(handle, year));
         return true;
       }
       const electorateMatch = pathname!.match(/^\/history\/electorate\/(.+)$/);
       if (electorateMatch) {
         sendJson(
           res,
-          200,
           getElectorateHistory(
             handle,
             decodeURIComponent(electorateMatch[1]!),
@@ -320,16 +325,16 @@ export function createHistoryHandler(
         return true;
       }
       if (pathname === '/history/party-votes') {
-        sendJson(res, 200, getPartyVoteHistory(handle, year));
+        sendJson(res, getPartyVoteHistory(handle, year));
         return true;
       }
     } catch (err) {
       log.error('History API query failed', err);
-      sendJson(res, 500, { error: 'query failed' });
+      sendJson(res, { error: 'query failed' }, 500);
       return true;
     }
 
-    sendJson(res, 404, { error: 'not found' });
+    sendJson(res, { error: 'not found' }, 404);
     return true;
   };
 }
