@@ -59,22 +59,48 @@ export type NotionalBaseline = {
 
 export type ElectorateResult = ElectorateResults & WithLeaders;
 
+/**
+ * Normalised seat name → baseline seat, built once per baseline object.
+ *
+ * A payload asks for the same seats several times over: `seatChanceFor` wants
+ * both the prior and the enrolment of every seat, and `nationalSwingOf` walks
+ * every seat's prior again. A linear scan that normalises each name on the way
+ * is therefore seats² normalisations per render. The baseline is immutable and
+ * lives for the life of the process, so a WeakMap keyed by the object is exact
+ * and needs no invalidation.
+ */
+const seatsByName = new WeakMap<NotionalBaseline, Map<string, BaselineSeat>>();
+
+function seatFor(
+  baseline: NotionalBaseline | null,
+  seatName: string | null | undefined
+): BaselineSeat | null {
+  if (!baseline || !seatName) return null;
+
+  let index = seatsByName.get(baseline);
+  if (!index) {
+    index = new Map();
+    for (const [name, seat] of Object.entries(baseline.seats)) {
+      index.set(normalizeElectorateName(name), seat);
+    }
+    seatsByName.set(baseline, index);
+  }
+
+  return index.get(normalizeElectorateName(seatName)) ?? null;
+}
+
 /** The seat's prior result on the current boundaries, or null. */
 export function priorForSeat(
   baseline: NotionalBaseline | null,
   seatName: string | null | undefined
 ): SeatPrior | null {
-  if (!baseline || !seatName) return null;
-  const wanted = normalizeElectorateName(seatName);
-  for (const [name, seat] of Object.entries(baseline.seats)) {
-    if (normalizeElectorateName(name) !== wanted) continue;
-    return {
-      partyShare: seat.partyShare,
-      candidateShare: seat.candidateShare,
-      partyCandidateShare: seat.partyCandidateShare,
-    };
-  }
-  return null;
+  const seat = seatFor(baseline, seatName);
+  if (!seat) return null;
+  return {
+    partyShare: seat.partyShare,
+    candidateShare: seat.candidateShare,
+    partyCandidateShare: seat.partyCandidateShare,
+  };
 }
 
 /** The seat's enrolled electors in the baseline cycle, when recorded. */
@@ -82,13 +108,8 @@ export function enrolmentForSeat(
   baseline: NotionalBaseline | null,
   seatName: string | null | undefined
 ): number | null {
-  if (!baseline || !seatName) return null;
-  const wanted = normalizeElectorateName(seatName);
-  for (const [name, seat] of Object.entries(baseline.seats)) {
-    if (normalizeElectorateName(name) !== wanted) continue;
-    return seat.enrolment && seat.enrolment > 0 ? seat.enrolment : null;
-  }
-  return null;
+  const enrolment = seatFor(baseline, seatName)?.enrolment;
+  return enrolment && enrolment > 0 ? enrolment : null;
 }
 
 /**
