@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { RuntimeConfig } from '@election-night/core/polls-close';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import {
   nationalSwingOf,
@@ -7,7 +6,7 @@ import {
 } from '@election-night/core/notional-baseline';
 import { normalizeElectorateName } from '../lib/electorates.js';
 import { baselineFor } from '../lib/seat-chance.js';
-import { useApi } from './useApi.js';
+import { useRuntimeConfig } from './useRuntimeConfig.js';
 import type { ElectorateResult } from '@election-night/core/types';
 
 /**
@@ -29,7 +28,7 @@ export function useSeatChances(electorates: ElectorateResult[]): {
   /** Chance per seat, keyed by `normalizeElectorateName(electorateName)`. */
   chances: Map<string, SeatChance>;
 } {
-  const { data: config } = useApi<RuntimeConfig>('/api/config');
+  const config = useRuntimeConfig();
   const electionYear = config?.electionYear ?? null;
   const baseline = useMemo(() => baselineFor(electionYear), [electionYear]);
 
