@@ -6,6 +6,7 @@ import type {
   WithLeaders,
   WithParty,
 } from '@election-night/core/types';
+import { PartyDot } from './PartyDot.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 
@@ -68,12 +69,7 @@ export function ElectorateResultsTable({
                 {showPartyVote ? (
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                        style={{
-                          backgroundColor: partyColor(c.candidate),
-                        }}
-                      />
+                      <PartyDot color={partyColor(c.candidate)} />
                       {c.candidate}
                     </div>
                   </td>
@@ -82,13 +78,8 @@ export function ElectorateResultsTable({
                     <td className="py-2 sm:py-3 px-3">{c.candidate}</td>
                     <td className="px-2">
                       <div className="flex items-center gap-1.5">
-                        <div
-                          className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                          style={{
-                            backgroundColor: partyColor(
-                              hasParty(c) ? c.party : null
-                            ),
-                          }}
+                        <PartyDot
+                          color={partyColor(hasParty(c) ? c.party : null)}
                         />
                         {hasParty(c)
                           ? (c.party ?? 'Independent')

@@ -8,6 +8,7 @@ import type {
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
+import { PartyDot } from './PartyDot.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 type PartyListEntry = PartyList & WithAdjustedRank;
@@ -75,10 +76,7 @@ export function ListCutLinesView({
                 : 'hover:bg-muted/40'
             )}
           >
-            <span
-              className="inline-block w-2 h-2 mr-1.5 ring-1 ring-foreground/20 shrink-0"
-              style={{ backgroundColor: partyColor(party) }}
-            />
+            <PartyDot color={partyColor(party)} className="mr-1.5" />
             {party}
           </button>
         ))}
@@ -106,10 +104,7 @@ export function ListCutLinesView({
       {activeParty && (
         <div className="border border-border overflow-hidden">
           <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-border font-display font-bold text-sm sm:text-base tracking-tight flex items-center gap-2">
-            <span
-              className="inline-block w-2.5 h-2.5 ring-1 ring-foreground/20 shrink-0"
-              style={{ backgroundColor: partyColor(activeParty) }}
-            />
+            <PartyDot color={partyColor(activeParty)} size="md" />
             {activeParty}
           </div>
           <div className="overflow-x-auto">

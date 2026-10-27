@@ -8,6 +8,7 @@ import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
 import { SortableRow } from './SortableRow.js';
 import type { PartyEntry } from '../lib/parliament.js';
+import { PartyDot } from './PartyDot.js';
 
 const touchSensor = PointerSensor.configure({
   activationConstraints(event) {
@@ -87,11 +88,10 @@ export function ParliamentTable({
                   >
                     <td className="py-2 sm:py-3 pr-4 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0 ring-1 ring-foreground/15"
-                          style={{
-                            backgroundColor: partyColor(party.candidate),
-                          }}
+                        <PartyDot
+                          color={partyColor(party.candidate)}
+                          size="md"
+                          className="sm:h-3 sm:w-3"
                         />
                         <span className="font-bold truncate min-w-0">
                           {party.candidate}
@@ -149,12 +149,7 @@ export function ParliamentTable({
                               +
                             </span>
                           )}
-                          <span
-                            className="w-2.5 h-2.5 ring-1 ring-foreground/15 flex-shrink-0"
-                            style={{
-                              backgroundColor: partyColor(p.candidate),
-                            }}
-                          />
+                          <PartyDot color={partyColor(p.candidate)} size="md" />
                           <span className="font-bold">{p.candidate}</span>
                         </span>
                       ))}

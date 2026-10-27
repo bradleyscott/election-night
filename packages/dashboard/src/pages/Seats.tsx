@@ -11,6 +11,7 @@ import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
+import { PartyDot } from '../components/PartyDot.js';
 
 function AnimatedStat({
   label,
@@ -240,19 +241,16 @@ function SuccessfulCandidates({
               >
                 <td className="py-2 sm:py-3 px-3 font-medium">
                   <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-2 h-2 flex-shrink-0 sm:hidden"
-                      style={{ backgroundColor: partyColor(c.party) }}
+                    <PartyDot
+                      color={partyColor(c.party)}
+                      className="sm:hidden"
                     />
                     {c.name}
                   </div>
                 </td>
                 <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
                   <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-2 h-2 flex-shrink-0"
-                      style={{ backgroundColor: partyColor(c.party) }}
-                    />
+                    <PartyDot color={partyColor(c.party)} />
                     <span>{c.party || 'Independent'}</span>
                   </div>
                 </td>

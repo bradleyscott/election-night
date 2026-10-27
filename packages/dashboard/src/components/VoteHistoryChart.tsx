@@ -27,6 +27,7 @@ import {
 import { CountedTape } from './CountedTape.js';
 import { PartyLine } from './PartyLine.js';
 import type { TapePoint } from './CountedTape.js';
+import { PartyDot } from './PartyDot.js';
 
 type ChartMode = 'votes' | 'percentage' | 'candidateVotes' | 'counted';
 
@@ -77,10 +78,7 @@ function VoteChartTooltip({
             className="flex items-center justify-between gap-3 py-0.5"
           >
             <div className="flex items-center gap-1.5 min-w-0">
-              <div
-                className="w-2 h-2 shrink-0 ring-1 ring-foreground/20"
-                style={{ backgroundColor: entry.color }}
-              />
+              <PartyDot color={entry.color} />
               <span className="font-semibold truncate">{entry.name}</span>
             </div>
             <span className="tabular-nums font-bold text-right shrink-0">
@@ -115,10 +113,7 @@ function VoteChartLegend({
           const color = entry.color ?? partyColor(entry.party);
           return (
             <div key={entry.name} className="flex items-center gap-1.5">
-              <div
-                className="w-2.5 h-2.5 shrink-0 ring-1 ring-foreground/20"
-                style={{ backgroundColor: color }}
-              />
+              <PartyDot color={color} size="md" />
               <span
                 className="font-label text-xs font-semibold text-foreground"
                 title={entry.name}

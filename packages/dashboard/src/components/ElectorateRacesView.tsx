@@ -10,6 +10,7 @@ import type {
   WithLeaders,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import { PartyDot } from './PartyDot.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 
@@ -111,12 +112,7 @@ export function ElectorateRacesView({
                   </td>
                   <td className="py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                        style={{
-                          backgroundColor: partyColor(l.leadingCandidateParty),
-                        }}
-                      />
+                      <PartyDot color={partyColor(l.leadingCandidateParty)} />
                       <span className="font-semibold">
                         {l.leadingCandidate}
                       </span>
@@ -124,12 +120,7 @@ export function ElectorateRacesView({
                   </td>
                   <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 flex-shrink-0 ring-1 ring-foreground/15"
-                        style={{
-                          backgroundColor: partyColor(l.secondCandidateParty),
-                        }}
-                      />
+                      <PartyDot color={partyColor(l.secondCandidateParty)} />
                       <span className="text-muted-foreground">
                         {l.secondCandidate}
                       </span>

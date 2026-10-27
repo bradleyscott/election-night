@@ -1,5 +1,6 @@
 import { partyColor } from '../lib/constants.js';
 import type { PriorWinner } from '../lib/history-types.js';
+import { PartyDot } from './PartyDot.js';
 
 /**
  * Who held this seat in previous cycles.
@@ -58,12 +59,7 @@ export function PastWinners({
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5">
-                      <div
-                        className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
-                        style={{
-                          backgroundColor: partyColor(w.party),
-                        }}
-                      />
+                      <PartyDot color={partyColor(w.party)} size="md" />
                       <span className="font-semibold">{w.candidate}</span>
                     </div>
                     <div className="text-xs text-muted-foreground">

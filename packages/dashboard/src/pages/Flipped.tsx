@@ -15,6 +15,7 @@ import type { SeatChance } from '@election-night/core/seat-probability';
 import type { ElectorateResult } from '@election-night/core/notional-baseline';
 import { cn } from '../lib/utils.js';
 import type { PriorWinner } from '../lib/history-types.js';
+import { PartyDot } from '../components/PartyDot.js';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
 
@@ -235,7 +236,7 @@ export default function Flipped() {
                       </td>
                       <td className="px-2 py-2 sm:px-3 sm:py-3">
                         <div className="flex items-center gap-1.5">
-                          <PartyDot party={winner.party} />
+                          <PartyDot color={partyColor(winner.party)} />
                           <span className="font-semibold">
                             {winner.candidate}
                           </span>
@@ -261,7 +262,9 @@ export default function Flipped() {
                       </td>
                       <td className="px-2 py-2 sm:px-3 sm:py-3">
                         <div className="flex items-center gap-1.5">
-                          <PartyDot party={l.leadingCandidateParty} />
+                          <PartyDot
+                            color={partyColor(l.leadingCandidateParty)}
+                          />
                           <span className="font-semibold">
                             {l.leadingCandidate}
                           </span>
@@ -334,15 +337,6 @@ function WinPercentCell({ chance }: { chance?: SeatChance }) {
     >
       &mdash;
     </span>
-  );
-}
-
-function PartyDot({ party }: { party: string | undefined | null }) {
-  return (
-    <div
-      className="h-2 w-2 flex-shrink-0 ring-1 ring-foreground/15"
-      style={{ backgroundColor: partyColor(party) }}
-    />
   );
 }
 

@@ -6,6 +6,7 @@ import type {
   WithLeaders,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import { PartyDot } from './PartyDot.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 
@@ -276,10 +277,7 @@ function ChanceRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 flex-shrink-0 ring-1 ring-foreground/20"
-              style={{ backgroundColor: partyColour(candidate.party) }}
-            />
+            <PartyDot color={partyColour(candidate.party)} size="md" />
             <span className="font-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {candidate.party ?? 'Independent'}
             </span>

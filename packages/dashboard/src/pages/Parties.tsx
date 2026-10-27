@@ -10,6 +10,7 @@ import {
 } from '../lib/constants.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
+import { PartyDot } from '../components/PartyDot.js';
 
 type PartyListEntry = PartyList & WithAdjustedRank;
 
@@ -81,10 +82,7 @@ export default function Parties() {
                 : 'hover:bg-muted/40'
             )}
           >
-            <span
-              className="inline-block w-2 h-2 ring-1 ring-foreground/20 mr-0.5 shrink-0"
-              style={{ backgroundColor: partyColor(party) }}
-            />
+            <PartyDot color={partyColor(party)} className="mr-0.5" />
             {party}
           </button>
         ))}
@@ -142,10 +140,7 @@ export default function Parties() {
             style={{ animationDelay: `${pIdx * 0.1}s` }}
           >
             <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-border font-display font-bold text-sm sm:text-base flex items-center gap-2">
-              <span
-                className="inline-block w-2.5 h-2.5 ring-1 ring-foreground/20 shrink-0"
-                style={{ backgroundColor: partyColor(party) }}
-              />
+              <PartyDot color={partyColor(party)} size="md" />
               {party}
             </div>
             <div className="overflow-x-auto">

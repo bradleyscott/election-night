@@ -32,6 +32,7 @@ import {
 import { CountedTape } from '../components/CountedTape.js';
 import { PartyLine } from '../components/PartyLine.js';
 import type { TapePoint } from '../components/CountedTape.js';
+import { PartyDot } from '../components/PartyDot.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
 
@@ -46,10 +47,7 @@ function PartyLegend({
       {payload.map((entry) => {
         return (
           <div key={entry.value} className="flex items-center gap-1.5">
-            <div
-              className="w-2.5 h-2.5 shrink-0 ring-1 ring-foreground/20"
-              style={{ backgroundColor: entry.color }}
-            />
+            <PartyDot color={entry.color} size="md" />
             <span className="font-label text-xs font-semibold text-foreground">
               {entry.value}
             </span>
@@ -92,10 +90,7 @@ function PartyTooltip({
           className="flex items-center justify-between gap-3 py-0.5"
         >
           <div className="flex items-center gap-1.5 min-w-0">
-            <div
-              className="w-2 h-2 shrink-0 ring-1 ring-foreground/20"
-              style={{ backgroundColor: entry.color }}
-            />
+            <PartyDot color={entry.color} />
             <span className="font-semibold truncate">{entry.name}</span>
           </div>
           <span className="tabular-nums font-bold text-right shrink-0">
@@ -313,10 +308,7 @@ export default function Trends() {
                   : 'hover:bg-muted/40'
               )}
             >
-              <span
-                className="inline-block w-2 h-2 ring-1 ring-foreground/25 shrink-0"
-                style={{ backgroundColor: partyColor(party) }}
-              />
+              <PartyDot color={partyColor(party)} />
               {party}
             </button>
           ))}
