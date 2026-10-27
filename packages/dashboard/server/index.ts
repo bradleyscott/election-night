@@ -36,10 +36,7 @@ import {
 } from './feed.js';
 import { withMutex, Mutex } from './mutex.js';
 import { isLoopbackAddress } from './publisher.js';
-import {
-  describeCacheSkip,
-  extractCachedElectorates,
-} from './results-cache.js';
+import { readTaggedCache } from '@election-night/core/tagged-cache';
 import { log } from './logger.js';
 
 const {
@@ -86,13 +83,17 @@ function loadCachedResults() {
       return;
     }
 
-    const electorates = extractCachedElectorates(
-      raw,
-      dashboardServerConfig.electionYear
+    const cached = readTaggedCache<ResultsPayload['electorateResults'][number]>(
+      {
+        raw,
+        key: 'results',
+        payloadNoun: 'results',
+        expectedYear: dashboardServerConfig.electionYear,
+      }
     );
-    if (electorates) {
+    if (cached.ok) {
       latestResults = {
-        electorateResults: electorates as ResultsPayload['electorateResults'],
+        electorateResults: cached.items,
         partyVote: [],
         partyLists: [],
       };
@@ -104,7 +105,7 @@ function loadCachedResults() {
     // different cycle, or written by an older version. None of those are worth
     // failing over — the first scrape replaces it within a poll interval.
     log.warn(
-      `Ignoring cached results at ${CACHE_PATH}: ${describeCacheSkip(raw, dashboardServerConfig.electionYear)}`
+      `Ignoring cached results at ${CACHE_PATH}: cache ${cached.reason}`
     );
   }
   log.info('No cached results found, waiting for first scrape...');

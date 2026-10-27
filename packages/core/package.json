@@ -52,6 +52,10 @@
       "types": "./dist/notional-baseline.d.ts",
       "default": "./dist/notional-baseline.js"
     },
+    "./tagged-cache": {
+      "types": "./dist/tagged-cache.d.ts",
+      "default": "./dist/tagged-cache.js"
+    },
     "./data/*": "./data/*"
   },
   "files": [
