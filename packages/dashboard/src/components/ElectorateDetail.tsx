@@ -3,6 +3,7 @@ import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import { PastWinners } from './PastWinners.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
 import { Toggle } from './Toggle.js';
+import type { PollsCloseState } from '../hooks/usePollsClose.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import type {
   ElectorateHistoryPoint,
@@ -26,7 +27,7 @@ export function ElectorateDetail({
   priorUnavailable,
   chance,
   updatedAt,
-  pollsCloseLabel,
+  pollsClose,
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
@@ -41,8 +42,8 @@ export function ElectorateDetail({
   chance?: SeatChance | null;
   /** When this browser's results last changed. */
   updatedAt?: Date | null;
-  /** Polls-close label for the before-counting state, e.g. "7pm". */
-  pollsCloseLabel?: string | null;
+  /** Polls-close state, for the panel's before-counting copy. */
+  pollsClose?: PollsCloseState | null;
 }) {
   return (
     <div
@@ -65,7 +66,7 @@ export function ElectorateDetail({
         showPartyVote={showPartyVote}
         chance={chance}
         updatedAt={updatedAt}
-        pollsCloseLabel={pollsCloseLabel}
+        pollsClose={pollsClose}
       />
 
       <ElectorateResultsTable result={result} showPartyVote={showPartyVote} />

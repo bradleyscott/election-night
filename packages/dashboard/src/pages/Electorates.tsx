@@ -22,7 +22,7 @@ import { PageHead, PageWaiting } from '../components/Page.js';
 export default function Electorates() {
   const { name } = useParams();
   const { results, updatedAt } = useResults();
-  const { closesAt } = usePollsClose();
+  const pollsClose = usePollsClose();
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
 
@@ -55,19 +55,6 @@ export default function Electorates() {
         normalizeElectorateName(selectedElectorate.electorateName)
       ) ?? null)
     : null;
-
-  const pollsCloseLabel = useMemo(() => {
-    if (!closesAt || closesAt.getTime() <= Date.now()) return null;
-    return new Intl.DateTimeFormat('en-NZ', {
-      hour: 'numeric',
-      hour12: true,
-      timeZone: 'Pacific/Auckland',
-    })
-      .format(closesAt)
-      .replace('\u00a0', '')
-      .replace(' ', '')
-      .toLowerCase();
-  }, [closesAt]);
 
   const { data: historyData } = useElectorateHistory(selectedName);
   // Which places count towards the seat and which have reported: the map draws
@@ -146,7 +133,7 @@ export default function Electorates() {
             priorUnavailable={priorUnavailable}
             chance={chance}
             updatedAt={updatedAt}
-            pollsCloseLabel={pollsCloseLabel}
+            pollsClose={pollsClose}
           />
         )}
       </div>

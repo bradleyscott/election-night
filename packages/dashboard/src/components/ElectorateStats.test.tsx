@@ -4,6 +4,8 @@ import { render, screen } from '@testing-library/react';
 import { ElectorateStats } from './ElectorateStats.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import type { ElectorateResult } from '@election-night/core/types';
+import { pollsCountdown } from '@election-night/core/polls-close';
+import type { PollsCloseState } from '../hooks/usePollsClose.js';
 
 function result(overrides: Partial<ElectorateResult> = {}): ElectorateResult {
   return {
@@ -51,12 +53,56 @@ const renderStats = (chance: SeatChance | null, extra = {}) =>
     />
   );
 
+const closesAt = new Date('2026-11-07T06:00:00.000Z');
+
+/** A close instant `ms` in the future, as `usePollsClose` would report it. */
+function beforeClose(ms: number): PollsCloseState {
+  return {
+    phase: 'upcoming',
+    countdown: pollsCountdown(new Date(closesAt.getTime() - ms), closesAt),
+    closesAt,
+  };
+}
+
 describe('ElectorateStats', () => {
-  it('shows no number before the first votes arrive', () => {
-    renderStats({ state: 'waiting' }, { pollsCloseLabel: '7pm' });
+  it('counts down to the close before the first votes, and says what follows', () => {
+    renderStats(
+      { state: 'waiting' },
+      { pollsClose: beforeClose(4 * 3_600_000) }
+    );
     expect(screen.getByText('No votes counted yet')).toBeInTheDocument();
-    expect(screen.getByText('Polls close 7pm')).toBeInTheDocument();
-    expect(screen.queryByText(/\d+%/)).not.toBeInTheDocument();
+    // A live countdown, not a fixed "7pm": before the close the reader needs to
+    // know how long, not what o'clock.
+    expect(screen.getByText('Polls close in 4h 00m')).toBeInTheDocument();
+    // The note is anchored to the close, and says nothing about how much of
+    // the count to expect by when: those are the Commission's targets, not a
+    // promise this page can make.
+    expect(
+      screen.getByText(/Counting starts when voting closes/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/50% of voting places/)).not.toBeInTheDocument();
+    // No win percentage: the card has nothing to say about the seat yet.
+    expect(screen.queryByText('54')).not.toBeInTheDocument();
+  });
+
+  it('says the count is under way once the polls have closed', () => {
+    renderStats(
+      { state: 'waiting' },
+      { pollsClose: { phase: 'counting', countdown: null, closesAt } }
+    );
+    expect(screen.getByText('Polls closed · counting')).toBeInTheDocument();
+    expect(
+      screen.getByText(/published progressively from 7pm/)
+    ).toBeInTheDocument();
+  });
+
+  it('shows no countdown for a cycle with no known close instant', () => {
+    const { container } = renderStats(
+      { state: 'waiting' },
+      { pollsClose: { phase: 'stale', countdown: null, closesAt } }
+    );
+    expect(container.querySelector('.chip-print')).toBeNull();
+    expect(screen.getByText(/counting gets underway/)).toBeInTheDocument();
   });
 
   it('shows a chance of winning and the count state', () => {
