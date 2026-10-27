@@ -11,6 +11,9 @@ export function routeLabel(pathname: string): string {
   if (pathname.startsWith('/api/history/electorate/')) {
     return '/api/history/electorate/:name';
   }
+  if (pathname.startsWith('/api/history/voting-places/')) {
+    return '/api/history/voting-places/:name';
+  }
   if (pathname === '/api/history/party-votes')
     return '/api/history/party-votes';
   if (pathname === '/api/history/prior-winners')
