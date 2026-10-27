@@ -12,6 +12,7 @@ import ParliamentSeats from '../components/ParliamentSeats.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
 import { PartyDot } from '../components/PartyDot.js';
+import { PageHead } from '../components/Page.js';
 
 function AnimatedStat({
   label,
@@ -327,9 +328,7 @@ export default function Seats() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="pagehead">
-        <h1>Seats</h1>
-      </div>
+      <PageHead title="Seats" />
 
       {!results ? (
         <WaitingState variant="full" context="default" />

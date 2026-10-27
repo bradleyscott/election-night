@@ -14,13 +14,13 @@ import {
 } from '../lib/electorates.js';
 import { useSeatChances } from '../hooks/useSeatChances.js';
 import { usePollsClose } from '../hooks/usePollsClose.js';
-import { WaitingState } from '../components/WaitingState.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
 import type {
   ElectorateResults,
   WithLeaders,
 } from '@election-night/core/types';
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 
@@ -108,21 +108,12 @@ export default function Electorates() {
   }, [prior, selectedName]);
 
   if (!electorates.length) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Electorates</h1>
-        </div>
-        <WaitingState context="electorates" />
-      </div>
-    );
+    return <PageWaiting title="Electorates" context="electorates" />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="pagehead">
-        <h1>Electorates</h1>
-      </div>
+      <PageHead title="Electorates" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div

@@ -8,9 +8,9 @@ import {
   splitParties,
   buildElectorateLookup,
 } from '../lib/constants.js';
-import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
 import { PartyDot } from '../components/PartyDot.js';
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 type PartyListEntry = PartyList & WithAdjustedRank;
 
@@ -51,21 +51,12 @@ export default function Parties() {
       : allParties;
 
   if (!partyLists.length) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Party List Rankings</h1>
-        </div>
-        <WaitingState context="parties" />
-      </div>
-    );
+    return <PageWaiting title="Party List Rankings" context="parties" />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="pagehead">
-        <h1>Party List Rankings</h1>
-      </div>
+      <PageHead title="Party List Rankings" />
 
       <div className="flex flex-wrap items-center gap-1.5">
         {majorParties.map((party) => (

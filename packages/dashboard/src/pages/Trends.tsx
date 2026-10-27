@@ -15,7 +15,6 @@ import {
   partyColor,
 } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
-import { WaitingState } from '../components/WaitingState.js';
 import {
   AXIS_STROKE,
   AXIS_TICK,
@@ -33,6 +32,7 @@ import { CountedTape } from '../components/CountedTape.js';
 import { PartyLine } from '../components/PartyLine.js';
 import type { TapePoint } from '../components/CountedTape.js';
 import { PartyDot } from '../components/PartyDot.js';
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
 
@@ -218,12 +218,11 @@ export default function Trends() {
 
   if (!hasData) {
     return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Trends</h1>
-        </div>
-        <WaitingState context="trends" title="Waiting for more results" />
-      </div>
+      <PageWaiting
+        title="Trends"
+        context="trends"
+        waitingTitle="Waiting for more results"
+      />
     );
   }
 
@@ -236,9 +235,7 @@ export default function Trends() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="pagehead">
-        <h1>Trends</h1>
-      </div>
+      <PageHead title="Trends" />
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground font-semibold">

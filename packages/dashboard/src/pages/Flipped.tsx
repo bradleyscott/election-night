@@ -16,6 +16,7 @@ import type { ElectorateResult } from '@election-night/core/notional-baseline';
 import { cn } from '../lib/utils.js';
 import type { PriorWinner } from '../lib/history-types.js';
 import { PartyDot } from '../components/PartyDot.js';
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
 
@@ -114,14 +115,7 @@ export default function Flipped() {
   }, [totalPages, page]);
 
   if (!electorates.length) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Flipped</h1>
-        </div>
-        <WaitingState context="electorates" />
-      </div>
-    );
+    return <PageWaiting title="Flipped" context="electorates" />;
   }
 
   const open = (name: string) =>
@@ -130,14 +124,13 @@ export default function Flipped() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div className="pagehead mb-0">
-          <h1>Flipped</h1>
+        <PageHead title="Flipped" className="mb-0">
           <span className="kicker">
             {primaryYear
               ? `Seats changing hands since ${primaryYear}`
               : 'Seats changing hands'}
           </span>
-        </div>
+        </PageHead>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative w-full text-sm sm:w-auto">
             <label className="sr-only" htmlFor="flipped-search-input">

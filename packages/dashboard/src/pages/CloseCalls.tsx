@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useResults } from '../hooks/useResults.js';
 import { cn } from '../lib/utils.js';
-import { WaitingState } from '../components/WaitingState.js';
 import { Toggle } from '../components/Toggle.js';
 import { ElectorateRacesView } from '../components/ElectorateRacesView.js';
 import { ListCutLinesView } from '../components/ListCutLinesView.js';
@@ -13,6 +12,7 @@ import type {
   PartyList,
   WithAdjustedRank,
 } from '@election-night/core/types';
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 type ElectorateResult = ElectorateResults & WithLeaders;
 type PartyListEntry = PartyList & WithAdjustedRank;
@@ -82,22 +82,13 @@ export default function CloseCalls() {
   const isEmpty = !electorates.length && !partyLists.length;
 
   if (isEmpty) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Close Calls</h1>
-        </div>
-        <WaitingState context="closecalls" />
-      </div>
-    );
+    return <PageWaiting title="Close Calls" context="closecalls" />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="pagehead mb-0">
-          <h1>Close Calls</h1>
-        </div>
+        <PageHead title="Close Calls" className="mb-0" />
         <div className="flex items-center gap-3">
           {view === 'list' && majorParties.length > 0 && (
             <div className="flex items-center gap-2 text-sm font-bold tabular-nums">

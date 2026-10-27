@@ -5,8 +5,8 @@ import { cn } from '../lib/utils.js';
 import { relativeTime } from '../lib/feed.js';
 import { formatClock } from '../lib/chart-format.js';
 import { TimelineItem, TimelineGroupHeader } from '../components/Timeline.js';
-import { WaitingState } from '../components/WaitingState.js';
 import type { FeedEvent } from '@election-night/core/types';
+import { PageHead, PageWaiting } from '../components/Page.js';
 
 function timeBucket(timestamp: number): number {
   return Math.floor(timestamp / 10000) * 10000;
@@ -193,21 +193,12 @@ export default function Feed() {
   }, [filtered]);
 
   if (feedEvents.length === 0) {
-    return (
-      <div className="animate-fade-in">
-        <div className="pagehead">
-          <h1>Feed</h1>
-        </div>
-        <WaitingState context="feed" />
-      </div>
-    );
+    return <PageWaiting title="Feed" context="feed" />;
   }
 
   return (
     <div>
-      <div className="pagehead">
-        <h1>Feed</h1>
-      </div>
+      <PageHead title="Feed" />
 
       <FilterBar
         activeFilter={activeFilter}
