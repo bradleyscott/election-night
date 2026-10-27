@@ -5,11 +5,16 @@ A whole-tree pass — `core`, `collector`, the dashboard server and client,
 duplication that can be collapsed, and structure that costs more than it earns.
 
 > **Status.** Tier 1 is implemented on `chore/tier1-dead-code` (~800 lines
-> removed) and Tier 2 on `refactor/tier2-duplication` (one tagged-cache reader,
-> one concurrency limiter, one XML configuration, one seat-chance lookup, one
-> set of chart helpers). Tiers 3–4 and the bug list are still open. File and line
-> references describe the tree as it was audited, so completed entries point at
-> code that has since moved or gone.
+> removed), Tier 2 on `refactor/tier2-duplication` (one tagged-cache reader, one
+> concurrency limiter, one XML configuration, one seat-chance lookup, one set of
+> chart helpers) and Tier 3 on `refactor/tier3-structure` (wildcard exports, an
+> indexed baseline lookup, one baseline injection point, `health.ts` split out
+> of `static.ts`, configs ordered by `e_no`). Tier 3's sixth item — a tag helper
+> for `serve-mock.ts` — was deliberately dropped: the mock's XML literals _are_
+> the fixture the pipeline tests compare against the real feed, and a helper
+> would hide the shape to save a dozen lines. Tier 4 and the bug list are still
+> open. File and line references describe the tree as it was audited, so
+> completed entries point at code that has since moved or gone.
 
 The bias is deliberate: **deletion before abstraction**. A copy that is about to
 be deleted does not need unifying, and the cheapest line of code is the one that
