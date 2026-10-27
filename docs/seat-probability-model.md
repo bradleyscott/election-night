@@ -270,7 +270,10 @@ seat from the archived per-voting-place results, releasing votes cast away from
 home first (those are advance votes by construction — nobody can vote at another
 electorate's booth on election day) and then the seat's own places. It
 recomputes the national swing at every checkpoint across the seats, the way the
-live pipeline does, and scores 374 checkpoints from 27 seats.
+live pipeline does, and scores 374 checkpoints from 27 seats. It reads the
+archive cache that `scripts/build-notional-baseline.mjs` writes
+(`.cache/notional-<year>-files-v2.json`, override with `--cache=<path>`), so the
+seat count is whatever that run fetched — the table below used a 27-seat cache.
 
 | composition             | Brier      | early  | late       | mean p on flips | ≥95% calls | of those wrong |
 | ----------------------- | ---------- | ------ | ---------- | --------------- | ---------- | -------------- |
