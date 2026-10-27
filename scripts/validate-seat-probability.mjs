@@ -22,6 +22,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { arg } from './lib/args.mjs';
 
 import {
   computeSeatChance,
@@ -30,10 +31,6 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
-
-const arg = (name, fallback) =>
-  process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ??
-  fallback;
 
 const YEAR = arg('year', '2023');
 const CHECKPOINTS = Number(arg('checkpoints', '20'));

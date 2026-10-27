@@ -35,19 +35,15 @@
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { arg, hasFlag } from './lib/args.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONCURRENCY = 40;
 const RETRIES = 3;
 
-function arg(name, fallback) {
-  const i = process.argv.indexOf(`--${name}`);
-  return i === -1 ? fallback : process.argv[i + 1];
-}
-
 const SOURCE_YEAR = arg('source', '2023');
 const TARGET_YEAR = arg('target', '2026');
-const VALIDATE = process.argv.includes('--validate');
+const VALIDATE = hasFlag('validate');
 const OUT = resolve(
   ROOT,
   arg('out', `packages/core/data/notional-baseline-${TARGET_YEAR}.json`)
