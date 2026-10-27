@@ -215,22 +215,22 @@ export class NzElectionXmlSource implements ElectionSource {
   }
 
   private buildConfigs(): void {
-    const configs: ElectorateConfig[] = [];
-    for (const [eNo, electorate] of this.electorateMap) {
-      const index = Number(eNo);
+    // Ordered by the feed's own numbering — general electorates first, then
+    // Māori, which is the order `electorates.xml` is written in. Recovering the
+    // number by re-parsing the URL we just built was both indirect and fragile.
+    const numbered = [...this.electorateMap].map(([eNo, electorate]) => ({
+      index: Number(eNo),
+      electorate,
+    }));
+    numbered.sort((a, b) => a.index - b.index);
+
+    this.configs = numbered.map(({ index, electorate }) => {
       const padded = String(index).padStart(2, '0');
-      configs.push({
+      return {
         electorateName: electorate.electorate_name,
         url: `${this.baseUrl}e${padded}/e${padded}.xml`,
-      });
-    }
-    // Sort by electorate number so the order is deterministic.
-    configs.sort((a, b) => {
-      const indexA = Number(a.url.match(/e(\d+)\/e\d+\.xml$/)?.[1] ?? 0);
-      const indexB = Number(b.url.match(/e(\d+)\/e\d+\.xml$/)?.[1] ?? 0);
-      return indexA - indexB;
+      };
     });
-    this.configs = configs;
   }
 
   private buildPartyList(): void {
