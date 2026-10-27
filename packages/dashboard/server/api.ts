@@ -19,12 +19,6 @@ export async function serveApi(
   void req;
   const pathname = url.pathname;
 
-  // GET /api/history/snapshots — return all snapshot timestamps
-  if (pathname === '/api/history/snapshots') {
-    sendJson(res, await historySource.snapshotMetas());
-    return true;
-  }
-
   // GET /api/history/electorate/:name — return history for one electorate
   const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
   if (electorateMatch) {

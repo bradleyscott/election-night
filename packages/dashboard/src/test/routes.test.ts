@@ -3,7 +3,6 @@ import { routeLabel } from '../../server/routes.js';
 
 describe('routeLabel', () => {
   it('labels history routes with templates, never raw names', () => {
-    expect(routeLabel('/api/history/snapshots')).toBe('/api/history/snapshots');
     expect(routeLabel('/api/history/electorate/Te%20Tai%20Tonga')).toBe(
       '/api/history/electorate/:name'
     );

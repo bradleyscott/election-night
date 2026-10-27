@@ -8,7 +8,6 @@
 export function routeLabel(pathname: string): string {
   if (pathname === '/api/clear') return '/api/clear';
   if (pathname === '/api/config') return '/api/config';
-  if (pathname === '/api/history/snapshots') return '/api/history/snapshots';
   if (pathname.startsWith('/api/history/electorate/')) {
     return '/api/history/electorate/:name';
   }
