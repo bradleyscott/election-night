@@ -13,6 +13,7 @@ import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead } from '../components/Page.js';
+import { Th, TH_CLASS } from '../components/Table.js';
 
 function AnimatedStat({
   label,
@@ -205,24 +206,31 @@ function SuccessfulCandidates({
           <thead>
             <tr className="border-b border-border">
               <th
-                className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className={cn(
+                  TH_CLASS,
+                  'text-left py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
+                )}
                 onClick={() => toggleSort('name')}
               >
                 Candidate
                 <SortIndicator column="name" />
               </th>
               <th
-                className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className={cn(
+                  TH_CLASS,
+                  'hidden sm:table-cell text-left py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
+                )}
                 onClick={() => toggleSort('party')}
               >
                 Party
                 <SortIndicator column="party" />
               </th>
-              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Seat
-              </th>
+              <Th>Seat</Th>
               <th
-                className="hidden sm:table-cell text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                className={cn(
+                  TH_CLASS,
+                  'hidden sm:table-cell text-right py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
+                )}
                 onClick={() => toggleSort('certainty')}
               >
                 Certainty

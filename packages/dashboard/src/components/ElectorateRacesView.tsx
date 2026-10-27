@@ -8,6 +8,7 @@ import { normalizeElectorateName } from '../lib/electorates.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { PartyDot } from './PartyDot.js';
+import { Th } from './Table.js';
 
 const PAGE_SIZE = 10;
 
@@ -52,24 +53,18 @@ export function ElectorateRacesView({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Electorate
-              </th>
-              <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Leading
-              </th>
-              <th className="hidden sm:table-cell text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Second
-              </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+              <Th>Electorate</Th>
+              <Th>Leading</Th>
+              <Th className="hidden sm:table-cell">Second</Th>
+              <Th align="right" className="px-3">
                 Lead (votes)
-              </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+              </Th>
+              <Th align="right" className="px-3">
                 Lead %
-              </th>
-              <th className="text-right py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+              </Th>
+              <Th align="right" className="px-3">
                 Win %
-              </th>
+              </Th>
             </tr>
           </thead>
           <tbody>

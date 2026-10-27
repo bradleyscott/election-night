@@ -11,6 +11,7 @@ import {
 import type { PartyListResult } from '@election-night/core/types';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
+import { Th } from '../components/Table.js';
 
 export default function Parties() {
   const { results } = useResults();
@@ -136,18 +137,12 @@ export default function Parties() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                      List
-                    </th>
-                    <th className="text-left py-2 sm:py-3 px-3 w-14 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                      Rank
-                    </th>
-                    <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                      Candidate
-                    </th>
-                    <th className="text-right py-2 sm:py-3 px-3 w-24 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                    <Th className="w-14">List</Th>
+                    <Th className="w-14">Rank</Th>
+                    <Th>Candidate</Th>
+                    <Th align="right" className="px-3 w-24">
                       From Cut
-                    </th>
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>

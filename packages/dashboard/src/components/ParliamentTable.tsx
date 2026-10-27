@@ -9,6 +9,7 @@ import { partyColor } from '../lib/constants.js';
 import { SortableRow } from './SortableRow.js';
 import { PartyDot } from './PartyDot.js';
 import type { PartyVoteResult } from '@election-night/core/types';
+import { Th, TH_CLASS } from './Table.js';
 
 const touchSensor = PointerSensor.configure({
   activationConstraints(event) {
@@ -61,21 +62,15 @@ export function ParliamentTable({
         <table className="w-full text-sm sm:text-base">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-2 sm:py-3 pr-4 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Party
-              </th>
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Party votes
-              </th>
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
+              <Th className="pr-4">Party</Th>
+              <th className={cn(TH_CLASS, 'px-2')}>Party votes</th>
+              <th className={cn(TH_CLASS, 'px-2 hidden sm:table-cell')}>
                 Electorate seats
               </th>
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs hidden sm:table-cell">
+              <th className={cn(TH_CLASS, 'px-2 hidden sm:table-cell')}>
                 List seats
               </th>
-              <th className="text-right pl-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Total seats
-              </th>
+              <th className={cn(TH_CLASS, 'pl-2')}>Total seats</th>
             </tr>
           </thead>
           <tbody>

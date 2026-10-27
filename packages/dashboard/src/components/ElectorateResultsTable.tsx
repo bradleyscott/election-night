@@ -6,6 +6,7 @@ import type {
   ElectorateResult,
 } from '@election-night/core/types';
 import { PartyDot } from './PartyDot.js';
+import { Th, TH_CLASS } from './Table.js';
 
 function hasParty(
   v: VotingResults | (VotingResults & WithParty)
@@ -30,26 +31,12 @@ export function ElectorateResultsTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              {showPartyVote ? (
-                <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                  Party
-                </th>
-              ) : (
-                <th className="text-left py-2 sm:py-3 px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                  Candidate
-                </th>
-              )}
+              {showPartyVote ? <Th>Party</Th> : <Th>Candidate</Th>}
               {!showPartyVote && (
-                <th className="text-left px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                  Party
-                </th>
+                <th className={cn(TH_CLASS, 'px-2')}>Party</th>
               )}
-              <th className="text-right px-2 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                Votes
-              </th>
-              <th className="text-right px-3 font-label font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                %
-              </th>
+              <th className={cn(TH_CLASS, 'px-2')}>Votes</th>
+              <th className={cn(TH_CLASS, 'px-3')}>%</th>
             </tr>
           </thead>
           <tbody>

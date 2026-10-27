@@ -13,6 +13,7 @@ import {
 } from '../lib/electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { cn } from '../lib/utils.js';
+import { Th } from '../components/Table.js';
 import type { PriorWinner } from '../lib/history-types.js';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
@@ -330,28 +331,6 @@ function WinPercentCell({ chance }: { chance?: SeatChance }) {
     >
       &mdash;
     </span>
-  );
-}
-
-function Th({
-  children,
-  align,
-  className,
-}: {
-  children: React.ReactNode;
-  align: 'left' | 'right';
-  className?: string;
-}) {
-  return (
-    <th
-      className={cn(
-        'px-3 py-2 font-label text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:py-3',
-        align === 'right' ? 'text-right' : 'text-left',
-        className
-      )}
-    >
-      {children}
-    </th>
   );
 }
 
