@@ -52,7 +52,30 @@ Never treat any of them as "the denominator" without saying which one it is.
 ### `e_no` and `vp_e_no` are different electorates
 
 `e_no` is the electorate the votes count toward. `vp_e_no` is the electorate the
-place physically stands in. They differ for advance votes cast outside the seat.
+place physically stands in. They differ for two different reasons, and a
+per-place result cannot say which one it is:
+
+- **A general seat's out-of-seat places are in practice advance voting places.**
+  A vote cast on election day at a place outside the voter's electorate is a
+  special vote, counted in the electorate it was cast for rather than at the
+  booth, so a booth in another general electorate cannot report for this seat on
+  the night. The live 2026 register holds 2,686 places, of which **785** stand
+  outside at least one other general electorate they count for — against the
+  **829** advance voting places and 2,334 election-day places the Commission
+  reported for 2023.
+- **A Māori seat's out-of-seat places are mostly ordinary election-day booths.**
+  `vp_e_no` never takes a Māori electorate number, so no place can be recorded
+  as standing in a Māori electorate and every place counting for one is formally
+  out-of-seat (2,685 of the 2,686 in 2026). Those are ordinary votes: every
+  voting place holds rolls for both its general and its Māori electorate, so a
+  voter on the Māori roll is marked off the printed roll at their local booth.
+
+Out-of-seat therefore describes **where the place stands**, never **when the
+vote was cast** — the register carries no advance flag, and one place holds
+both. So the dashboard draws only the places that stand in the electorate: one
+square per booth, filled once its count has landed. Advance hubs elsewhere and
+the mobile teams are not booths in it and are left off the map and off the
+counting card, which is why both read "in this electorate".
 
 Auckland Central's 2023 file reports **115 places counted** for a seat that
 contains **34 booths**. Any claim of the form "this many polls reported in
@@ -69,14 +92,20 @@ counting starts.
 
 - **No advance-voting flag.** Among the 2,723 published places, the only "Advance" string is
   a school name. Advance places are not marked; mobile teams and care-home visits
-  are, and they carry no coordinates.
+  are, and they carry no coordinates. So "this place stands outside the seat" is
+  the strongest claim the data supports — the timing of the votes it counted is
+  not published per place.
 - **No enrolment per seat.** `total_votes_cast` and `percent_votes_cast` are
   published, so enrolment can be derived per seat (`votes / percent`) and is
   recorded once in `packages/core/data/notional-baseline-*.json`, but the feed
   itself carries the national figure only (`statistics.xml` → `total_electors`).
-- **No electorate for Māori places.** `vp_e_no` only ever takes the 65 general
-  values in 2023. No place stands in a Māori electorate, so _every_ Māori result
-  is formally out-of-seat.
+- **No electorate for Māori places.** `vp_e_no` only ever takes general values
+  (1–65 in 2023, 1–64 in 2026). No place stands in a Māori electorate, so _every_
+  Māori result is formally out-of-seat — and a Māori seat has no in-electorate
+  place for the dashboard to draw or count, which is why its map shows no pips
+  and its voting-place card is not rendered at all. That is a numbering
+  artefact, not a geography one: a booth inside Te Tai Tonga is filed under the
+  general electorate it stands in.
 - **No arrival history.** The official count rewrites `time_received`: the 2023
   archive contains timestamps from 19 October and 14 November 2023, both after
   polling day. Election-night arrival order **cannot** be reconstructed from it.

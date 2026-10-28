@@ -19,28 +19,24 @@ function tooltipHtml(place: VotingPlaceStatus): string {
     place.countedAt === null
       ? 'Not yet counted'
       : `Reported at ${formatReceiptTime(place.countedAt)}`;
-  const scope =
-    place.group === 'advance'
-      ? `<span class="voting-place-tip__scope">Advance voting place</span>`
-      : '';
   return `<div class="voting-place-tip">
     <b>${escapeHtml(place.name)}</b>
     ${place.address ? `<span>${escapeHtml(place.address)}</span>` : ''}
-    ${scope}
     <em>${status}</em>
   </div>`;
 }
 
 /**
- * One mark per voting place that counts towards the selected electorate.
+ * One mark per voting place standing in the selected electorate.
  *
- * Shape carries where the place stands — a square is a booth in the
- * electorate, a circle is an advance voting place elsewhere — and fill carries
- * its count: solid once the count has been received, outlined while it is
- * outstanding. The four combinations are what the legend under the map names.
+ * Fill carries the count: solid once the count has been received, outlined
+ * while it is outstanding, which is the pair the legend under the map names.
  *
- * Places with no coordinates (mobile teams, care-home visits) are left to the
- * ledger: they are counted but were never anywhere to draw.
+ * Only places standing in the electorate are passed in (see `summarizePlaces`),
+ * and those with no coordinates — mobile teams, care-home visits — are skipped:
+ * they are counted but were never anywhere to draw. A seat with no in-seat
+ * place gets no layer at all, because no result file can be filed under a Māori
+ * electorate number.
  */
 export function VotingPlacesLayer({ places }: { places: VotingPlaceStatus[] }) {
   const map = useMap();
@@ -50,10 +46,9 @@ export function VotingPlacesLayer({ places }: { places: VotingPlaceStatus[] }) {
     for (const place of places) {
       if (place.lat === null || place.lon === null) continue;
       const counted = place.countedAt !== null;
-      const shape = place.group === 'advance' ? 'circle' : 'square';
       const icon = L.divIcon({
         className: 'voting-place-pip-anchor',
-        html: `<span class="voting-place-pip voting-place-pip--${shape}${
+        html: `<span class="voting-place-pip${
           counted ? '' : ' voting-place-pip--open'
         }"></span>`,
         iconSize: [12, 12],
@@ -82,13 +77,11 @@ export function VotingPlacesLayer({ places }: { places: VotingPlaceStatus[] }) {
   return null;
 }
 
-const GROUP_LABELS: Record<string, string> = {
-  seat: 'In this electorate',
-  advance: 'Advance voting places',
-  mobile: 'Mobile voting teams',
-};
-
-/** The 2×2 key for the marks, one row per state. */
+/**
+ * The key for the marks: filled once the place's count has landed, outlined
+ * until it does. Shape carries nothing — every pip is one place standing in the
+ * electorate.
+ */
 export function VotingPlaceLegend({ className }: { className?: string }) {
   return (
     <div
@@ -98,20 +91,12 @@ export function VotingPlaceLegend({ className }: { className?: string }) {
       )}
     >
       <span className="inline-flex items-center gap-1.5">
-        <span className="voting-place-pip voting-place-pip--square" />
+        <span className="voting-place-pip" />
         Counted
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="voting-place-pip voting-place-pip--square voting-place-pip--open" />
+        <span className="voting-place-pip voting-place-pip--open" />
         Not yet counted
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="voting-place-pip voting-place-pip--circle" />
-        Advance, counted
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="voting-place-pip voting-place-pip--circle voting-place-pip--open" />
-        Advance, not yet
       </span>
     </div>
   );
@@ -163,21 +148,8 @@ export function VotingPlaceLedger({
           {loading ? 'reading places…' : 'counted'}
         </span>
       </div>
-      <div className="mt-2 border-t pt-1.5 space-y-0.5">
-        {summary.groups.map((group) => (
-          <div
-            key={group.key}
-            className={cn(
-              'flex items-baseline justify-between gap-3 font-label text-[0.6875rem] tabular-nums',
-              group.key === 'mobile' && 'pl-3 text-muted-foreground'
-            )}
-          >
-            <span>{GROUP_LABELS[group.key]}</span>
-            <span>
-              {group.counted} / {group.total}
-            </span>
-          </div>
-        ))}
+      <div className="mt-1.5 font-label text-[0.625rem] leading-snug text-muted-foreground">
+        in this electorate
       </div>
     </div>
   );

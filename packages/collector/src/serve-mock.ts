@@ -6,6 +6,7 @@ import {
   DEFAULT_MOCK_ELECTION_YEAR,
   isMockElectionYear,
   MOCK_ELECTION_YEARS,
+  MOCK_ELECTORATE_SETS,
   MOCK_PARTIES,
   type MockElectionYear,
 } from './synthetic-electorates.js';
@@ -418,6 +419,13 @@ let autoStepTimer: ReturnType<typeof setInterval> | null = null;
 // coordinates are anchored on real towns because the mock has no geometry of
 // its own; the point is the four legend states switching over time, not the
 // geography.
+//
+// One thing it must copy from the live feed rather than improve on: `vp_e_no`
+// never holds a Māori electorate number, so no place is registered against a
+// Māori seat. Booths in the seven Māori seats are therefore filed under a
+// general electorate (as the real register files them) while still counting
+// towards the Māori seat — otherwise a dry run would draw in-seat squares that
+// production can never produce.
 
 const PLACE_ANCHORS: { town: string; lat: number; lon: number }[] = [
   { town: 'Whangārei', lat: -35.7251, lon: 174.3237 },
@@ -567,7 +575,9 @@ function anchorFor(eNo: number): { town: string; lat: number; lon: number } {
 
 type MockVotingPlace = {
   id: number;
-  /** The seat the register files this place under. */
+  /** The seat whose directory lists this place's result — where its votes count. */
+  countsForNo: number;
+  /** The general electorate the register files it under (`vp_e_no`). */
   vpENo: number;
   placeNo: number;
   name: string;
@@ -576,12 +586,24 @@ type MockVotingPlace = {
   lon: number | null;
 };
 
+/** The general electorates, which come first in the cycle's electorate list. */
+const GENERAL_ELECTORATE_COUNT =
+  MOCK_ELECTORATE_SETS[ELECTION_YEAR].general.length;
+
 function buildVotingPlaces(): MockVotingPlace[] {
   const places: MockVotingPlace[] = [];
 
   MOCK_ELECTORATES.forEach((electorate, index) => {
     const eNo = index + 1;
+    // Coordinates follow the seat's own area, so a Māori seat's places land
+    // inside the polygon the map zooms to. The register number does not: no
+    // place is ever registered against a Māori electorate, so those booths are
+    // filed under a general one and read as `elsewhere` in production too.
     const anchor = anchorFor(eNo);
+    const registeredIn =
+      eNo > GENERAL_ELECTORATE_COUNT
+        ? ((eNo - 1) % GENERAL_ELECTORATE_COUNT) + 1
+        : eNo;
 
     for (let booth = 1; booth <= BOOTHS_PER_SEAT; booth++) {
       const seed = eNo * 100 + booth;
@@ -590,7 +612,8 @@ function buildVotingPlaces(): MockVotingPlace[] {
       const road = PLACE_ROADS[seed % PLACE_ROADS.length]!;
       places.push({
         id: seed,
-        vpENo: eNo,
+        countsForNo: eNo,
+        vpENo: registeredIn,
         placeNo: booth,
         name: `${electorate.name} ${suffix}`,
         address: `${electorate.name} ${suffix}, ${streetNo} ${road}, ${electorate.name}`,
@@ -600,16 +623,17 @@ function buildVotingPlaces(): MockVotingPlace[] {
     }
 
     // An advance voting place that counts for this seat but stands in the next
-    // one along — the case the circle mark exists for.
-    const neighbourNo = (eNo % MOCK_ELECTORATES.length) + 1;
+    // general electorate along — the case the circle mark exists for.
+    const neighbourNo = (registeredIn % GENERAL_ELECTORATE_COUNT) + 1;
     const neighbour = anchorFor(neighbourNo);
     const advanceSeed = eNo * 100 + 4;
     places.push({
       id: advanceSeed,
+      countsForNo: eNo,
       vpENo: neighbourNo,
       placeNo: 4,
-      name: `Advance Voting Centre, ${MOCK_ELECTORATES[neighbourNo - 1]!.name}`,
-      address: `Advance Voting Centre, ${MOCK_ELECTORATES[neighbourNo - 1]!.name}`,
+      name: `Advance Voting Place, ${MOCK_ELECTORATES[neighbourNo - 1]!.name}`,
+      address: `Advance Voting Place, ${MOCK_ELECTORATES[neighbourNo - 1]!.name}`,
       lat: neighbour.lat + (jitter(advanceSeed) - 0.5) * 0.05,
       lon: neighbour.lon + (jitter(advanceSeed + 3) - 0.5) * 0.07,
     });
@@ -618,7 +642,8 @@ function buildVotingPlaces(): MockVotingPlace[] {
     const teamSeed = eNo * 100 + 11;
     places.push({
       id: teamSeed,
-      vpENo: eNo,
+      countsForNo: eNo,
+      vpENo: registeredIn,
       placeNo: 11,
       name: 'Mobile Team 1',
       address: `Mobile Team, Team 1, Taken in ${electorate.name} Electorate`,
@@ -634,9 +659,7 @@ const MOCK_VOTING_PLACES = buildVotingPlaces();
 
 /** The places that count towards a seat: its own booths, advance place, teams. */
 function placesForSeat(eNo: number): MockVotingPlace[] {
-  return MOCK_VOTING_PLACES.filter((place) =>
-    place.placeNo === 4 ? place.id === eNo * 100 + 4 : place.vpENo === eNo
-  );
+  return MOCK_VOTING_PLACES.filter((place) => place.countsForNo === eNo);
 }
 
 /** Share of a seat's places whose count has landed at each stage. */

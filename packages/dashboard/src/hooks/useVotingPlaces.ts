@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type {
-  VotingPlaceGroup,
-  VotingPlacesResponse,
-} from '@election-night/core/voting-places';
+import type { VotingPlacesResponse } from '@election-night/core/voting-places';
 import { useApi } from './useApi.js';
 
-/** What the map needs: the counts, and the places that have a location. */
+/** What the map and the card need: the places standing in the electorate. */
 export type VotingPlaceSummary = {
+  /** Places inside the electorate whose count has landed. */
   counted: number;
+  /** Places inside the electorate due to report; always `places.length`. */
   total: number;
-  /** Newest receipt time across the counted places, or null before any land. */
+  /** Newest receipt time across those places, or null before any land. */
   latestAt: string | null;
-  groups: { key: VotingPlaceGroup; counted: number; total: number }[];
   places: VotingPlacesResponse['places'];
 };
 
@@ -19,7 +17,38 @@ export type VotingPlaceSummary = {
 const REFRESH_MS = 60_000;
 
 /**
- * Which places count towards a seat and which have reported.
+ * Reduce a seat's place answer to the places standing inside it.
+ *
+ * Only those are drawn and counted. A place filed under this seat from another
+ * electorate — an advance voting hub for a general seat, and every place for a
+ * Māori seat, because `vp_e_no` never carries a Māori electorate number — is
+ * not a booth in this electorate, so adding it to a card labelled "voting
+ * places" would put two different things behind one number. A seat with no
+ * in-seat place (all seven Māori seats) has nothing to draw or count, and
+ * returns null rather than 0 / 0.
+ */
+export function summarizePlaces(
+  data: VotingPlacesResponse
+): VotingPlaceSummary | null {
+  if (!data.available) return null;
+  const places = data.places.filter((place) => place.group === 'seat');
+  if (places.length === 0) return null;
+
+  let counted = 0;
+  let latestAt: string | null = null;
+  for (const place of places) {
+    if (place.countedAt === null) continue;
+    counted += 1;
+    if (latestAt === null || place.countedAt > latestAt) {
+      latestAt = place.countedAt;
+    }
+  }
+
+  return { counted, total: places.length, latestAt, places };
+}
+
+/**
+ * Which places inside a seat have reported.
  *
  * The collector answers this on demand (the feed publishes no per-place data
  * for an archived cycle, and the register is too large to poll), so this is a
@@ -47,37 +76,10 @@ export function useVotingPlaces(electorateName: string | null): {
     setComplete(false);
   }, [url]);
 
-  const summary = useMemo<VotingPlaceSummary | null>(() => {
-    if (!data || !data.available) return null;
-    if (data.places.length === 0) return null;
-
-    let latestAt: string | null = null;
-    const groups: VotingPlaceSummary['groups'] = [
-      { key: 'seat', counted: 0, total: 0 },
-      { key: 'advance', counted: 0, total: 0 },
-      { key: 'mobile', counted: 0, total: 0 },
-    ];
-    for (const place of data.places) {
-      const group = groups.find((g) => g.key === place.group);
-      if (group) {
-        group.total += 1;
-        if (place.countedAt !== null) group.counted += 1;
-      }
-      if (place.countedAt !== null) {
-        if (latestAt === null || place.countedAt > latestAt) {
-          latestAt = place.countedAt;
-        }
-      }
-    }
-
-    return {
-      counted: data.counted,
-      total: data.total,
-      latestAt,
-      groups: groups.filter((g) => g.total > 0),
-      places: data.places,
-    };
-  }, [data]);
+  const summary = useMemo<VotingPlaceSummary | null>(
+    () => (data ? summarizePlaces(data) : null),
+    [data]
+  );
 
   useEffect(() => {
     if (!summary) return;

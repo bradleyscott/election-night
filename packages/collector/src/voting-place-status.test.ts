@@ -141,15 +141,65 @@ describe('VotingPlaceStatusService', () => {
     expect(byId.get(381)).toMatchObject({ group: 'seat', countedAt: null });
     // Registered against the seat with no coordinates: a mobile team.
     expect(byId.get(390)).toMatchObject({ group: 'mobile', lat: null });
-    // Stands in Banks Peninsula but counts for Auckland Central: advance.
+    // Stands in Banks Peninsula but counts for Auckland Central: elsewhere.
     expect(byId.get(395)).toMatchObject({
-      group: 'advance',
+      group: 'elsewhere',
       electorateName: 'Banks Peninsula',
     });
 
     expect(result!.places.filter((p) => p.group === 'seat')).toHaveLength(2);
-    expect(result!.places.filter((p) => p.group === 'advance')).toHaveLength(1);
+    expect(result!.places.filter((p) => p.group === 'elsewhere')).toHaveLength(
+      1
+    );
     expect(result!.places.filter((p) => p.group === 'mobile')).toHaveLength(1);
+  });
+
+  it('gives a Māori seat no in-seat places, because vp_e_no never names one', async () => {
+    // The live register only ever carries a general electorate number, so a
+    // Māori seat's places are all filed elsewhere even though they stand on it.
+    const feed = await startFeed({
+      routes: {
+        '/electorates.xml': {
+          body: `<?xml version="1.0" encoding="UTF-8"?>
+<electorates>
+  <electorate e_no="1"><electorate_name>Auckland Central</electorate_name></electorate>
+  <electorate e_no="2"><electorate_name>Banks Peninsula</electorate_name></electorate>
+  <electorate e_no="65"><electorate_name>Te Tai Tonga</electorate_name></electorate>
+</electorates>`,
+        },
+        '/e65/votingplaces/': {
+          body: `<html><body><table>
+<tr><td><a href="65-01001.xml">65-01001.xml</a></td></tr>
+<tr><td><a href="65-02003.xml">65-02003.xml</a></td></tr>
+</table></body></html>`,
+        },
+        '/e65/votingplaces/65-01001.xml': {
+          body: placeFile(380, 1, 1, '2026-10-24T19:07:00'),
+        },
+        '/e65/votingplaces/65-02003.xml': {
+          body: placeFile(395, 2, 3, ''),
+        },
+      },
+    });
+    cleanup = feed.close;
+    const service = new VotingPlaceStatusService({
+      baseUrl: feed.baseUrl,
+      electionYear: '2026',
+    });
+
+    const result = await service.placesFor('Te Tai Tonga');
+    expect(result).not.toBeNull();
+    expect(result!.available).toBe(true);
+    expect(result!.total).toBe(2);
+    expect(result!.counted).toBe(1);
+    expect(result!.places.map((p) => p.group)).toEqual([
+      'elsewhere',
+      'elsewhere',
+    ]);
+    expect(result!.places.map((p) => p.electorateName)).toEqual([
+      'Auckland Central',
+      'Banks Peninsula',
+    ]);
   });
 
   it('matches the electorate name macron- and punctuation-insensitively', async () => {

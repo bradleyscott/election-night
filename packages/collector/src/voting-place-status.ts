@@ -242,10 +242,15 @@ export class VotingPlaceStatusService {
       const place =
         placeId !== null ? references.placeById.get(placeId) : undefined;
       const hasCoordinates = place?.lat != null && place?.lon != null;
+      // A place that stands in this electorate is a booth; one that stands
+      // anywhere else is 'elsewhere' — which is an advance voting place for a
+      // general seat and almost every place for a Māori one, because no place
+      // is registered against a Māori electorate. Both facts come from where
+      // the place stands; neither is a claim about when the vote was cast.
       const group: VotingPlaceGroup = hasCoordinates
         ? entry.electorateNo === electorateNo
           ? 'seat'
-          : 'advance'
+          : 'elsewhere'
         : 'mobile';
 
       return {

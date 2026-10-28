@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { VotingPlaceStatus } from '@election-night/core/voting-places';
+import type {
+  VotingPlaceStatus,
+  VotingPlacesResponse,
+} from '@election-night/core/voting-places';
 import { VotingPlaceLedger, VotingPlaceLegend } from './VotingPlaces.js';
 import type { VotingPlaceSummary } from '../hooks/useVotingPlaces.js';
-import { formatReceiptTime } from '../hooks/useVotingPlaces.js';
+import {
+  formatReceiptTime,
+  summarizePlaces,
+} from '../hooks/useVotingPlaces.js';
 
 const place = (
   id: string,
@@ -22,17 +28,6 @@ const place = (
 });
 
 const summary = (places: VotingPlaceStatus[]): VotingPlaceSummary => {
-  const groups = (['seat', 'advance', 'mobile'] as const)
-    .map((key) => {
-      const inGroup = places.filter((p) => p.group === key);
-      return {
-        key,
-        counted: inGroup.filter((p) => p.countedAt !== null).length,
-        total: inGroup.length,
-      };
-    })
-    .filter((g) => g.total > 0);
-
   const times = places
     .map((p) => p.countedAt)
     .filter((t): t is string => t !== null)
@@ -42,30 +37,49 @@ const summary = (places: VotingPlaceStatus[]): VotingPlaceSummary => {
     counted: places.filter((p) => p.countedAt !== null).length,
     total: places.length,
     latestAt: times[times.length - 1] ?? null,
-    groups,
     places,
   };
 };
 
 describe('VotingPlaceLedger', () => {
-  it('totals the places and breaks them down by group', () => {
+  it('counts the places that stand in the electorate', () => {
     render(
       <VotingPlaceLedger
         summary={summary([
           place('101', 'seat', '2023-10-14T19:07:00'),
           place('102', 'seat', null),
-          place('103', 'advance', null),
-          place('104', 'mobile', '2023-10-14T19:31:00'),
         ])}
       />
     );
 
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('/ 4')).toBeInTheDocument();
-    expect(screen.getByText('In this electorate')).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
-    expect(screen.getByText('Advance voting places')).toBeInTheDocument();
-    expect(screen.getByText('Mobile voting teams')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('/ 2')).toBeInTheDocument();
+    expect(screen.getByText('counted')).toBeInTheDocument();
+    expect(screen.getByText('in this electorate')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('1 of 2 voting places counted')
+    ).toBeInTheDocument();
+  });
+
+  it('carries no per-group breakdown', () => {
+    // The card states one measure only: booths standing in this electorate.
+    // Advance hubs and mobile teams are not booths in it, so they are not rows.
+    render(
+      <VotingPlaceLedger
+        summary={summary([
+          place('101', 'seat', '2023-10-14T19:07:00'),
+          place('102', 'seat', null),
+        ])}
+      />
+    );
+
+    for (const label of [
+      'In this electorate',
+      'Elsewhere',
+      'Mobile voting teams',
+    ]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
   });
 
   it('prints the newest receipt time and nothing before one lands', () => {
@@ -82,28 +96,79 @@ describe('VotingPlaceLedger', () => {
     expect(screen.queryByText(/\d+:\d\d[ap]m/)).not.toBeInTheDocument();
   });
 
-  it('drops a group with no places rather than showing a zero', () => {
+  it('says it is still reading before the first answer arrives', () => {
     render(
-      <VotingPlaceLedger summary={summary([place('101', 'seat', null)])} />
+      <VotingPlaceLedger
+        summary={summary([place('101', 'seat', null)])}
+        loading
+      />
     );
 
-    expect(screen.queryByText('Advance voting places')).not.toBeInTheDocument();
-    expect(screen.queryByText('Mobile voting teams')).not.toBeInTheDocument();
+    expect(screen.getByText('reading places…')).toBeInTheDocument();
   });
 });
 
 describe('VotingPlaceLegend', () => {
-  it('keys each pip state', () => {
+  it('keys the two fill states and nothing else', () => {
     const { container } = render(<VotingPlaceLegend />);
     const pips = container.querySelectorAll('.voting-place-pip');
 
-    expect(pips).toHaveLength(4);
-    expect(pips[0]).toHaveClass('voting-place-pip--square');
+    expect(pips).toHaveLength(2);
     expect(pips[0]).not.toHaveClass('voting-place-pip--open');
     expect(pips[1]).toHaveClass('voting-place-pip--open');
-    expect(pips[2]).toHaveClass('voting-place-pip--circle');
-    expect(pips[3]).toHaveClass('voting-place-pip--circle');
-    expect(pips[3]).toHaveClass('voting-place-pip--open');
+    expect(screen.getByText('Counted')).toBeInTheDocument();
+    expect(screen.getByText('Not yet counted')).toBeInTheDocument();
+    expect(container.querySelector('.voting-place-pip--circle')).toBeNull();
+  });
+});
+
+describe('summarizePlaces', () => {
+  const response = (
+    places: VotingPlaceStatus[],
+    available = true
+  ): VotingPlacesResponse => ({
+    electorateName: 'Epsom',
+    year: '2026',
+    available,
+    reason: available ? null : 'not-live',
+    counted: places.filter((p) => p.countedAt !== null).length,
+    total: places.length,
+    places,
+  });
+
+  it('keeps only the places standing in the electorate', () => {
+    const summary = summarizePlaces(
+      response([
+        place('101', 'seat', '2026-10-24T19:07:00'),
+        place('102', 'seat', null),
+        place('103', 'elsewhere', '2026-10-24T19:31:00'),
+        place('104', 'mobile', null),
+      ])
+    );
+
+    expect(summary).not.toBeNull();
+    expect(summary!.total).toBe(2);
+    expect(summary!.counted).toBe(1);
+    expect(summary!.latestAt).toBe('2026-10-24T19:07:00');
+    expect(summary!.places.map((p) => p.group)).toEqual(['seat', 'seat']);
+  });
+
+  it('answers null for a seat with no in-seat place', () => {
+    // All seven Māori seats: `vp_e_no` never names a Māori electorate, so every
+    // place that counts towards one is filed under a general electorate.
+    const summary = summarizePlaces(
+      response([
+        place('101', 'elsewhere', '2026-10-24T19:07:00'),
+        place('102', 'elsewhere', null),
+        place('103', 'mobile', '2026-10-24T19:40:00'),
+      ])
+    );
+
+    expect(summary).toBeNull();
+  });
+
+  it('answers null when the cycle has no per-place files', () => {
+    expect(summarizePlaces(response([], false))).toBeNull();
   });
 });
 

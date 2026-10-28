@@ -21,9 +21,31 @@
  * Place results also break the assumption that a place counts for the
  * electorate it stands in: in 2023, out-of-seat places carried 2,313 of Te
  * Tai Tonga's 4,383 votes (its voters are everywhere), and a single place
- * (the Overseas vote) counted for all 72. Anything counting towards a seat from
- * outside it is, in practice, an advance vote; that is the label the dashboard
- * puts on it.
+ * (the Overseas vote) counted for all 72.
+ *
+ * Two different things produce such a result, and the classification below has
+ * to serve both without claiming more than the feed states:
+ *
+ *  - For a **general seat**, an out-of-seat place is in practice an advance
+ *    voting place. A vote cast on election day at a place outside the voter's
+ *    electorate is a special vote, counted in the electorate it was cast for
+ *    rather than at the booth, so a booth in another general electorate cannot
+ *    report for this seat on the night. The live 2026 register has 2,686
+ *    places, of which 785 stand outside at least one other general electorate
+ *    they count for — against the 829 advance voting places and 2,334
+ *    election-day places the Commission reported for 2023.
+ *  - For a **Māori seat**, an out-of-seat place is usually an ordinary
+ *    election-day booth. `vp_e_no` never holds a Māori electorate number (all
+ *    2,686 2026 entries carry 1–64), so no place can be recorded as standing
+ *    in a Māori electorate and every place counting for one is formally
+ *    out-of-seat — 2,685 of the 2,686 places appear in some Māori seat's
+ *    listing. Those votes are ordinary ones: every voting place holds rolls for
+ *    both its general and its Māori electorate, so a voter on the Māori roll is
+ *    marked off the printed roll at their local booth.
+ *
+ * The group therefore names where the place stands, which is what the feed
+ * says, and never when the vote was cast — the register carries no advance flag
+ * and one place holds both.
  *
  * Parsing only — fetching belongs to the collector, which owns rate limiting
  * and caching for the feed.
@@ -67,16 +89,21 @@ export type VotingPlaceCount = {
 };
 
 /**
- * Which of the seat's three kinds of place this is, and why it matters:
+ * Where the seat's places stand, and why it matters:
  *
  *  - `seat` — a booth standing in the electorate, drawn on the map.
- *  - `advance` — a place outside the electorate that still counts towards it
- *    (advance voters can vote at any place, so Te Tai Tonga takes votes from
- *    booths in Auckland). Drawn wherever it actually is.
+ *  - `elsewhere` — a place outside the electorate that still counts towards it,
+ *    drawn wherever it actually is. For a general seat that is in practice an
+ *    advance voting place (Te Tai Tonga takes advance votes from booths in
+ *    Auckland); for a Māori seat it is almost every place, because `vp_e_no`
+ *    can never name a Māori electorate.
  *  - `mobile` — a mobile team or a care-home visit, recorded against the
  *    electorate with no fixed location, so it can be counted but not drawn.
+ *
+ * The name states a position, not a time: the register carries no advance
+ * flag, so an `elsewhere` place may have counted advance or election-day votes.
  */
-export type VotingPlaceGroup = 'seat' | 'advance' | 'mobile';
+export type VotingPlaceGroup = 'seat' | 'elsewhere' | 'mobile';
 
 /** A place as the dashboard draws it: register entry plus its count state. */
 export type VotingPlaceStatus = {
