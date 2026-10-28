@@ -77,6 +77,19 @@ describe('ElectorateRacesView', () => {
     );
   });
 
+  test('names each candidate’s party beside them', () => {
+    render(
+      <BrowserRouter>
+        <ElectorateRacesView electorates={[baseElectorate]} />
+      </BrowserRouter>
+    );
+
+    // The dot alone is decoration; the party has to be readable, as it is on
+    // the Flipped table.
+    expect(screen.getByText('National Party')).toBeInTheDocument();
+    expect(screen.getByText('Labour Party')).toBeInTheDocument();
+  });
+
   test('shows a chance of winning instead of a margin of error', () => {
     render(
       <BrowserRouter>
