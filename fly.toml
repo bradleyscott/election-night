@@ -61,6 +61,10 @@ primary_region = "syd"
   RESULTS_CACHE_PATH = "/data/electorate_results.json"
   CACHE_PATH = "/data/electorate_results.json"
   FEED_CACHE_PATH = "/data/feed_events.json"
+  # www → apex. The proxy serves both hostnames once both certs exist but does
+  # not rewrite Host, so the app issues the 301 itself. Unset everywhere else
+  # (previews, .fly.dev, local dev) means no redirect.
+  CANONICAL_HOST = "election-night.live"
 
 # 512mb gives the collector headroom alongside the dashboard server. Before
 # election night, bump to 1024 if needed:

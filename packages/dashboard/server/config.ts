@@ -58,6 +58,13 @@ const dashboardServerConfigSchema = z.object({
     .describe(
       'Accept results_update from a non-loopback publisher (default false; ALLOW_REMOTE_RESULTS=true for split deployments)'
     ),
+  /**
+   * Canonical public hostname, e.g. `example.com`. When set, GET/HEAD requests
+   * arriving on `www.<canonical>` are permanently redirected to it, since the
+   * proxy serves both hostnames but cannot rewrite the host itself. Unset
+   * disables the redirect (local dev, previews, `.fly.dev`).
+   */
+  canonicalHost: z.string().optional(),
 });
 
 export type DashboardServerConfig = z.infer<typeof dashboardServerConfigSchema>;
@@ -74,6 +81,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     collectorMetricsUrl: process.env.COLLECTOR_METRICS_URL,
     clearToken: process.env.CLEAR_TOKEN,
     allowRemoteResults: process.env.ALLOW_REMOTE_RESULTS,
+    canonicalHost: process.env.CANONICAL_HOST,
   });
 
   if (!parsed.success) {

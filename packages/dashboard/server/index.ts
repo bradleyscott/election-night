@@ -21,6 +21,7 @@ import {
 } from './metrics.js';
 import { routeLabel } from './routes.js';
 import { serveHealth, serveMetrics, serveReady } from './health.js';
+import { canonicalRedirect } from './redirect.js';
 import { serveStatic } from './static.js';
 import { serveApi } from './api.js';
 import {
@@ -114,6 +115,22 @@ const server = createServer(
         Number(process.hrtime.bigint() - startedAt) / 1e9
       );
     });
+
+    // Canonical hostname: `www.<CANONICAL_HOST>` answers with the app today,
+    // because the proxy routes on Host but does not rewrite it. Collapse the
+    // alias before any route runs so the redirect is not route-specific.
+    const redirect = canonicalRedirect({
+      host: req.headers.host,
+      method: req.method,
+      pathname: url?.pathname ?? '/',
+      search: url?.search,
+      canonicalHost: dashboardServerConfig.canonicalHost,
+    });
+    if (redirect) {
+      res.writeHead(redirect.status, { Location: redirect.location });
+      res.end();
+      return;
+    }
 
     // POST /api/clear — reset feed state and notify all connected clients.
     // Optionally guarded by a shared secret when CLEAR_TOKEN is configured.
@@ -277,6 +294,9 @@ server.listen(PORT, () => {
   log.info(`DIST_DIR:          ${DIST_DIR}`);
   log.info(`CACHE_PATH:        ${resolve(CACHE_PATH)}`);
   log.info(`MAX_FEED_EVENTS:   ${MAX_FEED_EVENTS}`);
+  log.info(
+    `CANONICAL_HOST:    ${dashboardServerConfig.canonicalHost ?? '(none)'}`
+  );
   log.info(`CWD:               ${process.cwd()}`);
   log.info('======================================');
   log.info(`Socket.io server running on http://localhost:${PORT}`);
