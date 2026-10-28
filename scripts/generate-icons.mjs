@@ -49,10 +49,21 @@ const ANY_FRACTION = 0.96;
  */
 const MASKABLE_SAFE_RADIUS = (0.8 / 2) * 0.98;
 
+/**
+ * The mascot's own orange: the Electoral Commission's Orange Guy, the character
+ * it has used to promote enrolment since 2009. The body is centred on the
+ * character's flat fill (`#FF7300`, sampled from Orange Guy artwork) rather than
+ * shading down to a burnt `#E06000`, which read as red the smaller the icon got.
+ * Both stops sit at the same lightness, so the gradient gives the body form
+ * without darkening it — the character must not take its colour from the
+ * masthead red.
+ */
+const MASCOT_ORANGE = { light: '#FF8000', deep: '#FF6600' };
+
 const ARTWORK_SVG = `  <defs>
     <linearGradient id="og" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#FF8C00"/>
-      <stop offset="100%" stop-color="#E06000"/>
+      <stop offset="0%" stop-color="${MASCOT_ORANGE.light}"/>
+      <stop offset="100%" stop-color="${MASCOT_ORANGE.deep}"/>
     </linearGradient>
   </defs>
   <path d="M32 6C18 6 12 14 12 22C12 30 10 38 8 46C6 52 12 56 20 56C26 56 30 54 32 54C34 54 38 56 44 56C52 56 58 52 56 46C54 38 52 30 52 22C52 14 46 6 32 6Z" fill="url(#og)"/>
@@ -62,8 +73,8 @@ const ARTWORK_SVG = `  <defs>
   <path d="M23 30 Q32 38 41 30" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
   <path d="M 14 36 Q 8 34 6 40" fill="none" stroke="url(#og)" stroke-width="5" stroke-linecap="round"/>
   <path d="M 50 36 Q 56 34 58 40" fill="none" stroke="url(#og)" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="6" cy="40" r="3" fill="#E06000"/>
-  <circle cx="58" cy="40" r="3" fill="#E06000"/>
+  <circle cx="6" cy="40" r="3" fill="${MASCOT_ORANGE.deep}"/>
+  <circle cx="58" cy="40" r="3" fill="${MASCOT_ORANGE.deep}"/>
   <line x1="6" y1="40" x2="3" y2="8" stroke="#8B4513" stroke-width="2" stroke-linecap="round"/>
   <line x1="58" y1="40" x2="61" y2="8" stroke="#8B4513" stroke-width="2" stroke-linecap="round"/>
   <path d="M 3 10 L -8 20 L 5 34 Z" fill="#2563EB"/>
@@ -127,8 +138,9 @@ function hasCommand(command) {
 /**
  * ImageMagick is required — it builds the .ico and measures the artwork back out
  * of the rendered PNGs to check nothing is clipped. Inkscape, when present, does
- * the rasterising: it renders SVG geometry more faithfully than ImageMagick's
- * built-in renderer.
+ * the rasterising, and rsvg-convert (from `brew install librsvg`) next: both
+ * render SVG geometry more faithfully than ImageMagick's own renderer, which
+ * silently drops `fill="url(#og)"` and paints the mascot black.
  */
 function rasteriser() {
   if (!hasCommand('magick')) {
@@ -136,7 +148,9 @@ function rasteriser() {
       'Needs ImageMagick for the .ico and the geometry check: `brew install imagemagick`.'
     );
   }
-  return hasCommand('inkscape') ? 'inkscape' : 'magick';
+  if (hasCommand('inkscape')) return 'inkscape';
+  if (hasCommand('rsvg-convert')) return 'rsvg';
+  return 'magick';
 }
 
 function render(engine, svgPath, size, outPath) {
@@ -153,6 +167,26 @@ function render(engine, svgPath, size, outPath) {
         `--export-height=${size}`,
         `--export-background=${PAPER}`,
         '--export-background-opacity=1',
+      ],
+      { stdio: 'pipe' }
+    );
+    return;
+  }
+  if (engine === 'rsvg') {
+    // The canvas rect already fills the square; the background flag makes the
+    // PNG opaque even if a maskable variant is ever drawn without one.
+    execFileSync(
+      'rsvg-convert',
+      [
+        '--width',
+        String(size),
+        '--height',
+        String(size),
+        '--background-color',
+        PAPER,
+        '--output',
+        outPath,
+        svgPath,
       ],
       { stdio: 'pipe' }
     );

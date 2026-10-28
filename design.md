@@ -54,6 +54,14 @@ to it. Amend intentionally — the file is the rule.
   off; radius is 0. A 5% fractal-noise grain over the page says "paper".
 - **Red is the only accent** — reserved for LIVE state, cut lines, leader
   changes, chips, focus rings, and the masthead. Everything else is ink on paper.
+- **The character is the one exception.** The mascot — masthead mark and install
+  icons alike — is drawn in the Electoral Commission's Orange Guy orange, the
+  colour of the enrolment mascot it quotes: centred on `#FF7300`, shaded
+  `#FF8000 → #FF6600` with both stops at full lightness. It went masthead red
+  (`#C8503E → #9E2B1C`) once and stopped reading as the character. It stays
+  artwork: the mascot never sets type, state, chips or leader markers, so the
+  accent rule above is untouched. `components/Logo.test.tsx` and
+  `lib/app-icons.test.ts` pin the pair.
 - **Data is set in mono, labels in Inter, prose in Crimson Pro, display in
   Playfair.** Tables rule-based, figures tabular. Party colours are data
   semantics and stay untouched (National #00529F, Labour #D82A20, Green

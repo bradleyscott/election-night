@@ -95,7 +95,7 @@ npm run fmt           # prettier --write .
 - The margin-of-error model is gone, not deprecated: `packages/core/src/reducers.ts` no longer computes it, the socket payload and `/history/*` no longer carry it, and `scrape_snapshots`' `margin_of_error`/`predicted_winner`/`is_predicted` columns were dropped in migration `0002`. When a qualitative read is wanted, derive it from `SeatChance` (`CALL_THRESHOLD` 0.9 in `packages/core/src/seat-probability.ts`; there is deliberately no second band); do not reintroduce a sampling ratio.
 - `packages/dashboard/public/boundaries/<year>/{general,maori}-electorates.geojson` — electorate boundary geometry, one directory per election cycle, plus a generated `index.json` manifest of electorate names per year. `packages/dashboard/src/lib/electorates.ts` holds the name normalisation and year-selection logic; `ElectorateMap.tsx` consumes both.
 - `scripts/fetch-electorate-boundaries.mjs` — regenerates the boundary files from Stats NZ's public ArcGIS feature services (no API key) and rebuilds the manifest. Run it when a cycle's boundaries change.
-- `scripts/generate-icons.mjs` — regenerates the install icons from one square canvas (see the design-system note above). Needs Inkscape or ImageMagick; it refuses to write a clipped artwork box or an undeclared size.
+- `scripts/generate-icons.mjs` — regenerates the install icons from one square canvas (see the design-system note above). Needs ImageMagick plus Inkscape or `rsvg-convert` to rasterise (ImageMagick's own SVG renderer silently drops the body's `fill="url(#og)"` and paints the mascot black); it refuses to write a clipped artwork box or an undeclared size.
 
 ## Architecture notes that aren't obvious from filenames
 

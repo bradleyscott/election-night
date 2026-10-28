@@ -143,4 +143,17 @@ describe('app icons', () => {
       manifest.background_color.toLowerCase()
     );
   });
+
+  test('the mascot is Orange Guy orange, not the masthead red', () => {
+    // The artwork is a quote of the Electoral Commission's enrolment mascot, so
+    // it is drawn in that character's orange rather than in the dashboard's
+    // masthead accent. The body used to shade `#FF8C00 → #E06000`, whose dark end
+    // read as red at tab size; `Logo.test.tsx` pins the masthead mark to the same
+    // pair, and these are the shipped files a phone actually installs.
+    const stops = Array.from(
+      faviconSvg.matchAll(/<stop[^>]*stop-color="(#[0-9a-fA-F]{6})"/g),
+      (match) => match[1].toLowerCase()
+    );
+    expect(stops).toEqual(['#ff8000', '#ff6600']);
+  });
 });

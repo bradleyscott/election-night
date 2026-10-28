@@ -1,3 +1,17 @@
+/**
+ * The masthead mark: the mascot and two ballot flags.
+ *
+ * The character keeps its own orange — the Electoral Commission's Orange Guy,
+ * the mascot that asks New Zealand to enrol — and not the masthead red. It was
+ * `#FF8C00 → #E06000` and the Newsprint pass turned it `#C8503E → #9E2B1C`, which
+ * is the colour of the masthead rule; the character stopped looking like the
+ * thing it is quoting. `#FF8000 → #FF6600` is centred on Orange Guy's flat
+ * `#FF7300`, and both stops sit at the same lightness so the body gets form
+ * without darkening towards red. `design.md` § Voice records the exception.
+ *
+ * `scripts/generate-icons.mjs` carries the same two stops for the install
+ * icons; `lib/app-icons.test.ts` fails if the shipped ones drift.
+ */
 export default function Logo({ className }: { className?: string }) {
   return (
     <svg
@@ -16,8 +30,8 @@ export default function Logo({ className }: { className?: string }) {
           y2="140"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor="#C8503E" />
-          <stop offset="100%" stopColor="#9E2B1C" />
+          <stop offset="0%" stopColor="#FF8000" />
+          <stop offset="100%" stopColor="#FF6600" />
         </linearGradient>
         <linearGradient id="ogHighlight" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
@@ -122,8 +136,8 @@ export default function Logo({ className }: { className?: string }) {
           strokeLinecap="round"
         />
 
-        <circle cx="8" cy="76" r="5" fill="#9E2B1C" />
-        <circle cx="112" cy="76" r="5" fill="#9E2B1C" />
+        <circle cx="8" cy="76" r="5" fill="#FF6600" />
+        <circle cx="112" cy="76" r="5" fill="#FF6600" />
 
         <line
           x1="8"

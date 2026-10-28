@@ -141,7 +141,7 @@ the maskable variant inside Android's 80% safe circle:
 
 ```bash
 # Rewrites favicon.svg, favicon.ico, the manifest PNGs and apple-touch-icon.png
-# (needs Inkscape or ImageMagick on PATH)
+# (needs ImageMagick, plus Inkscape or rsvg-convert on PATH)
 node scripts/generate-icons.mjs
 ```
 

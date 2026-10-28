@@ -3,8 +3,8 @@
   <g transform="translate(62.7735 77.8693) scale(6.0383)">
     <defs>
       <linearGradient id="og" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="#FF8C00"/>
-        <stop offset="100%" stop-color="#E06000"/>
+        <stop offset="0%" stop-color="#FF8000"/>
+        <stop offset="100%" stop-color="#FF6600"/>
       </linearGradient>
     </defs>
     <path d="M32 6C18 6 12 14 12 22C12 30 10 38 8 46C6 52 12 56 20 56C26 56 30 54 32 54C34 54 38 56 44 56C52 56 58 52 56 46C54 38 52 30 52 22C52 14 46 6 32 6Z" fill="url(#og)"/>
@@ -14,8 +14,8 @@
     <path d="M23 30 Q32 38 41 30" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
     <path d="M 14 36 Q 8 34 6 40" fill="none" stroke="url(#og)" stroke-width="5" stroke-linecap="round"/>
     <path d="M 50 36 Q 56 34 58 40" fill="none" stroke="url(#og)" stroke-width="5" stroke-linecap="round"/>
-    <circle cx="6" cy="40" r="3" fill="#E06000"/>
-    <circle cx="58" cy="40" r="3" fill="#E06000"/>
+    <circle cx="6" cy="40" r="3" fill="#FF6600"/>
+    <circle cx="58" cy="40" r="3" fill="#FF6600"/>
     <line x1="6" y1="40" x2="3" y2="8" stroke="#8B4513" stroke-width="2" stroke-linecap="round"/>
     <line x1="58" y1="40" x2="61" y2="8" stroke="#8B4513" stroke-width="2" stroke-linecap="round"/>
     <path d="M 3 10 L -8 20 L 5 34 Z" fill="#2563EB"/>
