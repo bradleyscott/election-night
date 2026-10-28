@@ -182,12 +182,26 @@ export default function Flipped() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <Th align="left">Electorate</Th>
-                  <Th align="left">Held {primaryYear}</Th>
+                  {/* Widths are fixed rather than left to the browser: with
+                      auto layout the slack goes to whichever column has the
+                      most text, and `Held` carries a third line (“· as Port
+                      Hills”) that would hand it the room. Tonight's lead is
+                      the column that should breathe, so it gets the largest
+                      share and the prior holder a readable minimum. The
+                      numeric columns stay auto — they only need their
+                      digits. */}
+                  <Th align="left" className="w-[19%]">
+                    Electorate
+                  </Th>
+                  <Th align="left" className="w-[24%]">
+                    Held {primaryYear}
+                  </Th>
                   <Th align="right" className="hidden sm:table-cell">
                     {primaryYear} margin
                   </Th>
-                  <Th align="left">Now leading</Th>
+                  <Th align="left" className="w-[32%]">
+                    Now leading
+                  </Th>
                   {/* Below sm the numbers are folded into the two comparison
                       columns (see the row cells), so only the margin and
                       chance columns drop out — the lead stays visible. */}
