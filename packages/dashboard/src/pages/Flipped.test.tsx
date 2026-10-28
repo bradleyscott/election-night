@@ -377,6 +377,57 @@ describe('Flipped page', () => {
     ).toBeInTheDocument();
   });
 
+  test('labels an independent candidate as Independent, not Unknown', async () => {
+    // A candidate with no party affiliation has a null party; the table must
+    // say what they are, matching every other surface that shows a candidate.
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ...priorWinners,
+          years: [
+            {
+              year: '2023',
+              winners: [
+                {
+                  electorateName: 'Remutaka',
+                  priorElectorateName: null,
+                  year: '2023',
+                  candidate: 'PRYCE, Mathew',
+                  party: null,
+                  votes: 18_000,
+                  majority: 800,
+                  majorityPercent: 0.03,
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    render(
+      <BrowserRouter>
+        <MockSocketProvider
+          results={{
+            electorateResults: [
+              electorate('Remutaka', 'National Party', 'SMITH, John', 1_500),
+            ],
+            partyVote: [],
+            partyLists: [],
+          }}
+          connected
+        >
+          <Flipped />
+        </MockSocketProvider>
+      </BrowserRouter>
+    );
+
+    await screen.findByText('Remutaka');
+    expect(screen.getByText('Independent')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+  });
+
   test('says so when every comparable seat is holding', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(

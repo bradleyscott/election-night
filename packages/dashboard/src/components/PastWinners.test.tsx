@@ -58,6 +58,20 @@ describe('PastWinners', () => {
     expect(screen.queryByText(/Flipped/i)).not.toBeInTheDocument();
   });
 
+  test('labels an independent winner as Independent, not Unknown', () => {
+    // A candidate elected with no party affiliation has a null party; the
+    // panel must say what they were, not that their party is unknown.
+    render(
+      <PastWinners
+        winners={[{ ...winners[0]!, party: null }]}
+        unavailable={false}
+      />
+    );
+
+    expect(screen.getByText('Independent')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+  });
+
   test('says when no prior cycle could be fetched', () => {
     render(<PastWinners winners={[]} unavailable />);
 

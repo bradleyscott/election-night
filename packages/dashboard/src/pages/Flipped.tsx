@@ -236,7 +236,7 @@ export default function Flipped() {
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {winner.party ?? 'Unknown'}
+                          {winner.party ?? 'Independent'}
                           {winner.priorElectorateName
                             ? ` · as ${winner.priorElectorateName}`
                             : ''}
@@ -264,7 +264,7 @@ export default function Flipped() {
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {l.leadingCandidateParty ?? 'Unknown'}
+                          {l.leadingCandidateParty ?? 'Independent'}
                         </div>
                         <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
                           leads {l.margin.toLocaleString()} ·{' '}

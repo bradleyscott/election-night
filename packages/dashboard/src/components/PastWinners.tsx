@@ -63,7 +63,7 @@ export function PastWinners({
                       <span className="font-semibold">{w.candidate}</span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {w.party ?? 'Unknown'}
+                      {w.party ?? 'Independent'}
                       {w.priorElectorateName
                         ? ` · as ${w.priorElectorateName}`
                         : ''}
