@@ -153,21 +153,28 @@ export function ElectorateRacesView({
  * The chance the leader holds the seat. A margin of error is a property of a
  * sample, and this is not a sample — it is a count part-way through, so the
  * honest figure is the chance the lead survives the votes still to come.
+ *
+ * A finished count reads `Complete`, not 100% — same rule, same wording as the
+ * Flipped table, so the two never disagree about what a column means.
  */
 function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'counting') {
     return <span>{Math.round(chance.probability * 100)}%</span>;
   }
 
+  if (chance?.state === 'complete') {
+    return (
+      <span
+        className="text-xs font-bold tabular-nums"
+        title="Tonight's count is complete for this seat — special votes are still to come"
+      >
+        Complete
+      </span>
+    );
+  }
+
   return (
-    <span
-      className="text-muted-foreground"
-      title={
-        chance?.state === 'complete'
-          ? "Tonight's count is complete for this seat"
-          : 'No votes counted yet'
-      }
-    >
+    <span className="text-muted-foreground" title="No votes counted yet">
       &mdash;
     </span>
   );

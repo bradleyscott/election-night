@@ -90,6 +90,32 @@ describe('ElectorateRacesView', () => {
     expect(screen.getByText('Labour Party')).toBeInTheDocument();
   });
 
+  test('a finished count reads Complete, not 100%', () => {
+    const complete: SeatChance = {
+      state: 'complete',
+      margin: 1000,
+      leader: { name: 'SMITH, John', party: 'National Party', votes: 6400 },
+      runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 5400 },
+      specialsOutstanding: 5000,
+    };
+
+    render(
+      <BrowserRouter>
+        <ElectorateRacesView
+          electorates={[baseElectorate]}
+          chances={
+            new Map([[normalizeElectorateName('Auckland Central'), complete]])
+          }
+        />
+      </BrowserRouter>
+    );
+
+    // A finished count is not a probability, and 100% would be the call the
+    // count has not made: specials are still to come.
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+  });
+
   test('shows a chance of winning instead of a margin of error', () => {
     render(
       <BrowserRouter>

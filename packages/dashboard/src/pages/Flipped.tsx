@@ -324,6 +324,12 @@ export default function Flipped() {
  * The chance the leader holds the seat. A margin of error describes a sample,
  * and a count part-way through is not a sample — the honest figure is how
  * likely the lead is to survive the votes still to count.
+ *
+ * A finished count gets a word rather than 100%: specials are still to come
+ * (21% of all votes in 2023, and they moved seats), so a finished count is not
+ * a result, and 100% under this header is the call the count has not made.
+ * `Complete` states the one thing that is true, in the space the numbers above
+ * it occupy.
  */
 function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'counting') {
@@ -334,15 +340,19 @@ function WinPercentCell({ chance }: { chance?: SeatChance }) {
     );
   }
 
+  if (chance?.state === 'complete') {
+    return (
+      <span
+        className="text-xs font-bold tabular-nums"
+        title="Tonight's count is complete for this seat — special votes are still to come"
+      >
+        Complete
+      </span>
+    );
+  }
+
   return (
-    <span
-      className="text-muted-foreground"
-      title={
-        chance?.state === 'complete'
-          ? "Tonight's count is complete for this seat"
-          : 'No votes counted yet'
-      }
-    >
+    <span className="text-muted-foreground" title="No votes counted yet">
       &mdash;
     </span>
   );

@@ -224,6 +224,69 @@ describe('Flipped page', () => {
     ).toBeInTheDocument();
   });
 
+  test('a finished count reads Complete, not 100%', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          currentYear: '2026',
+          primaryYear: '2023',
+          years: [
+            {
+              year: '2023',
+              winners: [
+                {
+                  electorateName: 'Testville',
+                  year: '2023',
+                  candidate: 'BROWN, Ana',
+                  party: 'Labour Party',
+                  votes: 18_000,
+                  majority: 900,
+                  majorityPercent: 0.04,
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    render(
+      <BrowserRouter>
+        <MockSocketProvider
+          results={{
+            electorateResults: [
+              {
+                // A name no baseline knows, so enrolment is back-solved from
+                // the turnout below rather than read from the roll: turnout
+                // past the night total (77.7% × 78.3%) leaves the model
+                // nothing outstanding, which is the complete state.
+                ...electorate(
+                  'Testville',
+                  'National Party',
+                  'SMITH, John',
+                  4_000
+                ),
+                percentVotesCast: 0.7,
+              },
+            ],
+            partyVote: [],
+            partyLists: [],
+          }}
+          connected
+        >
+          <Flipped />
+        </MockSocketProvider>
+      </BrowserRouter>
+    );
+
+    await screen.findByText('Testville');
+    // A finished count is not a probability, and 100% would be the call the
+    // count has not made: specials are still to come.
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+  });
+
   test('shows a chance of winning instead of a status chip', async () => {
     renderFlipped();
 
