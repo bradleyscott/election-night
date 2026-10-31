@@ -60,7 +60,10 @@ export default function FeedSidebar({
         (e) => e.electorateName.toLowerCase() === electorateName.toLowerCase()
       );
     }
-    return events.slice(0, 30);
+    // Newest first, as the Feed page orders them: the list is appended to, so
+    // the newest events are at the end. Taking the first 30 showed the night's
+    // opening events beside a count that had moved on.
+    return events.slice(-30).reverse();
   }, [feedEvents, electorateName]);
 
   return (
