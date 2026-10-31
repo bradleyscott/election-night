@@ -109,6 +109,15 @@ describe('pipeline integration', () => {
     expect(payload.partyVote.length).toBeGreaterThan(0);
     expect(payload.partyLists.length).toBeGreaterThan(0);
 
+    // The mock feed publishes a parliament, not 120 list seats stacked on top
+    // of the electorate winners: 120 seats plus any overhang.
+    const parliament = payload.partyVote.reduce(
+      (sum, party) => sum + (party.seats ?? 0),
+      0
+    );
+    expect(parliament).toBeGreaterThanOrEqual(120);
+    expect(parliament).toBeLessThanOrEqual(128);
+
     const clientSocket = io(`ws://localhost:${dashboardPort}`, {
       transports: ['websocket', 'polling'],
     });

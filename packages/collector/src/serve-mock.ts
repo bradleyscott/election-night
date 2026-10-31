@@ -175,6 +175,10 @@ function renderElectoratesXml(): string {
  * The mock has to invent seats — it is synthetic data — but it does so here,
  * in the fixture, and not in the collector: the product reads seat numbers off
  * the feed and never derives them.
+ *
+ * Parliament is 120 seats, not 120 list seats. Allocating the quota over 120
+ * and adding the electorate winners on top made the mock publish a 191-seat
+ * parliament (National 90), which a dry run then presented as a result.
  */
 function renderElectionXml(): string {
   const stage = STAGES[currentStage];
@@ -204,12 +208,16 @@ function renderElectionXml(): string {
   }
 
   const totalPartyVotes = [...votes.values()].reduce((sum, v) => sum + v, 0);
-  const listSeats = new Map<string, number>();
+  const totalSeatsByParty = new Map<string, number>();
   if (totalPartyVotes > 0) {
     const eligible = [...votes.entries()].filter(
       ([party, v]) =>
         v / totalPartyVotes >= 0.05 || (electorateSeats.get(party) ?? 0) > 0
     );
+    // 120 is the size of parliament, not the number of list seats: electorate
+    // seats are part of a party's total, and a party that wins more electorates
+    // than its share allows keeps them as an overhang. Allocating 120 *list*
+    // seats and adding the electorates on top produced a 191-seat parliament.
     const quotients = eligible.map(([party, v]) => ({
       party,
       exact: (v / totalPartyVotes) * 120,
@@ -217,7 +225,7 @@ function renderElectionXml(): string {
     let allocated = 0;
     for (const q of quotients) {
       const base = Math.floor(q.exact);
-      listSeats.set(q.party, base);
+      totalSeatsByParty.set(q.party, base);
       allocated += base;
     }
     const remainders = quotients
@@ -232,19 +240,24 @@ function renderElectionXml(): string {
       i++, allocated++
     ) {
       const { party } = remainders[i % remainders.length]!;
-      listSeats.set(party, (listSeats.get(party) ?? 0) + 1);
+      totalSeatsByParty.set(
+        party,
+        (totalSeatsByParty.get(party) ?? 0) + 1
+      );
     }
   }
 
   const rows = MOCK_PARTIES.map((party, i) => {
-    const list = listSeats.get(party.name) ?? 0;
     const electorates = electorateSeats.get(party.name) ?? 0;
+    // A party keeps every electorate it wins, even beyond its allocation.
+    const total = Math.max(totalSeatsByParty.get(party.name) ?? 0, electorates);
+    const list = total - electorates;
     return `    <party p_no="${i + 1}">
         <votes>${votes.get(party.name) ?? 0}</votes>
         <percent_votes>${totalPartyVotes > 0 ? (((votes.get(party.name) ?? 0) / totalPartyVotes) * 100).toFixed(2) : '0'}</percent_votes>
         <party_seats>${list}</party_seats>
         <candidate_seats>${electorates}</candidate_seats>
-        <total_seats>${Math.max(list + electorates, electorates)}</total_seats>
+        <total_seats>${total}</total_seats>
     </party>`;
   }).join('\n');
 
