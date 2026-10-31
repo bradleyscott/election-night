@@ -30,11 +30,22 @@
  * Usage:
  *   node scripts/build-notional-baseline.mjs --source 2023 --target 2026
  *   node scripts/build-notional-baseline.mjs --source 2023 --target 2023 --validate
+ *   node scripts/build-notional-baseline.mjs --ratios-only --target 2026
+ *
+ * `--ratios-only` recomputes just `specialRatio` in an existing baseline: the
+ * field depends on nothing but the source cycle and the seat's name, so adding
+ * it does not have to pay for the probe again or rewrite every other number
+ * from whatever this script looks like today.
  */
 
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// Resolving a renamed seat needs the one table that records renames; matching by
+// name alone is why five of 2026's ten "new" seats were rebuilt from place
+// geometry when their own published result existed. Requires `npm run
+// build:core`, like everything else that imports the built package.
+import { resolvePriorElectorateName } from '@election-night/core/electorate-successions';
 import { arg, hasFlag } from './lib/args.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +59,14 @@ const OUT = resolve(
   ROOT,
   arg('out', `packages/core/data/notional-baseline-${TARGET_YEAR}.json`)
 );
+// Special votes as a share of each electorate's vote, per cycle. Written by
+// `build-special-vote-shares.mjs`, whose header says why it is a separate file:
+// the Commission publishes it only as an HTML table the live hosts refuse.
+const SPECIAL_VOTES_FILE = resolve(
+  ROOT,
+  'packages/core/data/special-votes-by-electorate.json'
+);
+const RATIOS_ONLY = hasFlag('ratios-only');
 
 const archive = (year) =>
   `https://archive.electionresults.govt.nz/electionresults_${year}/xml/`;
@@ -199,18 +218,93 @@ function locate(index, lon, lat) {
   return -1;
 }
 
+// ---- special votes ---------------------------------------------------------
+
+/**
+ * Every seat's share of the vote that arrives after election night, relative to
+ * its cycle's national share.
+ *
+ * Read from the committed file rather than fetched: the Commission publishes
+ * this only as an HTML table on hosts that refuse it, so it is extracted once
+ * by `build-special-vote-shares.mjs` and checked in.
+ */
+async function loadSpecialShares(year) {
+  try {
+    const data = JSON.parse(await readFile(SPECIAL_VOTES_FILE, 'utf8'));
+    const cycle = data.cycles?.[String(year)];
+    if (!cycle || !(cycle.nationalShare > 0)) return null;
+    const byName = new Map();
+    for (const [name, share] of Object.entries(cycle.seats ?? {})) {
+      if (share > 0)
+        byName.set(normaliseName(name), share / cycle.nationalShare);
+    }
+    process.stderr.write(
+      `  ${byName.size} seats carry a measured special-vote share (${year})\n`
+    );
+    return byName;
+  } catch (err) {
+    process.stderr.write(
+      `  no special-vote shares for ${year} (${err.message}); every seat uses the national share\n`
+    );
+    return null;
+  }
+}
+
+/**
+ * Add `specialRatio` to an existing baseline without rebuilding it.
+ *
+ * The ratio depends only on the source cycle and the seat's name, so a baseline
+ * built before the special-vote table existed does not have to pay for the
+ * 18,000-request probe again — and a rebuild would rewrite every other number
+ * from whatever the script looks like today, which is not what adding one field
+ * should cost.
+ */
+async function updateRatiosOnly() {
+  const baseline = JSON.parse(await readFile(OUT, 'utf8'));
+  const shares = await loadSpecialShares(baseline.sourceYear);
+  if (!shares)
+    throw new Error(`no special-vote shares for ${baseline.sourceYear}`);
+
+  let carried = 0;
+  const missing = [];
+  for (const [name, record] of Object.entries(baseline.seats)) {
+    const ratio = record.carriedFrom
+      ? shares.get(normaliseName(record.carriedFrom))
+      : undefined;
+    record.specialRatio = ratio ? Number(ratio.toFixed(4)) : null;
+    if (record.specialRatio) carried++;
+    else missing.push(name);
+  }
+
+  await writeFile(OUT, JSON.stringify(baseline, null, 2) + '\n');
+  process.stderr.write(
+    `  ${carried} seats carry a special-vote ratio; ${missing.length} fall back to the national share${missing.length ? `: ${missing.join(', ')}` : ''}\n  wrote ${OUT}\n`
+  );
+}
+
 // ---- main -----------------------------------------------------------------
 
 async function main() {
+  if (RATIOS_ONLY) {
+    await updateRatiosOnly();
+    return;
+  }
+
   process.stderr.write(`notional baseline ${SOURCE_YEAR} -> ${TARGET_YEAR}\n`);
 
-  const [partiesXml, candidatesXml, electoratesXml, placesXml] =
+  const [partiesXml, candidatesXml, electoratesXml, placesXml, statisticsXml] =
     await Promise.all([
       fetchText(`${SRC}parties.xml`),
       fetchText(`${SRC}candidates.xml`),
       fetchText(`${SRC}electorates.xml`),
       fetchText(`${SRC}votingplaces.xml`),
+      fetchText(`${SRC}statistics.xml`),
     ]);
+
+  // The one national figure the feed publishes: every enrolled elector in the
+  // source cycle, which the seats' rolls must add up to.
+  const nationalElectors =
+    Number(tagText(statisticsXml, 'total_electors')) || 0;
 
   const partyName = new Map(
     blocks(partiesXml, 'party').map((p) => [
@@ -519,6 +613,25 @@ async function main() {
     [...sourceSeats.values()].map((seat) => [normaliseName(seat.name), seat])
   );
 
+  // The same map, keyed by the name each source seat carries *in the target
+  // cycle*. A renamed seat is the same seat — the Representation Commission says
+  // so, and the source cycle published a full result for it — so it must be
+  // carried over rather than rebuilt from the places geometry could locate.
+  // Resolving forwards is the direction the rename table runs in; asking it for
+  // the earlier name of a later seat is not.
+  //
+  // A seat created by a merge or a split resolves to itself, finds no target
+  // seat of that name, and correctly falls through to the apportionment below.
+  const sourceByTargetName = new Map();
+  for (const seat of sourceSeats.values()) {
+    const carried = resolvePriorElectorateName(
+      String(SOURCE_YEAR),
+      String(TARGET_YEAR),
+      seat.name
+    );
+    sourceByTargetName.set(normaliseName(carried), seat);
+  }
+
   // A seat's own published result is the better prior wherever the name
   // carries over: it counts *every* vote the seat received, including advance
   // votes cast at places standing in other electorates. The place geometry can
@@ -527,6 +640,14 @@ async function main() {
   // advance voters, who lean measurably differently (National +2.4 points in
   // 2023). So geometry is used only where it is unavoidable: seats that are new
   // or renamed, which have no same-name predecessor.
+  // Special votes as a ratio to the cycle's national share, for seats whose
+  // prior is their own previous result.
+  const specialShares = await loadSpecialShares(SOURCE_YEAR);
+  const specialRatioOf = (name) => {
+    const ratio = specialShares?.get(normaliseName(name));
+    return ratio ? Number(ratio.toFixed(4)) : null;
+  };
+
   const recordFromSource = (kind, source) => {
     const votes = Object.values(source.partyVotes).reduce((a, b) => a + b, 0);
     if (!votes) return null;
@@ -552,6 +673,11 @@ async function main() {
         ? share(partyCandidateVotes, candidateVotes)
         : {},
       enrolment: source.enrolment ?? null,
+      // How much of this seat's vote arrives as special votes, relative to the
+      // cycle's national share. Stable between cycles (r = 0.96, 2020 vs 2023)
+      // while the national level is not, which is why the ratio lives here and
+      // the level stays in the cycle constants.
+      specialRatio: specialRatioOf(source.name),
       // Named for what it is: the seat's own previous result, not an estimate
       // rebuilt from the places inside it.
       method: 'same-name',
@@ -563,7 +689,10 @@ async function main() {
   let carriedOver = 0;
   let apportioned = 0;
   for (const seat of seats.values()) {
-    const source = sourceByName.get(normaliseName(seat.name));
+    const source =
+      sourceByName.get(normaliseName(seat.name)) ??
+      sourceByTargetName.get(normaliseName(seat.name)) ??
+      null;
     const carried = source ? recordFromSource(seat.kind, source) : null;
     if (carried) {
       seatRecords[seat.name] = { ...carried, places: seat.places };
@@ -583,6 +712,10 @@ async function main() {
       // the prior a projection actually wants.
       partyCandidateShare: share(seat.partyCandidateVotes, seat.votes),
       enrolment: enrolmentOf(seat),
+      // No same-name predecessor to take a special-vote share from, and
+      // specials are not cast at a voting place, so geometry cannot find them
+      // either. The model falls back to the flat national share for this seat.
+      specialRatio: null,
       // No same-name predecessor: shares come from the places that fall inside
       // the new boundary, so advance votes counted for the seat from elsewhere
       // are missing and the totals are short of what the seat received.
@@ -593,6 +726,121 @@ async function main() {
   process.stderr.write(
     `  ${carriedOver} seats from their own previous result, ${apportioned} apportioned from place geometry\n`
   );
+
+  // ---- the roll has to add up ---------------------------------------------
+  //
+  // Every enrolled elector sits in exactly one electorate, and a boundary
+  // review redistributes the same people, so the seats' rolls must sum to the
+  // source cycle's own national roll. Seats carried over from their own result
+  // already do — those two figures agree to within a rounding error, which is
+  // the check that says the recovery is sound. The gap is the ballots place
+  // geometry cannot see: advance votes cast at a hub standing in another
+  // electorate. It therefore belongs to the seats *built* from the located
+  // places, not spread across every seat, which is why the correction is
+  // applied only to the apportioned ones.
+  //
+  // This is a level correction and not a shape correction: the shares were
+  // computed from the apportioned votes before this runs, so the prior a
+  // projection reads is untouched. Uncorrected, the seats summed to about 93%
+  // of the real roll, and an understated roll overstates counting progress in
+  // every one of those seats — the direction that manufactures confidence.
+  const apportionedSeats = Object.values(seatRecords).filter(
+    (record) => record.method === 'place-apportioned'
+  );
+  const recordedElectors = Object.values(seatRecords).reduce(
+    (sum, record) => sum + (record.enrolment ?? 0),
+    0
+  );
+  const apportionedElectors = apportionedSeats.reduce(
+    (sum, record) => sum + (record.enrolment ?? 0),
+    0
+  );
+  const residual = nationalElectors - recordedElectors;
+
+  // A ceiling, because the apportionment can only understate a seat and the
+  // residual is not all its to absorb: a same-name seat's roll is the *previous*
+  // cycle's for that name, and boundary shifts move electors between neighbours
+  // in both directions. So the correction is capped at a fifth above the
+  // national average roll — generous enough that only an absurdity trips it —
+  // and whatever is left over is spread across the table, which is the same
+  // admission made smaller.
+  const seatCount = Object.keys(seatRecords).length;
+  const quota = seatCount > 0 ? nationalElectors / seatCount : 0;
+  const ceiling = quota * 1.2;
+
+  if (nationalElectors <= 0) {
+    process.stderr.write(
+      '  WARNING statistics.xml carried no total_electors\n'
+    );
+  } else if (Math.abs(residual) > 0.005 * nationalElectors) {
+    if (apportionedElectors <= 0) {
+      process.stderr.write(
+        `  WARNING roll is ${Math.round(residual).toLocaleString()} short of ` +
+          `${nationalElectors.toLocaleString()} with no apportioned seat to carry it\n`
+      );
+    } else {
+      const factor = Math.max(
+        0,
+        (apportionedElectors + residual) / apportionedElectors
+      );
+      let held = 0;
+      let capped = 0;
+      for (const record of apportionedSeats) {
+        const from = record.enrolment ?? 0;
+        const wanted = from * factor;
+        const limited =
+          record.kind === 'general' && wanted > ceiling ? ceiling : wanted;
+        if (limited < wanted) capped++;
+        record.enrolment = Math.round(limited);
+        // Scaled with the roll so the record stays internally consistent (the
+        // implied turnout is the source seat's); shares are already stored and
+        // are unaffected.
+        record.votes = Math.round(
+          (record.votes ?? 0) * (from ? limited / from : 1)
+        );
+        held += record.enrolment;
+      }
+      process.stderr.write(
+        `  roll: ${apportionedSeats.length} apportioned seats ×${factor.toFixed(3)}` +
+          (capped
+            ? `, ${capped} held at ${Math.round(ceiling).toLocaleString()}`
+            : '') +
+          '\n'
+      );
+      // Spread what the ceiling would not take, proportionally, so no single
+      // seat is asked to carry it.
+      const afterCap = Object.values(seatRecords).reduce(
+        (sum, record) => sum + (record.enrolment ?? 0),
+        0
+      );
+      const spill = nationalElectors - afterCap;
+      if (Math.abs(spill) > 1) {
+        const spread = spill / afterCap;
+        for (const record of Object.values(seatRecords)) {
+          record.enrolment = Math.round((record.enrolment ?? 0) * (1 + spread));
+          record.votes = Math.round((record.votes ?? 0) * (1 + spread));
+        }
+        process.stderr.write(
+          `  roll: ${Math.round(spill).toLocaleString()} spread across all seats ` +
+            `(+${(spread * 100).toFixed(1)}%)\n`
+        );
+      }
+    }
+  }
+
+  const finalElectors = Object.values(seatRecords).reduce(
+    (sum, record) => sum + (record.enrolment ?? 0),
+    0
+  );
+  if (
+    nationalElectors > 0 &&
+    Math.abs(finalElectors - nationalElectors) > 0.002 * nationalElectors
+  ) {
+    throw new Error(
+      `seat rolls sum to ${finalElectors.toLocaleString()}, not the ` +
+        `${nationalElectors.toLocaleString()} enrolled in ${SOURCE_YEAR}`
+    );
+  }
 
   // ---- tau: how far seats sit from a uniform national swing --------------
   //
@@ -614,10 +862,14 @@ async function main() {
       'cast at places standing inside the seat; advance votes cast elsewhere are ' +
       'excluded because they cannot be geolocated. A seat that kept its name and ' +
       "gained no located votes takes the source cycle's result for that name " +
-      'instead (`method: same-name-carry-over`) — the only route for the Māori ' +
-      'seats. Boundary data: Stats NZ (CC BY 4.0).',
+      'instead (`method: same-name`) — resolved through the rename table, so a ' +
+      'renamed seat keeps its own result rather than being rebuilt from geometry. ' +
+      "Seat rolls are scaled so they sum to the source cycle's `total_electors`. " +
+      'Boundary data: Stats NZ (CC BY 4.0).',
     sourceYear: Number(SOURCE_YEAR),
     targetYear: Number(TARGET_YEAR),
+    /** Enrolled electors in the source cycle, from `statistics.xml`. */
+    rollElectors: nationalElectors,
     method: 'in-seat voting place results, point-in-polygon',
     tau,
     coverage: {

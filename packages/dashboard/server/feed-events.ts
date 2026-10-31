@@ -32,6 +32,29 @@ function chancePercent(
 }
 
 /**
+ * The special-vote sentence for a finished count, or nothing.
+ *
+ * Two conditions, both of them the model's: the count has to be finished, and
+ * the margin has to be inside what this seat's special vote could move. The
+ * volume and the chance of surviving it are named because a reader can check
+ * them; the direction is not, because the model only knows the size of the
+ * special vote and not its split.
+ *
+ * This replaces a hardcoded `margin < 1500` test, which meant opposite things in
+ * different seats: 1,500 votes is inside the special vote in Invercargill and
+ * nowhere near it in Auckland Central, where 2023 delivered 12,347 of them.
+ */
+function describeSpecials(chance: SeatChance | null): string {
+  if (!chance || chance.state === 'waiting') return '';
+  if (!chance.insideSpecials) return '';
+  return ` Special votes are counted after election night and about ${Math.round(
+    chance.specialsOutstanding
+  ).toLocaleString()} are still to be added — more than this margin, which leaves a ${Math.round(
+    chance.specialsProbability * 100
+  )}% chance the lead survives them.`;
+}
+
+/**
  * Render the short (summary) and long (commentary) copy for one diff.
  * Both variants are produced together so the facts can never drift
  * between them.
@@ -72,11 +95,11 @@ function renderCopy(
   const facts = diffFacts(diff);
   if (facts.countCompleted) {
     // A finished ordinary count is a fact about a count, not a claim about the
-    // seat. Specials arrive weeks later, so a close one says so.
-    const specials =
-      diff.currentMargin < 1500
-        ? ' Special votes are counted after election night and can still change this seat.'
-        : '';
+    // seat. Specials are counted weeks later, so the one thing worth saying is
+    // whether they are large enough to matter — decided by the model against
+    // this seat's own measured special vote, not by a threshold on the margin.
+    // Which way they would move is not stated, because it is not measured.
+    const specials = describeSpecials(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes with all ordinary votes counted.`,
       commentary: `${leader} leads by ${votes} votes in ${name} with all ordinary votes counted.${specials}`,

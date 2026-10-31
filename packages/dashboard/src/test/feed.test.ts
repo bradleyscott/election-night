@@ -63,6 +63,7 @@ function countingChance(
     leader: { name: 'Alice', party: 'A', votes: 5100 },
     runnerUp: { name: 'Bob', party: 'B', votes: 4900 },
     probability: 0.91,
+    countProbability: 0.91,
     margin: 200,
     remainingVotes: 3000,
     remainingLow: 2400,
@@ -72,6 +73,8 @@ function countingChance(
     assumedCycle: false,
     insideOutstanding: true,
     specialsOutstanding: 7300,
+    specialsRequiredSwing: 0.0274,
+    specialsProbability: 0.61,
     insideSpecials: true,
     provisionalPrior: false,
     ...overrides,
@@ -141,12 +144,45 @@ describe('buildFeedEvents with a chance lookup', () => {
       margin: 396,
       leader: { name: 'Alice', party: 'A', votes: 5000 },
       runnerUp: { name: 'Bob', party: 'B', votes: 4604 },
-      specialsOutstanding: 1200,
+      specialsOutstanding: 12_000,
+      specialsRequiredSwing: 0.033,
+      probability: 0.63,
+      specialsProbability: 0.63,
+      insideSpecials: true,
     }));
 
     expect(events[0]!.type).toBe('count_completed');
     expect(events[0]!.probability).toBeNull();
     expect(events[0]!.summary).toContain('all ordinary votes counted');
     expect(events[0]!.commentary).toContain('Special votes');
+    // The volume is named, so the reader can check the comparison themselves,
+    // and the chance of surviving it is the model's, not the copy writer's.
+    expect(events[0]!.commentary).toContain('12,000');
+    expect(events[0]!.commentary).toContain('63% chance the lead survives');
+  });
+
+  it('says nothing about specials when the margin is outside them', () => {
+    // A 4,000-vote margin against 1,200 specials: the sentence would be an
+    // invitation to worry about arithmetic that cannot reach the result. This is
+    // the seat the old hardcoded `margin < 1500` test would have flagged.
+    const complete = makeResult({
+      electorateName: 'Testville',
+      votesCounted: 9000,
+      votePercentageCounted: 1,
+    });
+    const events = buildFeedEvents([second], [complete], () => ({
+      state: 'complete' as const,
+      margin: 4000,
+      leader: { name: 'Alice', party: 'A', votes: 6500 },
+      runnerUp: { name: 'Bob', party: 'B', votes: 2500 },
+      specialsOutstanding: 1200,
+      specialsRequiredSwing: 3.33,
+      probability: 1.0,
+      specialsProbability: 1.0,
+      insideSpecials: false,
+    }));
+
+    expect(events[0]!.commentary).toContain('all ordinary votes counted');
+    expect(events[0]!.commentary).not.toContain('Special votes');
   });
 });

@@ -1,9 +1,11 @@
 import {
   cycleConstantsFor,
+  nightRemaining,
   type SeatChance,
 } from '@election-night/core/seat-probability';
 import {
   enrolmentForSeat,
+  resolveEnrolment,
   type NotionalBaseline,
 } from '@election-night/core/notional-baseline';
 
@@ -45,17 +47,23 @@ export function baselineFor(
  *
  * `votePercentageCounted` is the share of *voting places* that have reported,
  * and places do not carry equal numbers of votes: advance votes are counted
- * from 9am and released in large blocks after 7pm. Dividing votes by that share
- * therefore understates the count badly in the first hours. This instead
- * divides by the votes those seats are expected to receive tonight, using the
- * same enrolment-and-turnout arithmetic as the seat card, so the number on the
- * page and the number under a seat cannot disagree.
+ * from 9am and released in large blocks after 7pm, and in a general seat most
+ * of its place results are advance hubs standing in another electorate. Using
+ * that share as the answer therefore runs ahead of the vote early — which is
+ * how a night looks settled before any booth has reported.
+ *
+ * The number here is the seats' own: each seat's progress comes from
+ * `nightRemaining`, the same call the seat card makes, so the fraction on the
+ * page and the strip under a seat cannot disagree. That call takes the larger
+ * of the turnout estimate and a place-count floor, so a seat whose roll is
+ * understated cannot report itself as nearly finished.
  */
 export function countProgress(
   results: Array<{
     electorateName: string;
     votesCounted: number;
     percentVotesCast?: number;
+    votePercentageCounted?: number;
   }>,
   electionYear: string | number | null
 ): { votesCounted: number; expected: number; fraction: number | null } {
@@ -65,16 +73,20 @@ export function countProgress(
   let expected = 0;
   for (const result of results) {
     if (!(result.votesCounted > 0)) continue;
-    const recorded = enrolmentForSeat(baseline, result.electorateName);
-    const turnout =
-      result.percentVotesCast && result.percentVotesCast > 0
-        ? result.percentVotesCast
-        : null;
-    const enrolment =
-      recorded ?? (turnout ? result.votesCounted / turnout : null);
+    const enrolment = resolveEnrolment({
+      recorded: enrolmentForSeat(baseline, result.electorateName),
+      votesCounted: result.votesCounted,
+      percentVotesCast: result.percentVotesCast,
+    });
     if (!enrolment) continue;
+    const { remainingVotes } = nightRemaining({
+      votesCounted: result.votesCounted,
+      enrolment,
+      cycle,
+      placesCounted: result.votePercentageCounted,
+    });
     votesCounted += result.votesCounted;
-    expected += enrolment * cycle.turnout * cycle.nightShare;
+    expected += result.votesCounted + remainingVotes;
   }
   return {
     votesCounted,
@@ -93,12 +105,16 @@ export function countProgress(
  * The map answers one question — how decided is this seat — so the shading runs
  * on the chance of winning, not on the margin: a 50/50 seat is left pale
  * whichever party happens to be a hundred votes ahead, and colour deepens as
- * one side's chance grows. A seat with no votes counted gets the palest fill
- * and no claim; a finished count gets the fullest.
+ * one side's chance grows. A seat with no votes counted gets the palest fill and
+ * no claim.
+ *
+ * A *finished* count is shaded by the same rule, and must be: the probability now
+ * runs to the end of the special vote, so a seat whose ordinary count is complete
+ * can still be a coin toss. Painting it solid would have the map claim a decision
+ * the seat panel beside it does not.
  */
 export function mapFillOpacity(chance: SeatChance | null | undefined): number {
   if (!chance || chance.state === 'waiting') return 0.15;
-  if (chance.state === 'complete') return 0.8;
   // 0.5 → 0.2, 0.99 → 0.8. A seat at even odds is nearly invisible on purpose:
   // painting it solid in the leader's colour is the mistake this replaces.
   return 0.2 + Math.min(1, Math.abs(chance.probability - 0.5) / 0.49) * 0.6;

@@ -26,6 +26,7 @@ const counting: SeatChance = {
   leader: { name: 'SMITH, Alex', party: 'National Party', votes: 5100 },
   runnerUp: { name: 'JONES, Bo', party: 'Labour Party', votes: 4900 },
   probability: 0.91,
+  countProbability: 0.91,
   margin: 200,
   remainingVotes: 3000,
   remainingLow: 2400,
@@ -35,6 +36,8 @@ const counting: SeatChance = {
   assumedCycle: false,
   insideOutstanding: true,
   specialsOutstanding: 7300,
+  specialsRequiredSwing: 0.0274,
+  specialsProbability: 0.61,
   insideSpecials: true,
   provisionalPrior: false,
 };
@@ -73,6 +76,10 @@ describe('SeatDetailContent', () => {
           leader: { name: 'SMITH, Alex', party: 'National Party', votes: 5000 },
           runnerUp: { name: 'JONES, Bo', party: 'Labour Party', votes: 4604 },
           specialsOutstanding: 1200,
+          specialsRequiredSwing: 0.33,
+          probability: 1.0,
+          specialsProbability: 1.0,
+          insideSpecials: false,
         },
       })
     );

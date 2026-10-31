@@ -39,6 +39,7 @@ const counting: SeatChance = {
   runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 5300 },
   othersProbability: 0,
   probability: 0.44,
+  countProbability: 0.44,
   margin: 100,
   remainingVotes: 9000,
   remainingLow: 6000,
@@ -48,6 +49,8 @@ const counting: SeatChance = {
   assumedCycle: false,
   insideOutstanding: true,
   specialsOutstanding: 5000,
+  specialsRequiredSwing: 0.068,
+  specialsProbability: 0.75,
   insideSpecials: true,
   provisionalPrior: false,
 };
@@ -90,13 +93,17 @@ describe('ElectorateRacesView', () => {
     expect(screen.getByText('Labour Party')).toBeInTheDocument();
   });
 
-  test('a finished count reads Complete, not 100%', () => {
+  test('a finished count keeps its chance, because the specials are still out', () => {
     const complete: SeatChance = {
       state: 'complete',
       margin: 1000,
       leader: { name: 'SMITH, John', party: 'National Party', votes: 6400 },
       runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 5400 },
       specialsOutstanding: 5000,
+      specialsRequiredSwing: 0.2,
+      probability: 0.98,
+      specialsProbability: 0.98,
+      insideSpecials: true,
     };
 
     render(
@@ -110,9 +117,10 @@ describe('ElectorateRacesView', () => {
       </BrowserRouter>
     );
 
-    // A finished count is not a probability, and 100% would be the call the
-    // count has not made: specials are still to come.
-    expect(screen.getByText('Complete')).toBeInTheDocument();
+    // The count stopping is not the seat deciding: the special vote is still to
+    // come, which is why this seat reads 98% rather than a word or 100%.
+    expect(screen.getByText('98%')).toBeInTheDocument();
+    expect(screen.queryByText('Complete')).not.toBeInTheDocument();
     expect(screen.queryByText('100%')).not.toBeInTheDocument();
   });
 

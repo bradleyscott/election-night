@@ -29,6 +29,7 @@ const counting: SeatChance = {
   runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 11520 },
   othersProbability: 0.01,
   probability: 0.54,
+  countProbability: 0.54,
   margin: 340,
   remainingVotes: 15300,
   remainingLow: 12000,
@@ -38,6 +39,8 @@ const counting: SeatChance = {
   assumedCycle: false,
   insideOutstanding: true,
   specialsOutstanding: 5000,
+  specialsRequiredSwing: 0.068,
+  specialsProbability: 0.75,
   insideSpecials: true,
   provisionalPrior: false,
 };
@@ -137,6 +140,7 @@ describe('ElectorateStats', () => {
     renderStats({
       ...counting,
       probability: 0.99,
+      countProbability: 0.99,
       margin: 21000,
       remainingHigh: 18000,
     });
@@ -153,6 +157,10 @@ describe('ElectorateStats', () => {
         runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
         margin: 396,
         specialsOutstanding: 9700,
+        specialsRequiredSwing: 0.0408,
+        probability: 0.66,
+        specialsProbability: 0.66,
+        insideSpecials: true,
       },
       { result: result({ votesCounted: 35324 }) }
     );
@@ -178,6 +186,10 @@ describe('ElectorateStats', () => {
         runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
         margin: 396,
         specialsOutstanding: 9700,
+        specialsRequiredSwing: 0.0408,
+        probability: 0.66,
+        specialsProbability: 0.66,
+        insideSpecials: true,
       },
       { result: result({ votesCounted: 35324 }) }
     );
@@ -186,6 +198,22 @@ describe('ElectorateStats', () => {
     expect(
       screen.getByText('78% of the expected final vote')
     ).toBeInTheDocument();
+    // The reader should not have to compare a 396-vote margin to 9,700 votes
+    // themselves. The model has already done it, and the sentence claims no
+    // direction — the one thing the specials cannot tell us.
+    expect(
+      screen.getByText('The margin is inside the special vote.')
+    ).toBeInTheDocument();
+    // The probability the panel spends the night building: 396 votes of margin
+    // over 9,700 specials is a 4.1-point required swing against a 10-point
+    // spread. On a finished count the specials are all that is left, so this is
+    // the chance of winning the seat — and it is the only number here that comes
+    // from a distribution rather than a count.
+    expect(
+      screen.getByText(/Chance of holding the seat:/)
+    ).toBeInTheDocument();
+    expect(screen.getByText('66%')).toBeInTheDocument();
+    expect(screen.queryByText(/could change the result/i)).toBeNull();
   });
 
   it('rounds the estimates it prints instead of showing their decimals', () => {
@@ -198,6 +226,10 @@ describe('ElectorateStats', () => {
         runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
         margin: 396.4,
         specialsOutstanding: 6307.826,
+        specialsRequiredSwing: 0.0628,
+        probability: 0.74,
+        specialsProbability: 0.74,
+        insideSpecials: false,
       },
       { result: result({ votesCounted: 35324 }) }
     );
@@ -206,6 +238,17 @@ describe('ElectorateStats', () => {
       screen.getByText('Ahead by 396 (1.1% of votes)')
     ).toBeInTheDocument();
     expect(screen.queryByText(/\d+\.\d+ votes/)).not.toBeInTheDocument();
+    // 396 votes against 6,308 specials is inside them, but this fixture says
+    // not: the line is the model's call, not the card's own arithmetic.
+    expect(
+      screen.queryByText('The margin is inside the special vote.')
+    ).toBeNull();
+    // The probability is not conditional on the flag any more: a safe seat still
+    // gets its number, it just is not told the margin is inside the specials.
+    expect(screen.getByText(/Chance of holding the seat:/)).toBeInTheDocument();
+    expect(
+      screen.queryByText('The margin is inside the special vote.')
+    ).toBeNull();
   });
 
   it('renders no card at all in party mode', () => {

@@ -6,6 +6,7 @@ import {
   seatChanceFor,
   tauFor,
 } from '@election-night/core/notional-baseline';
+import { CYCLE_CONSTANTS } from '@election-night/core/seat-probability';
 import { baselineFor, countProgress, mapFillOpacity } from './seat-chance.js';
 import type { ElectorateResult } from '@election-night/core/types';
 
@@ -14,10 +15,18 @@ const baseline2026 = baselineFor('2026');
 
 describe('enrolmentForSeat', () => {
   it('reads the enrolled roll recorded beside the prior result', () => {
-    // Both figures come from the shipped baseline, so a wrong lookup shows up
-    // here rather than as a seat whose progress never reaches 100%.
-    expect(enrolmentForSeat(baseline2026, 'Auckland Central')).toBe(45407);
-    expect(enrolmentForSeat(baseline2026, 'Hauraki-Waikato')).toBe(39656);
+    // Both figures are the 2023 archive's own `total_votes_cast ÷
+    // percent_votes_cast` for the seat — the baseline's only source — and move
+    // whenever the baseline is regenerated. A wrong *lookup* would show up here
+    // rather than as a seat whose progress never reaches 100%, so the values are
+    // pinned against the seat's own record below as well.
+    expect(enrolmentForSeat(baseline2026, 'Auckland Central')).toBe(45789);
+    expect(enrolmentForSeat(baseline2026, 'Hauraki-Waikato')).toBe(39989);
+    for (const name of ['Auckland Central', 'Hauraki-Waikato']) {
+      expect(enrolmentForSeat(baseline2026, name)).toBe(
+        baseline2026?.seats[name].enrolment
+      );
+    }
   });
 
   it('matches regardless of case, macrons and punctuation', () => {
@@ -84,12 +93,14 @@ describe('seatChanceFor', () => {
   it('uses the recorded enrolment rather than the reported percentage', () => {
     const chance = seatChanceFor(seat(), baseline2026, {}, '2026');
     if (chance.state !== 'counting') throw new Error('expected counting');
-    expect(chance.enrolment).toBe(45407);
-    // 45,407 × 0.777 × 0.783 is tonight's expected total.
+    // The baseline's roll for the seat, not the one tonight's turnout implies.
+    expect(chance.enrolment).toBe(45789);
+    // 45,789 × 0.795 × 0.78 is tonight's expected total, so a 25,000-vote count
+    // leaves about 3,400 to come.
     expect(chance.remainingVotes).toBeLessThan(5000);
   });
 
-  it('never reports more than 99% while the count is unfinished', () => {
+  it('reports 100% when the distribution says so, with no cap in the way', () => {
     const chance = seatChanceFor(
       seat({
         candidateVotes: [
@@ -102,7 +113,10 @@ describe('seatChanceFor', () => {
       '2026'
     );
     if (chance.state !== 'counting') throw new Error('expected counting');
-    expect(chance.probability).toBeLessThanOrEqual(0.99);
+    // 40,000 votes against 10 is not a race. It used to be held at 99%; the
+    // number now prints what the model thinks, and what keeps an early count
+    // humble is the width of its distribution rather than a ceiling.
+    expect(chance.probability).toBe(1);
   });
 
   it('folds candidate votes up to parties for the swing', () => {
@@ -116,17 +130,29 @@ describe('mapFillOpacity', () => {
   const counting = (probability: number) =>
     ({ state: 'counting', probability }) as const;
 
-  it('paints a seat with no votes palest and a finished count solid', () => {
+  it('paints a seat with no votes palest', () => {
     expect(mapFillOpacity(null)).toBeCloseTo(0.15, 3);
     expect(mapFillOpacity({ state: 'waiting' })).toBeCloseTo(0.15, 3);
-    expect(
-      mapFillOpacity({
+  });
+
+  it('shades a finished count by its chance, because the specials are still out', () => {
+    // A completed count used to be painted solid. The probability now runs to the
+    // end of the special vote, so a seat that is finished tonight and 57% to hold
+    // must look like a 57% seat — otherwise the map and the panel disagree.
+    const complete = (probability: number) =>
+      ({
         state: 'complete',
+        probability,
         margin: 400,
         leader: { name: 'A', votes: 1 },
         runnerUp: { name: 'B', votes: 2 },
-      } as never)
-    ).toBeCloseTo(0.8, 3);
+      }) as never;
+    expect(mapFillOpacity(complete(0.57))).toBeCloseTo(
+      mapFillOpacity(counting(0.57) as never),
+      3
+    );
+    expect(mapFillOpacity(complete(0.5))).toBeCloseTo(0.2, 3);
+    expect(mapFillOpacity(complete(0.99))).toBeCloseTo(0.8, 3);
   });
 
   it('leaves a toss-up pale whoever leads it', () => {
@@ -157,8 +183,16 @@ describe('countProgress', () => {
       '2026'
     );
     expect(progress.votesCounted).toBe(12_000);
-    expect(progress.expected).toBeCloseTo(45_407 * 0.777 * 0.783, 0);
-    expect(progress.fraction).toBeCloseTo(0.43, 1);
+    // The 2026 cycle's own figures — 79.5% turnout of a 78% night share — not
+    // 2023's, which is what this assertion used to borrow while asking for 2026.
+    const cycle = CYCLE_CONSTANTS[2026];
+    expect(progress.expected).toBeCloseTo(
+      enrolmentForSeat(baseline2026, 'Auckland Central')! *
+        cycle.turnout *
+        cycle.nightShare,
+      0
+    );
+    expect(progress.fraction).toBeCloseTo(0.42, 2);
   });
 
   it('backs enrolment out of the live turnout when the seat has no record', () => {
@@ -172,8 +206,13 @@ describe('countProgress', () => {
       ],
       '2026'
     );
-    // 900 votes at 20% turnout implies 4,500 enrolled.
-    expect(progress.expected).toBeCloseTo(4_500 * 0.777 * 0.783, 0);
+    // 900 votes at 20% turnout implies 4,500 enrolled, and the night's total is
+    // that roll at this cycle's turnout and night share.
+    const cycle = CYCLE_CONSTANTS[2026];
+    expect(progress.expected).toBeCloseTo(
+      4_500 * cycle.turnout * cycle.nightShare,
+      0
+    );
   });
 
   it('never divides by the share of voting places counted', () => {

@@ -46,10 +46,12 @@ published to one decimal place: 200 votes at "0.4%" implies 50,000 enrolled
 against a true 45,407.
 
 ```
-enrolment        = recorded, else total_votes_cast / percent_votes_cast
-expected_night   = enrolment × turnout × nightShare      (cycle's own figures)
-remaining        = max(0, expected_night − total_votes_cast)
-progress         = total_votes_cast / expected_night
+enrolment         = recorded, else total_votes_cast / percent_votes_cast
+expected_night    = enrolment × turnout × nightShare      (cycle's own figures)
+remaining_turnout = max(0, expected_night − total_votes_cast)
+remaining_places  = ((1 − p) ÷ p) × total_votes_cast      (p = places counted)
+remaining         = max(remaining_turnout, remaining_places)
+progress          = total_votes_cast ÷ (total_votes_cast + remaining)
 ```
 
 `turnout` and `nightShare` are **per cycle**, not one number for all of them:
@@ -60,11 +62,40 @@ risen every cycle, so carrying them forward overstates the night's total, which
 makes the model think more is still out and close seats late rather than early.
 That assumption also scales the size uncertainty by 1.6.
 
-`percent_voting_places_counted` is **not** used anywhere. It counts voting
-places, not votes: places are not equal in size, and a seat's advance votes
-arrive in block transfers that have nothing to do with how many booths have
-reported. A seat can be 100% of places counted and still have 20% of its votes
-out.
+`percent_voting_places_counted` is **never read as progress**. It enters the
+model twice, both times as the one signal that cannot be wrong the way the
+turnout estimate can, because it counts a closed set: a place either has a
+result or it does not.
+
+- **A floor under the votes still to come.** Votes per place so far, applied to
+  the places that have not reported: the `remaining_places` term above, and the
+  larger of the two terms wins. It can only ever raise the estimate of what is
+  out, so place data can never make a seat look more finished than the turnout
+  estimate does — only less finished, or unchanged.
+- **The test for whether counting has finished.** At 100% of places, and not
+  before.
+
+Reading it as a share of the vote is the mistake the floor exists to avoid.
+Measured on the 2023 archive's per-place results:
+
+- The 65 general seats publish 7,124 place entries: 2,625 booths holding 1.86M
+  votes (707 each) and 4,499 advance-hub slices holding 387k (86 each). **63% of
+  the entries a seat lists hold 17% of its votes**, and they are the entries that
+  report first.
+- Place sizes are unequal even within one class: median coefficient of variation
+  **1.34** per seat (Gini 0.61), the biggest booth in a seat holding a median
+  **17%** of that seat's in-seat vote, up to 33%.
+- Random-order error of the naive shortcut at the halfway point: median **8.1
+  points**, 90th percentile 19, worst 35, with the estimate of what is out off by
+  more than 1.5× in 40% of cases.
+- In the order results actually arrive, the bias is worse than the noise. At the
+  moment the advance block lands a seat reads a median **71% of places reported
+  against 16% of votes counted**, so "still out" would be understated about
+  twelvefold.
+
+So the floor binds late, when the turnout estimate says the night is over but a
+few large booths have not reported, and the turnout estimate binds early, when
+the reported places are the tiny advance slices. Neither is authoritative alone.
 
 ### The trap this model exists to avoid
 
@@ -159,59 +190,183 @@ snapshot moves the estimate a little and a mature one moves it a lot.
 
 ## 3. The probability
 
-The outcome is a two-horse race between the leader and the runner-up on tonight's
-count, so the question is whether the outstanding votes can erase `margin`.
+The outcome is a two-horse race between the leader and the runner-up, and it is
+not decided on election night: special votes are counted over the fortnight
+after it and have changed seats every cycle. So `p(win)` is the chance this
+candidate wins the **seat** — after the ordinary count _and_ the specials — and
+the special vote enters as one more term in the same distribution.
 
 ```
 mean     = margin + remaining × (expected_share_leader − expected_share_runnerup)
 sd       = sqrt( (Δshare × size_sd)²                 // how much is out
                + (remaining × sampling_sd)²          // how much its composition could vary
-               + (remaining × τ)² )                  // genuine seat-level deviation
+               + (remaining × τ)²                    // genuine seat-level deviation
+               + (specials × SPECIALS_SWING_SD)² )   // the special vote, still to come
 p(win)   = Φ(mean / sd)
 ```
+
+The specials term is the same margin being moved by a second, later process: the
+seat's own measured special volume times the prior spread on how far the specials'
+split strays from the count's (§4). It is added as variance rather than modelled
+as a separate event because it acts on the same quantity — the margin between
+these two candidates.
+
+Two consequences worth knowing:
+
+- **It is continuous through completion.** As tonight's votes run out, `remaining`
+  and its uncertainty go to zero and `p(win)` converges on the specials
+  probability, so the number does not jump when the count is declared complete.
+- **It is always at or below the count-only probability**, and `countProbability`
+  still reports that older quantity for anything making a claim about the count
+  rather than the seat.
 
 - `size_sd = remaining × REMAINING_SIZE_SD` (0.12): the remaining vote could be
   materially more or less than the turnout estimate. This is the term that keeps
   the model honest early, when `remaining` is largest and least certain.
+- `specials × SPECIALS_SWING_SD` never shrinks during the night: it is the risk
+  that arrives after the count, and it is why a seat with 12,000 specials to come
+  is never called as confidently as one with 4,000.
 - `sampling_sd` is the multinomial standard error of the difference in shares,
   `sqrt(s₁(1−s₁)/n + s₂(1−s₂)/n)`. It shrinks as votes arrive, but it is
   **within** the remaining vote, not a margin of error on the count.
 - `remaining × τ` is the possibility that the missing votes are not like the
   counted ones — the real reason a 60% count is not decisive.
 
-The reported percentage is `Φ(mean/sd)`, clamped to `[1 − ceiling, ceiling]` —
-1%–99% for a seat with a name-matched prior, and 5%–95% when the prior is only
-party-level (`PROVISIONAL_CEILING`) — and rounded to a whole number on
-the page. The clamp is deliberate: a normal tail reaches 99.99% and would round
-to 100%, which reads as a call the count has not made — and a seat reported at
-100% that later changes hands discredits every other number beside it.
+The reported percentage is `Φ(mean/sd)`, rounded to a whole number on the page —
+including 100%, when that is what the arithmetic gives. There is deliberately no
+ceiling short of it: a number held at 99% when the distribution says 99.99% is a
+cap the reader cannot see, and it moves for no reason the reader can observe.
+
+What keeps a live count humble is the _width_ of the distribution, not a clamp.
+At 20% counted the spread is far too wide for any margin to reach 100%; by the
+end of the night only a seat that is genuinely all but decided gets there, and
+one that is not keeps a number that says so. The odd-looking case — a 2,800-vote
+margin from 3,000 counted reading 100% — is the model being honest about what the
+count has actually shown, not a rounding fault.
+
+The one piece of clawback left is `PROVISIONAL_CEILING` (95%, floored at 5%): a
+seat whose prior is only party-level, with no candidate from the previous result
+standing again, is describing an apportionment rather than its own history, and
+the model will not call a seat on the strength of it. That is a statement about
+the evidence behind the prior, not about rounding.
 
 `computeSeatChance` also returns two plainly-stated bounds:
 
 - `insideOutstanding = margin < remaining + 1.5 × size_sd` — the margin is inside
   the votes still to be counted, so the seat can still change tonight.
-- `insideSpecials = margin < specialsOutstanding × 0.2` — the margin is small
-  enough that the special-vote differential could still change it after the
-  night. A fifth of the special vote is the differential that has actually
-  decided seats historically.
+- `specialsRequiredSwing = margin ÷ specialsOutstanding` — how far the special
+  vote's split would have to run against the leader, in share points, for the seat
+  to change. Pure arithmetic, no free parameters (see §4).
+- `specialsProbability = Φ(specialsRequiredSwing ÷ SPECIALS_SWING_SD)` — the
+  chance this margin survives the special vote, from the prior spread below. It
+  is the same quantity `p(win)` converges on as the count fills, and on a finished
+  count it _is_ `p(win)`.
+- `insideSpecials = specialsProbability < 0.95` — worth a line on the card, where
+  the arithmetic is otherwise left to the reader. Carried in both states, and the
+  card and the feed both read it rather than recomputing it.
+
+## 4. The special vote
+
+A night's count is not a result: the specials are counted over the fortnight
+after it, and in 2023 they were 21.0% of all votes and did change seats (Nelson
+by 29 votes, Tāmaki Makaurau by 4). The model states the volume, because it is
+the only thing the panel can honestly say once the ordinary count stops.
+
+```
+specials = enrolment × turnout × specialShare × specialRatio
+```
+
+`specialShare` is the cycle's national figure (17.2% → 17.4% → 21.0% for 2017,
+2020, 2023). `specialRatio` is the seat's own history — its share of specials in
+the baseline's source cycle, divided by that cycle's national share — and it is
+carried in the baseline (`specialRatioForSeat`), null where the seat's prior had
+to be built from place geometry.
+
+**Why not the flat national share.** Specials are not spread evenly, and the
+difference is far too big to ignore. Measured from the Commission's own
+`party-sdv-by-electorate` tables against the archive's seat totals:
+
+| 2023, share of a seat's votes |                                            |
+| ----------------------------- | ------------------------------------------ |
+| National                      | 21.0%                                      |
+| General seats — minimum       | 12.7% Invercargill                         |
+| General seats — median        | 19.1%                                      |
+| General seats — maximum       | 34.8% Auckland Central                     |
+| Māori seats — median          | 28.6% (all seven above the national share) |
+
+A flat share was wrong by a median 1,815 votes per seat and up to 4,879
+(Auckland Central: 7,468 predicted against 12,347 counted) — larger than most
+of the margins `insideSpecials` is compared against.
+
+**Why a ratio and not a share.** The geography is stable and the level is not:
+correlating each seat's 2020 share with its 2023 share across all 72 seats gives
+**r = 0.96**, with the same seats at each end (Manurewa 28.3% → 34.5%, Auckland
+Central 27.8% → 34.8%, Invercargill 11.3% → 12.7%). The national share moves
+with enrolment rules and advance-voting behaviour, so the baseline keeps the
+part that repeats and the cycle constant keeps the part that doesn't.
+
+Data: `packages/core/data/special-votes-by-electorate.json`, generated by
+`scripts/build-special-vote-shares.mjs` from the Commission's per-electorate
+table (read through the Wayback Machine — the live hosts refuse
+`/statistics/*.html`) and the archive's own seat totals. Both cycles reconcile to
+the published national totals: 602,488 against 603,257 for 2023, and 504,621
+against 504,625 for 2020.
+
+**How the adjustment works.** Specials change nothing by arriving — they change
+a seat by _differing_ from the count. If the leader takes share `x` of them and
+the runner-up `y`, the margin becomes `margin + specials × (x − y)`, so it is
+erased when the specials favour the challenger by more than `margin ÷ specials`:
+
+```
+required = margin ÷ specials               e.g. 396 ÷ 9,700 = 4.1 points
+P(lead holds) = Φ(required ÷ SPECIALS_SWING_SD)     = Φ(0.41) = 66%
+```
+
+The first line is arithmetic, and it is the number worth showing: _the specials
+would have to split 4.1 points harder against the leader than the count did._
+The second line needs a distribution for that swing, and it is a **zero-mean
+normal with a 10-point standard deviation** — a prior, not a measurement. Zero
+mean is deliberate and is the model's biggest known bias: the specials' lean is a
+cycle-by-cycle political fact (they ran left in 2017, 2020 and 2023) that this
+model does not encode, so it prices _how large_ a swing is rather than predicting
+its direction. A reader should treat the number as "chance the lead survives",
+not "chance this party wins".
+
+`SPECIALS_SWING_SD = 0.10` is stated as a prior for a reason: 2023's flips
+(Nelson 29 votes, Te Atatū 131, Tāmaki Makaurau 4) require a two-candidate
+differential of roughly 5–15 points between the specials and the count, so ±20
+points at 2σ contains them while keeping a 5,000-vote margin out of coin-toss
+territory. It is one number in one place so the validation harness can calibrate
+it against the seats that actually moved — the arrangement `tau` already has.
+
+The differential itself cannot be measured from the archives: the Commission
+publishes the special vote's _volume_ per electorate and never its party split
+(`statistics.xml` has no special-vote row, and the special-declaration tables are
+volumes only). When that data is obtainable, the honest upgrade is a measured,
+seat-level mean rather than a zero — which would turn this into a directional
+claim the model could actually stand behind.
 
 ## Constants
 
-| Constant             | Value | Where it comes from                                      |
-| -------------------- | ----- | -------------------------------------------------------- |
-| `CYCLE_CONSTANTS`    | table | per cycle, below                                         |
-| `LATEST_CYCLE`       | 2023  | newest cycle with published figures                      |
-| `DEFAULT_TAU`        | 0.03  | fallback only; the real value is measured per transition |
-| `REMAINING_SIZE_SD`  | 0.12  | tolerance on the turnout estimate                        |
-| `COMPLETE_THRESHOLD` | 0.99  | progress at which the count is treated as finished       |
+| Constant                    | Value | Where it comes from                                            |
+| --------------------------- | ----- | -------------------------------------------------------------- |
+| `CYCLE_CONSTANTS`           | table | per cycle, below                                               |
+| `LATEST_CYCLE`              | 2026  | newest cycle in the table (2026 is `assumed`)                  |
+| `DEFAULT_TAU`               | 0.03  | fallback only; the real value is measured per transition       |
+| `REMAINING_SIZE_SD`         | 0.12  | tolerance on the turnout estimate                              |
+| `COMPLETE_THRESHOLD`        | 0.99  | progress that counts as finished, when there is no place count |
+| `SPECIALS_SWING_SD`         | 0.10  | prior; sd of the special vote's two-candidate swing            |
+| `SPECIALS_NOTICE_THRESHOLD` | 0.95  | survival chance below which the card mentions specials         |
+| `PLACES_COMPLETE_THRESHOLD` | 1     | share of a seat's places that must report to finish it         |
 
 | Cycle | `turnout` | `nightShare` | `specialShare` |
 | ----- | --------- | ------------ | -------------- |
 | 2017  | 0.789     | 0.838        | 0.172          |
 | 2020  | 0.819     | 0.821        | 0.174          |
 | 2023  | 0.777     | 0.783        | 0.210          |
+| 2026  | 0.795     | 0.780        | 0.210          |
 
-An unseen cycle inherits the 2023 row and is flagged `assumed`, which also
+An unseen cycle inherits the newest row and is flagged `assumed`, which also
 multiplies `REMAINING_SIZE_SD` by 1.6.
 
 ## States
@@ -223,10 +378,34 @@ The page shows three things, never a fourth:
   worse than no number.
 - `counting` — a probability, with the margin and the outstanding vote stated
   beside it.
-- `complete` — progress at or above the threshold. The probability disappears
-  and is replaced by the margin as a fact. A count that is finished does not have
-  a chance of changing; printing 100% would claim more than we know and teach the
-  reader that the number is decorative.
+- `complete` — every one of the seat's places has reported, or — where the feed
+  publishes no place count — progress is at or above `COMPLETE_THRESHOLD`. It
+  still carries `specialsOutstanding` and `insideSpecials`, because a finished
+  count is not a result. The
+  probability disappears and is replaced by the margin as a fact. A count that
+  is finished does not have a chance of changing; printing 100% would claim more
+  than we know and teach the reader that the number is decorative.
+
+  Other surfaces keep the same number in this state rather than a word: the
+  Seats page's Certainty column, Close Calls and Flipped all print `p(win)` for a
+  complete count, because the count stopping is not the seat deciding and a seat
+  at 55% must not read as settled — or sort as settled, which is why a finished
+  seat's Close Calls rank is its chance and not "done".
+
+  The bar is all of them, not most of them. It was 0.98 once, so that the last
+  slow booth would not hold a whole seat in `counting`; a straggler is the
+  better error, because `counting` keeps printing how much is still out and a
+  finished seat can be waited out. Both archived cycles say the bar is
+  attainable: every one of the 72 seat files in 2020 and 2023 reads
+  `100.0`.
+
+  The residual risk is the other direction, and it is not modelled away: 100% of
+  _entries_ is not 100% of _votes_, and a seat's entries are mostly tiny advance
+  slices. If the last entries to arrive were a seat's largest booths — the
+  adversarial case, not the usual one — a count could be declared finished with
+  a few percent of its vote still arriving. `complete` states that in place of
+  the probability by printing the special votes still to be added, which are 21%
+  of a cycle's votes and swamp that residual.
 
 ## What the model cannot know
 

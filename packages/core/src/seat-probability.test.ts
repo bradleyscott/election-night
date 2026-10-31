@@ -34,6 +34,10 @@ function input(overrides: Partial<SeatChanceInput> = {}): SeatChanceInput {
     prior,
     nationalSwing: {},
     tau: DEFAULT_TAU,
+    // Pinned to the cycle the arithmetic above is written against. The model's
+    // defaults must not change what a test asserting a number means, and a new
+    // row in `CYCLE_CONSTANTS` should not read as a regression here.
+    electionYear: 2023,
     ...overrides,
   };
 }
@@ -64,9 +68,7 @@ describe('computeSeatChance', () => {
     // cycle's turnout, 21% of which arrives as specials.
     expect(chance.specialsOutstanding).toBeGreaterThan(0);
     expect(chance.specialsOutstanding).toBeCloseTo(
-      4840 *
-        CYCLE_CONSTANTS[LATEST_CYCLE].turnout *
-        CYCLE_CONSTANTS[LATEST_CYCLE].specialShare,
+      4840 * CYCLE_CONSTANTS[2023].turnout * CYCLE_CONSTANTS[2023].specialShare,
       0
     );
   });
@@ -76,7 +78,7 @@ describe('computeSeatChance', () => {
     expect(chance.state).toBe('counting');
     if (chance.state !== 'counting') return;
     const enrolment = 3000 / 0.3;
-    const cycle = CYCLE_CONSTANTS[LATEST_CYCLE];
+    const cycle = CYCLE_CONSTANTS[2023];
     const expected = enrolment * cycle.turnout * cycle.nightShare;
     expect(chance.remainingVotes).toBe(Math.round(expected - 3000));
     expect(chance.progress).toBeCloseTo(3000 / expected, 3);
@@ -187,7 +189,9 @@ describe('computeSeatChance', () => {
     expect(chance.probability).toBeGreaterThan(0.5);
   });
 
-  it('never claims certainty on a count that is not finished', () => {
+  it('reports the probability the distribution gives, including 100%', () => {
+    // Nothing is clawed back for rounding: a 2,800-vote margin from 3,000
+    // counted is as decided as the model can be, and it says so.
     const chance = computeSeatChance(
       input({
         candidates: [
@@ -198,8 +202,25 @@ describe('computeSeatChance', () => {
       })
     );
     if (chance.state !== 'counting') throw new Error('expected a live count');
-    expect(chance.probability).toBeLessThanOrEqual(0.99);
-    expect(chance.probability).toBeGreaterThan(0.9);
+    expect(chance.probability).toBe(1);
+  });
+
+  it('uses the distribution, not a cap, to keep an early count humble', () => {
+    // The reason no ceiling is needed: at 9% counted the spread is far too wide
+    // to reach 100%, whatever the margin looks like.
+    const chance = computeSeatChance(
+      input({
+        votesCounted: 540,
+        percentVotesCast: 0.054,
+        candidates: [
+          { name: 'LEADER, One', party: 'National', votes: 500 },
+          { name: 'RUNNER, Two', party: 'Labour', votes: 40 },
+          { name: 'THIRD, Three', party: 'Green', votes: 0 },
+        ],
+      })
+    );
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.probability).toBeLessThan(1);
   });
 
   it('puts the leader and runner-up chances on a two-way simplex', () => {
@@ -309,6 +330,242 @@ describe('composition term', () => {
   });
 });
 
+describe('the voting place count', () => {
+  // The 2026 baseline's worst seat, Ōtāhuhu, records 21,254 enrolled against a
+  // real roll of 49,473 — place geometry only saw the ballots cast inside the
+  // seat. At 12,000 votes that roll says the night is over.
+  const understatedRoll = {
+    votesCounted: 12_000,
+    enrolment: 21_254,
+    percentVotesCast: 0.28,
+  };
+
+  it('keeps counting while places are outstanding, however few votes the roll implies', () => {
+    const chance = computeSeatChance(
+      input({ ...understatedRoll, placesCounted: 0.45 })
+    );
+    if (chance.state !== 'counting') {
+      throw new Error(`expected a live count, got ${chance.state}`);
+    }
+    // (1 − 0.45) ÷ 0.45 × 12,000 votes still out, which is what a seat 45% of
+    // the way through its places actually has left.
+    expect(chance.remainingVotes).toBe(14_667);
+    expect(chance.progress).toBeCloseTo(0.45, 3);
+    expect(chance.insideOutstanding).toBe(true);
+  });
+
+  it('never leaves nothing outstanding while a place has not reported', () => {
+    // The turnout estimate alone is zero here — the count already exceeds it.
+    const chance = computeSeatChance(
+      input({ ...understatedRoll, placesCounted: 0.97 })
+    );
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.remainingVotes).toBeGreaterThan(0);
+  });
+
+  it('stays counting while even one place is outstanding', () => {
+    // 0.98 of the places used to be enough. The archive's finished seats all
+    // read 100.0, so requiring every place costs nothing, and a straggler
+    // holding the seat open is the better error than declaring a count stopped.
+    const chance = computeSeatChance(
+      input({ ...understatedRoll, placesCounted: 0.999 })
+    );
+    if (chance.state !== 'counting') {
+      throw new Error(`expected a live count, got ${chance.state}`);
+    }
+    expect(chance.remainingVotes).toBeGreaterThan(0);
+  });
+
+  it('calls the count complete when every place has reported', () => {
+    const chance = computeSeatChance(
+      input({ ...understatedRoll, placesCounted: 1 })
+    );
+    expect(chance.state).toBe('complete');
+  });
+
+  it('finishes even when the turnout estimate is too generous to say so', () => {
+    // A roll of 60,000 against 12,000 counted puts progress at a third, so the
+    // turnout-scaled threshold would never trip and a finished count would keep
+    // reporting a probability. The place count is the fact that ends it.
+    const chance = computeSeatChance(
+      input({
+        votesCounted: 12_000,
+        enrolment: 60_000,
+        percentVotesCast: 0.2,
+        placesCounted: 1,
+      })
+    );
+    expect(chance.state).toBe('complete');
+  });
+
+  it('falls back to the turnout threshold when the feed has no place count', () => {
+    // Every source without per-place data, and the validation harness, land
+    // here: the old arithmetic, unchanged — including its one known failure,
+    // which is a roll too small to notice the votes that are still out.
+    const chance = computeSeatChance(
+      input({
+        ...understatedRoll,
+        votesCounted: 14_000,
+        placesCounted: undefined,
+      })
+    );
+    expect(chance.state).toBe('complete');
+  });
+});
+
+describe('the seat’s own special-vote share', () => {
+  // 10,000 enrolled at 2023's turnout, so 7,770 votes, of which 21% (1,632)
+  // arrive as specials when nothing is known about the seat.
+  const national =
+    10_000 * CYCLE_CONSTANTS[2023].turnout * CYCLE_CONSTANTS[2023].specialShare;
+
+  it('falls back to the cycle’s national share with no seat record', () => {
+    const chance = computeSeatChance(input());
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.specialsOutstanding).toBe(Math.round(national));
+  });
+
+  it('scales the national share by the seat’s own ratio', () => {
+    // Auckland Central's 2023 specials were 34.8% of its vote against 21.0%
+    // nationally, so the baseline carries 1.6573 for it.
+    const chance = computeSeatChance(input({ specialRatio: 1.6573 }));
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.specialsOutstanding).toBeCloseTo(national * 1.6573, 0);
+  });
+
+  it('keeps an apportioned seat on the national share', () => {
+    // A seat built from place geometry has no source result to take a ratio
+    // from, and specials are not cast at a place, so geometry cannot find them.
+    // The feed's own null is what the baseline writes.
+    const chance = computeSeatChance(input({ specialRatio: null }));
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.specialsOutstanding).toBe(Math.round(national));
+  });
+
+  it('states the swing the specials would need, not a share of them', () => {
+    // The margin survives unless the specials *split* differently from the
+    // count: added at the same differential they move nobody's share. So the
+    // only question is how far the split would have to run against the leader,
+    // and that is arithmetic — `margin ÷ specials` — with no constant in it.
+    const chance = computeSeatChance(input());
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.specialsOutstanding).toBe(Math.round(national));
+    // 200 votes of margin over 1,632 specials: the specials would have to favour
+    // the challenger by 12.3 points more than the count did.
+    expect(chance.specialsRequiredSwing).toBeCloseTo(200 / national, 4);
+    expect(chance.insideSpecials).toBe(true);
+  });
+
+  it('turns that swing into a probability against the prior spread', () => {
+    // required ÷ sd = 1.226, so the lead survives about 89% of the time under a
+    // zero-mean swing with a 10-point spread.
+    const chance = computeSeatChance(input());
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.specialsProbability).toBeCloseTo(0.89, 2);
+
+    // A seat whose specials are the bigger part of its vote needs a much
+    // smaller swing, and is therefore much more exposed for the same margin.
+    const citySeat = computeSeatChance(input({ specialRatio: 1.6573 }));
+    if (citySeat.state !== 'counting') throw new Error('expected a live count');
+    expect(citySeat.specialsRequiredSwing).toBeLessThan(
+      chance.specialsRequiredSwing
+    );
+    expect(citySeat.specialsProbability).toBeLessThan(
+      chance.specialsProbability
+    );
+    expect(citySeat.specialsProbability).toBeCloseTo(0.77, 2);
+  });
+
+  it('says a margin wider than the special vote cannot change', () => {
+    // 30,000 counted of 100,000 enrolled puts this seat's specials at 16,317. A
+    // 20,000-vote margin is wider than the whole special vote, so no split of it
+    // can erase the lead, whatever direction the swing runs in.
+    const chance = computeSeatChance(
+      input({
+        candidates: [
+          { name: 'LEADER, One', party: 'National', votes: 25_000 },
+          { name: 'RUNNER, Two', party: 'Labour', votes: 5_000 },
+        ],
+        votesCounted: 30_000,
+      })
+    );
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.margin).toBe(20_000);
+    expect(chance.specialsRequiredSwing).toBeGreaterThan(1);
+    expect(chance.insideSpecials).toBe(false);
+    // Reported as the distribution gives it: a required swing of 1.2 against a
+    // 10-point spread is not a risk, and 99% would be a cap the reader cannot
+    // see.
+    expect(chance.specialsProbability).toBe(1);
+  });
+
+  it('moves with the spread it is given, and never claims certainty', () => {
+    const tight = computeSeatChance(input({ specialsSwingSd: 0.05 }));
+    const wide = computeSeatChance(input({ specialsSwingSd: 0.3 }));
+    if (tight.state !== 'counting' || wide.state !== 'counting') {
+      throw new Error('expected live counts');
+    }
+    // A narrow spread makes a swing of that size rarer, so the lead is safer —
+    // the same required swing, two different answers.
+    expect(tight.specialsProbability).toBeGreaterThan(wide.specialsProbability);
+
+    // A 20-vote margin against 1,632 specials needs a 1.2-point swing, and a
+    // 0.01-point spread makes that certain several times over — so it reads 1,
+    // not a number held short of it.
+    const certain = computeSeatChance(
+      input({
+        candidates: [
+          { name: 'LEADER, One', party: 'National', votes: 1510 },
+          { name: 'RUNNER, Two', party: 'Labour', votes: 1490 },
+        ],
+        specialsSwingSd: 0.0001,
+      })
+    );
+    if (certain.state !== 'counting') throw new Error('expected a live count');
+    expect(certain.specialsProbability).toBe(1);
+  });
+});
+
+describe('the probability is about the seat, not the night', () => {
+  it('is never higher than the chance of leading tonight', () => {
+    // Specials can only take a lead away, so the eventual number is the count
+    // number with a permanent risk added on top: equal at best, lower usually.
+    const chance = computeSeatChance(input());
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(chance.probability).toBeLessThanOrEqual(chance.countProbability);
+  });
+
+  it('keeps a seat with a large special vote below the count-only number', () => {
+    // Auckland Central's special share is 1.66× national, Invercargill's 0.65×.
+    // Same margin, same count: the city seat carries more of its vote in the
+    // part that arrives last, so it must be the less likely of the two to hold.
+    const chance = computeSeatChance(input({ specialRatio: 1.6573 }));
+    const safe = computeSeatChance(input({ specialRatio: 0.6507 }));
+    if (chance.state !== 'counting' || safe.state !== 'counting') {
+      throw new Error('expected live counts');
+    }
+    expect(chance.probability).toBeLessThan(safe.probability);
+    expect(chance.countProbability).toBeCloseTo(safe.countProbability, 10);
+  });
+
+  it('converges on the specials probability as the ordinary count finishes', () => {
+    // When tonight's votes are all in, the only thing left is the special vote,
+    // so the headline has to meet the specials number instead of jumping at the
+    // moment the count completes.
+    const chance = computeSeatChance(
+      input({
+        votesCounted: 7000,
+        percentVotesCast: 0.62,
+        placesCounted: 0.99,
+      })
+    );
+    if (chance.state !== 'counting') throw new Error('expected a live count');
+    expect(
+      Math.abs(chance.probability - chance.specialsProbability)
+    ).toBeLessThan(0.02);
+  });
+});
+
 describe('cycle constants', () => {
   it('uses the cycle’s own turnout and night share', () => {
     expect(CYCLE_CONSTANTS[2017].nightShare).toBeCloseTo(0.838, 3);
@@ -318,10 +575,21 @@ describe('cycle constants', () => {
     expect(cycleConstantsFor(2020).assumed).toBeUndefined();
   });
 
+  it('states 2026 on the advance vote rather than inheriting 2023', () => {
+    // 455,522 advance votes by the end of the fourth of twelve advance days was
+    // 12.0% of the roll against 9.2% in 2023, and no cycle has run that far
+    // ahead of 2023 without turnout rising. Carrying 77.7% forward would put
+    // the night's total below what the advance count already implies.
+    const cycle = cycleConstantsFor(2026);
+    expect(cycle.assumed).toBeUndefined();
+    expect(cycle.turnout).toBeGreaterThan(CYCLE_CONSTANTS[2023].turnout);
+    expect(cycle.turnout).toBeLessThan(0.85);
+  });
+
   it('carries the newest cycle forward for an election it has no figures for', () => {
-    const assumed = cycleConstantsFor(2026);
+    const assumed = cycleConstantsFor(2029);
     expect(assumed.assumed).toBe(true);
-    expect(assumed.year).toBe(2026);
+    expect(assumed.year).toBe(2029);
     expect(assumed.nightShare).toBe(CYCLE_CONSTANTS[LATEST_CYCLE].nightShare);
     expect(cycleConstantsFor(null).assumed).toBe(true);
   });
@@ -334,8 +602,8 @@ describe('cycle constants', () => {
     });
     const assumed = computeSeatChance({
       ...input(),
-      electionYear: 2026,
-      cycle: cycleConstantsFor(2026),
+      electionYear: 2029,
+      cycle: cycleConstantsFor(2029),
     });
     if (known.state !== 'counting' || assumed.state !== 'counting') {
       throw new Error('expected counting states');

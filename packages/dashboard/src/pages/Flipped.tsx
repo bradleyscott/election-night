@@ -325,11 +325,14 @@ export default function Flipped() {
  * and a count part-way through is not a sample — the honest figure is how
  * likely the lead is to survive the votes still to count.
  *
- * A finished count gets a word rather than 100%: specials are still to come
- * (21% of all votes in 2023, and they moved seats), so a finished count is not
- * a result, and 100% under this header is the call the count has not made.
- * `Complete` states the one thing that is true, in the space the numbers above
- * it occupy.
+ * A finished count keeps its number rather than a word. The count stopping is
+ * not the seat deciding: specials are still to come (21% of all votes in 2023,
+ * and they moved seats), which is exactly why a finished count can sit at 55%
+ * under this header. Printing `Complete` there hid the number the seat panel
+ * and the rest of the app quote for the same seat.
+ *
+ * The tooltip carries what the word used to: the ordinary count is done, and
+ * this is the chance of holding the seat once the specials are added.
  */
 function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'counting') {
@@ -343,10 +346,10 @@ function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'complete') {
     return (
       <span
-        className="text-xs font-bold tabular-nums"
-        title="Tonight's count is complete for this seat — special votes are still to come"
+        className="font-bold tabular-nums"
+        title="The ordinary count is complete; this is the chance of holding the seat once the special votes are added"
       >
-        Complete
+        {Math.round(chance.probability * 100)}%
       </span>
     );
   }

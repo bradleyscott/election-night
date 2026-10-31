@@ -224,7 +224,7 @@ describe('Flipped page', () => {
     ).toBeInTheDocument();
   });
 
-  test('a finished count reads Complete, not 100%', async () => {
+  test('a finished count keeps its chance, because the specials are still out', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -281,9 +281,10 @@ describe('Flipped page', () => {
     );
 
     await screen.findByText('Testville');
-    // A finished count is not a probability, and 100% would be the call the
-    // count has not made: specials are still to come.
-    expect(screen.getByText('Complete')).toBeInTheDocument();
+    // The ordinary count is done, but the seat is not: the special vote is still
+    // to come, so the column keeps the number the rest of the app quotes.
+    expect(screen.queryByText('Complete')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
     expect(screen.queryByText('100%')).not.toBeInTheDocument();
   });
 

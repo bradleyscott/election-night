@@ -49,34 +49,22 @@ function AnimatedStat({
 
 /**
  * What the Certainty column means for a seat: the chance this candidate holds
- * it, not how far the lead is from a sampling error. Once the count is in,
- * there is no probability left to quote, so it states the margin the count
- * produced instead — as a share of the votes counted, the same definition of
- * margin the rest of the app uses.
+ * it, not how far the lead is from a sampling error.
+ *
+ * A finished count keeps the same number, because the ordinary count finishing
+ * is not the seat being decided — the special vote is still to come. It used to
+ * switch to the margin as a percentage, which gave one column two units: a seat
+ * sorted on its chance and printed its margin, so a 55% seat could read
+ * "1.1% margin" beside a live seat reading "90%".
  */
-function ElectorateCertainty({
-  chance,
-  marginPercent,
-}: {
-  chance: SeatChance | null;
-  marginPercent?: number | null;
-}) {
+function ElectorateCertainty({ chance }: { chance: SeatChance | null }) {
   if (!chance || chance.state === 'waiting') {
     return <span className="text-muted-foreground">—</span>;
   }
 
-  if (chance.state === 'complete') {
-    if (marginPercent == null) {
-      return <span className="text-muted-foreground">—</span>;
-    }
-    return (
-      <span>
-        {(marginPercent * 100).toFixed(1)}%
-        <span className="text-muted-foreground"> margin</span>
-      </span>
-    );
-  }
-
+  // A complete count still has a chance, and this column sorts by it — so it has
+  // to print it. It used to switch to the margin as a percentage, which meant
+  // clicking "Certainty" sorted by one number while the cell showed another.
   return <span>{Math.round(chance.probability * 100)}%</span>;
 }
 
@@ -124,13 +112,13 @@ function SuccessfulCandidates({
         name: er.leaders.leadingCandidate,
         party: er.leaders.leadingCandidateParty ?? '',
         electorateName: er.electorateName,
-        // A finished count is not a probability, so it sorts as certain.
+        // The chance of winning the seat, which includes the special vote — so
+        // a finished count is not automatically certain, and sorting it as if it
+        // were would put a 57% seat above a live one at 90%.
         certainty:
-          chance?.state === 'counting'
+          chance?.state === 'counting' || chance?.state === 'complete'
             ? chance.probability
-            : chance?.state === 'complete'
-              ? 1
-              : 0,
+            : 0,
         chance,
         marginPercent: er.leaders.marginPercent ?? null,
         isElectorate: true,
@@ -292,10 +280,7 @@ function SuccessfulCandidates({
                 </td>
                 <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums">
                   {c.isElectorate ? (
-                    <ElectorateCertainty
-                      chance={c.chance}
-                      marginPercent={c.marginPercent}
-                    />
+                    <ElectorateCertainty chance={c.chance} />
                   ) : (
                     <span className="text-foreground">
                       +{Math.round(c.certainty)} from cut
@@ -327,9 +312,10 @@ export default function Seats() {
   const { electionYear, chances } = useSeatChances(electorateResults);
 
   // Counted votes and how far through the night that is. The denominator is
-  // the votes these seats are expected to receive tonight, not the share of
-  // voting places that have reported — places do not hold equal numbers of
-  // votes, and advance votes land in blocks after 7pm.
+  // the votes these seats are expected to receive tonight, floored by the share
+  // of each seat's voting places that have actually reported — places do not
+  // hold equal numbers of votes, and advance votes land in blocks after 7pm, so
+  // the place share is a floor on what is still out rather than a progress bar.
   const progress = countProgress(electorateResults, electionYear);
   const overallVotePercentage =
     progress.fraction !== null ? progress.fraction * 100 : null;

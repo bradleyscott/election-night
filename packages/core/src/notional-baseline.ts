@@ -27,11 +27,26 @@ export type BaselineSeat = {
    * same-name carry-over rather than place geometry.
    */
   enrolment?: number | null;
+  /**
+   * This seat's special votes as a multiple of the source cycle's national
+   * special-vote share (2023: Auckland Central 34.8% ÷ 21.0% = 1.66). Generated
+   * from `data/special-votes-by-electorate.json`; absent when the prior had to
+   * be apportioned from place geometry, because special votes are not cast at a
+   * voting place and no polygon can find them.
+   */
+  specialRatio?: number | null;
 };
-
 export type NotionalBaseline = {
   sourceYear: number;
   targetYear: number;
+  /**
+   * Enrolled electors nationally in the source cycle, from `statistics.xml`.
+   *
+   * The seats' rolls are scaled to sum to this, because every elector sits in
+   * exactly one seat. It is the check that catches a roll that only covers the
+   * places the geometry could locate.
+   */
+  rollElectors?: number;
   method: string;
   tau: {
     transition: string;
@@ -111,6 +126,66 @@ export function enrolmentForSeat(
 }
 
 /**
+ * How much of this seat's vote arrives as special votes, relative to the
+ * cycle's national share.
+ *
+ * `null` when the baseline has no record — a seat built from place geometry, or
+ * no baseline at all — and the model falls back to the flat national share,
+ * which is what every seat used before this existed.
+ */
+export function specialRatioForSeat(
+  baseline: NotionalBaseline | null,
+  seatName: string | null | undefined
+): number | null {
+  const ratio = seatFor(baseline, seatName)?.specialRatio;
+  return ratio && ratio > 0 ? ratio : null;
+}
+
+/**
+ * Votes below which a back-solved enrolment is not worth trusting.
+ *
+ * The feed publishes `percent_votes_cast` to one decimal place, so 200 votes at
+ * "0.4%" implies 50,000 enrolled against a seat's true 45,407. Once a couple of
+ * thousand votes are in, that rounding is under a percent and the derived figure
+ * is the better of the two — it is measured tonight, from this seat's own roll.
+ */
+const MIN_VOTES_FOR_DERIVED_ENROLMENT = 2000;
+
+/** How far the two rolls must disagree before the live feed wins. */
+const ENROLMENT_DISAGREEMENT = 0.1;
+
+/**
+ * The seat's roll, from the baseline or from tonight's own turnout.
+ *
+ * Enrolment is the denominator every progress number divides by, so getting it
+ * wrong is not cosmetic: an understated roll understates the votes still to come
+ * and overstates progress, which is the direction that manufactures confidence.
+ * The baseline's figure is the source cycle's, and a seat's roll moves between
+ * cycles — a few percent typically, and far more where the prior had to be
+ * apportioned from place geometry rather than taken from the seat's own result.
+ * So once enough votes are in to make the derivation precise, a live figure that
+ * disagrees materially with the recorded one is evidence the baseline is stale,
+ * and it wins.
+ */
+export function resolveEnrolment(input: {
+  recorded?: number | null;
+  votesCounted?: number;
+  percentVotesCast?: number | null;
+}): number | null {
+  const recorded = input.recorded && input.recorded > 0 ? input.recorded : null;
+  const votesCounted = input.votesCounted ?? 0;
+  const turnout = input.percentVotesCast ?? 0;
+  const derived =
+    turnout > 0 && votesCounted > 0 ? votesCounted / turnout : null;
+
+  if (!recorded) return derived;
+  if (!derived) return recorded;
+  if (votesCounted < MIN_VOTES_FOR_DERIVED_ENROLMENT) return recorded;
+  const disagreement = Math.abs(derived / recorded - 1);
+  return disagreement > ENROLMENT_DISAGREEMENT ? derived : recorded;
+}
+
+/**
  * How far seats typically stray from uniform national swing, as a standard
  * deviation of vote share. The fallback is used only when the baseline carries
  * no measurement.
@@ -173,11 +248,19 @@ export function seatChanceFor(
     })),
     votesCounted: result.votesCounted,
     percentVotesCast: result.percentVotesCast,
-    enrolment: enrolmentForSeat(baseline, result.electorateName) ?? undefined,
+    enrolment:
+      resolveEnrolment({
+        recorded: enrolmentForSeat(baseline, result.electorateName),
+        votesCounted: result.votesCounted,
+        percentVotesCast: result.percentVotesCast,
+      }) ?? undefined,
+    placesCounted: result.votePercentageCounted,
     electionYear: electionYear ? Number(electionYear) : null,
     prior: priorForSeat(baseline, result.electorateName),
     nationalSwing,
     tau: tauFor(baseline),
+    specialRatio:
+      specialRatioForSeat(baseline, result.electorateName) ?? undefined,
   });
 }
 

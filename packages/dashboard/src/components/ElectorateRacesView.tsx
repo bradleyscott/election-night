@@ -28,10 +28,15 @@ export function ElectorateRacesView({
   const sorted = useMemo(() => {
     const rank = (er: ElectorateResult) => {
       const chance = chances?.get(normalizeElectorateName(er.electorateName));
-      if (chance?.state === 'counting') return chance.probability;
-      // A finished count is not a probability, and an uncounted seat is not a
-      // close call; both belong below every live race.
-      return chance?.state === 'complete' ? 1 : 1.5;
+      // A finished count still has a chance — the special vote is uncounted —
+      // so it ranks on that number like any other seat. Treating it as settled
+      // put the closest call of the night last, and the column beside it now
+      // prints the same probability the rank uses.
+      if (chance?.state === 'counting' || chance?.state === 'complete') {
+        return chance.probability;
+      }
+      // An uncounted seat is not a close call.
+      return 1.5;
     };
     return [...electorates].sort((a, b) => rank(a) - rank(b));
   }, [electorates, chances]);
@@ -154,8 +159,11 @@ export function ElectorateRacesView({
  * sample, and this is not a sample — it is a count part-way through, so the
  * honest figure is the chance the lead survives the votes still to come.
  *
- * A finished count reads `Complete`, not 100% — same rule, same wording as the
- * Flipped table, so the two never disagree about what a column means.
+ * A finished count keeps its number, because the count being complete is not
+ * the seat being decided: the special vote is still to come, and it is worth up
+ * to 45 points of probability in the closest seats. The tooltip says which
+ * stage the count is at, so the same column can carry both without the reader
+ * mistaking one for the other — and the same rule, same wording as `Flipped`.
  */
 function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'counting') {
@@ -165,10 +173,10 @@ function WinPercentCell({ chance }: { chance?: SeatChance }) {
   if (chance?.state === 'complete') {
     return (
       <span
-        className="text-xs font-bold tabular-nums"
-        title="Tonight's count is complete for this seat — special votes are still to come"
+        className="font-bold tabular-nums"
+        title="The ordinary count is complete; this is the chance of holding the seat once the special votes are added"
       >
-        Complete
+        {Math.round(chance.probability * 100)}%
       </span>
     );
   }

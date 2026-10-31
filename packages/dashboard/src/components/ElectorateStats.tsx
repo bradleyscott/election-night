@@ -242,9 +242,15 @@ function CountStrip({
 function SpecialsStrip({
   counted,
   specials,
+  inside,
+  probability,
 }: {
   counted: number;
   specials: number;
+  /** The margin is smaller than the whole special vote could move. */
+  inside: boolean;
+  /** Chance of winning the seat: on a finished count, the specials are all that is left. */
+  probability: number;
 }) {
   const total = counted + specials;
   const share = total > 0 ? counted / total : 1;
@@ -272,6 +278,23 @@ function SpecialsStrip({
       <div className="mt-1 font-label text-[11px] text-muted-foreground">
         {Math.round(share * 100)}% of the expected final vote
       </div>
+      {/* The number the panel spends the night building. The ordinary count is
+          settled, so the only thing between this candidate and the seat is the
+          special vote — which makes this the chance of winning it, told from
+          the one thing still outstanding. */}
+      <div className="mt-1 font-label text-[11px] text-muted-foreground">
+        Chance of holding the seat:{' '}
+        <span className="tabular-nums text-foreground">
+          {Math.round(probability * 100)}%
+        </span>
+      </div>
+      {/* Worth calling out only when the specials are large enough that the
+          margin is inside them. */}
+      {inside && (
+        <div className="mt-0.5 font-label text-[11px] text-foreground">
+          The margin is inside the special vote.
+        </div>
+      )}
     </div>
   );
 }
@@ -428,6 +451,8 @@ function CompleteVerdict({
       <SpecialsStrip
         counted={result.votesCounted}
         specials={chance.specialsOutstanding}
+        inside={chance.insideSpecials}
+        probability={chance.specialsProbability}
       />
     </div>
   );

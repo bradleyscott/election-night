@@ -42,6 +42,7 @@ function counting(probability: number): SeatChance {
     leader: { name: 'Alice', party: 'Red Party', votes: 600 },
     runnerUp: { name: 'Bob', party: 'Blue Party', votes: 400 },
     probability,
+    countProbability: probability,
     margin: 200,
     remainingVotes: 3000,
     remainingLow: 2400,
@@ -51,6 +52,8 @@ function counting(probability: number): SeatChance {
     assumedCycle: false,
     insideOutstanding: true,
     specialsOutstanding: 7300,
+    specialsRequiredSwing: 0.0274,
+    specialsProbability: 0.61,
     insideSpecials: true,
     provisionalPrior: false,
   };

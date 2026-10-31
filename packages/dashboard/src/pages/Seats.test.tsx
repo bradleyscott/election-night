@@ -31,11 +31,14 @@ describe('Seats page', () => {
       </BrowserRouter>
     );
 
-    // 25,000 votes at 55% turnout implies 45,455 enrolled, so tonight's count
-    // is about 27,660 votes and this is 90% of it. The 95% the feed reports is
-    // the share of *voting places* reported, which is a different question.
+    // 25,000 votes at 55% turnout implies 45,455 enrolled — there is no served
+    // cycle here, so no baseline roll to prefer — and the newest cycle's figures
+    // apply: 45,455 × 0.795 turnout × 0.78 night share is 28,187, so 88.7% of
+    // tonight's vote is in. The 95% the feed reports is the share of *voting
+    // places* reported, which is a different question — and the whole point of
+    // this column.
     expect(screen.getByText('25,000')).toBeInTheDocument();
-    expect(screen.getByText('90.4%')).toBeInTheDocument();
+    expect(screen.getByText('88.7%')).toBeInTheDocument();
     expect(screen.queryByText('95.0%')).not.toBeInTheDocument();
   });
 
@@ -49,21 +52,24 @@ describe('Seats page', () => {
     );
 
     // The fixture has no prior on file, so the chance is capped at 95% rather
-    // than claimed as a certainty. What matters is that the column states a
-    // chance at all: the ± margin-of-error suffix is gone from the table.
-    expect(screen.getByText('95%')).toBeInTheDocument();
+    // than claimed as a certainty — and the special vote now sits inside the
+    // number, so it lands below the cap. What matters is that the column states
+    // a chance at all: the ± margin-of-error suffix is gone from the table.
+    expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('100%')).toBeNull();
     expect(screen.queryByText(/±/)).toBeNull();
   });
 
-  test('states the margin a finished count produced, not a probability', () => {
-    // Votes past the roll's expected night total put the count over the
-    // model's completion threshold, which is what a finished seat looks like.
+  test('keeps the chance for a finished count, because the specials are still out', () => {
+    // A seat finishes when every one of its places has reported, which is the
+    // fact the model completes on — not when the turnout estimate runs out.
     const complete = {
       ...mockResults,
       electorateResults: mockResults.electorateResults.map((er) => ({
         ...er,
         votesCounted: 30_000,
         percentVotesCast: 0.7,
+        votePercentageCounted: 1,
       })),
     };
 
@@ -75,11 +81,12 @@ describe('Seats page', () => {
       </BrowserRouter>
     );
 
-    // The fixture's lead is 4% of the votes counted, and a finished count has
-    // no probability left to quote.
-    expect(container.textContent).toMatch(/4\.0%\s*margin/);
-    expect(screen.queryByText('100%')).toBeNull();
+    // The column sorts on a chance, so it prints one: a finished count keeps the
+    // number and never claims 100%, because the special vote is still to come.
     expect(screen.getByText('Certainty')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/%\s*margin/);
+    expect(screen.queryByText('100%')).toBeNull();
+    expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
   });
 
   test('renders waiting state when no results are available', () => {
