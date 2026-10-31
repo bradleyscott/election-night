@@ -2,7 +2,7 @@
 import { describe, expect, test } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Parties from './Parties.js';
-import { mockResults } from '../test/fixtures.js';
+import { mockResults, mockElectorateResult } from '../test/fixtures.js';
 import { renderWithProvidersAndData } from '../test/test-utils.js';
 import type {
   ResultsPayload,
@@ -94,5 +94,123 @@ describe('Parties page party filter', () => {
     );
     expect(options).toContain('Advance NZ');
     expect(options).not.toContain('Opportunity Party');
+  });
+});
+
+/**
+ * The cut is drawn where the "From cut" column crosses zero. An electorate
+ * winner prints no distance at all (they are in Parliament either way), so the
+ * line has to count them as above it rather than fall inside the winners' block
+ * that "Show electorate leaders" sorts to the top.
+ */
+describe('Parties page cut line', () => {
+  const candidates = [
+    'SMITH, John',
+    'TAYLOR, Alex',
+    'BROWN, Sam',
+    'WHITE, Sue',
+    'GREEN, Kim',
+    'BLACK, Lee',
+  ];
+
+  const results: ResultsPayload = {
+    ...mockResults,
+    electorateResults: [
+      mockElectorateResult,
+      {
+        ...mockElectorateResult,
+        electorateName: 'Wellington Central',
+        leaders: {
+          ...mockElectorateResult.leaders,
+          leadingCandidate: 'TAYLOR, Alex',
+          leadingCandidateParty: 'National Party',
+        },
+      },
+    ],
+    partyLists: [
+      // Two electorate winners, both below the list cut on paper.
+      {
+        party: 'National Party',
+        candidate: 'SMITH, John',
+        listRank: 3,
+        adjustedRank: 3,
+        distanceFromCut: -1,
+      },
+      {
+        party: 'National Party',
+        candidate: 'TAYLOR, Alex',
+        listRank: 9,
+        adjustedRank: 9,
+        distanceFromCut: -7,
+      },
+      // List-elected: +1 and +0. Then the first candidates below the cut.
+      {
+        party: 'National Party',
+        candidate: 'BROWN, Sam',
+        listRank: 1,
+        adjustedRank: 1,
+        distanceFromCut: 1,
+      },
+      {
+        party: 'National Party',
+        candidate: 'WHITE, Sue',
+        listRank: 2,
+        adjustedRank: 2,
+        distanceFromCut: 0,
+      },
+      {
+        party: 'National Party',
+        candidate: 'GREEN, Kim',
+        listRank: 6,
+        adjustedRank: 6,
+        distanceFromCut: -4,
+      },
+      {
+        party: 'National Party',
+        candidate: 'BLACK, Lee',
+        listRank: 10,
+        adjustedRank: 10,
+        distanceFromCut: -8,
+      },
+    ],
+  };
+
+  /** Row order, with the cut standing in for itself. */
+  function renderedRows(): string[] {
+    return Array.from(document.querySelectorAll('tbody tr')).map((row) => {
+      const text = row.textContent ?? '';
+      if (text.includes('Cut')) return 'CUT';
+      return candidates.find((name) => text.includes(name)) ?? '?';
+    });
+  }
+
+  test('sits between +0 and the first negative distance', () => {
+    render(renderWithProvidersAndData(<Parties />, { results }));
+
+    expect(renderedRows()).toEqual([
+      'BROWN, Sam',
+      'WHITE, Sue',
+      'CUT',
+      'GREEN, Kim',
+      'BLACK, Lee',
+    ]);
+  });
+
+  test('follows the electorate winners when they are shown', () => {
+    render(renderWithProvidersAndData(<Parties />, { results }));
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /Show electorate leaders/ })
+    );
+
+    // Both winners are elected by right, so neither may fall below the line.
+    expect(renderedRows()).toEqual([
+      'SMITH, John',
+      'TAYLOR, Alex',
+      'BROWN, Sam',
+      'WHITE, Sue',
+      'CUT',
+      'GREEN, Kim',
+      'BLACK, Lee',
+    ]);
   });
 });

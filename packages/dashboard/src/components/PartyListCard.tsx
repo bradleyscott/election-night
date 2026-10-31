@@ -78,6 +78,13 @@ export function PartyFilterChips({
  * Parliament either way), which is why `electorateForCandidate` is optional:
  * the Close Calls view has already removed those candidates, so it passes
  * nothing and every row shows its rank.
+ *
+ * The cut is drawn where the "From cut" column crosses zero: after the last
+ * row printing a non-negative distance. An electorate winner prints no
+ * distance at all — they take a seat whether or not they sat above the list
+ * cut — so they count as above it too. Counting on `distanceFromCut` alone
+ * would drop the line into the middle of the winners the page sorts to the
+ * top when "Show electorate leaders" is on.
  */
 export function PartyListCard({
   party,
@@ -98,7 +105,14 @@ export function PartyListCard({
   rowDelayStep?: number;
 }) {
   const electorateOf = electorateForCandidate ?? new Map<string, string>();
-  const cutIndex = members.filter((m) => m.distanceFromCut >= 0).length;
+  const lastAboveCut = members.reduce(
+    (last, member, index) =>
+      member.distanceFromCut >= 0 || electorateOf.has(member.candidate)
+        ? index
+        : last,
+    -1
+  );
+  const cutIndex = lastAboveCut + 1;
   const wrapperStyle: CSSProperties | undefined =
     revealDelay === undefined
       ? undefined
