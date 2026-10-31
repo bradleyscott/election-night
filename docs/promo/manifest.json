@@ -1,0 +1,108 @@
+{
+  "base": "http://127.0.0.1:3556",
+  "seat": "Ōtāhuhu",
+  "shots": [
+    {
+      "name": "seats",
+      "viewport": "desktop",
+      "file": "seats-desktop.png",
+      "title": "Seats — parliament, party totals and every seat"
+    },
+    {
+      "name": "seats",
+      "viewport": "mobile",
+      "file": "seats-mobile.png",
+      "title": "Seats — parliament, party totals and every seat"
+    },
+    {
+      "name": "electorates-map",
+      "viewport": "desktop",
+      "file": "electorates-map-desktop.png",
+      "title": "Electorates — the national map"
+    },
+    {
+      "name": "electorates-map",
+      "viewport": "mobile",
+      "file": "electorates-map-mobile.png",
+      "title": "Electorates — the national map"
+    },
+    {
+      "name": "electorates-seat",
+      "viewport": "desktop",
+      "file": "electorates-seat-desktop.png",
+      "title": "Ōtāhuhu — map, seat verdict, candidate votes and past winners"
+    },
+    {
+      "name": "electorates-seat",
+      "viewport": "desktop",
+      "file": "electorates-seat-desktop-full.png",
+      "title": "Ōtāhuhu — map, seat verdict, candidate votes and past winners (full page)"
+    },
+    {
+      "name": "electorates-seat",
+      "viewport": "mobile",
+      "file": "electorates-seat-mobile.png",
+      "title": "Ōtāhuhu — map, seat verdict, candidate votes and past winners"
+    },
+    {
+      "name": "electorates-seat",
+      "viewport": "mobile",
+      "file": "electorates-seat-mobile-full.png",
+      "title": "Ōtāhuhu — map, seat verdict, candidate votes and past winners (full page)"
+    },
+    {
+      "name": "parties",
+      "viewport": "desktop",
+      "file": "parties-desktop.png",
+      "title": "Party lists — rankings, list cut lines, projected parliament"
+    },
+    {
+      "name": "close-calls",
+      "viewport": "desktop",
+      "file": "close-calls-desktop.png",
+      "title": "Close Calls — the seats most likely to change hands"
+    },
+    {
+      "name": "flipped",
+      "viewport": "desktop",
+      "file": "flipped-desktop.png",
+      "title": "Flipped — seats that have changed hands since the prior cycle"
+    },
+    {
+      "name": "flipped",
+      "viewport": "mobile",
+      "file": "flipped-mobile.png",
+      "title": "Flipped — seats that have changed hands since the prior cycle"
+    },
+    {
+      "name": "feed",
+      "viewport": "desktop",
+      "file": "feed-desktop.png",
+      "title": "Feed — the night as it happens"
+    },
+    {
+      "name": "feed",
+      "viewport": "mobile",
+      "file": "feed-mobile.png",
+      "title": "Feed — the night as it happens"
+    },
+    {
+      "name": "trends",
+      "viewport": "desktop",
+      "file": "trends-desktop.png",
+      "title": "Trends — party vote, share, seats and count progress over time"
+    },
+    {
+      "name": "trends-counted",
+      "viewport": "desktop",
+      "file": "trends-counted-desktop.png",
+      "title": "Trends — the count tape: how much of the vote is in"
+    },
+    {
+      "name": "trends-percent",
+      "viewport": "desktop",
+      "file": "trends-percent-desktop.png",
+      "title": "Trends — party vote share over time"
+    }
+  ]
+}
