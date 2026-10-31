@@ -4,13 +4,17 @@ import { cn } from '../lib/utils.js';
 /**
  * The header typography every table shares: the small, spaced, muted label.
  *
+ * Set at `text-sm` (14px) to sit a step under the 1rem body: a 12px header
+ * over 16px rows read as a caption rather than a heading. It stays smaller
+ * than the data and tracked, which is what makes it a label.
+ *
  * Padding, alignment and width stay at the call site — the wide tables pad
  * `px-3 py-2 sm:py-3` while the compact ones pad `px-2` and no vertical — but
  * the six classes that make a header look like a header were written out at
  * twenty-eight `<th>`s before this existed.
  */
 export const TH_CLASS =
-  'font-label font-semibold uppercase tracking-wide text-xs text-muted-foreground';
+  'font-label font-semibold uppercase tracking-wide text-sm text-muted-foreground';
 
 /**
  * A header cell for the tables that use the standard box. `align` and every

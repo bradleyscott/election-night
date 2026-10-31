@@ -50,7 +50,7 @@ export function ElectorateRacesView({
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-base">
           <thead>
             <tr className="border-b">
               <Th>Electorate</Th>
@@ -109,7 +109,7 @@ export function ElectorateRacesView({
                     </div>
                     {/* Named, not just dotted: a swatch is not a party name,
                         and the Flipped table already prints both. */}
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {l.leadingCandidateParty ?? 'Independent'}
                     </div>
                   </td>
@@ -120,7 +120,7 @@ export function ElectorateRacesView({
                         {l.secondCandidate}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {l.secondCandidateParty ?? 'Independent'}
                     </div>
                   </td>

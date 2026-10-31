@@ -182,7 +182,7 @@ function SuccessfulCandidates({
 
   function SortIndicator({ column }: { column: SortKey }) {
     if (sortKey !== column) return null;
-    return <span className="ml-1 text-xs">{sortDesc ? '↓' : '↑'}</span>;
+    return <span className="ml-1 text-sm">{sortDesc ? '↓' : '↑'}</span>;
   }
 
   if (!electorateResults.length && !partyLists.length) {
@@ -202,7 +202,7 @@ function SuccessfulCandidates({
         />
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-base">
           <thead>
             <tr className="border-b border-border">
               <th
@@ -266,7 +266,7 @@ function SuccessfulCandidates({
                 <td className="py-2 sm:py-3 px-3">
                   {c.isElectorate ? (
                     <span className="flex items-center gap-1.5">
-                      <span className="hidden sm:inline chip-print chip-print--ink">
+                      <span className="hidden sm:inline chip-print chip-print--ink chip-print--table">
                         Electorate
                       </span>
                       <Link
@@ -280,11 +280,11 @@ function SuccessfulCandidates({
                     <span className="flex items-center gap-1.5">
                       <Link
                         to={`/parties?party=${encodeURIComponent(c.party)}`}
-                        className="chip-print chip-print--red hover:bg-muted/40 transition-colors"
+                        className="chip-print chip-print--red chip-print--table hover:bg-muted/40 transition-colors"
                       >
                         List
                       </Link>
-                      <span className="sm:hidden font-mono text-xs text-foreground tabular-nums">
+                      <span className="sm:hidden font-mono text-sm text-foreground tabular-nums">
                         +{Math.round(c.certainty)}
                       </span>
                     </span>

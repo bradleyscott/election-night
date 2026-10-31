@@ -117,7 +117,7 @@ export function PartyListCard({
         {party}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-base">
           <thead>
             <tr className="border-b">
               <Th className="w-14">List</Th>
@@ -143,7 +143,7 @@ export function PartyListCard({
                           <div className="w-full border-t-2 border-brand" />
                         </div>
                         <div className="relative flex justify-center">
-                          <span className="bg-background px-3 font-label text-[10px] font-bold tracking-widest uppercase text-brand">
+                          <span className="bg-background px-3 font-label text-xs font-bold tracking-widest uppercase text-brand">
                             Cut
                           </span>
                         </div>
@@ -177,7 +177,7 @@ export function PartyListCard({
                       {electorate && (
                         <Link
                           to={`/electorates/${encodeURIComponent(electorate)}`}
-                          className="chip-print hover:bg-muted/40 transition-colors"
+                          className="chip-print chip-print--table hover:bg-muted/40 transition-colors"
                         >
                           {electorate}
                         </Link>

@@ -66,6 +66,13 @@ to it. Amend intentionally — the file is the rule.
   Playfair.** Tables rule-based, figures tabular. Party colours are data
   semantics and stay untouched (National #00529F, Labour #D82A20, Green
   #098137, ACT #FFD700, NZ First #333, TPM #000, TOP teal #00B9BC).
+- **Table type runs a step above the rest** — 1rem in the cell (1.125rem in the
+  parliament table, which is set larger on purpose), 0.875rem for a header
+  label and for a cell's second line (party name under a candidate, a
+  majority's share), and `.chip-print--table` / `.kicker--table` where a chip
+  or a kicker stands inside a row: a 0.625rem chip beside 1rem cells reads as
+  fine print, not as a marker. Anything else set inside a table follows the
+  same rule, so no row is half body type and half footnote.
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

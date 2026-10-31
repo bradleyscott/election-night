@@ -179,7 +179,7 @@ export default function Flipped() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="border-b">
                   {/* Widths are fixed rather than left to the browser: with
@@ -249,13 +249,13 @@ export default function Flipped() {
                             {winner.candidate}
                           </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-sm text-muted-foreground">
                           {winner.party ?? 'Independent'}
                           {winner.priorElectorateName
                             ? ` · as ${winner.priorElectorateName}`
                             : ''}
                         </div>
-                        <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
+                        <div className="text-sm text-muted-foreground tabular-nums sm:hidden">
                           majority {winner.majority.toLocaleString()} ·{' '}
                           {(winner.majorityPercent * 100).toFixed(1)}%
                         </div>
@@ -264,7 +264,7 @@ export default function Flipped() {
                         <span className="font-bold">
                           {winner.majority.toLocaleString()}
                         </span>
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="block text-sm text-muted-foreground">
                           {(winner.majorityPercent * 100).toFixed(1)}%
                         </span>
                       </td>
@@ -277,10 +277,10 @@ export default function Flipped() {
                             {l.leadingCandidate}
                           </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-sm text-muted-foreground">
                           {l.leadingCandidateParty ?? 'Independent'}
                         </div>
-                        <div className="text-xs text-muted-foreground tabular-nums sm:hidden">
+                        <div className="text-sm text-muted-foreground tabular-nums sm:hidden">
                           leads {l.margin.toLocaleString()} ·{' '}
                           {(l.marginPercent * 100).toFixed(1)}%
                         </div>
@@ -289,7 +289,7 @@ export default function Flipped() {
                         <span className="font-bold">
                           {l.margin.toLocaleString()}
                         </span>
-                        <span className="block whitespace-nowrap text-xs text-muted-foreground">
+                        <span className="block whitespace-nowrap text-sm text-muted-foreground">
                           {(l.marginPercent * 100).toFixed(1)}%
                         </span>
                       </td>

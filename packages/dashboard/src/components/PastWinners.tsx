@@ -47,14 +47,14 @@ export function PastWinners({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-base">
             <tbody>
               {winners.map((w) => (
                 <tr
                   key={`${w.year}-${w.electorateName}`}
                   className="border-b last:border-0"
                 >
-                  <td className="whitespace-nowrap px-3 py-2 font-label text-xs font-semibold tabular-nums text-muted-foreground sm:px-4">
+                  <td className="whitespace-nowrap px-3 py-2 font-label text-sm font-semibold tabular-nums text-muted-foreground sm:px-4">
                     {w.year}
                   </td>
                   <td className="px-3 py-2">
@@ -62,7 +62,7 @@ export function PastWinners({
                       <PartyDot color={partyColor(w.party)} size="md" />
                       <span className="font-semibold">{w.candidate}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {w.party ?? 'Independent'}
                       {w.priorElectorateName
                         ? ` · as ${w.priorElectorateName}`
@@ -73,10 +73,10 @@ export function PastWinners({
                     <span className="font-bold">
                       {w.majority.toLocaleString()}
                     </span>{' '}
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">
                       vote margin
                     </span>
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-sm text-muted-foreground">
                       {(w.majorityPercent * 100).toFixed(1)}% of votes cast
                     </span>
                   </td>

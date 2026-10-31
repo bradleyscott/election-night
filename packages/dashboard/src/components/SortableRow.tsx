@@ -49,7 +49,7 @@ export function SortableRow({
         <span className="hidden sm:inline">
           {party.votes.toLocaleString()}{' '}
         </span>
-        <span className="text-muted-foreground text-xs font-normal sm:ml-1.5">
+        <span className="text-muted-foreground text-sm font-normal sm:ml-1.5">
           {((party.votes / totalPartyVotes) * 100).toFixed(1)}%
         </span>
       </td>

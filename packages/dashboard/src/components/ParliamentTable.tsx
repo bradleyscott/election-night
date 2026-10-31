@@ -59,7 +59,7 @@ export function ParliamentTable({
   return (
     <DragDropProvider onDragEnd={onDragEnd} sensors={[touchSensor]}>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm sm:text-base">
+        <table className="w-full text-base sm:text-lg">
           <thead>
             <tr className="border-b">
               <Th className="pr-4">Party</Th>
@@ -97,7 +97,7 @@ export function ParliamentTable({
                       <span className="hidden sm:inline">
                         {party.votes.toLocaleString()}{' '}
                       </span>
-                      <span className="text-muted-foreground text-xs font-normal sm:ml-1.5">
+                      <span className="text-muted-foreground text-sm font-normal sm:ml-1.5">
                         {((party.votes / totalPartyVotes) * 100).toFixed(1)}%
                       </span>
                     </td>
@@ -130,9 +130,9 @@ export function ParliamentTable({
           {coalitionInfo.parties.length > 0 && (
             <tfoot>
               <tr className="border-t-2 border-border bg-muted/40">
-                <td colSpan={5} className="py-3 text-sm">
+                <td colSpan={5} className="py-3 text-base">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="kicker">Coalition</span>
+                    <span className="kicker kicker--table">Coalition</span>
                     <div className="flex items-center gap-1 flex-wrap">
                       {coalitionInfo.parties.map((p, i) => (
                         <span

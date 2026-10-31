@@ -147,6 +147,11 @@
     text-transform: uppercase;
     color: hsl(var(--muted-foreground));
   }
+  /* the same, for a label that stands inside a data table (the coalition
+     footer) and has to hold its own against 1rem rows */
+  .kicker--table {
+    font-size: 0.8125rem;
+  }
 
   /* page header: double rule, broadsheet style */
   .pagehead {
@@ -232,6 +237,14 @@
   .chip-print--red {
     border-color: hsl(var(--primary));
     color: hsl(var(--primary));
+  }
+  /* A chip inside a data table sits beside 1rem body type, where the
+     standalone 0.625rem reads as fine print — the same reason the tables
+     themselves run a step larger. A modifier rather than a Tailwind
+     `text-sm` at the call site: custom utilities are emitted after the
+     generated ones, so `.chip-print`'s own size would win. */
+  .chip-print--table {
+    font-size: 0.75rem;
   }
 
   .rule-red {

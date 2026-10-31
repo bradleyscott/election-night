@@ -28,7 +28,7 @@ export function ElectorateResultsTable({
   return (
     <div className="border overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-base">
           <thead>
             <tr className="border-b">
               {showPartyVote ? <Th>Party</Th> : <Th>Candidate</Th>}
