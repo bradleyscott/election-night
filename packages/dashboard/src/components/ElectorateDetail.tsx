@@ -1,4 +1,4 @@
-import { ElectorateStats } from './ElectorateStats.js';
+import { ElectorateCountBand } from './ElectorateCountBand.js';
 import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import { PastWinners } from './PastWinners.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
@@ -61,15 +61,26 @@ export function ElectorateDetail({
         />
       </div>
 
-      <ElectorateStats
-        result={result}
-        showPartyVote={showPartyVote}
-        chance={chance}
-        updatedAt={updatedAt}
-        pollsClose={pollsClose}
-      />
+      {/* One panel, one ordering. The band above the table is the count's own
+          state — votes in, the gap, votes out — and the table is the count
+          itself with the projection as a column, so a reader can see the two
+          facts disagree on one line instead of reconciling two panels. */}
+      <div className="border overflow-hidden">
+        {!showPartyVote && (
+          <ElectorateCountBand
+            result={result}
+            chance={chance}
+            updatedAt={updatedAt}
+            pollsClose={pollsClose}
+          />
+        )}
 
-      <ElectorateResultsTable result={result} showPartyVote={showPartyVote} />
+        <ElectorateResultsTable
+          result={result}
+          showPartyVote={showPartyVote}
+          chance={chance}
+        />
+      </div>
 
       {/* Prior winners are who won the seat, and a seat is won on the
           candidate vote. In party view the table below is the party vote, so

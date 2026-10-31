@@ -4,6 +4,29 @@ import { render, screen } from '@testing-library/react';
 import { ElectorateDetail } from './ElectorateDetail.js';
 import { mockElectorateResult } from '../test/fixtures.js';
 import type { PriorWinner } from '../lib/history-types.js';
+import type { SeatChance } from '@election-night/core/seat-probability';
+
+const chance: SeatChance = {
+  state: 'counting',
+  leader: { name: 'SMITH, John', party: 'National Party', votes: 12000 },
+  runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 11000 },
+  othersProbability: 0.01,
+  probability: 0.62,
+  countProbability: 0.6,
+  margin: 1000,
+  remainingVotes: 9000,
+  remainingLow: 7000,
+  remainingHigh: 11000,
+  progress: 0.72,
+  enrolment: 45455,
+  assumedCycle: false,
+  insideOutstanding: true,
+  specialsOutstanding: 8000,
+  specialsRequiredSwing: 0.125,
+  specialsProbability: 0.79,
+  insideSpecials: false,
+  provisionalPrior: false,
+};
 
 const winners: PriorWinner[] = [
   {
@@ -27,6 +50,8 @@ function renderDetail(showPartyVote: boolean) {
       historyData={null}
       priorWinners={winners}
       priorUnavailable={false}
+      chance={chance}
+      updatedAt={new Date()}
     />
   );
 }
@@ -37,6 +62,31 @@ describe('ElectorateDetail', () => {
 
     expect(screen.getByText('Past winners')).toBeInTheDocument();
     expect(screen.getByText('SWARBRICK, Chlöe')).toBeInTheDocument();
+  });
+
+  test('puts the count and the projection in one panel, in the count order', () => {
+    renderDetail(false);
+
+    // The band is the count's own state; the table follows it with the chance
+    // as a column, so nothing is printed twice and nothing faces the other way.
+    expect(screen.getByText('Counted')).toBeInTheDocument();
+    expect(screen.getByText(/about 9,000 votes/)).toBeInTheDocument();
+    expect(screen.getByText('Win %')).toBeInTheDocument();
+    expect(
+      screen.getByTitle('62% chance of winning the seat')
+    ).toBeInTheDocument();
+    // When the count last moved sits at the top of the panel.
+    expect(screen.getByText(/Updated just now/)).toBeInTheDocument();
+  });
+
+  test('renders no band and no Win % column in party view', () => {
+    // The party vote decides a different contest, so there is nothing to
+    // project; the count's own state would be a different count's.
+    renderDetail(true);
+
+    expect(screen.queryByText('Win %')).not.toBeInTheDocument();
+    expect(screen.queryByText('Still out')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Updated just now/)).not.toBeInTheDocument();
   });
 
   test('hides past winners in party view', () => {

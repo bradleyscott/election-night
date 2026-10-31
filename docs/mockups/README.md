@@ -43,6 +43,13 @@ winner" rather than the "Too close to call" a partial count produces.
 
 ### `electorate-past-winners` (`.html` / `.png`)
 
+> **The seat panel in this capture is out of date.** It predates
+> `proposals/electorate-page.html` (design B, implemented): the page still shows
+> the `Win %` card and a four-column table, where the app now shows the count
+> band and a `Win %` column in one panel. *Past winners* itself is unchanged, so
+> the capture still documents what it was made for; re-capture the page when a
+> run with the archive's real Banks Peninsula counts is next to hand.
+
 An electorate page (`Banks Peninsula`) with the **Past winners** panel below the
 results table. Two cycles resolved: 2020 (McLellan, Labour, `13,156 vote margin`)
 and 2017 (Dyson, Labour, `7,916 vote margin`), each followed by its share of

@@ -131,6 +131,10 @@ cd packages/dashboard
 
 ## `count-complete` (`.html` / `.png`)
 
+> **Superseded** by `electorate-page` (design B): the card this file designs no
+> longer exists. Kept for the record — the argument about the specials, and the
+> `insideSpecials` line, moved into the count band.
+
 The electorate panel's **count complete** card, drawn four ways plus today at
 the 512px the detail column gives it on a 1400px page: **A** is the counting
 card's own rows handed over unchanged, with the strip reinterpreted; **B** names
@@ -189,7 +193,127 @@ cd packages/dashboard
   "file://$PWD/../../docs/mockups/proposals/count-complete.html"
 ```
 
+## `electorate-page` (`.html` / `.png`)
+
+The electorate detail column as a whole — the **Win %** card *and* the results
+table under it — because the two are the problem and neither can be judged
+alone. Today they print the same party, name and vote count 40px apart, sort by
+different keys, carry no titles, and the table ends in a bare `%` that never
+says what it is a share of. The file shows today's panel annotated, then four
+designs, then all four again in the one configuration the model exists for:
+**the count leader is not the likely winner**, where the current page puts the
+trailing candidate at the top of the card and reverses the order in the table
+directly below it.
+
+- **A · verdict card, captioned table** — the card keeps only the chance
+  (name, one number, one bar across the hundred) and everything counted moves
+  into a table titled *The count so far*, with a caption stating the denominator.
+  In the hard case the card gains one sentence naming who leads.
+- **B · one surface** — the card is deleted; a count band sits above the table
+  and the chance becomes a column, so there is nothing to duplicate and no
+  second ordering to contradict.
+- **C · the arithmetic card** — the card answers *what would have to happen*
+  ("Weenink needs 47.9% of the votes still out"), which is (9,300 − 393) ÷
+  (2 × 9,300) rather than a model output, and prints the probability as a small
+  line at the foot.
+- **D · two questions, one seam** — *Who wins the seat* and *Who is ahead* as
+  two titled panels, with a labelled rule between them.
+
+**Implemented: B** — one panel, one ordering, nothing printed twice. This
+supersedes `electorate-pwin`, `chance-card` and `count-complete`: the "Win %"
+card is gone, and `ElectorateStats.tsx` with it. A's one-sentence verdict was
+the runner-up; C's arithmetic is the most interesting new fact on the page but
+needs two sentences to set up and stops being informative at 92% counted; D's
+seam was the clearest statement of the two questions and the most chrome.
+
+Two amendments were made in the mockup after review:
+
+- **`Counted` is not a column name.** B's share column is now headed **`Vote %`**
+  everywhere in the file, and A and C's `Share of counted` follows it. In this
+  app "counted" already means *progress* — the strip above the table reads
+  `68% counted`, `vote_pct_counted` is a progress series on the Trends tape —
+  so a column headed `Counted` holding `42.4%` reads as a progress figure. `Vote %`
+  beside `Win %` also does the disambiguating work the bare `%` never did: the
+  two percentages are obviously about different things.
+- **B's phone case is fixed, not conceded.** Below `sm` the party stops being a
+  column and becomes a second line under the candidate's name — the same field
+  rendered twice for two layouts, the fold the Flipped page's mobile table
+  already uses. Measured at 390px (356px of content, in the browser): as drawn,
+  the party column takes 115px against the candidate's 88px, every name wraps,
+  and the table is 28px wider than its card so Win % is clipped. Folded, the
+  candidate cell gets 139px, rows go 65px → 57px, the table is 316px instead of
+  334px, and overflow is zero — at 360px too. B has no card above it, so at 390px
+  the whole stack is 494px against A's 543px: the fold spends none of B's height
+  advantage. What is left between A and B is not a trade-off but a choice —
+  whether the verdict is a card above the numbers or a column inside them.
+
+Every height in the file is measured in the browser rather than estimated: the
+closing table at the 512px column (708 / 666 / 491 / 680 / 799px) and the 390px
+section at 356px of content. The markup notes carry the classes the component
+would use (`hidden sm:table-cell` / `sm:hidden`, `whitespace-nowrap`,
+`text-sm sm:text-base`).
+
+**What changed on the way into the component**, none of it visible in the PNG:
+
+- **The `Win %` track was dropped.** The mockup drew a 56px track under each
+  number; rendered at 512px beside a new column it cost the candidate name enough
+  width to wrap (`ANDERSON,` / `Jamie`), and at that size a bar cannot separate
+  73% from 71% anyway. The number is the reading. The name cell is
+  `sm:whitespace-nowrap` for the same reason, so a party name wraps before a
+  candidate's does.
+- **The header stays `%`, not `Vote %`.** The table already had that label and
+  the instruction was to keep it. The cells now print the sign (`42.4%`), which
+  is what makes a bare `%` header legible next to `Win %`.
+- **The runner-up's chance is `1 − p − others`.** The card printed `1 − p`, which
+  credited the runner-up with the whole field's chance in a three-way seat; the
+  two printed numbers now never claim more than 100, and the caption says why
+  they need not add to it.
+- **The band gained a `Margin` cell**, because design B deleted the card's
+  `Ahead by 393 (2.0%)` line and a table ordered by votes does not state the gap.
+  It sits between `Counted` and `Still out`, which is also the clearest way to
+  read why the chance is what it is: 393 against 9,300.
+- **A complete count keeps a number.** The old `count-complete` card replaced the
+  probability with a share of the vote on the argument that a finished count
+  could only read 100%. That was true of a *count-based* probability; the number
+  the model reports on completion is the chance the lead survives the special
+  vote, which is 66% for Banks Peninsula and 100% only when the margin exceeds
+  the whole special vote. So the column keeps it — the same number the Flipped
+  and Close Calls pages keep.
+
+**Provenance.** Banks Peninsula, the two candidates and the shape of the 2023
+result are real; the partial count, the three minor candidates and both chance
+figures are constructed to be self-consistent (shares sum to the counted total,
+the two chances sum to 100, 47.9% is the arithmetic above).
+
+```bash
+cd packages/dashboard
+./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
+  -o /tmp/electorate-page.css \
+  --content "../../docs/mockups/proposals/electorate-page.html"
+
+# inline /tmp/electorate-page.css into the <style> block, then capture 1400 wide
+# page at 2x.
+```
+
+**This one needs slicing.** At 8,641 CSS px the page is 17,282 device px tall at
+2x, which is past Chrome's compositor texture limit: a single window that tall
+captures the *top of the page again* at the bottom of the image, with no warning
+— the shot looks complete and is not. Every other shot here is under 8,200 device px
+(the tallest, `electorate-map-controls`, is 8,184) and never met the limit. Capture a 1200px-tall viewport, scroll in 1200px steps,
+record `window.scrollY` after each scroll (the last scroll clamps, so the
+requested offset is not the real one), and stitch at those offsets into a
+`height × 2` canvas. The seams fall between rows and are invisible; check one
+before shipping the PNG.
+
+The paper grain is suppressed for the same practical reason it is worth naming:
+`body::after` is an SVG turbulence fill, i.e. incompressible noise over every
+pixel. With it the file is 15 MB of grain that nobody can see at review scale;
+without it, 3.7 MB.
+
 ## `chance-card` (`.html` / `.png`)
+
+> **Superseded** by `electorate-page` (design B): the chance is now a column of
+> the results table, not a card.
 
 The electorate panel's **chance of winning** card, in its counting state, drawn
 five ways at the 512px the detail column gives it on a 1400px page: **Today** as
