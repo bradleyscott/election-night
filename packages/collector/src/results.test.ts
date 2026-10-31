@@ -514,6 +514,10 @@ describe('processResults', () => {
       ({
         state: 'counting',
         probability,
+        // The seat is worth less than tonight's count alone, because the
+        // specials can still take it; the pair is ordered, not equal.
+        countProbability: Math.min(1, probability + 0.04),
+        specialsProbability: Math.min(1, probability + 0.02),
         othersProbability: 0,
         leader: { name: 'Smith, John', party: 'National Party', votes: 5100 },
         runnerUp: { name: 'Jones, Mary', party: 'Labour Party', votes: 4900 },
@@ -526,6 +530,7 @@ describe('processResults', () => {
         assumedCycle: false,
         insideOutstanding: true,
         specialsOutstanding: 7300,
+        specialsRequiredSwing: 200 / 7300,
         insideSpecials: true,
         provisionalPrior: false,
       }) as const;
