@@ -118,7 +118,9 @@ describe('ElectorateCountBand', () => {
     expect(screen.getByText(/31,590 votes/)).toBeInTheDocument();
     // 340 ahead of 31,590 counted = 1.1%.
     expect(screen.getByText('340')).toBeInTheDocument();
-    expect(screen.getByText(/about 15,300 votes/)).toBeInTheDocument();
+    // Two significant figures: the estimate is ±12%, so the tens of votes it
+    // lands on are not information.
+    expect(screen.getByText(/about 15,000 votes/)).toBeInTheDocument();
   });
 
   it('says when the count last moved, at the foot of the figures', () => {
@@ -161,12 +163,10 @@ describe('ElectorateCountBand', () => {
     expect(
       screen.getByText('Count complete · 78% of the expected final vote')
     ).toBeInTheDocument();
-    // The reader should not have to compare a 396-vote margin to 9,700 votes
-    // themselves. No direction is claimed — the one thing the specials cannot
-    // tell us.
-    expect(
-      screen.getByText('The margin is inside the special vote.')
-    ).toBeInTheDocument();
+    // Nothing is said about the margin against the specials: the two figures
+    // are in cells side by side, and a sentence pointing out that 396 is
+    // smaller than 9,700 tells the reader what they can already see.
+    expect(screen.queryByText(/inside the special vote/i)).toBeNull();
   });
 
   it('leaves the chance of holding the seat to the Win % column', () => {
@@ -176,20 +176,24 @@ describe('ElectorateCountBand', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('rounds the estimates it prints instead of showing their decimals', () => {
+  it('rounds both estimates to two significant figures', () => {
     // Enrolment × turnout × share lands on a fraction of a vote, and the card
-    // this replaces used to print it: "about 6,307.826 votes".
+    // this replaces used to print it: "about 6,307.826 votes". Neither estimate
+    // is right to the vote — they are built from national cycle constants — so
+    // they take the same rule, whichever is the larger number.
     renderBand(
-      { ...complete, specialsOutstanding: 6307.826, insideSpecials: false },
+      { ...complete, specialsOutstanding: 6307.826 },
       { result: result({ votesCounted: 35324 }) }
     );
-    expect(screen.getByText(/about 6,308 votes/)).toBeInTheDocument();
+    expect(screen.getByText(/about 6,300 votes/)).toBeInTheDocument();
     expect(screen.queryByText(/\d+\.\d+ votes/)).not.toBeInTheDocument();
-    // 396 votes against 6,308 specials is inside them by arithmetic, but this
-    // fixture says not: the line is the model's call, not the band's.
-    expect(
-      screen.queryByText('The margin is inside the special vote.')
-    ).toBeNull();
+  });
+
+  it('applies the same rule to a small estimate as to a large one', () => {
+    // A two-candidate seat with a thin special vote: 1,247 specials is 1,200,
+    // not 1,247 and not 1,250 — the same two figures as 15,000 elsewhere.
+    renderBand({ ...complete, specialsOutstanding: 1247 });
+    expect(screen.getByText(/about 1,200 votes/)).toBeInTheDocument();
   });
 
   it('renders nothing about a seat that has not counted when no model is available', () => {

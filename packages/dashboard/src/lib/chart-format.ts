@@ -31,12 +31,35 @@ export function formatVoteAxis(value: number): string {
 /**
  * Readouts keep every digit: a count is not abbreviated away in a tooltip.
  *
- * This is also the display boundary for the seat model's estimates — enrolment
- * × turnout × share is fractional — so the card says "about 6,308 votes",
- * never "6,307.826".
+ * This is the display boundary for counted things — votes, margins, a
+ * candidate's total. An *estimate* goes through `formatEstimate` instead.
  */
 export function formatVotes(value: number): string {
   return Math.round(value).toLocaleString();
+}
+
+/**
+ * An estimate, to two significant figures: "about 5,700 votes", "about
+ * 15,000 votes".
+ *
+ * The seat model's two estimates — tonight's votes still out and the special
+ * votes still to come — are built the same way: enrolment (a recorded roll)
+ * times a *national* cycle constant (turnout, night share, special share) times
+ * a per-seat figure. The national constants are applied to every seat, so the
+ * error is relative, not absolute: `REMAINING_SIZE_SD` puts it at 12% for the
+ * outstanding vote, and the special-vote estimate has the same construction and
+ * the same order of error. That makes a decimal-place rule wrong in both
+ * directions — the old "about 6,308 votes" claimed three more digits than the
+ * number has, and a nearest-ten rule hands the *smaller* estimate the most
+ * precision of all, which is backwards.
+ *
+ * Two figures is what the word "about" already promises, and it is one rule
+ * whether the estimate is 5,723 or 15,327. Counted facts are untouched: a
+ * count prints exactly, an estimate prints to two significant figures.
+ */
+export function formatEstimate(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  return Math.round(Number(value.toPrecision(2))).toLocaleString();
 }
 
 /** Axis ticks: 0%, 25%, 50%. Takes a percentage, not a fraction. */

@@ -1,5 +1,5 @@
 import { cn } from '../lib/utils.js';
-import { formatVotes } from '../lib/chart-format.js';
+import { formatEstimate, formatVotes } from '../lib/chart-format.js';
 import { formatUpdatedAgo } from '../lib/seat-chance.js';
 import {
   formatPollsCountdown,
@@ -165,6 +165,9 @@ export function ElectorateCountBand({
   const percent = Math.round(share * 100);
   const marginShare = counted > 0 ? chance.margin / counted : null;
   const updated = formatUpdatedAgo(updatedAt ?? null);
+  // Both figures are estimates built from national cycle constants, so both go
+  // through the same two-significant-figure rule — see `formatEstimate`.
+  const outstandingLabel = `about ${formatEstimate(outstanding)} votes`;
 
   return (
     <div className="border-b">
@@ -195,7 +198,7 @@ export function ElectorateCountBand({
           label={complete ? 'Specials to come' : 'Still out'}
           className="col-span-2 border-t sm:col-span-1 sm:border-l sm:border-t-0"
         >
-          about {formatVotes(outstanding)} votes
+          {outstandingLabel}
         </Stat>
       </div>
 
@@ -218,14 +221,6 @@ export function ElectorateCountBand({
             </span>
           )}
         </div>
-        {/* Worth calling out only when the specials are large enough that the
-            margin is inside them. No direction is claimed: the model prices the
-            swing, it does not predict its sign. */}
-        {complete && chance.insideSpecials && (
-          <div className="font-label text-[11px] text-foreground">
-            The margin is inside the special vote.
-          </div>
-        )}
       </div>
     </div>
   );
