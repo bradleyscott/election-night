@@ -1,0 +1,113 @@
+# Election-night lamp — Home Assistant automation.
+#
+# Lights `light.drawing_room_lamp` at 100% brightness in the colour of the party
+# whose candidate has just been called as the seat's winner, for 30 seconds,
+# then turns it off. One call per queue slot, in arrival order.
+#
+# Wire the collector to it with:
+#   WEBHOOK_URL=http://<home-assistant>:8123/api/webhook/election-night-verdict
+# (or the Nabu Casa cloud webhook URL when the collector is the Fly app — see
+# README.md in this directory).
+#
+# Only `prediction_changed` is used, and only when the payload's `probability`
+# says the seat is *called*, because `determineWebhookEvents` in
+# packages/core/src/diff.ts fires that event on a crossing in EITHER direction:
+# a seat that falls back under CALL_THRESHOLD (and one whose count completes, at
+# which point the payload carries `probability: null`) also emits
+# `prediction_changed`. Lighting on the event alone would light the lamp when a
+# call is withdrawn.
+alias: Election night - lamp for predicted seat winner
+description: >-
+  Lights the drawing room lamp in the winning party's colour for 30 seconds when
+  the collector reports a seat has been called. Queued: each call gets its turn.
+id: election_night_seat_lamp
+mode: queued
+# 30s per call, so 20 slots is a ten-minute backlog. A bigger burst than that
+# would leave the lamp narrating seats that were called long ago; the oldest
+# runs finish, the newest triggers are dropped rather than queued forever.
+max: 20
+max_exceeded: silent
+
+triggers:
+  - trigger: webhook
+    webhook_id: election-night-verdict
+    allowed_methods:
+      - POST
+    # false, because the collector (on Fly) reaches HA through the Nabu Casa
+    # Remote UI proxy and those requests are not treated as local: with `true`
+    # every POST is answered 200, logged as "Received remote request for local
+    # webhook", and the automation never runs. Set it back to `true` only if the
+    # collector is on the same LAN as HA.
+    local_only: false
+
+conditions:
+  # A prediction, not any of the other three event types the collector sends
+  # (`result_updated`, `leader_change`, `count_completed`).
+  - condition: template
+    value_template: "{{ trigger.json.event == 'prediction_changed' }}"
+  # The call, not its withdrawal. `is number` excludes the null the payload
+  # carries on a finished count just as it excludes an absent key, and 0.9 is
+  # CALL_THRESHOLD in packages/core/src/seat-probability.ts.
+  - condition: template
+    value_template: >-
+      {{ trigger.json.probability is number
+         and trigger.json.probability >= 0.9 }}
+
+actions:
+  - variables:
+      # The feed's own label for the winning party. A candidate standing for no
+      # party is possible; a blank colour is not, so it falls back below.
+      party: >-
+        {{ trigger.json.result.leaders.leadingCandidateParty
+           | default('', true) }}
+      # Brand colours from packages/dashboard/src/lib/constants.ts, as RGB.
+      #
+      # Two are not their brand colour, because a brand colour that is black is
+      # not a colour a lamp can show:
+      #   New Zealand First  #333333 -> neutral grey, bright enough to see
+      #   Te Pāti Māori      black   -> their red, pushed toward black (below)
+      #
+      # Both spellings of every label the feed has used are keys, because a
+      # missing key paints the loudest colour in the palette (white) instead of
+      # saying "this party is not in the table".
+      #
+      # Te Pāti Māori is the one party that needs a second look, because their
+      # brand red is Labour's: #D81E05 against #D82A20 is a 12-point gap in
+      # green, which is one colour on a bulb (relative luminance 0.155 vs 0.164).
+      # Their identity is red on black, so the second colour is the black: the
+      # same red at 55% of its sRGB values, [119, 17, 3]. At 100% brightness that
+      # emits about a quarter of Labour's light - a deep maroon against a bright
+      # red, read as "dimmer", not as "someone turned it down", because nothing
+      # else in the palette is dim.
+      #
+      # The knob, if 55% is not right on your bulb: 70% is [151, 21, 4] (subtler),
+      # 40% is [86, 12, 2] (darker). Below about 35% it stops reading as a
+      # colour and starts reading as a lamp that failed to come on.
+      colour: >-
+        {%- set palette = {
+             'National Party':                [0, 82, 159],
+             'Labour Party':                  [216, 42, 32],
+             'Green Party':                   [9, 129, 55],
+             'ACT New Zealand':               [255, 215, 0],
+             'New Zealand First Party':       [180, 180, 180],
+             'Te Pāti Māori':                 [119, 17, 3],
+             'Te Pati Maori':                 [119, 17, 3],
+             'Opportunity Party':             [0, 185, 188],
+             'The Opportunities Party (TOP)': [0, 185, 188]
+           } -%}
+        {{ palette.get(party, [255, 255, 255]) }}
+
+  - action: light.turn_on
+    target:
+      entity_id: light.drawing_room_lamp
+    data:
+      brightness_pct: 100
+      rgb_color: '{{ colour }}'
+      transition: 1
+
+  - delay:
+      seconds: 30
+
+  - action: light.turn_off
+    target:
+      entity_id: light.drawing_room_lamp
