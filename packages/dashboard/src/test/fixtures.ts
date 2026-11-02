@@ -87,7 +87,7 @@ export const mockFeedEvent: FeedEvent = {
   type: 'result_updated',
   electorateName: 'Auckland Central',
   summary: 'Auckland Central updated.',
-  commentary: 'SMITH, John leads by 4.00% at 95% counted.',
+  commentary: 'SMITH, John leads, with about 3,000 votes still to come.',
   diff: {
     electorateName: 'Auckland Central',
     previousVotesCounted: null,

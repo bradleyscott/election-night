@@ -324,27 +324,70 @@ P(lead holds) = Φ(required ÷ SPECIALS_SWING_SD)     = Φ(0.41) = 66%
 
 The first line is arithmetic, and it is the number worth showing: _the specials
 would have to split 4.1 points harder against the leader than the count did._
-The second line needs a distribution for that swing, and it is a **zero-mean
-normal with a 10-point standard deviation** — a prior, not a measurement. Zero
-mean is deliberate and is the model's biggest known bias: the specials' lean is a
-cycle-by-cycle political fact (they ran left in 2017, 2020 and 2023) that this
-model does not encode, so it prices _how large_ a swing is rather than predicting
-its direction. A reader should treat the number as "chance the lead survives",
-not "chance this party wins".
+The second line needs a distribution for that swing, and the model uses a
+**zero-mean normal with a 10-point standard deviation**. Zero mean is deliberate:
+the specials' lean is a cycle-by-cycle political fact that the model does not
+encode, so it prices _how large_ a swing is rather than predicting its direction.
+A reader should treat the number as "chance the lead survives", not "chance this
+party wins".
 
-`SPECIALS_SWING_SD = 0.10` is stated as a prior for a reason: 2023's flips
-(Nelson 29 votes, Te Atatū 131, Tāmaki Makaurau 4) require a two-candidate
-differential of roughly 5–15 points between the specials and the count, so ±20
-points at 2σ contains them while keeping a 5,000-vote margin out of coin-toss
-territory. It is one number in one place so the validation harness can calibrate
-it against the seats that actually moved — the arrangement `tau` already has.
+**The spread is measured, and 0.10 is deliberately wider than the measurement.**
+Both ends of the swing are published per seat, just not in one table: the
+per-voting-place pages (`statistics/candidate-votes-by-voting-place-N.html`) list
+the special votes **by candidate** in three rows — overseas, before polling day,
+on polling day — above the seat's total. Subtracting them leaves the ordinary
+count, so the swing is a subtraction of two published figures rather than a
+reconstruction. `scripts/measure-specials-swing.mjs` does it for 2017, 2020 and
+2023 (71 + 72 + 70 usable seats); every parsed seat total whose candidate names
+line up matches the archive's final per-candidate XML exactly (68 of 70 in 2023,
+64 in 2020, the rest name variants).
 
-The differential itself cannot be measured from the archives: the Commission
-publishes the special vote's _volume_ per electorate and never its party split
-(`statistics.xml` has no special-vote row, and the special-declaration tables are
-volumes only). When that data is obtainable, the honest upgrade is a measured,
-seat-level mean rather than a zero — which would turn this into a directional
-claim the model could actually stand behind.
+Swing = the specials' two-candidate differential minus the count's, in points,
+positive towards the candidate who finished ahead:
+
+| cycle | seats | mean  | sd   | p10   | p90   | \|swing\| > 10 |
+| ----- | ----- | ----- | ---- | ----- | ----- | -------------- |
+| 2017  | 71    | +2.32 | 2.16 | −0.75 | +4.60 | 0              |
+| 2020  | 72    | +1.51 | 3.22 | −2.15 | +5.61 | 0              |
+| 2023  | 70    | −3.26 | 7.35 | −9.87 | +7.16 | 12             |
+| all   | 213   | +0.21 | 5.35 | −6.80 | +5.40 | 12             |
+
+The typical seat's swing is smaller still: the median absolute swing across the
+213 seats is **3.13 points**, so the 10-point prior is about **3×** what a
+typical seat has actually done (and about 2× the within-cycle sd).
+
+Three things follow.
+
+- **The per-seat spread is ~5 points, not 10.** Removing each cycle's own mean,
+  the within-cycle sd is **4.75 points** across all 213 seats. `0.10` is therefore
+  about twice the measured spread: a deliberately cautious prior, not a guess.
+  It is kept because the cycle-to-cycle variation is real and not modelled —
+  2023's sd (7.35) is more than double 2020's (3.22), and a prior built from the
+  other two cycles would have been 2.8–6.1 points.
+- **The mean is not zero, and it moves between cycles**: +2.32, +1.51, −3.26
+  relative to the eventual winner. The specials ran towards the winner in 2017
+  and 2020 and away from it in 2023. A zero mean is the honest choice before a
+  count, because the lean is not knowable in advance — but it is a known bias:
+  in 2023 it read the specials as directionless when they were not.
+- **Ten points covers the seats that actually changed hands.** Only four of 213
+  seats changed between the ordinary count and the final, all in 2023, and the
+  swing each needed was small: Nelson 1.5, Te Atatū 0.4, Tāmaki Makaurau 7.4,
+  Te Tai Tokerau 7.6. The largest actual swing was 17.9 (Te Tai Tokerau), so 0.10
+  puts a 7.6-point requirement at Φ(0.76) = 78% — enough to say "usually holds"
+  without pretending to call it.
+
+The general/Māori split matters if the prior is ever tightened: general seats
+have a within-cycle sd of 3.84 points, Māori seats 7.37 (smaller rolls, a larger
+special share). Any measured prior should keep the wider figure.
+
+The honest upgrade, still not taken, is a **per-cycle** `SPECIALS_SWING_SD` (2017
+0.022, 2020 0.032, 2023 0.074, 2026 flagged `assumed` from 2023), the arrangement
+`specialShare` already uses. It would raise a 66%-looking seat to about 71% and
+make the number better calibrated; it is left as a judgement for whoever owns the
+2026 call, because a narrower spread makes every close seat look more decided.
+
+Data: `.cache/specials-swing/` (per cycle, parsed from the Wayback copies of the
+per-place pages), regenerated by `scripts/measure-specials-swing.mjs`.
 
 ## Constants
 
@@ -355,7 +398,7 @@ claim the model could actually stand behind.
 | `DEFAULT_TAU`               | 0.03  | fallback only; the real value is measured per transition       |
 | `REMAINING_SIZE_SD`         | 0.12  | tolerance on the turnout estimate                              |
 | `COMPLETE_THRESHOLD`        | 0.99  | progress that counts as finished, when there is no place count |
-| `SPECIALS_SWING_SD`         | 0.10  | prior; sd of the special vote's two-candidate swing            |
+| `SPECIALS_SWING_SD`         | 0.10  | prior; ~2× the measured within-cycle sd (4.75 points)          |
 | `SPECIALS_NOTICE_THRESHOLD` | 0.95  | survival chance below which the card mentions specials         |
 | `PLACES_COMPLETE_THRESHOLD` | 1     | share of a seat's places that must report to finish it         |
 
@@ -387,7 +430,7 @@ The page shows three things, never a fourth:
   than we know and teach the reader that the number is decorative.
 
   Other surfaces keep the same number in this state rather than a word: the
-  Seats page's Certainty column, Close Calls and Flipped all print `p(win)` for a
+  Candidates page's Win chance column, Close Calls and Flipped all print `p(win)` for a
   complete count, because the count stopping is not the seat deciding and a seat
   at 55% must not read as settled — or sort as settled, which is why a finished
   seat's Close Calls rank is its chance and not "done".

@@ -8,7 +8,21 @@ import { normalizeElectorateName } from '../lib/electorates.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { PartyDot } from './PartyDot.js';
-import { Th } from './Table.js';
+import {
+  Th,
+  TR_ROW,
+  TR_ROW_HOVER,
+  TR_CLICKABLE,
+  NUMERIC,
+  NUMERIC_CELL,
+  TABLE_FRAME,
+} from './Table.js';
+import { WinPercentLink } from './WinPercentLink.js';
+import {
+  WinPercentValue,
+  chancePercent,
+  winPercentTitle,
+} from './WinPercentValue.js';
 
 const PAGE_SIZE = 10;
 
@@ -54,27 +68,30 @@ export function ElectorateRacesView({
 
   return (
     <div>
-      <div className="overflow-x-auto">
+      <div className={cn('overflow-x-auto', TABLE_FRAME)}>
         <table className="w-full text-base">
           <thead>
             <tr className="border-b">
               <Th>Electorate</Th>
               <Th>Leading</Th>
               <Th className="hidden sm:table-cell">Second</Th>
-              <Th align="right" className="px-3">
-                Lead (votes)
+              <Th align="right" className="hidden sm:table-cell px-3">
+                Lead
               </Th>
               <Th align="right" className="px-3">
                 Lead %
               </Th>
               <Th align="right" className="px-3">
-                Win %
+                <WinPercentLink />
               </Th>
             </tr>
           </thead>
           <tbody>
             {pageResults.map((er, i) => {
               const l = er.leaders;
+              const chance = chances?.get(
+                normalizeElectorateName(er.electorateName)
+              );
               return (
                 <tr
                   key={er.electorateName}
@@ -95,7 +112,9 @@ export function ElectorateRacesView({
                     }
                   }}
                   className={cn(
-                    'border-b last:border-0 transition-colors hover:bg-muted/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring/25 focus:bg-muted/20',
+                    TR_ROW,
+                    TR_ROW_HOVER,
+                    TR_CLICKABLE,
                     'opacity-0 animate-fade-in-up'
                   )}
                   style={{ animationDelay: `${i * 0.03}s` }}
@@ -129,17 +148,38 @@ export function ElectorateRacesView({
                       {l.secondCandidateParty ?? 'Independent'}
                     </div>
                   </td>
-                  <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
+                  <td
+                    className={cn(
+                      'hidden sm:table-cell py-2 sm:py-3 px-3 font-bold',
+                      NUMERIC,
+                      NUMERIC_CELL
+                    )}
+                  >
                     {l.margin.toLocaleString()}
                   </td>
-                  <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
-                    {(l.marginPercent * 100).toFixed(2)}%
+                  <td
+                    className={cn(
+                      'py-2 sm:py-3 px-3 font-bold',
+                      NUMERIC,
+                      NUMERIC_CELL
+                    )}
+                  >
+                    {(l.marginPercent * 100).toFixed(1)}%
                   </td>
-                  <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
-                    <WinPercentCell
-                      chance={chances?.get(
-                        normalizeElectorateName(er.electorateName)
-                      )}
+                  <td
+                    className={cn('py-2 sm:py-3 px-3', NUMERIC, NUMERIC_CELL)}
+                  >
+                    <WinPercentValue
+                      percent={chancePercent(chance)}
+                      title={winPercentTitle(chance)}
+                      fallback={
+                        <span
+                          className="text-muted-foreground"
+                          title="No votes counted yet"
+                        >
+                          —
+                        </span>
+                      }
                     />
                   </td>
                 </tr>
@@ -151,39 +191,5 @@ export function ElectorateRacesView({
 
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
-  );
-}
-
-/**
- * The chance the leader holds the seat. A margin of error is a property of a
- * sample, and this is not a sample — it is a count part-way through, so the
- * honest figure is the chance the lead survives the votes still to come.
- *
- * A finished count keeps its number, because the count being complete is not
- * the seat being decided: the special vote is still to come, and it is worth up
- * to 45 points of probability in the closest seats. The tooltip says which
- * stage the count is at, so the same column can carry both without the reader
- * mistaking one for the other — and the same rule, same wording as `Flipped`.
- */
-function WinPercentCell({ chance }: { chance?: SeatChance }) {
-  if (chance?.state === 'counting') {
-    return <span>{Math.round(chance.probability * 100)}%</span>;
-  }
-
-  if (chance?.state === 'complete') {
-    return (
-      <span
-        className="font-bold tabular-nums"
-        title="The ordinary count is complete; this is the chance of holding the seat once the special votes are added"
-      >
-        {Math.round(chance.probability * 100)}%
-      </span>
-    );
-  }
-
-  return (
-    <span className="text-muted-foreground" title="No votes counted yet">
-      &mdash;
-    </span>
   );
 }

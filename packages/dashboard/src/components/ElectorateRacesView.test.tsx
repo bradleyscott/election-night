@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type * as ReactRouter from 'react-router-dom';
 import { BrowserRouter } from 'react-router-dom';
+import { WinPercentProvider } from './WinPercentDrawer.js';
 import { ElectorateRacesView } from './ElectorateRacesView.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { normalizeElectorateName } from '../lib/electorates.js';
@@ -59,7 +60,9 @@ describe('ElectorateRacesView', () => {
   test('table rows are keyboard accessible', () => {
     render(
       <BrowserRouter>
-        <ElectorateRacesView electorates={[baseElectorate]} />
+        <WinPercentProvider>
+          <ElectorateRacesView electorates={[baseElectorate]} />
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
@@ -83,7 +86,9 @@ describe('ElectorateRacesView', () => {
   test('names each candidate’s party beside them', () => {
     render(
       <BrowserRouter>
-        <ElectorateRacesView electorates={[baseElectorate]} />
+        <WinPercentProvider>
+          <ElectorateRacesView electorates={[baseElectorate]} />
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
@@ -91,6 +96,27 @@ describe('ElectorateRacesView', () => {
     // the Flipped table.
     expect(screen.getByText('National Party')).toBeInTheDocument();
     expect(screen.getByText('Labour Party')).toBeInTheDocument();
+  });
+
+  test('calls the votes margin Lead, and leaves it off a phone', () => {
+    render(
+      <BrowserRouter>
+        <WinPercentProvider>
+          <ElectorateRacesView electorates={[baseElectorate]} />
+        </WinPercentProvider>
+      </BrowserRouter>
+    );
+
+    // The column is "Lead" on every screen it appears on, and it does not
+    // appear on a phone, where the percentage carries the comparison and the
+    // raw votes would push the table sideways.
+    const lead = screen.getByText('Lead');
+    expect(lead).toHaveClass('hidden', 'sm:table-cell');
+    expect(screen.queryByText('Lead (votes)')).toBeNull();
+    expect(screen.getByText('1,000').closest('td')).toHaveClass(
+      'hidden',
+      'sm:table-cell'
+    );
   });
 
   test('a finished count keeps its chance, because the specials are still out', () => {
@@ -108,12 +134,14 @@ describe('ElectorateRacesView', () => {
 
     render(
       <BrowserRouter>
-        <ElectorateRacesView
-          electorates={[baseElectorate]}
-          chances={
-            new Map([[normalizeElectorateName('Auckland Central'), complete]])
-          }
-        />
+        <WinPercentProvider>
+          <ElectorateRacesView
+            electorates={[baseElectorate]}
+            chances={
+              new Map([[normalizeElectorateName('Auckland Central'), complete]])
+            }
+          />
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
@@ -127,16 +155,20 @@ describe('ElectorateRacesView', () => {
   test('shows a chance of winning instead of a margin of error', () => {
     render(
       <BrowserRouter>
-        <ElectorateRacesView
-          electorates={[baseElectorate]}
-          chances={
-            new Map([[normalizeElectorateName('Auckland Central'), counting]])
-          }
-        />
+        <WinPercentProvider>
+          <ElectorateRacesView
+            electorates={[baseElectorate]}
+            chances={
+              new Map([[normalizeElectorateName('Auckland Central'), counting]])
+            }
+          />
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Win %')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /how we work out win %/i })
+    ).toBeInTheDocument();
     expect(screen.getByText('44%')).toBeInTheDocument();
     expect(screen.queryByText('MoE')).not.toBeInTheDocument();
     expect(screen.queryByText(/±/)).not.toBeInTheDocument();

@@ -2,7 +2,6 @@ import { ElectorateCountBand } from './ElectorateCountBand.js';
 import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import { PastWinners } from './PastWinners.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
-import { Toggle } from './Toggle.js';
 import type { PollsCloseState } from '../hooks/usePollsClose.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import type {
@@ -11,16 +10,9 @@ import type {
 } from '../lib/history-types.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
-/** The two contests the table can show; the seat is won on the first. */
-const VIEW_OPTIONS: { value: 'candidate' | 'party'; label: string }[] = [
-  { value: 'candidate', label: 'Candidate' },
-  { value: 'party', label: 'Party' },
-];
-
 export function ElectorateDetail({
   result,
   showPartyVote,
-  onTogglePartyVote,
   historyData,
   votingPlaces,
   priorWinners,
@@ -31,7 +23,6 @@ export function ElectorateDetail({
 }: {
   result: ElectorateResult;
   showPartyVote: boolean;
-  onTogglePartyVote: (showPartyVote: boolean) => void;
   historyData: ElectorateHistoryPoint[] | null;
   /** The seat's voting places, for the receipt rug on the count chart. */
   votingPlaces?: { counted: number; total: number; receipts: number[] };
@@ -50,21 +41,12 @@ export function ElectorateDetail({
       className="space-y-3 sm:space-y-4 opacity-0 animate-fade-in-up"
       style={{ animationDelay: '0.2s' }}
     >
-      <div className="flex items-center justify-between">
-        <h2 className="font-display font-bold text-2xl sm:text-3xl tracking-tight">
-          {result.electorateName}
-        </h2>
-        <Toggle
-          options={VIEW_OPTIONS}
-          value={showPartyVote ? 'party' : 'candidate'}
-          onChange={(view) => onTogglePartyVote(view === 'party')}
-        />
-      </div>
-
       {/* One panel, one ordering. The band above the table is the count's own
           state — votes in, the gap, votes out — and the table is the count
           itself with the projection as a column, so a reader can see the two
-          facts disagree on one line instead of reconciling two panels. */}
+          facts disagree on one line instead of reconciling two panels. The
+          seat's name and its Candidate/Party switch live in the page head, so
+          the panel starts with the count rather than repeating the title. */}
       <div className="border overflow-hidden">
         {!showPartyVote && (
           <ElectorateCountBand

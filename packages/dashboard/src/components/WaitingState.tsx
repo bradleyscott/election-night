@@ -12,7 +12,7 @@ const MESSAGES: Record<string, string> = {
   parties: 'Party list standings will update as votes are tallied nationwide.',
   parliament: "Parliament's composition will take shape as votes are counted.",
   candidates:
-    'Likely parliamentarians will be listed here once results begin arriving.',
+    'Every candidate will be listed here once the ballot is published.',
   trends: 'Vote trends will appear once more votes are counted.',
   sidebar: 'Updates will appear as results come in.',
 };

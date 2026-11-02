@@ -2,7 +2,20 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils.js';
 
-export function ElectorateSearch({ names }: { names: string[] }) {
+export function ElectorateSearch({
+  names,
+  autoFocus = false,
+  onSelect,
+  onDismiss,
+}: {
+  names: string[];
+  /** Focus the field as it mounts, for a search opened from a collapsed button. */
+  autoFocus?: boolean;
+  /** Called once a name is chosen, so the page can fold the controls away. */
+  onSelect?: () => void;
+  /** Called on Escape once the list is already closed — the way out of the field. */
+  onDismiss?: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -16,6 +29,10 @@ export function ElectorateSearch({ names }: { names: string[] }) {
   const filtered = query
     ? names.filter((n) => n.toLowerCase().includes(query.toLowerCase()))
     : names;
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     return () => {
@@ -32,10 +49,15 @@ export function ElectorateSearch({ names }: { names: string[] }) {
     navigate(`/electorates/${encodeURIComponent(name)}`);
     close();
     setQuery('');
+    onSelect?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!open) {
+      if (e.key === 'Escape') {
+        onDismiss?.();
+        return;
+      }
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         setOpen(true);
       }
@@ -72,7 +94,7 @@ export function ElectorateSearch({ names }: { names: string[] }) {
       : undefined;
 
   return (
-    <div className="relative w-full sm:w-auto text-sm">
+    <div className="relative flex-1 min-w-[8rem] text-sm">
       <label className="sr-only" htmlFor="electorate-search-input">
         Search electorate
       </label>
@@ -97,7 +119,7 @@ export function ElectorateSearch({ names }: { names: string[] }) {
           timeoutRef.current = setTimeout(() => close(), 200);
         }}
         onKeyDown={handleKeyDown}
-        className="w-full sm:w-56 px-3 py-2 sm:py-1.5 border bg-background font-label text-sm outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
+        className="w-full px-3 py-2 sm:py-1.5 border bg-background font-label text-sm outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
       />
       {open && filtered.length > 0 && (
         <ul

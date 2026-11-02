@@ -182,9 +182,12 @@ export type FeedEvent = {
   type: FeedEventType;
   electorateName: string;
   /**
-   * The seat's chance of being won, when the count is live and a prior exists.
-   * `null` once the ordinary count is complete (a finished count has a margin,
-   * not a probability) and absent on events written before the p(win) model.
+   * The seat's chance of being won. While the count is live this is the full
+   * model number (ordinary count plus specials); once the ordinary count is
+   * complete it is the same number with only the special vote outstanding,
+   * which is what the seat panel and the feed's specials sentence both use.
+   * `null` when the model is still waiting for votes, and absent on events
+   * written before the p(win) model.
    */
   probability?: number | null;
   /**

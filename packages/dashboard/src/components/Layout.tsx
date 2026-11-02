@@ -7,12 +7,14 @@ import Logo from './Logo.js';
 import LiveIndicator from './LiveIndicator.js';
 import ThemeToggle from './ThemeToggle.js';
 import FeedSidebar from './FeedSidebar.js';
+import { CLOSE_CALLS_PATH } from '../lib/routes.js';
 
 const navItems = [
   { to: '/', label: 'Seats' },
+  { to: CLOSE_CALLS_PATH, label: 'Close Calls' },
   { to: '/electorates', label: 'Electorates' },
-  { to: '/close-calls', label: 'Close Calls' },
   { to: '/flipped', label: 'Flipped' },
+  { to: '/candidates', label: 'Candidates' },
   { to: '/feed', label: 'Feed' },
   { to: '/trends', label: 'Trends' },
   { to: '/parties', label: 'Party lists' },
@@ -84,9 +86,12 @@ export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isActive = (to: string) =>
-    location.pathname === to ||
-    (to !== '/' && location.pathname.startsWith(to));
+  // Close Calls is an ordinary page, so its entry is active like any other and
+  // does not need the hash special-casing it had while it was a section.
+  const isActive = (to: string) => {
+    if (to === '/') return location.pathname === '/';
+    return location.pathname === to || location.pathname.startsWith(to);
+  };
 
   const showSidebar = !location.pathname.startsWith('/feed');
   const sidebarElectorateName = useMemo(() => {
@@ -183,7 +188,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <main
         className={cn(
-          'max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8',
+          'max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-4 sm:pt-4 sm:pb-6 lg:pt-5 lg:pb-8',
           showSidebar && 'lg:pr-80'
         )}
       >

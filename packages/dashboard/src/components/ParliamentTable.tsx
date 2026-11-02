@@ -9,7 +9,7 @@ import { partyColor } from '../lib/constants.js';
 import { SortableRow } from './SortableRow.js';
 import { PartyDot } from './PartyDot.js';
 import type { PartyVoteResult } from '@election-night/core/types';
-import { Th, TH_CLASS } from './Table.js';
+import { Th, TR_ROW, NUMERIC, NUMERIC_CELL } from './Table.js';
 
 const touchSensor = PointerSensor.configure({
   activationConstraints(event) {
@@ -62,15 +62,19 @@ export function ParliamentTable({
         <table className="w-full text-base sm:text-lg">
           <thead>
             <tr className="border-b">
-              <Th className="pr-4">Party</Th>
-              <th className={cn(TH_CLASS, 'px-2')}>Party votes</th>
-              <th className={cn(TH_CLASS, 'px-2 hidden sm:table-cell')}>
+              <Th className="pl-0 pr-4">Party</Th>
+              <Th align="right" className="px-2">
+                Party votes
+              </Th>
+              <Th align="right" className="px-2 hidden sm:table-cell">
                 Electorate seats
-              </th>
-              <th className={cn(TH_CLASS, 'px-2 hidden sm:table-cell')}>
+              </Th>
+              <Th align="right" className="px-2 hidden sm:table-cell">
                 List seats
-              </th>
-              <th className={cn(TH_CLASS, 'pl-2')}>Total seats</th>
+              </Th>
+              <Th align="right" className="pl-2">
+                Total seats
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -79,7 +83,7 @@ export function ParliamentTable({
                 return (
                   <tr
                     key={party.candidate}
-                    className="border-b last:border-0 opacity-60"
+                    className={cn(TR_ROW, 'opacity-60')}
                   >
                     <td className="py-2 sm:py-3 pr-4 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
@@ -93,7 +97,13 @@ export function ParliamentTable({
                         </span>
                       </div>
                     </td>
-                    <td className="text-right px-2 tabular-nums font-semibold whitespace-nowrap">
+                    <td
+                      className={cn(
+                        'px-2 font-semibold',
+                        NUMERIC,
+                        NUMERIC_CELL
+                      )}
+                    >
                       <span className="hidden sm:inline">
                         {party.votes.toLocaleString()}{' '}
                       </span>
@@ -101,13 +111,31 @@ export function ParliamentTable({
                         {((party.votes / totalPartyVotes) * 100).toFixed(1)}%
                       </span>
                     </td>
-                    <td className="text-right px-2 tabular-nums font-semibold hidden sm:table-cell">
+                    <td
+                      className={cn(
+                        'px-2 font-semibold hidden sm:table-cell',
+                        NUMERIC,
+                        NUMERIC_CELL
+                      )}
+                    >
                       0
                     </td>
-                    <td className="text-right px-2 tabular-nums font-semibold hidden sm:table-cell">
+                    <td
+                      className={cn(
+                        'px-2 font-semibold hidden sm:table-cell',
+                        NUMERIC,
+                        NUMERIC_CELL
+                      )}
+                    >
                       0
                     </td>
-                    <td className="text-right pl-2 font-extrabold tabular-nums">
+                    <td
+                      className={cn(
+                        'pl-2 font-extrabold',
+                        NUMERIC,
+                        NUMERIC_CELL
+                      )}
+                    >
                       0
                     </td>
                   </tr>

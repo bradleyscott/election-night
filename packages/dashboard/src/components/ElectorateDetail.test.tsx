@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { WinPercentProvider } from './WinPercentDrawer.js';
 import { render, screen } from '@testing-library/react';
 import { ElectorateDetail } from './ElectorateDetail.js';
 import { mockElectorateResult } from '../test/fixtures.js';
@@ -42,17 +45,24 @@ const winners: PriorWinner[] = [
 ];
 
 function renderDetail(showPartyVote: boolean) {
-  return render(
+  return renderWithRouter(
     <ElectorateDetail
       result={mockElectorateResult}
       showPartyVote={showPartyVote}
-      onTogglePartyVote={() => {}}
       historyData={null}
       priorWinners={winners}
       priorUnavailable={false}
       chance={chance}
       updatedAt={new Date()}
     />
+  );
+}
+
+function renderWithRouter(ui: ReactElement) {
+  return render(
+    <MemoryRouter>
+      <WinPercentProvider>{ui}</WinPercentProvider>
+    </MemoryRouter>
   );
 }
 
@@ -71,7 +81,9 @@ describe('ElectorateDetail', () => {
     // as a column, so nothing is printed twice and nothing faces the other way.
     expect(screen.getByText('Counted')).toBeInTheDocument();
     expect(screen.getByText(/about 9,000 votes/)).toBeInTheDocument();
-    expect(screen.getByText('Win %')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /how we work out win %/i })
+    ).toBeInTheDocument();
     expect(
       screen.getByTitle('62% chance of winning the seat')
     ).toBeInTheDocument();
@@ -84,7 +96,9 @@ describe('ElectorateDetail', () => {
     // project; the count's own state would be a different count's.
     renderDetail(true);
 
-    expect(screen.queryByText('Win %')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /how we work out win %/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Still out')).not.toBeInTheDocument();
     expect(screen.queryByText(/Updated just now/)).not.toBeInTheDocument();
   });

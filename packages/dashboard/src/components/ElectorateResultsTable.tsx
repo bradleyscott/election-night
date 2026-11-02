@@ -7,7 +7,16 @@ import type {
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { PartyDot } from './PartyDot.js';
-import { Th, TH_CLASS } from './Table.js';
+import { WinPercentLink } from './WinPercentLink.js';
+import { WinPercentValue } from './WinPercentValue.js';
+import {
+  Th,
+  TH_CLASS,
+  TR_ROW,
+  TR_ROW_HOVER,
+  NUMERIC,
+  NUMERIC_CELL,
+} from './Table.js';
 
 function hasParty(
   v: VotingResults | (VotingResults & WithParty)
@@ -23,8 +32,12 @@ function hasParty(
  * shows e.g. 40% and 30%, and the gap is the rest of the field's chance, which
  * the caption names. The old card printed `1 − p` and so credited the runner-up
  * with the field's chance too.
+ *
+ * Exported because the Candidates page prints the same number in its Win chance
+ * column for every candidate in the seat: one function, so a page cannot quote a
+ * chance the seat panel beside it does not.
  */
-function chanceByCandidate(
+export function chanceByCandidate(
   chance: SeatChance | null | undefined
 ): Record<string, number> | null {
   if (!chance || chance.state === 'waiting') return null;
@@ -83,13 +96,15 @@ export function ElectorateResultsTable({
                 Party
               </th>
             )}
-            <Th align="right" className="whitespace-nowrap">
+            <Th align="right" className="px-2 whitespace-nowrap">
               Votes
             </Th>
-            <Th align="right">%</Th>
+            <Th align="right" className="px-2">
+              %
+            </Th>
             {chances && (
-              <Th align="right" className="whitespace-nowrap">
-                Win %
+              <Th align="right" className="pl-2 pr-3 whitespace-nowrap">
+                <WinPercentLink />
               </Th>
             )}
           </tr>
@@ -102,7 +117,8 @@ export function ElectorateResultsTable({
               <tr
                 key={c.candidate}
                 className={cn(
-                  'border-b last:border-0 transition-colors hover:bg-muted/30',
+                  TR_ROW,
+                  TR_ROW_HOVER,
                   i === 0 ? 'font-bold' : 'font-semibold'
                 )}
               >
@@ -133,33 +149,23 @@ export function ElectorateResultsTable({
                     </td>
                   </>
                 )}
-                <td className="px-2 text-right tabular-nums whitespace-nowrap">
+                <td className={cn('px-2', NUMERIC, NUMERIC_CELL)}>
                   {c.votes.toLocaleString()}
                 </td>
-                <td className="px-2 text-right tabular-nums whitespace-nowrap text-muted-foreground">
+                <td
+                  className={cn(
+                    'px-2 text-muted-foreground',
+                    NUMERIC,
+                    NUMERIC_CELL
+                  )}
+                >
                   {result.votesCounted > 0
                     ? `${((c.votes / result.votesCounted) * 100).toFixed(1)}%`
                     : '—'}
                 </td>
                 {chances && (
                   <td className="py-2 pl-2 pr-3 text-right whitespace-nowrap">
-                    {share === undefined ? (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        —
-                      </span>
-                    ) : (
-                      // The number is the reading. A 56px track under it was
-                      // drawn here first and removed: it cost the candidate name
-                      // enough width to wrap, and at that size a bar cannot show
-                      // the difference between 73% and 71% anyway.
-                      <div
-                        className="font-display text-base font-bold leading-none tabular-nums sm:text-lg"
-                        title={`${Math.round(share * 100)}% chance of winning the seat`}
-                      >
-                        {Math.round(share * 100)}
-                        <span className="text-xs">%</span>
-                      </div>
-                    )}
+                    <WinPercentValue percent={share} variant="feature" />
                   </td>
                 )}
               </tr>

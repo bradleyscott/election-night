@@ -85,6 +85,31 @@ describe('CountedTape', () => {
     expect(ticks).toHaveLength(1);
   });
 
+  it('hides the rug key when no receipt falls inside the scanned range', () => {
+    const { container } = render(
+      <CountedTape
+        {...base}
+        points={points([10, 41])}
+        receipts={[T0 - 30 * MIN, T0 - 20 * MIN, T0 - 10 * MIN]}
+        receiptsLabel="Place reported"
+        note="3 / 3 places"
+      />
+    );
+    // The receipts are real but every one landed before the first scrape, so
+    // nothing is drawn. A key for a rug that is not there says the chart plots
+    // something it does not.
+    expect(screen.queryByText('Place reported')).not.toBeInTheDocument();
+    expect(
+      Array.from(container.querySelectorAll('line')).filter(
+        (line) =>
+          line.getAttribute('stroke') === '#22c55e' &&
+          line.getAttribute('x1') === line.getAttribute('x2')
+      )
+    ).toHaveLength(0);
+    // The count of places is not a plot key, so it stays.
+    expect(screen.getByText('3 / 3 places')).toBeInTheDocument();
+  });
+
   it('labels the axis and the legend in print terms', () => {
     render(
       <CountedTape

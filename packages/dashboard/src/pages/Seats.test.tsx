@@ -5,16 +5,24 @@ import { BrowserRouter } from 'react-router-dom';
 import Seats from './Seats.js';
 import { MockSocketProvider } from '../test/test-utils.js';
 import { mockResults } from '../test/fixtures.js';
+import type { ResultsPayload } from '@election-night/core/types';
+
+function renderSeats(
+  results: ResultsPayload | null = mockResults,
+  connected = true
+) {
+  return render(
+    <BrowserRouter>
+      <MockSocketProvider results={results} connected={connected}>
+        <Seats />
+      </MockSocketProvider>
+    </BrowserRouter>
+  );
+}
 
 describe('Seats page', () => {
   test('renders seat totals when results are available', () => {
-    render(
-      <BrowserRouter>
-        <MockSocketProvider results={mockResults} connected>
-          <Seats />
-        </MockSocketProvider>
-      </BrowserRouter>
-    );
+    renderSeats();
 
     expect(screen.getByText('Total Seats')).toBeInTheDocument();
     expect(screen.getByText('105')).toBeInTheDocument();
@@ -23,13 +31,7 @@ describe('Seats page', () => {
   });
 
   test('shows the votes counted and how far through tonight the count is', () => {
-    render(
-      <BrowserRouter>
-        <MockSocketProvider results={mockResults} connected>
-          <Seats />
-        </MockSocketProvider>
-      </BrowserRouter>
-    );
+    renderSeats();
 
     // 25,000 votes at 55% turnout implies 45,455 enrolled — there is no served
     // cycle here, so no baseline roll to prefer — and the newest cycle's figures
@@ -42,61 +44,21 @@ describe('Seats page', () => {
     expect(screen.queryByText('95.0%')).not.toBeInTheDocument();
   });
 
-  test('shows a seat candidate a chance of winning, not a margin and its error', () => {
-    render(
-      <BrowserRouter>
-        <MockSocketProvider results={mockResults} connected>
-          <Seats />
-        </MockSocketProvider>
-      </BrowserRouter>
-    );
+  test('leaves Close Calls to its own page', () => {
+    renderSeats();
 
-    // The fixture has no prior on file, so the chance is capped at 95% rather
-    // than claimed as a certainty — and the special vote now sits inside the
-    // number, so it lands below the cap. What matters is that the column states
-    // a chance at all: the ± margin-of-error suffix is gone from the table.
-    expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
-    expect(screen.queryByText('100%')).toBeNull();
-    expect(screen.queryByText(/±/)).toBeNull();
-  });
-
-  test('keeps the chance for a finished count, because the specials are still out', () => {
-    // A seat finishes when every one of its places has reported, which is the
-    // fact the model completes on — not when the turnout estimate runs out.
-    const complete = {
-      ...mockResults,
-      electorateResults: mockResults.electorateResults.map((er) => ({
-        ...er,
-        votesCounted: 30_000,
-        percentVotesCast: 0.7,
-        votePercentageCounted: 1,
-      })),
-    };
-
-    const { container } = render(
-      <BrowserRouter>
-        <MockSocketProvider results={complete} connected>
-          <Seats />
-        </MockSocketProvider>
-      </BrowserRouter>
-    );
-
-    // The column sorts on a chance, so it prints one: a finished count keeps the
-    // number and never claims 100%, because the special vote is still to come.
-    expect(screen.getByText('Certainty')).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/%\s*margin/);
-    expect(screen.queryByText('100%')).toBeNull();
-    expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole('heading', { name: 'Close Calls' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Electorate Races' })
+    ).not.toBeInTheDocument();
+    // The candidate table's search box is the cheapest proof it moved away.
+    expect(screen.queryByPlaceholderText(/search candidate/i)).toBeNull();
   });
 
   test('renders waiting state when no results are available', () => {
-    render(
-      <BrowserRouter>
-        <MockSocketProvider results={null} connected={false}>
-          <Seats />
-        </MockSocketProvider>
-      </BrowserRouter>
-    );
+    renderSeats(null, false);
 
     expect(screen.getByText('Awaiting First Results')).toBeInTheDocument();
   });

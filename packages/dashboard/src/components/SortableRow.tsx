@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/react/sortable';
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
+import { NUMERIC, NUMERIC_CELL, TR_ROW } from './Table.js';
 import { PartyDot } from './PartyDot.js';
 import type { PartyVoteResult } from '@election-night/core/types';
 
@@ -29,7 +30,7 @@ export function SortableRow({
       onMouseEnter={() => onHoveredPartyChange(party.candidate)}
       onMouseLeave={() => onHoveredPartyChange(null)}
       className={cn(
-        'border-b last:border-0 transition-colors',
+        TR_ROW,
         isHovered && !isDragging ? 'bg-muted/40' : 'hover:bg-muted/30',
         isDragging && 'opacity-50',
         isDropTarget && !isDragging && 'border-t-2 border-brand'
@@ -45,7 +46,7 @@ export function SortableRow({
           <span className="font-bold truncate min-w-0">{party.candidate}</span>
         </div>
       </td>
-      <td className="text-right px-2 tabular-nums font-semibold whitespace-nowrap">
+      <td className={cn('px-2 font-semibold', NUMERIC, NUMERIC_CELL)}>
         <span className="hidden sm:inline">
           {party.votes.toLocaleString()}{' '}
         </span>
@@ -53,13 +54,25 @@ export function SortableRow({
           {((party.votes / totalPartyVotes) * 100).toFixed(1)}%
         </span>
       </td>
-      <td className="text-right px-2 tabular-nums font-semibold hidden sm:table-cell">
+      <td
+        className={cn(
+          'px-2 font-semibold hidden sm:table-cell',
+          NUMERIC,
+          NUMERIC_CELL
+        )}
+      >
         {party.electorateSeats}
       </td>
-      <td className="text-right px-2 tabular-nums font-semibold hidden sm:table-cell">
+      <td
+        className={cn(
+          'px-2 font-semibold hidden sm:table-cell',
+          NUMERIC,
+          NUMERIC_CELL
+        )}
+      >
         {party.listSeats}
       </td>
-      <td className="text-right pl-2 font-extrabold tabular-nums">
+      <td className={cn('pl-2 font-extrabold', NUMERIC, NUMERIC_CELL)}>
         {party.seats}
       </td>
     </tr>

@@ -191,15 +191,23 @@ export default function Feed() {
                 label={relativeTime(bucket)}
                 time={formatClock(bucket)}
               />
-              {events.map((event, itemIndex) => (
-                <TimelineItem
-                  key={event.id}
-                  dot={feedEventStyle(event.type).dot}
-                  isLast={itemIndex === events.length - 1}
-                >
-                  <EventContent event={event} />
-                </TimelineItem>
-              ))}
+              {events.map((event, itemIndex) => {
+                const lastInGroup = itemIndex === events.length - 1;
+                return (
+                  <TimelineItem
+                    key={event.id}
+                    dot={feedEventStyle(event.type).dot}
+                    isLast={lastInGroup}
+                    // A rule between every event and the next one, including
+                    // across a group boundary, so a reader can see where one
+                    // event ends even when a whole scrape lands at once. The
+                    // feed's last event keeps a clean edge.
+                    divider={!lastInGroup || groupIndex < grouped.length - 1}
+                  >
+                    <EventContent event={event} />
+                  </TimelineItem>
+                );
+              })}
             </div>
           ))
         )}

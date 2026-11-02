@@ -16,8 +16,15 @@ import { useSeatChances } from '../hooks/useSeatChances.js';
 import { usePollsClose } from '../hooks/usePollsClose.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
+import { Toggle } from '../components/Toggle.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import { PageHead, PageWaiting } from '../components/Page.js';
+
+/** The two contests the table can show; the seat is won on the first. */
+const VIEW_OPTIONS: { value: 'candidate' | 'party'; label: string }[] = [
+  { value: 'candidate', label: 'Candidate' },
+  { value: 'party', label: 'Party' },
+];
 
 export default function Electorates() {
   const { name } = useParams();
@@ -95,13 +102,31 @@ export default function Electorates() {
 
   return (
     <div className="space-y-4">
-      <PageHead title="Electorates" />
+      {/* An open seat names the page: the panel below needs no second heading,
+          and the Candidate/Party switch is the head's control rather than a
+          caption on the panel. */}
+      <PageHead
+        title={
+          selectedElectorate ? selectedElectorate.electorateName : 'Electorates'
+        }
+        className="pagehead--control"
+      >
+        {selectedElectorate && (
+          <div className="ml-auto">
+            <Toggle
+              options={VIEW_OPTIONS}
+              value={showPartyVote ? 'party' : 'candidate'}
+              onChange={(view) => setShowPartyVote(view === 'party')}
+            />
+          </div>
+        )}
+      </PageHead>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div
           className={cn(
             selectedElectorate ? '' : 'lg:col-span-2',
-            'border overflow-hidden opacity-0 animate-fade-in-up'
+            'relative border overflow-hidden opacity-0 animate-fade-in-up'
           )}
           style={{ animationDelay: '0.1s' }}
         >
@@ -109,7 +134,7 @@ export default function Electorates() {
             names={electorateNames}
             showMaori={showMaori}
             onShowMaoriChange={setShowMaori}
-            showClear={!!selectedElectorate}
+            selectedName={selectedElectorate?.electorateName ?? null}
           />
           <ElectorateMap
             electorates={electorates}
@@ -126,7 +151,6 @@ export default function Electorates() {
           <ElectorateDetail
             result={selectedElectorate}
             showPartyVote={showPartyVote}
-            onTogglePartyVote={setShowPartyVote}
             historyData={historyData}
             votingPlaces={votingPlaces}
             priorWinners={priorLoading ? undefined : priorWinners}

@@ -112,6 +112,19 @@ describe('buildFeedEvents with a chance lookup', () => {
     expect(text).not.toMatch(/MoE|margin of error|±/i);
   });
 
+  it('leaves the figures row to print the count, margin and chance', () => {
+    // The feed prints the commentary above a row that already carries the seat
+    // name, 60% counted, the 100-vote lead and the 91% chance, so the sentence
+    // only adds what that row cannot: who leads and how much is still to come.
+    const events = buildFeedEvents([first], [second], crossing);
+    const commentary = events[0]!.commentary;
+
+    expect(commentary).toBe(
+      'Alice (A) is now likely to win, with about 3,000 votes still to come.'
+    );
+    expect(commentary).not.toMatch(/60%|91%|100 votes|Testville/);
+  });
+
   it('does not call a seat below the threshold and says it is too close', () => {
     const events = buildFeedEvents([first], [second], () =>
       countingChance({ probability: 0.72 })
@@ -133,7 +146,7 @@ describe('buildFeedEvents with a chance lookup', () => {
     expect(events[0]!.summary).toContain('fallen to');
   });
 
-  it('states a finished count as a margin, never a probability', () => {
+  it('states a finished count as a margin, with the specials chance attached', () => {
     const complete = makeResult({
       electorateName: 'Testville',
       votesCounted: 9000,
@@ -152,7 +165,10 @@ describe('buildFeedEvents with a chance lookup', () => {
     }));
 
     expect(events[0]!.type).toBe('count_completed');
-    expect(events[0]!.probability).toBeNull();
+    // The copy states the margin, but the event still carries the seat's
+    // chance (the ordinary count is settled, the specials are not), so the
+    // feed's figures row can print it beside the margin.
+    expect(events[0]!.probability).toBeCloseTo(0.63);
     expect(events[0]!.summary).toContain('all ordinary votes counted');
     expect(events[0]!.commentary).toContain('Special votes');
     // The volume is named, so the reader can check the comparison themselves,

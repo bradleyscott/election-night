@@ -9,6 +9,32 @@ to it. Amend intentionally — the file is the rule.
 - Macrostructure · Workbench (app shell): masthead + data views + live rail
 - Theme · catalog: Newsprint (printed edition — grey-white stock, press ink,
   masthead red; not warm book-paper browns)
+- Section mastheads · a section big enough to want one inside a page — Close
+  Calls inside Seats — uses `.pagehead.pagehead--section`: the page head's rule
+  and display size (Playfair, `clamp(1.75rem, 3.5vw, 2.25rem)`, −0.015em) set as
+  an `h2`, one level down in the document outline. It reads as its own front
+  page without competing with the `h1`, and it is the only place a heading below
+  the page head takes that size: everything else under a page head is a subhead.
+- Page-head spacing · the shell's top padding (`pt-3 sm:pt-4 lg:pt-5`) plus
+  `.pagehead`'s `0.5rem` top padding is the whole distance from the nav rule to
+  the title, about 20–28px. The head is the first thing in every page, so a
+  second gap there is only blank paper, not breathing room.
+- Page-head control · a page whose `h1` carries a boxed control (an open
+  electorate's Candidate/Party switch) uses `.pagehead.pagehead--control`,
+  which centres the control on the title's line so it reads level with the word
+  and the rule still spans the page. The default baseline alignment hangs a
+  44px target through the rule, and a flex row around a narrowed head cuts the
+  rule short.
+- Map controls float, not the row · the electorates map's search and roll switch
+  sit in a hairline row in the map card until a seat is open, then fold to one
+  `Search` button on a paper panel floating over the map's top right. A floating
+  control is one the reader has already acted on and can put away; the landing
+  state keeps the row. The panel is anchored right and stops short of the
+  top-left corner, which belongs to the zoom buttons, so opening the search
+  never covers them. It closes on Escape, on choosing a seat, and on a click
+  anywhere else, so it never covers the map the reader went back to. There is no
+  Clear button in either state: the nav entry, the back button and picking
+  another seat already clear the selection.
 - Axes · grey-white newsprint / high-contrast serif display / masthead red
 - Colour mode · manual toggle, persisted in `localStorage`
   (`election-night:theme`). **Light is the default** and the OS
@@ -73,6 +99,14 @@ to it. Amend intentionally — the file is the rule.
   or a kicker stands inside a row: a 0.625rem chip beside 1rem cells reads as
   fine print, not as a marker. Anything else set inside a table follows the
   same rule, so no row is half body type and half footnote.
+- **Table rows and figures share one shell** — every data table uses the same
+  hairline row rule and `hover:bg-muted/30` tint, numeric cells are mono and
+  right-aligned (`TR_ROW`, `NUMERIC` and `NUMERIC_CELL` in
+  `components/Table.tsx`), and the chance of holding a seat is printed by
+  `WinPercentValue` everywhere. The seat panel's larger Playfair number is that
+  component's `feature` variant, not a second style. Every table is framed:
+  flush tables wear `TABLE_FRAME`, while the Parliament and electorate tables
+  sit inside their panel's border rather than adding a second one.
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

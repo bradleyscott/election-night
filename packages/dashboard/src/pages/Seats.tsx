@@ -1,19 +1,12 @@
-import { useMemo, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
-import { partyColor } from '../lib/constants.js';
 import { countProgress } from '../lib/seat-chance.js';
-import { normalizeElectorateName } from '../lib/electorates.js';
-import type { SeatChance } from '@election-night/core/seat-probability';
 import { useSeatChances } from '../hooks/useSeatChances.js';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber.js';
 import { cn } from '../lib/utils.js';
 import ParliamentSeats from '../components/ParliamentSeats.js';
 import { WaitingState } from '../components/WaitingState.js';
 import type { PartyList, WithAdjustedRank } from '@election-night/core/types';
-import { PartyDot } from '../components/PartyDot.js';
 import { PageHead } from '../components/Page.js';
-import { Th, TH_CLASS } from '../components/Table.js';
 
 function AnimatedStat({
   label,
@@ -47,255 +40,6 @@ function AnimatedStat({
   );
 }
 
-/**
- * What the Certainty column means for a seat: the chance this candidate holds
- * it, not how far the lead is from a sampling error.
- *
- * A finished count keeps the same number, because the ordinary count finishing
- * is not the seat being decided — the special vote is still to come. It used to
- * switch to the margin as a percentage, which gave one column two units: a seat
- * sorted on its chance and printed its margin, so a 55% seat could read
- * "1.1% margin" beside a live seat reading "90%".
- */
-function ElectorateCertainty({ chance }: { chance: SeatChance | null }) {
-  if (!chance || chance.state === 'waiting') {
-    return <span className="text-muted-foreground">—</span>;
-  }
-
-  // A complete count still has a chance, and this column sorts by it — so it has
-  // to print it. It used to switch to the margin as a percentage, which meant
-  // clicking "Certainty" sorted by one number while the cell showed another.
-  return <span>{Math.round(chance.probability * 100)}%</span>;
-}
-
-function SuccessfulCandidates({
-  electorateResults,
-  partyLists,
-  chances,
-}: {
-  electorateResults: {
-    electorateName: string;
-    leaders: {
-      leadingCandidate: string;
-      leadingCandidateParty: string | undefined;
-      marginPercent: number;
-    };
-  }[];
-  partyLists: (PartyList & WithAdjustedRank)[];
-  chances?: Map<string, SeatChance>;
-}) {
-  type SortKey = 'name' | 'party' | 'certainty';
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortDesc, setSortDesc] = useState(false);
-  const [search, setSearch] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const candidates = useMemo(() => {
-    const winnerNames = new Set(
-      electorateResults.map((e) => e.leaders.leadingCandidate)
-    );
-
-    const list: {
-      name: string;
-      party: string;
-      electorateName: string | undefined;
-      certainty: number;
-      chance: SeatChance | null;
-      marginPercent: number | null;
-      isElectorate: boolean;
-    }[] = [];
-
-    for (const er of electorateResults) {
-      const chance =
-        chances?.get(normalizeElectorateName(er.electorateName)) ?? null;
-      list.push({
-        name: er.leaders.leadingCandidate,
-        party: er.leaders.leadingCandidateParty ?? '',
-        electorateName: er.electorateName,
-        // The chance of winning the seat, which includes the special vote — so
-        // a finished count is not automatically certain, and sorting it as if it
-        // were would put a 57% seat above a live one at 90%.
-        certainty:
-          chance?.state === 'counting' || chance?.state === 'complete'
-            ? chance.probability
-            : 0,
-        chance,
-        marginPercent: er.leaders.marginPercent ?? null,
-        isElectorate: true,
-      });
-    }
-
-    for (const pl of partyLists) {
-      if (pl.distanceFromCut >= 0 && !winnerNames.has(pl.candidate)) {
-        list.push({
-          name: pl.candidate,
-          party: pl.party,
-          electorateName: undefined,
-          certainty: pl.distanceFromCut,
-          chance: null,
-          marginPercent: null,
-          isElectorate: false,
-        });
-      }
-    }
-
-    const q = search.toLowerCase().trim();
-    const filtered = q
-      ? list.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            c.electorateName?.toLowerCase().includes(q)
-        )
-      : list;
-
-    filtered.sort((a, b) => {
-      let cmp: number;
-      if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
-      else if (sortKey === 'party') cmp = a.party.localeCompare(b.party);
-      else cmp = a.certainty - b.certainty;
-      return sortDesc ? -cmp : cmp;
-    });
-
-    return filtered;
-  }, [electorateResults, partyLists, sortKey, sortDesc, search]);
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDesc(!sortDesc);
-    } else {
-      setSortKey(key);
-      setSortDesc(key === 'certainty');
-    }
-  }
-
-  function SortIndicator({ column }: { column: SortKey }) {
-    if (sortKey !== column) return null;
-    return <span className="ml-1 text-sm">{sortDesc ? '↓' : '↑'}</span>;
-  }
-
-  if (!electorateResults.length && !partyLists.length) {
-    return <WaitingState variant="compact" context="candidates" />;
-  }
-
-  return (
-    <div>
-      <div className="relative mb-3 sm:mb-4">
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Search candidate or electorate…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 sm:py-1.5 border bg-background text-sm font-label outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
-        />
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-base">
-          <thead>
-            <tr className="border-b border-border">
-              <th
-                className={cn(
-                  TH_CLASS,
-                  'text-left py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
-                )}
-                onClick={() => toggleSort('name')}
-              >
-                Candidate
-                <SortIndicator column="name" />
-              </th>
-              <th
-                className={cn(
-                  TH_CLASS,
-                  'hidden sm:table-cell text-left py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
-                )}
-                onClick={() => toggleSort('party')}
-              >
-                Party
-                <SortIndicator column="party" />
-              </th>
-              <Th>Seat</Th>
-              <th
-                className={cn(
-                  TH_CLASS,
-                  'hidden sm:table-cell text-right py-2 sm:py-3 px-3 cursor-pointer select-none hover:text-foreground transition-colors'
-                )}
-                onClick={() => toggleSort('certainty')}
-              >
-                Certainty
-                <SortIndicator column="certainty" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {candidates.map((c, i) => (
-              <tr
-                key={c.name}
-                className={cn(
-                  'border-b border-border last:border-0 transition-colors hover:bg-muted/30',
-                  'opacity-0 animate-fade-in-up'
-                )}
-                style={{ animationDelay: `${i * 0.02}s` }}
-              >
-                <td className="py-2 sm:py-3 px-3 font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <PartyDot
-                      color={partyColor(c.party)}
-                      className="sm:hidden"
-                    />
-                    {c.name}
-                  </div>
-                </td>
-                <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
-                  <div className="flex items-center gap-1.5">
-                    <PartyDot color={partyColor(c.party)} />
-                    <span>{c.party || 'Independent'}</span>
-                  </div>
-                </td>
-                <td className="py-2 sm:py-3 px-3">
-                  {c.isElectorate ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="hidden sm:inline chip-print chip-print--ink chip-print--table">
-                        Electorate
-                      </span>
-                      <Link
-                        to={`/electorates/${encodeURIComponent(c.electorateName ?? '')}`}
-                        className="text-muted-foreground hover:text-foreground hover:underline transition-colors"
-                      >
-                        {c.electorateName}
-                      </Link>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <Link
-                        to={`/parties?party=${encodeURIComponent(c.party)}`}
-                        className="chip-print chip-print--red chip-print--table hover:bg-muted/40 transition-colors"
-                      >
-                        List
-                      </Link>
-                      <span className="sm:hidden font-mono text-sm text-foreground tabular-nums">
-                        +{Math.round(c.certainty)}
-                      </span>
-                    </span>
-                  )}
-                </td>
-                <td className="hidden sm:table-cell py-2 sm:py-3 px-3 text-right font-mono tabular-nums">
-                  {c.isElectorate ? (
-                    <ElectorateCertainty chance={c.chance} />
-                  ) : (
-                    <span className="text-foreground">
-                      +{Math.round(c.certainty)} from cut
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 export default function Seats() {
   const { results } = useResults();
 
@@ -307,8 +51,8 @@ export default function Seats() {
   const partiesInParliament = sorted.filter((p) => p.seats > 0).length;
 
   const electorateResults = results?.electorateResults ?? [];
-  // The chance of winning each seat, computed once for the whole table so a
-  // row's number and the seat page's number come from the same call.
+  // The chance of winning each seat, computed once for the whole page so the
+  // parliament grid and the seat page's number all come from the same call.
   const { electionYear, chances } = useSeatChances(electorateResults);
 
   // Counted votes and how far through the night that is. The denominator is
@@ -371,23 +115,6 @@ export default function Seats() {
                 (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
               }
               chances={chances}
-            />
-          </div>
-
-          <div
-            className={cn(
-              'border border-border p-4 sm:p-6 opacity-0 animate-fade-in-up stagger-6'
-            )}
-          >
-            <h2 className="font-display text-lg sm:text-xl font-bold mb-4 sm:mb-5 tracking-tight">
-              Likely Parliamentarians
-            </h2>
-            <SuccessfulCandidates
-              chances={chances}
-              electorateResults={results?.electorateResults ?? []}
-              partyLists={
-                (results?.partyLists ?? []) as (PartyList & WithAdjustedRank)[]
-              }
             />
           </div>
         </>

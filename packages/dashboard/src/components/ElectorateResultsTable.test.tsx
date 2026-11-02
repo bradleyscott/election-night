@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { WinPercentProvider } from './WinPercentDrawer.js';
 import { render, screen } from '@testing-library/react';
 import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
@@ -62,9 +65,17 @@ const counting: SeatChance = {
   provisionalPrior: false,
 };
 
+function renderWithRouter(ui: ReactElement) {
+  return render(
+    <MemoryRouter>
+      <WinPercentProvider>{ui}</WinPercentProvider>
+    </MemoryRouter>
+  );
+}
+
 describe('ElectorateResultsTable', () => {
   test('shows an em-dash instead of NaN when no votes are counted', () => {
-    render(
+    renderWithRouter(
       <ElectorateResultsTable result={baseResult} showPartyVote={false} />
     );
 
@@ -75,21 +86,25 @@ describe('ElectorateResultsTable', () => {
   });
 
   test('shows an em-dash for party votes when no votes are counted', () => {
-    render(<ElectorateResultsTable result={baseResult} showPartyVote={true} />);
+    renderWithRouter(
+      <ElectorateResultsTable result={baseResult} showPartyVote={true} />
+    );
 
     expect(screen.queryByText('NaN')).not.toBeInTheDocument();
     expect(screen.getAllByText('—')).toHaveLength(baseResult.partyVotes.length);
   });
 
   test('shows vote percentages once votes are counted', () => {
-    render(<ElectorateResultsTable result={counted} showPartyVote={false} />);
+    renderWithRouter(
+      <ElectorateResultsTable result={counted} showPartyVote={false} />
+    );
 
     expect(screen.getByText('75.0%')).toBeInTheDocument();
     expect(screen.getByText('25.0%')).toBeInTheDocument();
   });
 
   test('carries the chance as a column, ordered by votes', () => {
-    render(
+    renderWithRouter(
       <ElectorateResultsTable
         result={counted}
         showPartyVote={false}
@@ -97,7 +112,9 @@ describe('ElectorateResultsTable', () => {
       />
     );
 
-    expect(screen.getByText('Win %')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /how we work out win %/i })
+    ).toBeInTheDocument();
     expect(
       screen.getByTitle('54% chance of winning the seat')
     ).toBeInTheDocument();
@@ -118,7 +135,7 @@ describe('ElectorateResultsTable', () => {
       runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 250 },
       probability: 0.31,
     };
-    render(
+    renderWithRouter(
       <ElectorateResultsTable
         result={counted}
         showPartyVote={false}
@@ -151,7 +168,7 @@ describe('ElectorateResultsTable', () => {
       ],
     } as ElectorateResults & WithLeaders;
 
-    render(
+    renderWithRouter(
       <ElectorateResultsTable
         result={threeWay}
         showPartyVote={false}
@@ -172,7 +189,7 @@ describe('ElectorateResultsTable', () => {
   test('shows no Win % column before a vote is counted', () => {
     // A column of dashes before the first result is noise: there is no count
     // for a projection to be about.
-    render(
+    renderWithRouter(
       <ElectorateResultsTable
         result={baseResult}
         showPartyVote={false}
@@ -180,13 +197,15 @@ describe('ElectorateResultsTable', () => {
       />
     );
 
-    expect(screen.queryByText('Win %')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /how we work out win %/i })
+    ).not.toBeInTheDocument();
   });
 
   test('shows no Win % column in party view', () => {
     // A party can contest the party vote in a seat it nominates no candidate
     // for, so a seat's chance of changing hands is undefined here.
-    render(
+    renderWithRouter(
       <ElectorateResultsTable
         result={counted}
         showPartyVote={true}
@@ -194,7 +213,9 @@ describe('ElectorateResultsTable', () => {
       />
     );
 
-    expect(screen.queryByText('Win %')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /how we work out win %/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByTitle(/chance of winning the seat/)
     ).not.toBeInTheDocument();

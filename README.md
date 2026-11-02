@@ -13,7 +13,8 @@ This started as a project for a 2023 election night party — the goal was to av
   - A masthead countdown to polls close (7:00pm on election day), which becomes `Polls closed · counting` on the night
   - Parliament seat grid and party vote breakdown
   - Electorate list with map, search, and per-electorate detail pages
-  - "Close Calls" view
+  - Close Calls page — the electorate races and party list cut lines, with its own menu entry
+  - Candidates page — every candidate in the election, every seat's whole field plus every name on every party list, searchable by name, party or electorate
   - "Flipped" view — seats held by one party last election that a different party is leading now, with the previous holder's margin of victory ([notes](docs/prior-election-results.md))
   - Past winners per electorate, back to the oldest archived cycle
   - Live feed / commentary timeline

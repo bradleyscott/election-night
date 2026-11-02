@@ -93,13 +93,6 @@ export function CountedTape({
   }, []);
 
   const top = yTicks[yTicks.length - 1] ?? 1;
-  const hasRug = Boolean(receipts && receipts.length > 0);
-  const plotTop = PAD.top;
-  const plotBottom = height - PAD.bottom - (hasRug ? RUG_HEIGHT : 0);
-  const plotLeft = PAD.left;
-  const plotRight = Math.max(plotLeft + 1, width - PAD.right);
-  const plotWidth = plotRight - plotLeft;
-  const plotHeight = Math.max(1, plotBottom - plotTop);
 
   const domain = useMemo(() => {
     // The axis is the series' own span: a receipt that landed after the last
@@ -110,6 +103,24 @@ export function CountedTape({
     const to = points[points.length - 1]!.t;
     return { from, to: to > from ? to : from + 60_000 };
   }, [points]);
+
+  // The receipts that will actually be drawn. A place stamped before the first
+  // scrape leaves no mark, which is common: counting starts before the seat's
+  // first stored snapshot, so a seat that reported early has every receipt on
+  // the near side of the window. Count the drawn ticks rather than the receipts
+  // handed in, so the legend cannot key a rug the chart never draws.
+  const rugTicks = useMemo(() => {
+    if (!domain || !receipts || receipts.length === 0) return [];
+    return receipts.filter((t) => t >= domain.from && t <= domain.to);
+  }, [receipts, domain]);
+
+  const hasRug = rugTicks.length > 0;
+  const plotTop = PAD.top;
+  const plotBottom = height - PAD.bottom - (hasRug ? RUG_HEIGHT : 0);
+  const plotLeft = PAD.left;
+  const plotRight = Math.max(plotLeft + 1, width - PAD.right);
+  const plotWidth = plotRight - plotLeft;
+  const plotHeight = Math.max(1, plotBottom - plotTop);
 
   const x = useCallback(
     (t: number) =>
@@ -257,20 +268,18 @@ export function CountedTape({
           />
 
           {hasRug &&
-            receipts!
-              .filter((t) => t >= domain.from && t <= domain.to)
-              .map((t) => (
-                <line
-                  key={`rug-${t}`}
-                  x1={x(t)}
-                  x2={x(t)}
-                  y1={plotBottom + 2}
-                  y2={plotBottom + 2 + RUG_HEIGHT - 2}
-                  stroke={COUNTED_COLOR}
-                  strokeWidth={1.2}
-                  opacity={0.8}
-                />
-              ))}
+            rugTicks.map((t, i) => (
+              <line
+                key={`rug-${i}`}
+                x1={x(t)}
+                x2={x(t)}
+                y1={plotBottom + 2}
+                y2={plotBottom + 2 + RUG_HEIGHT - 2}
+                stroke={COUNTED_COLOR}
+                strokeWidth={1.2}
+                opacity={0.8}
+              />
+            ))}
 
           {hover && hovered && (
             <g>

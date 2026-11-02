@@ -1,0 +1,1822 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Win % &middot; one explainer, and how the number is made</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Crimson+Pro:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>*, ::before, ::after {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+::backdrop {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+/*
+! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+*/
+
+/*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  /* 1 */
+  border-width: 0;
+  /* 2 */
+  border-style: solid;
+  /* 2 */
+  border-color: #e5e7eb;
+  /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: '';
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5;
+  /* 1 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+  -moz-tab-size: 4;
+  /* 3 */
+  -o-tab-size: 4;
+     tab-size: 4;
+  /* 3 */
+  font-family: "Crimson Pro", Georgia, serif;
+  /* 4 */
+  font-feature-settings: normal;
+  /* 5 */
+  font-variation-settings: normal;
+  /* 6 */
+  -webkit-tap-highlight-color: transparent;
+  /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0;
+  /* 1 */
+  line-height: inherit;
+  /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0;
+  /* 1 */
+  color: inherit;
+  /* 2 */
+  border-top-width: 1px;
+  /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+          text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  /* 1 */
+  font-feature-settings: normal;
+  /* 2 */
+  font-variation-settings: normal;
+  /* 3 */
+  font-size: 1em;
+  /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0;
+  /* 1 */
+  border-color: inherit;
+  /* 2 */
+  border-collapse: collapse;
+  /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-feature-settings: inherit;
+  /* 1 */
+  font-variation-settings: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 1 */
+  font-weight: inherit;
+  /* 1 */
+  line-height: inherit;
+  /* 1 */
+  letter-spacing: inherit;
+  /* 1 */
+  color: inherit;
+  /* 1 */
+  margin: 0;
+  /* 2 */
+  padding: 0;
+  /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button;
+  /* 1 */
+  background-color: transparent;
+  /* 2 */
+  background-image: none;
+  /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type='search'] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  outline-offset: -2px;
+  /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  /* 1 */
+  font: inherit;
+  /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::-moz-placeholder, textarea::-moz-placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  /* 1 */
+  vertical-align: middle;
+  /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}
+
+:root {
+  /* newsprint stock — near-white, faint warm cast */
+  color-scheme: light;
+  --background: 60 9% 94%;
+  --foreground: 40 6% 13%;
+  --card: 60 9% 94%;
+  --card-foreground: 40 6% 13%;
+  --popover: 60 12% 97%;
+  --popover-foreground: 40 6% 13%;
+  --primary: 14 55% 38%;
+  --primary-foreground: 60 10% 97%;
+  --secondary: 60 8% 90%;
+  --secondary-foreground: 40 6% 20%;
+  --muted: 60 8% 90%;
+  --muted-foreground: 45 6% 37%;
+  --accent: 60 8% 90%;
+  --accent-foreground: 40 6% 20%;
+  --destructive: 0 72% 42%;
+  --destructive-foreground: 60 10% 97%;
+  --border: 50 5% 80%;
+  --input: 50 5% 80%;
+  --ring: 14 55% 38%;
+  --radius: 0px;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  overflow-x: clip;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  overflow-x: clip;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* faint paper grain — the medium is stock, not screen */
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+
+::-moz-selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.22);
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+    *::before,
+    *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}
+
+.fixed {
+  position: fixed;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-5 {
+  margin-bottom: 1.25rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mt-1\.5 {
+  margin-top: 0.375rem;
+}
+
+.mt-10 {
+  margin-top: 2.5rem;
+}
+
+.mt-12 {
+  margin-top: 3rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mt-5 {
+  margin-top: 1.25rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+.mt-7 {
+  margin-top: 1.75rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+.block {
+  display: block;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+.flex {
+  display: flex;
+}
+
+.inline-flex {
+  display: inline-flex;
+}
+
+.table {
+  display: table;
+}
+
+.grid {
+  display: grid;
+}
+
+.hidden {
+  display: none;
+}
+
+.h-2 {
+  height: 0.5rem;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.w-2 {
+  width: 0.5rem;
+}
+
+.w-\[1120px\] {
+  width: 1120px;
+}
+
+.w-\[1400px\] {
+  width: 1400px;
+}
+
+.w-\[44px\] {
+  width: 44px;
+}
+
+.w-\[700px\] {
+  width: 700px;
+}
+
+.w-\[860px\] {
+  width: 860px;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.min-w-0 {
+  min-width: 0px;
+}
+
+.max-w-5xl {
+  max-width: 64rem;
+}
+
+.max-w-\[420px\] {
+  max-width: 420px;
+}
+
+.max-w-\[46ch\] {
+  max-width: 46ch;
+}
+
+.max-w-\[64ch\] {
+  max-width: 64ch;
+}
+
+.max-w-\[700px\] {
+  max-width: 700px;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.flex-none {
+  flex: none;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-\[140px_1fr\] {
+  grid-template-columns: 140px 1fr;
+}
+
+.grid-cols-\[260px_1fr\] {
+  grid-template-columns: 260px 1fr;
+}
+
+.grid-cols-\[26px_1fr_300px\] {
+  grid-template-columns: 26px 1fr 300px;
+}
+
+.grid-cols-\[26px_1fr_340px\] {
+  grid-template-columns: 26px 1fr 340px;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-baseline {
+  align-items: baseline;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.gap-1\.5 {
+  gap: 0.375rem;
+}
+
+.gap-10 {
+  gap: 2.5rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-5 {
+  gap: 1.25rem;
+}
+
+.gap-6 {
+  gap: 1.5rem;
+}
+
+.gap-8 {
+  gap: 2rem;
+}
+
+.gap-x-12 {
+  -moz-column-gap: 3rem;
+       column-gap: 3rem;
+}
+
+.gap-x-3 {
+  -moz-column-gap: 0.75rem;
+       column-gap: 0.75rem;
+}
+
+.gap-x-5 {
+  -moz-column-gap: 1.25rem;
+       column-gap: 1.25rem;
+}
+
+.gap-y-1 {
+  row-gap: 0.25rem;
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.border {
+  border-width: 1px;
+}
+
+.border-y {
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.border-b {
+  border-bottom-width: 1px;
+}
+
+.border-r {
+  border-right-width: 1px;
+}
+
+.border-t {
+  border-top-width: 1px;
+}
+
+.bg-background {
+  background-color: hsl(var(--background));
+}
+
+.bg-foreground {
+  background-color: hsl(var(--foreground));
+}
+
+.bg-muted\/30 {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.px-8 {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.py-1\.5 {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.py-10 {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.py-2\.5 {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.py-5 {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.pb-8 {
+  padding-bottom: 2rem;
+}
+
+.pl-2 {
+  padding-left: 0.5rem;
+}
+
+.pr-2 {
+  padding-right: 0.5rem;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+.pt-2 {
+  padding-top: 0.5rem;
+}
+
+.pt-3 {
+  padding-top: 0.75rem;
+}
+
+.pt-5 {
+  padding-top: 1.25rem;
+}
+
+.pt-6 {
+  padding-top: 1.5rem;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.font-display {
+  font-family: "Playfair Display", Georgia, serif;
+}
+
+.font-label {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.font-sans {
+  font-family: "Crimson Pro", Georgia, serif;
+}
+
+.text-\[0\.92em\] {
+  font-size: 0.92em;
+}
+
+.text-\[10\.5px\] {
+  font-size: 10.5px;
+}
+
+.text-\[10px\] {
+  font-size: 10px;
+}
+
+.text-\[11\.5px\] {
+  font-size: 11.5px;
+}
+
+.text-\[11px\] {
+  font-size: 11px;
+}
+
+.text-\[12\.5px\] {
+  font-size: 12.5px;
+}
+
+.text-\[12px\] {
+  font-size: 12px;
+}
+
+.text-\[13px\] {
+  font-size: 13px;
+}
+
+.text-\[14\.5px\] {
+  font-size: 14.5px;
+}
+
+.text-\[14px\] {
+  font-size: 14px;
+}
+
+.text-\[15px\] {
+  font-size: 15px;
+}
+
+.text-\[16px\] {
+  font-size: 16px;
+}
+
+.text-\[20px\] {
+  font-size: 20px;
+}
+
+.text-\[22px\] {
+  font-size: 22px;
+}
+
+.text-\[9\.5px\] {
+  font-size: 9.5px;
+}
+
+.text-\[9px\] {
+  font-size: 9px;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.leading-none {
+  line-height: 1;
+}
+
+.leading-relaxed {
+  line-height: 1.625;
+}
+
+.leading-snug {
+  line-height: 1.375;
+}
+
+.leading-tight {
+  line-height: 1.25;
+}
+
+.tracking-wide {
+  letter-spacing: 0.025em;
+}
+
+.text-foreground {
+  color: hsl(var(--foreground));
+}
+
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+.underline {
+  text-decoration-line: underline;
+}
+
+.decoration-border {
+  text-decoration-color: hsl(var(--border));
+}
+
+.underline-offset-2 {
+  text-underline-offset: 2px;
+}
+
+/* print chrome */
+
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-label {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-mono,
+  .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.kicker {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* the same, for a label that stands inside a data table (the coalition
+     footer) and has to hold its own against 1rem rows */
+
+/* page header: double rule, broadsheet style */
+
+.pagehead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 1.25rem 0 0.5rem;
+  margin-bottom: 0;
+  border-bottom: 2px solid hsl(var(--foreground));
+}
+
+.pagehead h1 {
+  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  letter-spacing: -0.015em;
+}
+
+/* red masthead accents — the one print accent */
+
+/* retired gradient chrome — now solid print red/paper so no call-site breaks */
+
+/* hairline panel (replaces card + shadow) */
+
+/* stat strip — hairline grid with column + row rules */
+
+/* chips: square, hairline */
+
+/* A chip inside a data table sits beside 1rem body type, where the
+     standalone 0.625rem reads as fine print — the same reason the tables
+     themselves run a step larger. A modifier rather than a Tailwind
+     `text-sm` at the call site: custom utilities are emitted after the
+     generated ones, so `.chip-print`'s own size would win. */
+
+/* the share of a vote still to come: a hatch rather than an empty channel,
+     so "not counted yet" reads as a state and not as missing data */
+
+.hatch-outstanding {
+  background-image: repeating-linear-gradient(
+      45deg,
+      hsl(var(--border)) 0 2px,
+      transparent 2px 5px
+    );
+}
+
+/* voting place marks: shape = where the place stands, fill = counted.
+     Solid for a count received, outlined while outstanding, and a halo in the
+     page colour so a mark reads against a party-coloured fill either way. */
+
+/* tooltip: hairline panel, no arrow, two lines of address then the status */
+
+/* quiet motion */
+
+/* ────────────────────────────────────────────────────────────
+   Hallmark · genre: editorial · macrostructure: Workbench (app shell) ·
+   theme: Newsprint (printed edition) · nav: N6 Newspaper masthead ·
+   footer: Ft1 Mast-headed · designed-as-app · design.md ·
+   pre-emit critique: P5 H4 E5 S5 R4 V5
+   ------------------------------------------------------------ */
+
+/* ── flat print: cards are hairlines, shadows are off ───────── */
+
+.shadow-sm,
+.shadow,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl,
+.hover\:shadow-sm:hover,
+.hover\:shadow-md:hover,
+.hover\:shadow-lg:hover {
+  box-shadow: none !important;
+}
+
+/* ── Leaflet: paper map, serif popups ──────────────────────── */
+
+.leaflet-container {
+  background: hsl(var(--background));
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+
+/* warm the OSM tiles toward newsprint stock */
+
+.leaflet-tile {
+  filter: saturate(0.78) sepia(0.14) brightness(1.02) contrast(0.97);
+}
+
+.dark .leaflet-tile {
+  filter: grayscale(0.25) sepia(0.2) brightness(0.72) contrast(1.05);
+}
+
+.leaflet-tooltip.electorate-label {
+  background: none;
+  border: none;
+  box-shadow: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: hsl(var(--foreground));
+  text-shadow:
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background));
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: none;
+  font-family: 'Crimson Pro', Georgia, serif;
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  line-height: 1.5;
+}
+
+.leaflet-popup-tip {
+  background: hsl(var(--popover));
+  box-shadow: none;
+}
+
+.leaflet-popup-close-button {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.leaflet-bar {
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.leaflet-bar a {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.leaflet-bar a:hover {
+  background: hsl(var(--muted)) !important;
+}
+
+.leaflet-control-attribution {
+  background: hsl(var(--popover) / 0.85) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 9px !important;
+}
+
+.leaflet-control-attribution a {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.hover\:text-foreground:hover {
+  color: hsl(var(--foreground));
+}
+
+.hover\:decoration-foreground:hover {
+  text-decoration-color: hsl(var(--foreground));
+}
+</style>
+  </head>
+  <body class="bg-background text-foreground">
+
+<main class="mx-auto w-[1400px] px-8 py-10">
+  <div class="pagehead">
+    <h1>Win % &middot; one explainer, and how the number is actually made</h1>
+    <div class="kicker">proposal &middot; revision 3</div>
+  </div>
+
+  <p class="mt-5 max-w-5xl font-sans text-[15px] leading-relaxed">
+    Revision 3 takes the second review. The 100-square panel at the top is gone
+    (the curve below carries the same idea in the context where it is used), the
+    &ldquo;it is a guess&rdquo; standfirst is gone, and so is the terminology table: the
+    model's own words (swing, special votes, probability) are understood, and
+    replacing them with invented ones (&ldquo;endings&rdquo;, &ldquo;one guess at the finish&rdquo;,
+    &ldquo;level&rdquo;) was what made the page ambiguous. The copy is now direct about
+    what each step does, and uses <strong>tie</strong> for a dead heat throughout.
+  </p>
+  <p class="mt-3 max-w-5xl font-sans text-[15px] leading-relaxed">
+    The other changes are all in the body: the Commission's silence on a seat's
+    final total is stated as the reason for estimating it, the booth check says
+    what it is checking (an estimate that can be wrong in either direction), step
+    2 now sets the seat's last result first and then moves it with tonight's
+    swing, advance voters are described as an unreliable guide rather than a
+    &ldquo;small copy of the seat&rdquo;, the special votes are introduced in
+    step 4, where they are used, rather than as a third input to a count they are
+    not part of, and the
+    arithmetic of the specials is explained as two halves of the spread rather
+    than as four-out-of-ten.
+  </p>
+
+  <nav class="mt-6 border-y py-2">
+    <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1 font-label text-[11px]">
+      <span class="kicker">Sections</span>
+      <a href="#entry" class="text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"><strong>Where you click</strong></a>
+      <a href="#page" class="text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"><strong>The page</strong></a>
+      <a href="#notes" class="text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground">Copy notes</a>
+      <a href="#costs" class="text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground">Costs</a>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════ ENTRY ══ -->
+  <section id="entry" class="mt-10">
+    <div class="mb-1 flex items-baseline gap-3">
+      <div class="kicker">Where you click</div>
+      <span class="font-label text-[11px] text-muted-foreground">the column header, and the caption that already explains the columns</span>
+    </div>
+    <p class="mb-5 max-w-5xl font-sans text-[14px] leading-relaxed">
+      On <em>Seats</em>, <em>Close Calls</em> and <em>Flipped</em> every row is a button that opens the
+      seat, so the affordance cannot live in the row. The <code>Win %</code> header
+      is the one cell that belongs to the column rather than to a candidate: an
+      ⓘ after the label, muted until the header is hovered, with the whole cell
+      as the link.
+    </p>
+
+    <div class="w-[700px]">
+      <table class="w-full border text-sm">
+        <thead>
+          <tr class="border-b bg-muted/30">
+            <th class="px-2 py-2 text-left font-label text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Electorate</th>
+            <th class="px-2 py-2 text-left font-label text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Leading</th>
+            <th class="px-2 py-2 text-right font-label text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lead</th>
+            <th class="px-2 py-2 text-right font-label text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Lead %</th>
+            <th class="px-2 py-2 text-right font-label text-[11px] font-semibold uppercase tracking-wide">
+              <a href="#page" class="inline-flex w-full items-center justify-end gap-1 whitespace-nowrap text-muted-foreground hover:text-foreground" aria-label="How we work out Win %">Win %<span class="font-mono text-[9px]">ⓘ</span></a>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b"><td class="px-2 py-1.5">Banks Peninsula</td><td class="px-2 py-1.5">National</td><td class="px-2 py-1.5 text-right font-mono">393</td><td class="px-2 py-1.5 text-right font-mono">2.0%</td><td class="px-2 py-1.5 text-right font-display font-bold tabular-nums">54<span class="text-xs">%</span></td></tr>
+          <tr><td class="px-2 py-1.5">Auckland Central</td><td class="px-2 py-1.5">Labour</td><td class="px-2 py-1.5 text-right font-mono">2,104</td><td class="px-2 py-1.5 text-right font-mono">9.4%</td><td class="px-2 py-1.5 text-right font-display font-bold tabular-nums">88<span class="text-xs">%</span></td></tr>
+        </tbody>
+      </table>
+      <p class="mt-2 font-label text-[11px] leading-relaxed text-muted-foreground">
+        A normal link to <span class="font-mono">/how-win-percent-works</span>, so middle-click
+        opens a tab and back returns to the count exactly where it was. The ⓘ is
+        small and muted on purpose: it is a footnote mark beside the data, not a
+        button competing with it.
+      </p>
+    </div>
+
+    <div class="mt-8 border-t pt-5">
+      <div class="kicker mb-2">The second door &middot; the caption that already explains the columns</div>
+      <div class="w-[700px] border px-4 py-3">
+        <p class="font-sans text-[12.5px] leading-relaxed text-muted-foreground">
+          Ordered by votes counted. % is a share of the votes counted.
+          <a href="#page" class="text-foreground underline decoration-border underline-offset-2 hover:decoration-foreground">Win % is a projection onto the votes still out and the special vote</a>,
+          so it need not follow the order, and only the top two are given a number.
+        </p>
+      </div>
+      <p class="mt-2 max-w-[700px] font-label text-[11px] leading-relaxed text-muted-foreground">
+        The same link on the clause the sentence already writes. It catches the
+        reader who scrolls to the foot before looking up, and it costs one anchor
+        on existing copy.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ PAGE ══ -->
+  <section id="page" class="mt-12">
+    <div class="mb-3 flex items-center gap-3">
+      <div class="kicker">The page</div>
+      <span class="font-label text-[11px] text-muted-foreground">860px column &middot; no nav entry &middot; the same content at every width</span>
+    </div>
+    <div class="flex items-start gap-10">
+      
+<div class="w-[860px] flex-none border bg-background">
+  <div class="flex items-center justify-between border-b px-8 py-3">
+    <div class="kicker">Election Night</div>
+    <div class="font-label text-[10.5px] text-muted-foreground">Results &rarr;</div>
+  </div>
+
+  <div class="px-8 pb-8 pt-6">
+    <div class="pagehead">
+      <h1 class="font-display font-bold">How we work out Win&nbsp;%</h1>
+      <div class="kicker">explainer</div>
+    </div>
+
+    <p class="mt-4 max-w-[64ch] font-sans text-[16px] leading-relaxed">
+      Win % is our best estimate of who wins an electorate once every vote is counted:
+      the votes counted tonight, the votes still to come, and the special votes
+      counted over the two weeks after election night.
+    </p>
+
+    <!-- ── the two inputs ─────────────────────────────────────────────── -->
+    <div class="mt-7 kicker">What goes in</div>
+    <div class="mt-2 border-t">
+      <div class="grid grid-cols-[26px_1fr_300px] items-center gap-5 border-b py-5">
+        <span class="font-mono text-xs text-muted-foreground">1</span>
+        <div>
+          <div class="font-display text-[20px] font-bold leading-tight">How many votes are left</div>
+          <p class="mt-1.5 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            The Electoral Commission does not publish an electorate's final total until
+            every vote has been counted, so it has to be estimated. Enrolment in
+            the electorate, and the turnout there last time, give the likely size of the
+            vote; subtract what is already counted and the rest is still to come.
+          </p>
+          <p class="mt-2 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            Both figures are only a guide. A roll that has grown, or unusual
+            turnout, can make the estimate wrong in either direction, so the
+            estimate is checked against the booths. If most of an electorate's booths
+            are still to report, the electorate is far from finished.
+          </p>
+        </div>
+        <div>
+          <div class="flex border overflow-hidden" style="height:12px" aria-hidden="true"><i class="block h-full bg-foreground" style="width:68%"></i><i class="block h-full hatch-outstanding" style="width:32%"></i></div>
+          <div class="mt-1.5 flex justify-between font-mono text-[11px] tabular-nums"><span>19,846 in</span><span class="text-muted-foreground">≈9,300 out</span></div>
+          <div class="mt-1 flex justify-between font-label text-[10px] text-muted-foreground"><span>68% counted</span><span>rest of tonight</span></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[26px_1fr_300px] items-center gap-5 border-b py-5">
+        <span class="font-mono text-xs text-muted-foreground">2</span>
+        <div>
+          <div class="font-display text-[20px] font-bold leading-tight">Where the rest of them are heading</div>
+          <p class="mt-1.5 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            The starting point is this electorate's own result last time, the only
+            complete picture of how the electorate votes. Tonight's results then move
+            it: in the electorates counted so far the vote has swung five points to
+            Labour, and that swing is applied to this electorate's last result. What
+            comes out is the shape the remaining votes are expected to take.
+          </p>
+          <p class="mt-2 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            Early in the evening we lean on tonight's swing less: the first votes
+            counted are advance votes, and the booths that report first are not a
+            random sample of the electorate. Neither is a reliable guide to how
+            the electorate's election-day votes will split.
+          </p>
+        </div>
+        <div>
+          <div class="flex items-center gap-2"><span class="w-[44px] flex-none font-label text-[10px] uppercase tracking-wide text-muted-foreground">2023</span><div class="flex w-full min-w-0 flex-1 border" style="height:10px" aria-hidden="true"><i class="block h-full" style="width:46.3%;background:#00529F;"></i><i class="block h-full" style="width:34.3%;background:#D82A20;"></i><i class="block h-full" style="width:19.4%;background:#8a8a82;"></i></div></div>
+          <div class="mt-1.5 flex items-center gap-2"><span class="w-[44px] flex-none font-label text-[10px] uppercase tracking-wide">tonight</span><div class="flex w-full min-w-0 flex-1 border" style="height:10px" aria-hidden="true"><i class="block h-full" style="width:42.4%;background:#00529F;"></i><i class="block h-full" style="width:40.4%;background:#D82A20;"></i><i class="block h-full" style="width:17.2%;background:#8a8a82;"></i></div></div>
+          <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-label text-[10.5px] text-muted-foreground"><span class="inline-flex items-center gap-1.5"><i class="inline-block h-2 w-2" style="background:#00529F"></i>National</span><span class="inline-flex items-center gap-1.5"><i class="inline-block h-2 w-2" style="background:#D82A20"></i>Labour</span><span class="inline-flex items-center gap-1.5"><i class="inline-block h-2 w-2" style="background:#8a8a82"></i>others</span></div>
+          <div class="mt-1 font-mono text-[10.5px] tabular-nums text-muted-foreground">swing +5 to Labour</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── how those become one number ─────────────────────────────────── -->
+    <div class="mt-8 kicker">How those become one number</div>
+    <div class="mt-2 border-t">
+      <div class="grid grid-cols-[26px_1fr_340px] items-center gap-5 border-b py-5">
+        <span class="font-mono text-xs text-muted-foreground">1</span>
+        <div>
+          <div class="font-display text-[20px] font-bold leading-tight">The expected result</div>
+          <p class="mt-1.5 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            Adding the expected remaining votes to the votes already counted gives
+            one expected result. Here that is a National lead of about 2: National
+            won by 12 last time, and a five-point swing to Labour takes 10 points
+            off a lead between two parties.
+          </p>
+        </div>
+        <div>
+          <svg viewBox="0 0 340 104" class="block w-full" role="img" aria-label="Last time National led by 12 points; the expected result is a National lead of about 2">
+    <line x1="0" y1="74" x2="340" y2="74" stroke="hsl(var(--border))" stroke-width="1"/>
+    <line x1="170.0" y1="70" x2="170.0" y2="78" stroke="hsl(var(--border))" stroke-width="1"/><line x1="226.7" y1="70" x2="226.7" y2="78" stroke="hsl(var(--border))" stroke-width="1"/><line x1="283.3" y1="70" x2="283.3" y2="78" stroke="hsl(var(--border))" stroke-width="1"/><line x1="340.0" y1="70" x2="340.0" y2="78" stroke="hsl(var(--border))" stroke-width="1"/>
+    <line x1="113.3" y1="16" x2="113.3" y2="74" stroke="hsl(var(--primary))" stroke-width="1.5"/>
+    <line x1="283.3" y1="16" x2="283.3" y2="74" stroke="hsl(var(--muted-foreground))" stroke-width="1.5"/>
+    <line x1="141.7" y1="16" x2="141.7" y2="74" stroke="hsl(var(--foreground))" stroke-width="3"/>
+    <line x1="279.3" y1="34" x2="147.7" y2="34" stroke="hsl(var(--foreground))" stroke-width="1"/>
+    <path d="M147.7 34 l-6 -3 v6 z" fill="hsl(var(--foreground))"/>
+    <text x="283.3" y="10" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="hsl(var(--muted-foreground))">last time · National by 12</text>
+    <text x="149.7" y="29" text-anchor="start" font-family="Inter, sans-serif" font-size="9.5" font-weight="600" fill="hsl(var(--foreground))">expected · by 2</text>
+    <text x="212.5" y="47" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--muted-foreground))">swing −10</text>
+    <text x="113.3" y="90" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--primary))">tie</text>
+    <text x="0" y="90" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--muted-foreground))">Labour ahead</text>
+    <text x="340" y="90" text-anchor="end" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--muted-foreground))">National ahead</text>
+  </svg>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[26px_1fr_340px] items-center gap-5 border-b py-5">
+        <span class="font-mono text-xs text-muted-foreground">2</span>
+        <div>
+          <div class="font-display text-[20px] font-bold leading-tight">How far it could still move</div>
+          <p class="mt-1.5 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            The model keeps every result that is still plausible, weighted by how
+            likely it is. That collection is the spread. It is wide when a lot is still to count, when the race
+            is close, and when last time's result is a weak guide to the
+            electorate. It
+            narrows as the votes come in.
+          </p>
+        </div>
+        <div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <svg viewBox="0 0 158 84" class="block w-full" role="img" aria-label="The range of plausible results for the final margin: most sit near a small lead, and some fall either side of a tie">
+    <path d="M0 84 L0.0 79.8 L0.7 79.6 L1.3 79.4 L2.0 79.2 L2.6 79.0 L3.3 78.8 L4.0 78.5 L4.6 78.3 L5.3 78.0 L5.9 77.8 L6.6 77.5 L7.2 77.2 L7.9 76.9 L8.6 76.6 L9.2 76.3 L9.9 76.0 L10.5 75.7 L11.2 75.3 L11.8 75.0 L12.5 74.6 L13.2 74.3 L13.8 73.9 L14.5 73.5 L15.1 73.1 L15.8 72.7 L16.5 72.2 L17.1 71.8 L17.8 71.4 L18.4 70.9 L19.1 70.4 L19.8 69.9 L20.4 69.5 L21.1 68.9 L21.7 68.4 L22.4 67.9 L23.0 67.4 L23.7 66.8 L24.4 66.2 L25.0 65.7 L25.7 65.1 L26.3 64.5 L27.0 63.9 L27.6 63.2 L28.3 62.6 L29.0 62.0 L29.6 61.3 L30.3 60.6 L30.9 59.9 L31.6 59.3 L32.3 58.6 L32.9 57.8 L33.6 57.1 L34.2 56.4 L34.9 55.7 L35.6 54.9 L36.2 54.1 L36.9 53.4 L37.5 52.6 L38.2 51.8 L38.8 51.0 L39.5 50.2 L40.2 49.4 L40.8 48.6 L41.5 47.8 L42.1 47.0 L42.8 46.2 L43.5 45.3 L44.1 44.5 L44.8 43.7 L45.4 42.8 L46.1 42.0 L46.7 41.2 L47.4 40.3 L48.1 39.5 L48.7 38.7 L49.4 37.8 L50.0 37.0 L50.7 36.1 L51.4 35.3 L52.0 34.5 L52.7 33.7 L53.3 32.8 L54.0 32.0 L54.6 31.2 L55.3 30.4 L56.0 29.7 L56.6 28.9 L57.3 28.1 L57.9 27.3 L58.6 26.6 L59.3 25.9 L59.9 25.1 L60.6 24.4 L61.2 23.7 L61.9 23.0 L62.5 22.4 L63.2 21.7 L63.9 21.1 L64.5 20.5 L65.2 19.9 L65.8 19.3 L66.5 18.7 L67.1 18.2 L67.8 17.6 L68.5 17.1 L69.1 16.6 L69.8 16.2 L70.4 15.7 L71.1 15.3 L71.8 14.9 L72.4 14.6 L73.1 14.2 L73.7 13.9 L74.4 13.6 L75.0 13.3 L75.7 13.1 L76.4 12.8 L77.0 12.6 L77.7 12.5 L78.3 12.3 L79.0 12.2 L79 84 Z" fill="hsl(var(--foreground) / 0.12)"/>
+    <path d="M0.0 79.8 L0.7 79.6 L1.3 79.4 L2.0 79.2 L2.6 79.0 L3.3 78.8 L4.0 78.5 L4.6 78.3 L5.3 78.0 L5.9 77.8 L6.6 77.5 L7.2 77.2 L7.9 76.9 L8.6 76.6 L9.2 76.3 L9.9 76.0 L10.5 75.7 L11.2 75.3 L11.8 75.0 L12.5 74.6 L13.2 74.3 L13.8 73.9 L14.5 73.5 L15.1 73.1 L15.8 72.7 L16.5 72.2 L17.1 71.8 L17.8 71.4 L18.4 70.9 L19.1 70.4 L19.8 69.9 L20.4 69.5 L21.1 68.9 L21.7 68.4 L22.4 67.9 L23.0 67.4 L23.7 66.8 L24.4 66.2 L25.0 65.7 L25.7 65.1 L26.3 64.5 L27.0 63.9 L27.6 63.2 L28.3 62.6 L29.0 62.0 L29.6 61.3 L30.3 60.6 L30.9 59.9 L31.6 59.3 L32.3 58.6 L32.9 57.8 L33.6 57.1 L34.2 56.4 L34.9 55.7 L35.6 54.9 L36.2 54.1 L36.9 53.4 L37.5 52.6 L38.2 51.8 L38.8 51.0 L39.5 50.2 L40.2 49.4 L40.8 48.6 L41.5 47.8 L42.1 47.0 L42.8 46.2 L43.5 45.3 L44.1 44.5 L44.8 43.7 L45.4 42.8 L46.1 42.0 L46.7 41.2 L47.4 40.3 L48.1 39.5 L48.7 38.7 L49.4 37.8 L50.0 37.0 L50.7 36.1 L51.4 35.3 L52.0 34.5 L52.7 33.7 L53.3 32.8 L54.0 32.0 L54.6 31.2 L55.3 30.4 L56.0 29.7 L56.6 28.9 L57.3 28.1 L57.9 27.3 L58.6 26.6 L59.3 25.9 L59.9 25.1 L60.6 24.4 L61.2 23.7 L61.9 23.0 L62.5 22.4 L63.2 21.7 L63.9 21.1 L64.5 20.5 L65.2 19.9 L65.8 19.3 L66.5 18.7 L67.1 18.2 L67.8 17.6 L68.5 17.1 L69.1 16.6 L69.8 16.2 L70.4 15.7 L71.1 15.3 L71.8 14.9 L72.4 14.6 L73.1 14.2 L73.7 13.9 L74.4 13.6 L75.0 13.3 L75.7 13.1 L76.4 12.8 L77.0 12.6 L77.7 12.5 L78.3 12.3 L79.0 12.2 L79.7 12.1 L80.3 12.1 L81.0 12.0 L81.6 12.0 L82.3 12.0 L83.0 12.1 L83.6 12.1 L84.3 12.2 L84.9 12.3 L85.6 12.5 L86.2 12.6 L86.9 12.8 L87.6 13.1 L88.2 13.3 L88.9 13.6 L89.5 13.9 L90.2 14.2 L90.8 14.6 L91.5 14.9 L92.2 15.3 L92.8 15.7 L93.5 16.2 L94.1 16.6 L94.8 17.1 L95.5 17.6 L96.1 18.2 L96.8 18.7 L97.4 19.3 L98.1 19.9 L98.8 20.5 L99.4 21.1 L100.1 21.7 L100.7 22.4 L101.4 23.0 L102.0 23.7 L102.7 24.4 L103.4 25.1 L104.0 25.9 L104.7 26.6 L105.3 27.3 L106.0 28.1 L106.7 28.9 L107.3 29.7 L108.0 30.4 L108.6 31.2 L109.3 32.0 L109.9 32.8 L110.6 33.7 L111.3 34.5 L111.9 35.3 L112.6 36.1 L113.2 37.0 L113.9 37.8 L114.5 38.7 L115.2 39.5 L115.9 40.3 L116.5 41.2 L117.2 42.0 L117.8 42.8 L118.5 43.7 L119.2 44.5 L119.8 45.3 L120.5 46.2 L121.1 47.0 L121.8 47.8 L122.5 48.6 L123.1 49.4 L123.8 50.2 L124.4 51.0 L125.1 51.8 L125.7 52.6 L126.4 53.4 L127.1 54.1 L127.7 54.9 L128.4 55.7 L129.0 56.4 L129.7 57.1 L130.3 57.8 L131.0 58.6 L131.7 59.3 L132.3 59.9 L133.0 60.6 L133.6 61.3 L134.3 62.0 L135.0 62.6 L135.6 63.2 L136.3 63.9 L136.9 64.5 L137.6 65.1 L138.3 65.7 L138.9 66.2 L139.6 66.8 L140.2 67.4 L140.9 67.9 L141.5 68.4 L142.2 68.9 L142.9 69.5 L143.5 69.9 L144.2 70.4 L144.8 70.9 L145.5 71.4 L146.2 71.8 L146.8 72.2 L147.5 72.7 L148.1 73.1 L148.8 73.5 L149.4 73.9 L150.1 74.3 L150.8 74.6 L151.4 75.0 L152.1 75.3 L152.7 75.7 L153.4 76.0 L154.0 76.3 L154.7 76.6 L155.4 76.9 L156.0 77.2 L156.7 77.5 L157.3 77.8 L158.0 78.0" fill="none" stroke="hsl(var(--foreground))" stroke-width="1.5"/>
+    <line x1="0" y1="84" x2="158" y2="84" stroke="hsl(var(--border))" stroke-width="1"/>
+    <line x1="79.0" y1="4" x2="79.0" y2="84" stroke="hsl(var(--primary))" stroke-width="1.5"/>
+    <circle cx="81.6" cy="12.0" r="2.5" fill="hsl(var(--foreground))"/>
+  </svg>
+              <div class="mt-1 text-center font-label text-[9.5px] text-muted-foreground">a fifth counted</div>
+            </div>
+            <div>
+              <svg viewBox="0 0 158 84" class="block w-full" role="img" aria-label="The range of plausible results for the final margin: most sit near a small lead, and some fall either side of a tie">
+    <path d="M0 84 L0.0 84.0 L0.7 84.0 L1.3 84.0 L2.0 84.0 L2.6 84.0 L3.3 84.0 L4.0 84.0 L4.6 84.0 L5.3 84.0 L5.9 84.0 L6.6 84.0 L7.2 84.0 L7.9 84.0 L8.6 84.0 L9.2 84.0 L9.9 84.0 L10.5 84.0 L11.2 84.0 L11.8 84.0 L12.5 84.0 L13.2 84.0 L13.8 84.0 L14.5 84.0 L15.1 84.0 L15.8 84.0 L16.5 84.0 L17.1 84.0 L17.8 84.0 L18.4 84.0 L19.1 84.0 L19.8 84.0 L20.4 84.0 L21.1 84.0 L21.7 84.0 L22.4 84.0 L23.0 84.0 L23.7 84.0 L24.4 84.0 L25.0 84.0 L25.7 84.0 L26.3 84.0 L27.0 84.0 L27.6 84.0 L28.3 84.0 L29.0 84.0 L29.6 84.0 L30.3 84.0 L30.9 84.0 L31.6 84.0 L32.3 84.0 L32.9 84.0 L33.6 84.0 L34.2 84.0 L34.9 84.0 L35.6 84.0 L36.2 84.0 L36.9 84.0 L37.5 84.0 L38.2 84.0 L38.8 84.0 L39.5 84.0 L40.2 84.0 L40.8 84.0 L41.5 84.0 L42.1 84.0 L42.8 84.0 L43.5 84.0 L44.1 84.0 L44.8 84.0 L45.4 84.0 L46.1 84.0 L46.7 83.9 L47.4 83.9 L48.1 83.9 L48.7 83.9 L49.4 83.8 L50.0 83.8 L50.7 83.7 L51.4 83.7 L52.0 83.6 L52.7 83.5 L53.3 83.4 L54.0 83.2 L54.6 83.0 L55.3 82.8 L56.0 82.5 L56.6 82.2 L57.3 81.8 L57.9 81.4 L58.6 80.8 L59.3 80.2 L59.9 79.5 L60.6 78.7 L61.2 77.8 L61.9 76.8 L62.5 75.6 L63.2 74.3 L63.9 72.8 L64.5 71.2 L65.2 69.4 L65.8 67.4 L66.5 65.3 L67.1 63.1 L67.8 60.6 L68.5 58.0 L69.1 55.3 L69.8 52.5 L70.4 49.6 L71.1 46.5 L71.8 43.4 L72.4 40.3 L73.1 37.2 L73.7 34.1 L74.4 31.1 L75.0 28.2 L75.7 25.4 L76.4 22.8 L77.0 20.5 L77.7 18.3 L78.3 16.4 L79.0 14.9 L79 84 Z" fill="hsl(var(--foreground) / 0.12)"/>
+    <path d="M0.0 84.0 L0.7 84.0 L1.3 84.0 L2.0 84.0 L2.6 84.0 L3.3 84.0 L4.0 84.0 L4.6 84.0 L5.3 84.0 L5.9 84.0 L6.6 84.0 L7.2 84.0 L7.9 84.0 L8.6 84.0 L9.2 84.0 L9.9 84.0 L10.5 84.0 L11.2 84.0 L11.8 84.0 L12.5 84.0 L13.2 84.0 L13.8 84.0 L14.5 84.0 L15.1 84.0 L15.8 84.0 L16.5 84.0 L17.1 84.0 L17.8 84.0 L18.4 84.0 L19.1 84.0 L19.8 84.0 L20.4 84.0 L21.1 84.0 L21.7 84.0 L22.4 84.0 L23.0 84.0 L23.7 84.0 L24.4 84.0 L25.0 84.0 L25.7 84.0 L26.3 84.0 L27.0 84.0 L27.6 84.0 L28.3 84.0 L29.0 84.0 L29.6 84.0 L30.3 84.0 L30.9 84.0 L31.6 84.0 L32.3 84.0 L32.9 84.0 L33.6 84.0 L34.2 84.0 L34.9 84.0 L35.6 84.0 L36.2 84.0 L36.9 84.0 L37.5 84.0 L38.2 84.0 L38.8 84.0 L39.5 84.0 L40.2 84.0 L40.8 84.0 L41.5 84.0 L42.1 84.0 L42.8 84.0 L43.5 84.0 L44.1 84.0 L44.8 84.0 L45.4 84.0 L46.1 84.0 L46.7 83.9 L47.4 83.9 L48.1 83.9 L48.7 83.9 L49.4 83.8 L50.0 83.8 L50.7 83.7 L51.4 83.7 L52.0 83.6 L52.7 83.5 L53.3 83.4 L54.0 83.2 L54.6 83.0 L55.3 82.8 L56.0 82.5 L56.6 82.2 L57.3 81.8 L57.9 81.4 L58.6 80.8 L59.3 80.2 L59.9 79.5 L60.6 78.7 L61.2 77.8 L61.9 76.8 L62.5 75.6 L63.2 74.3 L63.9 72.8 L64.5 71.2 L65.2 69.4 L65.8 67.4 L66.5 65.3 L67.1 63.1 L67.8 60.6 L68.5 58.0 L69.1 55.3 L69.8 52.5 L70.4 49.6 L71.1 46.5 L71.8 43.4 L72.4 40.3 L73.1 37.2 L73.7 34.1 L74.4 31.1 L75.0 28.2 L75.7 25.4 L76.4 22.8 L77.0 20.5 L77.7 18.3 L78.3 16.4 L79.0 14.9 L79.7 13.6 L80.3 12.7 L81.0 12.2 L81.6 12.0 L82.3 12.2 L83.0 12.7 L83.6 13.6 L84.3 14.9 L84.9 16.4 L85.6 18.3 L86.2 20.5 L86.9 22.8 L87.6 25.4 L88.2 28.2 L88.9 31.1 L89.5 34.1 L90.2 37.2 L90.8 40.3 L91.5 43.4 L92.2 46.5 L92.8 49.6 L93.5 52.5 L94.1 55.3 L94.8 58.0 L95.5 60.6 L96.1 63.1 L96.8 65.3 L97.4 67.4 L98.1 69.4 L98.8 71.2 L99.4 72.8 L100.1 74.3 L100.7 75.6 L101.4 76.8 L102.0 77.8 L102.7 78.7 L103.4 79.5 L104.0 80.2 L104.7 80.8 L105.3 81.4 L106.0 81.8 L106.7 82.2 L107.3 82.5 L108.0 82.8 L108.6 83.0 L109.3 83.2 L109.9 83.4 L110.6 83.5 L111.3 83.6 L111.9 83.7 L112.6 83.7 L113.2 83.8 L113.9 83.8 L114.5 83.9 L115.2 83.9 L115.9 83.9 L116.5 83.9 L117.2 84.0 L117.8 84.0 L118.5 84.0 L119.2 84.0 L119.8 84.0 L120.5 84.0 L121.1 84.0 L121.8 84.0 L122.5 84.0 L123.1 84.0 L123.8 84.0 L124.4 84.0 L125.1 84.0 L125.7 84.0 L126.4 84.0 L127.1 84.0 L127.7 84.0 L128.4 84.0 L129.0 84.0 L129.7 84.0 L130.3 84.0 L131.0 84.0 L131.7 84.0 L132.3 84.0 L133.0 84.0 L133.6 84.0 L134.3 84.0 L135.0 84.0 L135.6 84.0 L136.3 84.0 L136.9 84.0 L137.6 84.0 L138.3 84.0 L138.9 84.0 L139.6 84.0 L140.2 84.0 L140.9 84.0 L141.5 84.0 L142.2 84.0 L142.9 84.0 L143.5 84.0 L144.2 84.0 L144.8 84.0 L145.5 84.0 L146.2 84.0 L146.8 84.0 L147.5 84.0 L148.1 84.0 L148.8 84.0 L149.4 84.0 L150.1 84.0 L150.8 84.0 L151.4 84.0 L152.1 84.0 L152.7 84.0 L153.4 84.0 L154.0 84.0 L154.7 84.0 L155.4 84.0 L156.0 84.0 L156.7 84.0 L157.3 84.0 L158.0 84.0" fill="none" stroke="hsl(var(--foreground))" stroke-width="1.5"/>
+    <line x1="0" y1="84" x2="158" y2="84" stroke="hsl(var(--border))" stroke-width="1"/>
+    <line x1="79.0" y1="4" x2="79.0" y2="84" stroke="hsl(var(--primary))" stroke-width="1.5"/>
+    <circle cx="81.6" cy="12.0" r="2.5" fill="hsl(var(--foreground))"/>
+  </svg>
+              <div class="mt-1 text-center font-label text-[9.5px] text-muted-foreground">four fifths counted</div>
+            </div>
+          </div>
+          <div class="mt-1.5 text-center font-mono text-[10px] text-muted-foreground">same electorate, same lead</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[26px_1fr_340px] items-center gap-5 border-b py-5">
+        <span class="font-mono text-xs text-muted-foreground">3</span>
+        <div>
+          <div class="font-display text-[20px] font-bold leading-tight">Turning the spread into Win %</div>
+          <p class="mt-1.5 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            Win % is the share of the spread in which a candidate finishes ahead.
+            Here 54% of it is on National's side of a tie and 46% on Labour's, so
+            National's Win % is 54.
+          </p>
+        </div>
+        <div>
+          <svg viewBox="0 0 340 108" class="block w-full" role="img" aria-label="The range of plausible results for the final margin: most sit near a small lead, and some fall either side of a tie">
+    <path d="M0 108 L0.0 101.9 L1.4 101.7 L2.8 101.4 L4.3 101.1 L5.7 100.8 L7.1 100.5 L8.5 100.1 L9.9 99.8 L11.3 99.5 L12.8 99.1 L14.2 98.7 L15.6 98.4 L17.0 98.0 L18.4 97.6 L19.8 97.1 L21.3 96.7 L22.7 96.3 L24.1 95.8 L25.5 95.3 L26.9 94.8 L28.3 94.3 L29.7 93.8 L31.2 93.3 L32.6 92.8 L34.0 92.2 L35.4 91.6 L36.8 91.1 L38.3 90.5 L39.7 89.8 L41.1 89.2 L42.5 88.6 L43.9 87.9 L45.3 87.2 L46.8 86.5 L48.2 85.8 L49.6 85.1 L51.0 84.4 L52.4 83.6 L53.8 82.9 L55.3 82.1 L56.7 81.3 L58.1 80.5 L59.5 79.7 L60.9 78.8 L62.3 78.0 L63.8 77.1 L65.2 76.2 L66.6 75.4 L68.0 74.4 L69.4 73.5 L70.8 72.6 L72.3 71.7 L73.7 70.7 L75.1 69.7 L76.5 68.8 L77.9 67.8 L79.3 66.8 L80.8 65.8 L82.2 64.7 L83.6 63.7 L85.0 62.7 L86.4 61.6 L87.8 60.6 L89.3 59.5 L90.7 58.4 L92.1 57.4 L93.5 56.3 L94.9 55.2 L96.3 54.1 L97.7 53.0 L99.2 52.0 L100.6 50.9 L102.0 49.8 L103.4 48.7 L104.8 47.6 L106.3 46.5 L107.7 45.4 L109.1 44.3 L110.5 43.3 L111.9 42.2 L113.3 41.1 L114.8 40.0 L116.2 39.0 L117.6 37.9 L119.0 36.9 L120.4 35.9 L121.8 34.9 L123.3 33.9 L124.7 32.9 L126.1 31.9 L127.5 30.9 L128.9 30.0 L130.3 29.0 L131.8 28.1 L133.2 27.2 L134.6 26.3 L136.0 25.5 L137.4 24.6 L138.8 23.8 L140.3 23.0 L141.7 22.2 L143.1 21.5 L144.5 20.8 L145.9 20.1 L147.3 19.4 L148.8 18.7 L150.2 18.1 L151.6 17.5 L153.0 16.9 L154.4 16.4 L155.8 15.9 L157.3 15.4 L158.7 15.0 L160.1 14.5 L161.5 14.1 L162.9 13.8 L164.3 13.5 L165.8 13.2 L167.2 12.9 L168.6 12.7 L170.0 12.5 L170 108 Z" fill="hsl(var(--foreground) / 0.12)"/>
+    <path d="M0.0 101.9 L1.4 101.7 L2.8 101.4 L4.3 101.1 L5.7 100.8 L7.1 100.5 L8.5 100.1 L9.9 99.8 L11.3 99.5 L12.8 99.1 L14.2 98.7 L15.6 98.4 L17.0 98.0 L18.4 97.6 L19.8 97.1 L21.3 96.7 L22.7 96.3 L24.1 95.8 L25.5 95.3 L26.9 94.8 L28.3 94.3 L29.7 93.8 L31.2 93.3 L32.6 92.8 L34.0 92.2 L35.4 91.6 L36.8 91.1 L38.3 90.5 L39.7 89.8 L41.1 89.2 L42.5 88.6 L43.9 87.9 L45.3 87.2 L46.8 86.5 L48.2 85.8 L49.6 85.1 L51.0 84.4 L52.4 83.6 L53.8 82.9 L55.3 82.1 L56.7 81.3 L58.1 80.5 L59.5 79.7 L60.9 78.8 L62.3 78.0 L63.8 77.1 L65.2 76.2 L66.6 75.4 L68.0 74.4 L69.4 73.5 L70.8 72.6 L72.3 71.7 L73.7 70.7 L75.1 69.7 L76.5 68.8 L77.9 67.8 L79.3 66.8 L80.8 65.8 L82.2 64.7 L83.6 63.7 L85.0 62.7 L86.4 61.6 L87.8 60.6 L89.3 59.5 L90.7 58.4 L92.1 57.4 L93.5 56.3 L94.9 55.2 L96.3 54.1 L97.7 53.0 L99.2 52.0 L100.6 50.9 L102.0 49.8 L103.4 48.7 L104.8 47.6 L106.3 46.5 L107.7 45.4 L109.1 44.3 L110.5 43.3 L111.9 42.2 L113.3 41.1 L114.8 40.0 L116.2 39.0 L117.6 37.9 L119.0 36.9 L120.4 35.9 L121.8 34.9 L123.3 33.9 L124.7 32.9 L126.1 31.9 L127.5 30.9 L128.9 30.0 L130.3 29.0 L131.8 28.1 L133.2 27.2 L134.6 26.3 L136.0 25.5 L137.4 24.6 L138.8 23.8 L140.3 23.0 L141.7 22.2 L143.1 21.5 L144.5 20.8 L145.9 20.1 L147.3 19.4 L148.8 18.7 L150.2 18.1 L151.6 17.5 L153.0 16.9 L154.4 16.4 L155.8 15.9 L157.3 15.4 L158.7 15.0 L160.1 14.5 L161.5 14.1 L162.9 13.8 L164.3 13.5 L165.8 13.2 L167.2 12.9 L168.6 12.7 L170.0 12.5 L171.4 12.3 L172.8 12.2 L174.2 12.1 L175.7 12.0 L177.1 12.0 L178.5 12.0 L179.9 12.0 L181.3 12.1 L182.8 12.2 L184.2 12.4 L185.6 12.5 L187.0 12.7 L188.4 13.0 L189.8 13.3 L191.3 13.6 L192.7 13.9 L194.1 14.3 L195.5 14.7 L196.9 15.1 L198.3 15.6 L199.8 16.1 L201.2 16.6 L202.6 17.1 L204.0 17.7 L205.4 18.3 L206.8 18.9 L208.3 19.6 L209.7 20.3 L211.1 21.0 L212.5 21.7 L213.9 22.5 L215.3 23.3 L216.7 24.1 L218.2 24.9 L219.6 25.8 L221.0 26.6 L222.4 27.5 L223.8 28.4 L225.3 29.3 L226.7 30.3 L228.1 31.2 L229.5 32.2 L230.9 33.2 L232.3 34.2 L233.8 35.2 L235.2 36.2 L236.6 37.2 L238.0 38.3 L239.4 39.3 L240.8 40.4 L242.3 41.5 L243.7 42.5 L245.1 43.6 L246.5 44.7 L247.9 45.8 L249.3 46.9 L250.8 48.0 L252.2 49.0 L253.6 50.1 L255.0 51.2 L256.4 52.3 L257.8 53.4 L259.3 54.5 L260.7 55.6 L262.1 56.7 L263.5 57.7 L264.9 58.8 L266.3 59.9 L267.8 60.9 L269.2 62.0 L270.6 63.0 L272.0 64.0 L273.4 65.1 L274.8 66.1 L276.3 67.1 L277.7 68.1 L279.1 69.1 L280.5 70.1 L281.9 71.0 L283.3 72.0 L284.8 72.9 L286.2 73.8 L287.6 74.8 L289.0 75.7 L290.4 76.5 L291.8 77.4 L293.3 78.3 L294.7 79.1 L296.1 80.0 L297.5 80.8 L298.9 81.6 L300.3 82.4 L301.8 83.1 L303.2 83.9 L304.6 84.6 L306.0 85.4 L307.4 86.1 L308.8 86.8 L310.3 87.5 L311.7 88.1 L313.1 88.8 L314.5 89.4 L315.9 90.0 L317.3 90.7 L318.8 91.3 L320.2 91.8 L321.6 92.4 L323.0 92.9 L324.4 93.5 L325.8 94.0 L327.3 94.5 L328.7 95.0 L330.1 95.5 L331.5 96.0 L332.9 96.4 L334.3 96.8 L335.8 97.3 L337.2 97.7 L338.6 98.1 L340.0 98.5" fill="none" stroke="hsl(var(--foreground))" stroke-width="1.5"/>
+    <line x1="0" y1="108" x2="340" y2="108" stroke="hsl(var(--border))" stroke-width="1"/>
+    <line x1="170.0" y1="4" x2="170.0" y2="108" stroke="hsl(var(--primary))" stroke-width="1.5"/>
+    <circle cx="177.6" cy="12.0" r="2.5" fill="hsl(var(--foreground))"/>
+  </svg>
+          <div class="mt-1 flex justify-between font-label text-[10px] text-muted-foreground">
+            <span>Labour ahead</span><span>tie</span><span>National ahead</span>
+          </div>
+          <div class="mt-1 grid grid-cols-2 font-mono text-[11px] tabular-nums">
+            <div class="border-r pr-2 text-right text-muted-foreground">46% of the spread</div>
+            <div class="pl-2">54% of the spread</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[26px_1fr_340px] items-center gap-5 py-5">
+        <span class="font-mono text-xs text-muted-foreground">4</span>
+        <div>
+          <div class="font-display text-[20px] font-bold leading-tight">Adding the special votes</div>
+          <p class="mt-1.5 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            About one vote in five is a special vote: one cast from overseas, or
+            one cast outside the voter's own electorate. They are counted after
+            election night and added to each candidate's total from that night, so
+            they change the lead only if they split differently from the votes
+            counted on election night. The lead here is 393 votes against about
+            9,700 special votes, so the special vote would have to favour Labour by
+            four points more than the election-night count did to overturn it.
+          </p>
+          <p class="mt-2 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            The model lets the special vote's lean run either way, with a ten-point
+            spread: about three times the swing a typical seat showed in the last
+            three elections. Half of that spread leans towards the leader, which
+            keeps the electorate; in the other half, only shifts of more than four
+            points overturn the lead. That leaves the lead surviving in 66 cases
+            out of 100.
+          </p>
+          <p class="mt-2 max-w-[46ch] font-sans text-[14.5px] leading-relaxed text-muted-foreground">
+            Once the ordinary count is finished, every ordinary vote is in but the
+            special votes can still change the winner. From that point Win % is
+            this figure: the chance the lead survives the special votes.
+          </p>
+        </div>
+        <div>
+          <svg viewBox="0 0 340 118" class="block w-full" role="img" aria-label="How far the special vote would have to shift against the leader: the chance it reaches four points is the red tail, about 34 in 100">
+    <path d="M200.9 94 L201.2 22.1 L202.6 22.6 L204.0 23.2 L205.4 23.8 L206.8 24.4 L208.3 25.0 L209.7 25.6 L211.1 26.3 L212.5 26.9 L213.9 27.6 L215.3 28.3 L216.8 29.0 L218.2 29.8 L219.6 30.5 L221.0 31.3 L222.4 32.0 L223.8 32.8 L225.3 33.6 L226.7 34.4 L228.1 35.2 L229.5 36.0 L230.9 36.8 L232.3 37.7 L233.8 38.5 L235.2 39.3 L236.6 40.2 L238.0 41.0 L239.4 41.9 L240.8 42.8 L242.3 43.6 L243.7 44.5 L245.1 45.4 L246.5 46.2 L247.9 47.1 L249.3 48.0 L250.8 48.8 L252.2 49.7 L253.6 50.5 L255.0 51.4 L256.4 52.3 L257.8 53.1 L259.3 54.0 L260.7 54.8 L262.1 55.7 L263.5 56.5 L264.9 57.3 L266.3 58.1 L267.8 59.0 L269.2 59.8 L270.6 60.6 L272.0 61.4 L273.4 62.1 L274.8 62.9 L276.3 63.7 L277.7 64.5 L279.1 65.2 L280.5 65.9 L281.9 66.7 L283.3 67.4 L284.8 68.1 L286.2 68.8 L287.6 69.5 L289.0 70.2 L290.4 70.8 L291.8 71.5 L293.3 72.1 L294.7 72.8 L296.1 73.4 L297.5 74.0 L298.9 74.6 L300.3 75.2 L301.8 75.8 L303.2 76.3 L304.6 76.9 L306.0 77.4 L307.4 78.0 L308.8 78.5 L310.3 79.0 L311.7 79.5 L313.1 80.0 L314.5 80.4 L315.9 80.9 L317.3 81.3 L318.8 81.8 L320.2 82.2 L321.6 82.6 L323.0 83.0 L324.4 83.4 L325.8 83.8 L327.3 84.2 L328.7 84.5 L330.1 84.9 L331.5 85.2 L332.9 85.5 L334.3 85.9 L335.8 86.2 L337.2 86.5 L338.6 86.8 L340.0 94 Z" fill="hsl(var(--primary) / 0.75)"/>
+    <path d="M0.0 87.1 L1.4 86.8 L2.8 86.5 L4.3 86.2 L5.7 85.9 L7.1 85.5 L8.5 85.2 L9.9 84.9 L11.3 84.5 L12.8 84.2 L14.2 83.8 L15.6 83.4 L17.0 83.0 L18.4 82.6 L19.8 82.2 L21.3 81.8 L22.7 81.3 L24.1 80.9 L25.5 80.4 L26.9 80.0 L28.3 79.5 L29.8 79.0 L31.2 78.5 L32.6 78.0 L34.0 77.4 L35.4 76.9 L36.8 76.3 L38.3 75.8 L39.7 75.2 L41.1 74.6 L42.5 74.0 L43.9 73.4 L45.3 72.8 L46.8 72.1 L48.2 71.5 L49.6 70.8 L51.0 70.2 L52.4 69.5 L53.8 68.8 L55.3 68.1 L56.7 67.4 L58.1 66.7 L59.5 65.9 L60.9 65.2 L62.3 64.5 L63.8 63.7 L65.2 62.9 L66.6 62.1 L68.0 61.4 L69.4 60.6 L70.8 59.8 L72.3 59.0 L73.7 58.1 L75.1 57.3 L76.5 56.5 L77.9 55.7 L79.3 54.8 L80.8 54.0 L82.2 53.1 L83.6 52.3 L85.0 51.4 L86.4 50.5 L87.8 49.7 L89.3 48.8 L90.7 48.0 L92.1 47.1 L93.5 46.2 L94.9 45.4 L96.3 44.5 L97.8 43.6 L99.2 42.8 L100.6 41.9 L102.0 41.0 L103.4 40.2 L104.8 39.3 L106.3 38.5 L107.7 37.7 L109.1 36.8 L110.5 36.0 L111.9 35.2 L113.3 34.4 L114.8 33.6 L116.2 32.8 L117.6 32.0 L119.0 31.3 L120.4 30.5 L121.8 29.8 L123.3 29.0 L124.7 28.3 L126.1 27.6 L127.5 26.9 L128.9 26.3 L130.3 25.6 L131.8 25.0 L133.2 24.4 L134.6 23.8 L136.0 23.2 L137.4 22.6 L138.8 22.1 L140.3 21.6 L141.7 21.1 L143.1 20.6 L144.5 20.1 L145.9 19.7 L147.3 19.3 L148.8 18.9 L150.2 18.5 L151.6 18.2 L153.0 17.9 L154.4 17.6 L155.8 17.3 L157.3 17.1 L158.7 16.8 L160.1 16.6 L161.5 16.5 L162.9 16.3 L164.3 16.2 L165.8 16.1 L167.2 16.1 L168.6 16.0 L170.0 16.0 L171.4 16.0 L172.8 16.1 L174.3 16.1 L175.7 16.2 L177.1 16.3 L178.5 16.5 L179.9 16.6 L181.3 16.8 L182.8 17.1 L184.2 17.3 L185.6 17.6 L187.0 17.9 L188.4 18.2 L189.8 18.5 L191.3 18.9 L192.7 19.3 L194.1 19.7 L195.5 20.1 L196.9 20.6 L198.3 21.1 L199.8 21.6 L201.2 22.1 L202.6 22.6 L204.0 23.2 L205.4 23.8 L206.8 24.4 L208.3 25.0 L209.7 25.6 L211.1 26.3 L212.5 26.9 L213.9 27.6 L215.3 28.3 L216.8 29.0 L218.2 29.8 L219.6 30.5 L221.0 31.3 L222.4 32.0 L223.8 32.8 L225.3 33.6 L226.7 34.4 L228.1 35.2 L229.5 36.0 L230.9 36.8 L232.3 37.7 L233.8 38.5 L235.2 39.3 L236.6 40.2 L238.0 41.0 L239.4 41.9 L240.8 42.8 L242.3 43.6 L243.7 44.5 L245.1 45.4 L246.5 46.2 L247.9 47.1 L249.3 48.0 L250.8 48.8 L252.2 49.7 L253.6 50.5 L255.0 51.4 L256.4 52.3 L257.8 53.1 L259.3 54.0 L260.7 54.8 L262.1 55.7 L263.5 56.5 L264.9 57.3 L266.3 58.1 L267.8 59.0 L269.2 59.8 L270.6 60.6 L272.0 61.4 L273.4 62.1 L274.8 62.9 L276.3 63.7 L277.7 64.5 L279.1 65.2 L280.5 65.9 L281.9 66.7 L283.3 67.4 L284.8 68.1 L286.2 68.8 L287.6 69.5 L289.0 70.2 L290.4 70.8 L291.8 71.5 L293.3 72.1 L294.7 72.8 L296.1 73.4 L297.5 74.0 L298.9 74.6 L300.3 75.2 L301.8 75.8 L303.2 76.3 L304.6 76.9 L306.0 77.4 L307.4 78.0 L308.8 78.5 L310.3 79.0 L311.7 79.5 L313.1 80.0 L314.5 80.4 L315.9 80.9 L317.3 81.3 L318.8 81.8 L320.2 82.2 L321.6 82.6 L323.0 83.0 L324.4 83.4 L325.8 83.8 L327.3 84.2 L328.7 84.5 L330.1 84.9 L331.5 85.2 L332.9 85.5 L334.3 85.9 L335.8 86.2 L337.2 86.5 L338.6 86.8" fill="none" stroke="hsl(var(--foreground))" stroke-width="1.5"/>
+    <line x1="0" y1="94" x2="340" y2="94" stroke="hsl(var(--border))" stroke-width="1"/>
+    <line x1="170.0" y1="16" x2="170.0" y2="94" stroke="hsl(var(--muted-foreground))" stroke-width="1"/>
+    <line x1="200.9" y1="16" x2="200.9" y2="94" stroke="hsl(var(--primary))" stroke-width="1.5"/>
+    <text x="200.9" y="11" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="hsl(var(--primary))">4 points to Labour</text>
+    <text x="170.0" y="108" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--muted-foreground))">no change</text>
+    <text x="0" y="108" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--muted-foreground))">leans National</text>
+    <text x="340" y="108" text-anchor="end" font-family="Inter, sans-serif" font-size="9" fill="hsl(var(--muted-foreground))">leans Labour</text>
+  </svg>
+          <p class="mt-1 font-label text-[9.5px] leading-snug text-muted-foreground">
+            The red tail is the <span class="font-semibold text-foreground">34 cases in 100</span>
+            where the special votes shift far enough to overturn the lead.
+          </p>
+          <div class="mt-2 flex items-baseline justify-between border-t pt-2">
+            <span class="font-label text-[10.5px] text-muted-foreground">lead survives</span>
+            <span class="font-display text-[22px] font-bold leading-none tabular-nums">66<span class="text-[12px]">%</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-8 flex items-center justify-between border-t pt-3">
+      <span class="font-mono text-[10.5px] text-muted-foreground">Turnout, last time's result and swing: Electoral Commission &middot; model: <span class="font-mono text-[0.92em]">seat-probability.ts</span></span>
+      <span class="font-label text-[11px] font-semibold">&larr; Back to the count</span>
+    </div>
+  </div>
+</div>
+      <div class="max-w-[420px] pt-2 font-label text-[11px] leading-relaxed">
+        <p>
+          <strong>The order is the model's, because the question is.</strong> A reader
+          arriving here already has the number; what they do not have is what it is
+          made of. So the two inputs come first, then the four steps that turn
+          them into one figure, and the figure itself arrives at step 3, where it
+          can be pointed at rather than merely stated.
+        </p>
+        <p class="mt-3 text-muted-foreground">
+          <strong>Every diagram is a share of one line.</strong> The counted bar,
+          the party bars, the swing arrow, the two ranges and the special-vote
+          scale are the same drawing at different scales (a track, a fill, a
+          hairline rule), which is what lets eight figures sit on one page
+          without becoming a report. The curve is the only new shape, and it is
+          there because a range is not a thing a bar can show.
+        </p>
+        <p class="mt-3 text-muted-foreground">
+          <strong>The wide/narrow pair is the load-bearing drawing.</strong> It says
+          the one thing a single number cannot: the same electorate, the same lead, and a
+          Win % that moves because the <em>amount counted</em> moved. Without it a
+          reader reasonably assumes the percentage is a fixed property of the votes
+          rather than a statement about what is still out.
+        </p>
+        <p class="mt-4 border-t pt-3">
+          <span class="kicker mb-1 block">What each step adds</span>
+          Step 1 is arithmetic a reader can check (12 − 10 = 2). Step 2 is why the
+          answer is a range rather than a point, and why the range narrows. Step 3
+          turns the range into a percentage, written as a share of the spread. Step 4 is the special votes, which change the <em>lead</em>, the same
+          quantity the whole page is about, and so are priced against it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ NOTES ══ -->
+  <section id="notes" class="mt-12">
+    <div class="mb-3 flex items-center gap-3">
+      <div class="kicker">Copy notes</div>
+      <span class="font-label text-[11px] text-muted-foreground">two rules the page follows, and the numbers it pins</span>
+    </div>
+    <div class="grid w-[1120px] grid-cols-2 gap-x-12">
+      <div class="border-t">
+        <div class="grid grid-cols-[140px_1fr] gap-6 border-b py-2"><span class="font-label text-[11.5px] font-semibold">No notation</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">The page carries no formula and no symbols. Its one quotient (393 ÷ 9,700 ≈ 4) is written out, because it is the only step a reader is likely to want to redo.</span></div><div class="grid grid-cols-[140px_1fr] gap-6 border-b py-2"><span class="font-label text-[11.5px] font-semibold">Not simulated</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">The model computes the spread rather than sampling it, so the page never says &ldquo;we ran it 10,000 times&rdquo;. It says what the figure is, not a method it does not use.</span></div><div class="grid grid-cols-[140px_1fr] gap-6 border-b py-2"><span class="font-label text-[11.5px] font-semibold">The special vote's lean</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">Measured, not assumed: scripts/measure-specials-swing.mjs derives each seat's special-vote split by subtraction (the per-voting-place pages list overseas, advance and election-day specials per candidate above the seat total), giving a within-cycle sd of 4.75 points across 213 seats and cycle means of +2.3, +1.5 and −3.3. The page's ten points is deliberately about twice the measured spread, which is why it can say the model allows more room than recent elections needed.</span></div><div class="grid grid-cols-[140px_1fr] gap-6 border-b py-2"><span class="font-label text-[11.5px] font-semibold">One word per idea</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">Lead, spread, tie and Win %: each is defined once and then used unchanged. The special votes are priced against the <em>lead</em>, not against &ldquo;the margin&rdquo;, because the page has already called it the lead.</span></div><div class="grid grid-cols-[140px_1fr] gap-6 border-b py-2"><span class="font-label text-[11.5px] font-semibold">Fixed numbers</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">54, 46, 393, 9,700, 4, 10 and 66 are illustrative but self-consistent, so a test can pin them; none of them is read from live data.</span></div>
+      </div>
+      <div class="pt-1 font-label text-[11px] leading-relaxed">
+        <p>
+          <strong>The date check on eligibility.</strong> &ldquo;Enrolled late&rdquo; was
+          the wrong reason for a special vote after the Electoral Amendment Act
+          2025: enrolment now closes 13 days before election day (25 October 2026)
+          and nobody can enrol at a voting place. The page therefore names only
+          the two reasons that still hold (overseas votes and votes cast outside the
+          voter's electorate) and does not offer the list as exhaustive.
+        </p>
+        <p class="mt-3 text-muted-foreground">
+          <strong>Why the tie line matters.</strong> The word &ldquo;level&rdquo; reads as
+          &ldquo;level pegging&rdquo; to some and &ldquo;a level&rdquo; to others. <em>Tie</em> is the
+          one word that cannot be misread, and it is the same word the reader
+          would use.
+        </p>
+        <p class="mt-3 text-muted-foreground">
+          <strong>What the model's own vocabulary is allowed to do.</strong> Swing,
+          special votes and probability stay, because they are precise and
+          understood. The words that were invented to avoid them (&ldquo;endings&rdquo;,
+          &ldquo;one guess at the finish&rdquo;) were the ambiguity, and are gone.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════ COSTS ═ -->
+  <section id="costs" class="mt-12 mb-4">
+    <div class="mb-3 flex items-center gap-3">
+      <div class="kicker">Costs and aftercare</div>
+    </div>
+    <div class="w-[1120px]">
+      <div class="grid grid-cols-[260px_1fr] gap-8 border-t border-b py-2.5"><span class="font-label text-[11.5px] font-semibold">One component, four surfaces</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">A <span class="font-mono text-[0.92em]">WinPercentLink</span> in the header of <em>Seats</em>, <em>Close Calls</em>, <em>Flipped</em> and the seat panel&rsquo;s caption. All four point at the same route, so no two surfaces can quote different explanations.</span></div><div class="grid grid-cols-[260px_1fr] gap-8 border-t border-b py-2.5"><span class="font-label text-[11.5px] font-semibold">One hidden route</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground"><span class="font-mono text-[0.92em]">/how-win-percent-works</span>. No nav entry, no change to Layout, no modal state to manage. Because it is a page, it survives a refresh, a share and a bookmark. A dialog would not.</span></div><div class="grid grid-cols-[260px_1fr] gap-8 border-t border-b py-2.5"><span class="font-label text-[11.5px] font-semibold">The copy is the cost</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">&asymp;590 words of prose. Every paragraph describes the model, so a change to turnout, swing or special votes means reading them again, for the same reason <span class="font-mono text-[0.92em]">docs/seat-probability-model.md</span> exists.</span></div><div class="grid grid-cols-[260px_1fr] gap-8 border-t border-b py-2.5"><span class="font-label text-[11.5px] font-semibold">A test that pins the claim</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">The page must print 54 and 46 as complementary, and 66 for the special-vote step. The numbers are fixed, not live, so a snapshot on the text is enough.</span></div><div class="grid grid-cols-[260px_1fr] gap-8 border-t  py-2.5"><span class="font-label text-[11.5px] font-semibold">Accessibility</span><span class="font-sans text-[13px] leading-relaxed text-muted-foreground">A real link with a real <span class="font-mono text-[0.92em]">aria-label</span> on the ⓘ; one <span class="font-mono text-[0.92em]">h1</span>; every diagram has an <span class="font-mono text-[0.92em]">aria-label</span> saying what it shows, and no meaning is carried by colour alone: the party bars are also labelled, and the range is described in the sentence beside it.</span></div>
+    </div>
+  </section>
+</main>
+  </body>
+</html>

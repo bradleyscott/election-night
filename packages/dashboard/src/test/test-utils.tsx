@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { SocketContext } from '../context/SocketProvider.js';
+import { WinPercentProvider } from '../components/WinPercentDrawer.js';
 import type { ResultsPayload, FeedEvent } from '@election-night/core/types';
 
 export function MockSocketProvider({
@@ -32,7 +33,9 @@ export function MockSocketProvider({
 export function renderWithProviders(children: ReactNode) {
   return (
     <BrowserRouter>
-      <MockSocketProvider>{children}</MockSocketProvider>
+      <MockSocketProvider>
+        <WinPercentProvider>{children}</WinPercentProvider>
+      </MockSocketProvider>
     </BrowserRouter>
   );
 }
@@ -47,7 +50,9 @@ export function renderWithProvidersAndData(
 ) {
   return (
     <BrowserRouter>
-      <MockSocketProvider {...data}>{children}</MockSocketProvider>
+      <MockSocketProvider {...data}>
+        <WinPercentProvider>{children}</WinPercentProvider>
+      </MockSocketProvider>
     </BrowserRouter>
   );
 }

@@ -3,6 +3,7 @@ import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Flipped from './Flipped.js';
+import { WinPercentProvider } from '../components/WinPercentDrawer.js';
 import { MockSocketProvider } from '../test/test-utils.js';
 import type {
   ResultsPayload,
@@ -117,9 +118,11 @@ const priorWinners: PriorWinnersResponse = {
 function renderFlipped() {
   return render(
     <BrowserRouter>
-      <MockSocketProvider results={liveResults} connected>
-        <Flipped />
-      </MockSocketProvider>
+      <WinPercentProvider>
+        <MockSocketProvider results={liveResults} connected>
+          <Flipped />
+        </MockSocketProvider>
+      </WinPercentProvider>
     </BrowserRouter>
   );
 }
@@ -152,6 +155,16 @@ describe('Flipped page', () => {
     expect(screen.queryByText('Kelston')).not.toBeInTheDocument();
   });
 
+  test('lists general and Māori electorates together, with no switch', async () => {
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    // One list: a general seat and a Māori seat sit in the same table.
+    expect(screen.getByText('Tāmaki Makaurau')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Māori' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'General' })).toBeNull();
+  });
+
   test('shows the historical margin of victory beside today’s lead', async () => {
     renderFlipped();
 
@@ -179,11 +192,14 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    // Kapiti's 4,000 is a bigger share (16.0%) than Ōtāhuhu's 5,000 (10.0%).
+    // Kapiti's 4,000 is a bigger share (16.0%) than Ōtāhuhu's 5,000 (10.0%),
+    // which in turn beats Tāmaki Makaurau's 2,000 (8.0%) — one list, whatever
+    // roll the seat sits on.
     const rows = screen.getAllByRole('button', { name: /^View details for/ });
     expect(rows.map((r) => r.textContent)).toEqual([
       expect.stringContaining('Kapiti'),
       expect.stringContaining('Ōtāhuhu'),
+      expect.stringContaining('Tāmaki Makaurau'),
     ]);
   });
 
@@ -206,9 +222,9 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    expect(
-      screen.getByText('Seats changing hands since 2017')
-    ).toBeInTheDocument();
+    // The kicker is gone; the year still comes from the response, in the
+    // column heads.
+    expect(screen.queryByText(/Seats changing hands/)).toBeNull();
     expect(screen.getByText('Held 2017')).toBeInTheDocument();
     expect(screen.getByText('2017 margin')).toBeInTheDocument();
     // Nothing may hardcode the cycle the dev feed happens to use.
@@ -253,30 +269,32 @@ describe('Flipped page', () => {
 
     render(
       <BrowserRouter>
-        <MockSocketProvider
-          results={{
-            electorateResults: [
-              {
-                // A name no baseline knows, so enrolment is back-solved from
-                // the turnout below rather than read from the roll: turnout
-                // past the night total (77.7% × 78.3%) leaves the model
-                // nothing outstanding, which is the complete state.
-                ...electorate(
-                  'Testville',
-                  'National Party',
-                  'SMITH, John',
-                  4_000
-                ),
-                percentVotesCast: 0.7,
-              },
-            ],
-            partyVote: [],
-            partyLists: [],
-          }}
-          connected
-        >
-          <Flipped />
-        </MockSocketProvider>
+        <WinPercentProvider>
+          <MockSocketProvider
+            results={{
+              electorateResults: [
+                {
+                  // A name no baseline knows, so enrolment is back-solved from
+                  // the turnout below rather than read from the roll: turnout
+                  // past the night total (77.7% × 78.3%) leaves the model
+                  // nothing outstanding, which is the complete state.
+                  ...electorate(
+                    'Testville',
+                    'National Party',
+                    'SMITH, John',
+                    4_000
+                  ),
+                  percentVotesCast: 0.7,
+                },
+              ],
+              partyVote: [],
+              partyLists: [],
+            }}
+            connected
+          >
+            <Flipped />
+          </MockSocketProvider>
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
@@ -301,7 +319,11 @@ describe('Flipped page', () => {
 
     // The qualifier columns drop out on narrow screens so the four columns
     // that make the comparison stay readable.
-    expect(screen.getByText('Win %')).toHaveClass('hidden', 'sm:table-cell');
+    expect(
+      screen
+        .getByRole('button', { name: /how we work out win %/i })
+        .closest('th')
+    ).toHaveClass('hidden', 'sm:table-cell');
     // There is no MoE column left to qualify.
     expect(screen.queryByText('MoE')).toBeNull();
     expect(screen.getByText('Lead')).toHaveClass('hidden', 'sm:table-cell');
@@ -312,8 +334,9 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    // 2 flips of 3 comparable general seats (Ōtāhuhu, Kapiti, Remutaka).
-    expect(screen.getByText('2 of 3 seats')).toBeInTheDocument();
+    // 3 flips of 4 comparable seats (Ōtāhuhu, Kapiti, Remutaka, Tāmaki
+    // Makaurau) — general and Māori counted the same way.
+    expect(screen.getByText('3 of 4 seats')).toBeInTheDocument();
   });
 
   test('filters the list, macron-insensitively', async () => {
@@ -326,7 +349,7 @@ describe('Flipped page', () => {
 
     expect(screen.getByText('Ōtāhuhu')).toBeInTheDocument();
     expect(screen.queryByText('Kapiti')).not.toBeInTheDocument();
-    expect(screen.getByText('1 of 3 seats matching')).toBeInTheDocument();
+    expect(screen.getByText('1 of 4 seats matching')).toBeInTheDocument();
   });
 
   test('paginates long lists ten rows at a time', async () => {
@@ -361,18 +384,20 @@ describe('Flipped page', () => {
 
     render(
       <BrowserRouter>
-        <MockSocketProvider
-          results={{
-            electorateResults: names.map((name, i) =>
-              electorate(name, 'National Party', `CANDIDATE ${i}`, 1_000 + i)
-            ),
-            partyVote: [],
-            partyLists: [],
-          }}
-          connected
-        >
-          <Flipped />
-        </MockSocketProvider>
+        <WinPercentProvider>
+          <MockSocketProvider
+            results={{
+              electorateResults: names.map((name, i) =>
+                electorate(name, 'National Party', `CANDIDATE ${i}`, 1_000 + i)
+              ),
+              partyVote: [],
+              partyLists: [],
+            }}
+            connected
+          >
+            <Flipped />
+          </MockSocketProvider>
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
@@ -398,18 +423,6 @@ describe('Flipped page', () => {
     expect(screen.getByText('Seat 12')).toBeInTheDocument();
     expect(screen.queryByText('Seat 02')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
-  });
-
-  test('splits general and Māori seats', async () => {
-    renderFlipped();
-
-    await screen.findByText('Ōtāhuhu');
-    expect(screen.queryByText('Tāmaki Makaurau')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Māori' }));
-
-    expect(screen.getByText('Tāmaki Makaurau')).toBeInTheDocument();
-    expect(screen.queryByText('Ōtāhuhu')).not.toBeInTheDocument();
   });
 
   test('explains itself when no prior cycle could be fetched', async () => {
@@ -472,18 +485,20 @@ describe('Flipped page', () => {
 
     render(
       <BrowserRouter>
-        <MockSocketProvider
-          results={{
-            electorateResults: [
-              electorate('Remutaka', 'National Party', 'SMITH, John', 1_500),
-            ],
-            partyVote: [],
-            partyLists: [],
-          }}
-          connected
-        >
-          <Flipped />
-        </MockSocketProvider>
+        <WinPercentProvider>
+          <MockSocketProvider
+            results={{
+              electorateResults: [
+                electorate('Remutaka', 'National Party', 'SMITH, John', 1_500),
+              ],
+              partyVote: [],
+              partyLists: [],
+            }}
+            connected
+          >
+            <Flipped />
+          </MockSocketProvider>
+        </WinPercentProvider>
       </BrowserRouter>
     );
 
@@ -535,9 +550,11 @@ describe('Flipped page without live results', () => {
   test('waits for the first results', async () => {
     render(
       <BrowserRouter>
-        <MockSocketProvider results={null} connected={false}>
-          <Flipped />
-        </MockSocketProvider>
+        <WinPercentProvider>
+          <MockSocketProvider results={null} connected={false}>
+            <Flipped />
+          </MockSocketProvider>
+        </WinPercentProvider>
       </BrowserRouter>
     );
 

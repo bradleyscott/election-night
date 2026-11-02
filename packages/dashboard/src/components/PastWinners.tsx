@@ -1,6 +1,7 @@
 import { partyColor } from '../lib/constants.js';
 import type { PriorWinner } from '../lib/history-types.js';
 import { PartyDot } from './PartyDot.js';
+import { TR_ROW } from './Table.js';
 
 /**
  * Who held this seat in previous cycles.
@@ -50,14 +51,11 @@ export function PastWinners({
           <table className="w-full text-base">
             <tbody>
               {winners.map((w) => (
-                <tr
-                  key={`${w.year}-${w.electorateName}`}
-                  className="border-b last:border-0"
-                >
-                  <td className="whitespace-nowrap px-3 py-2 font-label text-sm font-semibold tabular-nums text-muted-foreground sm:px-4">
+                <tr key={`${w.year}-${w.electorateName}`} className={TR_ROW}>
+                  <td className="whitespace-nowrap px-3 py-2 font-label text-sm font-semibold tabular-nums text-muted-foreground sm:px-4 sm:py-3">
                     {w.year}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 sm:px-4 sm:py-3">
                     <div className="flex items-center gap-1.5">
                       <PartyDot color={partyColor(w.party)} size="md" />
                       <span className="font-semibold">{w.candidate}</span>
@@ -69,14 +67,14 @@ export function PastWinners({
                         : ''}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums sm:px-4">
-                    <span className="font-bold">
+                  <td className="px-3 py-2 text-right sm:px-4 sm:py-3">
+                    <span className="font-mono font-bold tabular-nums">
                       {w.majority.toLocaleString()}
                     </span>{' '}
                     <span className="text-sm text-muted-foreground">
                       vote margin
                     </span>
-                    <span className="block text-sm text-muted-foreground">
+                    <span className="block text-sm text-muted-foreground font-mono tabular-nums">
                       {(w.majorityPercent * 100).toFixed(1)}% of votes cast
                     </span>
                   </td>

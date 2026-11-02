@@ -36,12 +36,12 @@ all seven Māori electorates to Te Pāti Māori and that overhang is real.
 
 | File | Shows |
 | --- | --- |
-| `seats-desktop` / `seats-mobile` | Parliament hemicycle, party totals, likely parliamentarians |
+| `seats-desktop` / `seats-mobile` | Parliament hemicycle, party totals, Close Calls |
 | `electorates-map-desktop` / `-mobile` | National map, search, General/Māori switch |
 | `electorates-seat-desktop` / `-mobile` | A seat open: zoomed polygon, booth pips, verdict, candidate table |
 | `electorates-seat-*-full` | The same page full length, including Past winners and the vote-share trend |
 | `parties-desktop` | Party list rankings, list cut line |
-| `close-calls-desktop` | The tightest races, chance of winning |
+| `close-calls-desktop` | The tightest races, chance of winning (the Close Calls section of the Seats page) |
 | `flipped-desktop` / `-mobile` | Seats changing hands since 2023, prior margin beside tonight's lead |
 | `feed-desktop` / `-mobile` | The night's event stream |
 | `trends-desktop` | Party seat totals over time |

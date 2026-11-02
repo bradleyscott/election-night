@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import type { RuntimeConfig } from '@election-night/core/polls-close';
 import Layout from './Layout.js';
@@ -134,5 +134,44 @@ describe('masthead dateline', () => {
 
     expect(screen.queryByText(/polls close/i)).not.toBeInTheDocument();
     expect(screen.getByText(/nov/i)).toBeInTheDocument();
+  });
+});
+
+describe('masthead nav', () => {
+  beforeEach(() => {
+    mockConfig();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('lists the pages in reading order', () => {
+    renderLayout();
+
+    const [nav] = screen.getAllByRole('navigation');
+    const labels = within(nav)
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+
+    expect(labels).toEqual([
+      'Seats',
+      'Close Calls',
+      'Electorates',
+      'Flipped',
+      'Candidates',
+      'Feed',
+      'Trends',
+      'Party lists',
+    ]);
+  });
+
+  test('sends Close Calls to its own page', () => {
+    renderLayout();
+
+    const [nav] = screen.getAllByRole('navigation');
+    expect(
+      within(nav).getByRole('link', { name: 'Close Calls' })
+    ).toHaveAttribute('href', '/close-calls');
   });
 });

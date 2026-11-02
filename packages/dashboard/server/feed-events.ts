@@ -59,8 +59,15 @@ function describeSpecials(chance: SeatChance | null): string {
  * Both variants are produced together so the facts can never drift
  * between them.
  *
- * Every line here describes the count in votes and in the chance of winning
- * the seat.
+ * The two variants have different jobs. `summary` is one self-contained line
+ * (webhooks, anything reading a payload with no row around it), so it repeats
+ * the seat, the margin and the progress. `commentary` is printed on the feed
+ * directly above the figures row, which already gives the electorate (the
+ * heading link), the share counted, the margin in votes and share, and the
+ * chance of winning — so commentary carries only what that row cannot: who is
+ * involved, what changed since the last count, and how many votes are still to
+ * come. Restating a number the row prints one line under it is the redundancy
+ * this split exists to avoid.
  */
 function renderCopy(
   diff: ElectorateDiff,
@@ -88,7 +95,7 @@ function renderCopy(
     const outgoing = `${diff.previousLeaderName} (${party(diff.previousLeaderParty)})`;
     return {
       summary: `${name}: ${leader} took the lead from ${outgoing} — leads by ${votes} votes (${marginPct}%).`,
-      commentary: `${leader} has taken the lead from ${outgoing} in ${name}. They lead by ${votes} votes, ${marginPct}% of the vote counted so far, with ${pct}% of votes counted.`,
+      commentary: `${leader} has taken the lead from ${outgoing}.`,
     };
   }
 
@@ -102,7 +109,7 @@ function renderCopy(
     const specials = describeSpecials(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes with all ordinary votes counted.`,
-      commentary: `${leader} leads by ${votes} votes in ${name} with all ordinary votes counted.${specials}`,
+      commentary: `${leader} leads with all ordinary votes counted.${specials}`,
     };
   }
 
@@ -110,7 +117,7 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} is likely to win — ${share} chance of winning with ${pct}% counted.`,
-      commentary: `${leader} is likely to win ${name}. Leading by ${votes} votes with ${pct}% counted, and about ${Math.round(chance.remainingVotes).toLocaleString()} votes still to come, their chance of winning the seat is ${share}.`,
+      commentary: `${leader} is now likely to win, with about ${Math.round(chance.remainingVotes).toLocaleString()} votes still to come.`,
     };
   }
 
@@ -118,18 +125,18 @@ function renderCopy(
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes, but the chance of winning it has fallen to ${share} at ${pct}% counted.`,
-      commentary: `${leader} still leads ${name} by ${votes} votes, with ${pct}% counted. Later votes have cut their chance of winning the seat to ${share}.`,
+      commentary: `${leader} still leads, but later votes have cut their chance of winning the seat.`,
     };
   }
 
   if (chance?.state === 'counting') {
     // The number is the claim. No verdict adjective rides along with it: the
-    // reader sees the votes, what is still to come, and the chance, and can
-    // grade it themselves.
+    // row below prints the votes, what is still to come, and the chance, and
+    // the reader can grade it themselves.
     const share = chancePercent(chance);
     return {
       summary: `${name}: ${leader} leads by ${votes} votes — ${share} chance of winning with ${pct}% counted.`,
-      commentary: `${leader} leads ${name} by ${votes} votes with ${pct}% counted. About ${Math.round(chance.remainingVotes).toLocaleString()} votes are still to come, and their chance of winning the seat is ${share}.`,
+      commentary: `${leader} leads, with about ${Math.round(chance.remainingVotes).toLocaleString()} votes still to come.`,
     };
   }
 
@@ -150,7 +157,7 @@ function renderCopy(
           : `${widened.toFixed(2)}%`;
       return {
         summary: `${name}: ${leader} extended their lead by ${growth} to ${marginPct}% at ${pct}% counted.`,
-        commentary: `${leader} extended their lead by ${growth} to ${marginPct}% in ${name} at ${pct}% counted.`,
+        commentary: `${leader} extended their lead by ${growth}.`,
       };
     }
     if (marginDelta < 0) {
@@ -160,7 +167,7 @@ function renderCopy(
           : `${widened.toFixed(2)}%`;
       return {
         summary: `${name}: ${leader} leads by ${marginPct}% at ${pct}% counted — the gap narrowed by ${shrink}.`,
-        commentary: `${leader} leads in ${name} by ${marginPct}% at ${pct}% counted — the gap narrowed by ${shrink}.`,
+        commentary: `${leader}'s lead narrowed by ${shrink}.`,
       };
     }
   }
@@ -168,7 +175,7 @@ function renderCopy(
   const second = `${l.secondCandidate} (${party(l.secondCandidateParty)})`;
   return {
     summary: `${name}: ${leader} leads ${second} by ${votes} votes at ${pct}% counted.`,
-    commentary: `${leader} leads ${second} by ${votes} votes in ${name} at ${pct}% counted.`,
+    commentary: `${leader} leads ${second}.`,
   };
 }
 
@@ -238,7 +245,8 @@ export function buildFeedEvents(
       timestamp: Date.now(),
       type,
       electorateName: result.electorateName,
-      probability: chance?.state === 'counting' ? chance.probability : null,
+      probability:
+        chance && chance.state !== 'waiting' ? chance.probability : null,
       progress: chance?.state === 'counting' ? chance.progress : null,
       summary,
       commentary,

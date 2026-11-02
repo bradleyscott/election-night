@@ -160,11 +160,41 @@
     justify-content: space-between;
     gap: 0.75rem;
     flex-wrap: wrap;
-    padding: 1.25rem 0 0.5rem;
+    /* The shell's top padding already separates the head from the masthead, so
+       this is a breath, not a second gap: together they used to leave ~52px of
+       blank paper between the nav rule and the title. */
+    padding: 0.5rem 0 0.5rem;
     margin-bottom: 0;
     border-bottom: 2px solid hsl(var(--foreground));
   }
   .pagehead h1 {
+    font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+    letter-spacing: -0.015em;
+  }
+
+  /* A page head whose title carries a boxed control (the open seat's
+     Candidate/Party switch). The control is a 44px target, so the default
+     baseline alignment would hang its box through the rule; centring it on the
+     title's line puts it level with the word. The rule still spans the page,
+     which is why this is a modifier on the head rather than a flex row that
+     would shrink the head to its contents. */
+  .pagehead--control {
+    align-items: center;
+  }
+
+  /* A section that is big enough to want its own masthead inside a page — the
+     Close Calls section on Seats. Same rule and same display size as the page
+     head, one level down in the outline (an `h2`), so the section reads as its
+     own front page rather than as a subheading of the one above it. The top
+     padding is dropped because the page's own spacing already separates it from
+     the section above. */
+  .pagehead--section {
+    padding: 0 0 0.5rem;
+    /* a section head pairs a heading with a control (the Close Calls toggle),
+       not two lines of type, so the two centre on each other */
+    align-items: center;
+  }
+  .pagehead--section h2 {
     font-size: clamp(1.75rem, 3.5vw, 2.25rem);
     letter-spacing: -0.015em;
   }

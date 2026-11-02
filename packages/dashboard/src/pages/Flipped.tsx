@@ -3,17 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { usePriorWinners } from '../hooks/useVoteHistory.js';
 import { useSeatChances } from '../hooks/useSeatChances.js';
-import { Toggle } from '../components/Toggle.js';
 import { Pagination } from '../components/Pagination.js';
 import { WaitingState } from '../components/WaitingState.js';
 import { partyColor } from '../lib/constants.js';
+import { normalizeElectorateName } from '../lib/electorates.js';
 import {
-  isMaoriElectorate,
-  normalizeElectorateName,
-} from '../lib/electorates.js';
-import type { SeatChance } from '@election-night/core/seat-probability';
+  Th,
+  TR_ROW,
+  TR_ROW_HOVER,
+  TR_CLICKABLE,
+  NUMERIC,
+  NUMERIC_CELL,
+  TABLE_FRAME,
+} from '../components/Table.js';
 import { cn } from '../lib/utils.js';
-import { Th } from '../components/Table.js';
+import { WinPercentLink } from '../components/WinPercentLink.js';
+import {
+  WinPercentValue,
+  chancePercent,
+  winPercentTitle,
+} from '../components/WinPercentValue.js';
 import type { PriorWinner } from '../lib/history-types.js';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
@@ -33,6 +42,10 @@ const PAGE_SIZE = 10;
  * through the rename table and drops seats created by a merge or split, so
  * every row here is an honest "held by X, now leading Y". Seats with no prior
  * holder are absent rather than guessed at.
+ *
+ * General and Māori electorates share one list: a seat changing hands is the
+ * same fact whatever roll it sits on, and splitting the two hid half the flips
+ * behind a switch.
  */
 export default function Flipped() {
   const navigate = useNavigate();
@@ -43,7 +56,6 @@ export default function Flipped() {
     loading: priorLoading,
   } = usePriorWinners();
 
-  const [showMaori, setShowMaori] = useState(false);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
 
@@ -64,13 +76,12 @@ export default function Flipped() {
   const comparable = useMemo(
     () =>
       electorates
-        .filter((e) => showMaori === isMaoriElectorate(e.electorateName))
         .map((electorate) => ({
           electorate,
           prior: priorByElectorate.get(electorate.electorateName),
         }))
         .filter((row): row is FlippedSeat => !!row.prior),
-    [electorates, priorByElectorate, showMaori]
+    [electorates, priorByElectorate]
   );
 
   // …of which these changed hands, strongest lead first. Sorted by share of
@@ -109,7 +120,7 @@ export default function Flipped() {
   // that merely re-renders the table must not move the reader.
   useEffect(() => {
     setPage(0);
-  }, [query, showMaori]);
+  }, [query]);
 
   useEffect(() => {
     if (page >= totalPages) setPage(0);
@@ -124,38 +135,7 @@ export default function Flipped() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <PageHead title="Flipped" className="mb-0">
-          <span className="kicker">
-            {primaryYear
-              ? `Seats changing hands since ${primaryYear}`
-              : 'Seats changing hands'}
-          </span>
-        </PageHead>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="relative w-full text-sm sm:w-auto">
-            <label className="sr-only" htmlFor="flipped-search-input">
-              Search flipped seats
-            </label>
-            <input
-              id="flipped-search-input"
-              type="text"
-              placeholder="Search electorate…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full border bg-background px-3 py-2 font-label text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/25 sm:w-56 sm:py-1.5"
-            />
-          </div>
-          <Toggle
-            options={[
-              { value: 'general', label: 'General' },
-              { value: 'maori', label: 'Māori' },
-            ]}
-            value={showMaori ? 'maori' : 'general'}
-            onChange={(v) => setShowMaori(v === 'maori')}
-          />
-        </div>
-      </div>
+      <PageHead title="Flipped" />
 
       {priorLoading ? (
         <WaitingState variant="compact" context="electorates" />
@@ -170,19 +150,34 @@ export default function Flipped() {
           {primaryYear}.
         </Notice>
       ) : (
-        <div className="border">
-          <div className="flex items-baseline justify-between gap-3 border-b px-3 py-2 sm:px-4">
-            <span className="kicker">
-              {visible.length} of {comparable.length} seats
-              {query.trim() ? ' matching' : ''}
-            </span>
+        <>
+          <div className="relative">
+            <label className="sr-only" htmlFor="flipped-search-input">
+              Search flipped seats
+            </label>
+            <input
+              id="flipped-search-input"
+              type="text"
+              placeholder="Search electorate…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full border bg-background px-3 py-2 font-label text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/25 sm:py-1.5"
+            />
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-base">
-              <thead>
-                <tr className="border-b">
-                  {/* Widths are fixed rather than left to the browser: with
+          <div>
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <span className="kicker">
+                {visible.length} of {comparable.length} seats
+                {query.trim() ? ' matching' : ''}
+              </span>
+            </div>
+
+            <div className={cn('overflow-x-auto', TABLE_FRAME)}>
+              <table className="w-full text-base">
+                <thead>
+                  <tr className="border-b border-border">
+                    {/* Widths are fixed rather than left to the browser: with
                       auto layout the slack goes to whichever column has the
                       most text, and `Held` carries a third line (“· as Port
                       Hills”) that would hand it the room. Tonight's lead is
@@ -190,174 +185,177 @@ export default function Flipped() {
                       share and the prior holder a readable minimum. The
                       numeric columns stay auto — they only need their
                       digits. */}
-                  <Th align="left" className="w-[19%]">
-                    Electorate
-                  </Th>
-                  <Th align="left" className="w-[24%]">
-                    Held {primaryYear}
-                  </Th>
-                  <Th align="right" className="hidden sm:table-cell">
-                    {primaryYear} margin
-                  </Th>
-                  <Th align="left" className="w-[32%]">
-                    Now leading
-                  </Th>
-                  {/* Below sm the numbers are folded into the two comparison
+                    <Th align="left" className="w-[19%] px-2 sm:px-3">
+                      Electorate
+                    </Th>
+                    <Th align="left" className="w-[24%] px-2 sm:px-3">
+                      Held {primaryYear}
+                    </Th>
+                    <Th
+                      align="right"
+                      className="hidden px-2 sm:table-cell sm:px-3"
+                    >
+                      {primaryYear} margin
+                    </Th>
+                    <Th align="left" className="w-[32%] px-2 sm:px-3">
+                      Now leading
+                    </Th>
+                    {/* Below sm the numbers are folded into the two comparison
                       columns (see the row cells), so only the margin and
                       chance columns drop out — the lead stays visible. */}
-                  <Th align="right" className="hidden sm:table-cell">
-                    Lead
-                  </Th>
-                  {/* The chance is a qualifier, not part of the comparison, so
-                      it goes last. */}
-                  <Th align="right" className="hidden sm:table-cell">
-                    Win %
-                  </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map(({ electorate, prior: winner }, i) => {
-                  const l = electorate.leaders;
-                  return (
-                    <tr
-                      key={electorate.electorateName}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`View details for ${electorate.electorateName}`}
-                      onClick={() => open(electorate.electorateName)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          open(electorate.electorateName);
-                        }
-                      }}
-                      className={cn(
-                        'animate-fade-in-up border-b opacity-0 transition-colors last:border-0 hover:bg-muted/20',
-                        'cursor-pointer focus:bg-muted/20 focus:outline-none focus:ring-2 focus:ring-ring/25'
-                      )}
-                      style={{ animationDelay: `${i * 0.03}s` }}
+                    <Th
+                      align="right"
+                      className="hidden px-2 sm:table-cell sm:px-3"
                     >
-                      <td className="px-2 py-2 font-semibold sm:px-3 sm:py-3">
-                        <span className="transition-colors hover:underline">
-                          {electorate.electorateName}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 sm:px-3 sm:py-3">
-                        <div className="flex items-center gap-1.5">
-                          <PartyDot color={partyColor(winner.party)} />
-                          <span className="font-semibold">
-                            {winner.candidate}
+                      Lead
+                    </Th>
+                    {/* The chance is a qualifier, not part of the comparison, so
+                      it goes last. */}
+                    <Th
+                      align="right"
+                      className="hidden px-2 sm:table-cell sm:px-3"
+                    >
+                      <WinPercentLink />
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map(({ electorate, prior: winner }, i) => {
+                    const l = electorate.leaders;
+                    const chance = chances.get(
+                      normalizeElectorateName(electorate.electorateName)
+                    );
+                    return (
+                      <tr
+                        key={electorate.electorateName}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`View details for ${electorate.electorateName}`}
+                        onClick={() => open(electorate.electorateName)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            open(electorate.electorateName);
+                          }
+                        }}
+                        className={cn(
+                          TR_ROW,
+                          TR_ROW_HOVER,
+                          TR_CLICKABLE,
+                          'animate-fade-in-up opacity-0'
+                        )}
+                        style={{ animationDelay: `${i * 0.03}s` }}
+                      >
+                        <td className="px-2 py-2 font-medium sm:px-3 sm:py-3">
+                          <span className="transition-colors hover:underline">
+                            {electorate.electorateName}
                           </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {winner.party ?? 'Independent'}
-                          {winner.priorElectorateName
-                            ? ` · as ${winner.priorElectorateName}`
-                            : ''}
-                        </div>
-                        <div className="text-sm text-muted-foreground tabular-nums sm:hidden">
-                          majority {winner.majority.toLocaleString()} ·{' '}
-                          {(winner.majorityPercent * 100).toFixed(1)}%
-                        </div>
-                      </td>
-                      <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell sm:px-3 sm:py-3">
-                        <span className="font-bold">
-                          {winner.majority.toLocaleString()}
-                        </span>
-                        <span className="block text-sm text-muted-foreground">
-                          {(winner.majorityPercent * 100).toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 sm:px-3 sm:py-3">
-                        <div className="flex items-center gap-1.5">
-                          <PartyDot
-                            color={partyColor(l.leadingCandidateParty)}
-                          />
-                          <span className="font-semibold">
-                            {l.leadingCandidate}
-                          </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {l.leadingCandidateParty ?? 'Independent'}
-                        </div>
-                        <div className="text-sm text-muted-foreground tabular-nums sm:hidden">
-                          leads {l.margin.toLocaleString()} ·{' '}
-                          {(l.marginPercent * 100).toFixed(1)}%
-                        </div>
-                      </td>
-                      <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell sm:px-3 sm:py-3">
-                        <span className="font-bold">
-                          {l.margin.toLocaleString()}
-                        </span>
-                        <span className="block whitespace-nowrap text-sm text-muted-foreground">
-                          {(l.marginPercent * 100).toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
-                        <WinPercentCell
-                          chance={chances.get(
-                            normalizeElectorateName(electorate.electorateName)
+                        </td>
+                        <td className="px-2 py-2 sm:px-3 sm:py-3">
+                          <div className="flex items-center gap-1.5">
+                            <PartyDot color={partyColor(winner.party)} />
+                            <span className="font-medium">
+                              {winner.candidate}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {winner.party ?? 'Independent'}
+                            {winner.priorElectorateName
+                              ? ` · as ${winner.priorElectorateName}`
+                              : ''}
+                          </div>
+                          <div
+                            className={cn(
+                              'text-sm text-muted-foreground sm:hidden',
+                              NUMERIC
+                            )}
+                          >
+                            majority {winner.majority.toLocaleString()} ·{' '}
+                            {(winner.majorityPercent * 100).toFixed(1)}%
+                          </div>
+                        </td>
+                        <td
+                          className={cn(
+                            'hidden px-2 py-2 sm:table-cell sm:px-3 sm:py-3',
+                            NUMERIC,
+                            NUMERIC_CELL
                           )}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        >
+                          <span>{winner.majority.toLocaleString()}</span>
+                          <span className="block text-sm text-muted-foreground">
+                            {(winner.majorityPercent * 100).toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 sm:px-3 sm:py-3">
+                          <div className="flex items-center gap-1.5">
+                            <PartyDot
+                              color={partyColor(l.leadingCandidateParty)}
+                            />
+                            <span className="font-medium">
+                              {l.leadingCandidate}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {l.leadingCandidateParty ?? 'Independent'}
+                          </div>
+                          <div
+                            className={cn(
+                              'text-sm text-muted-foreground sm:hidden',
+                              NUMERIC
+                            )}
+                          >
+                            leads {l.margin.toLocaleString()} ·{' '}
+                            {(l.marginPercent * 100).toFixed(1)}%
+                          </div>
+                        </td>
+                        <td
+                          className={cn(
+                            'hidden px-2 py-2 sm:table-cell sm:px-3 sm:py-3',
+                            NUMERIC,
+                            NUMERIC_CELL
+                          )}
+                        >
+                          <span>{l.margin.toLocaleString()}</span>
+                          <span className="block whitespace-nowrap text-sm text-muted-foreground">
+                            {(l.marginPercent * 100).toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
+                          <WinPercentValue
+                            percent={chancePercent(chance)}
+                            title={winPercentTitle(chance)}
+                            fallback={
+                              <span
+                                className="text-muted-foreground"
+                                title="No votes counted yet"
+                              >
+                                —
+                              </span>
+                            }
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
-            {visible.length === 0 && (
-              <p className="px-3 py-4 text-sm text-muted-foreground sm:px-4">
-                No flipped seats match “{query.trim()}”.
-              </p>
-            )}
+              {visible.length === 0 && (
+                <p className="px-3 py-4 text-sm text-muted-foreground sm:px-4">
+                  No flipped seats match “{query.trim()}”.
+                </p>
+              )}
+            </div>
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onChange={setPage}
+            />
           </div>
-
-          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-        </div>
+        </>
       )}
     </div>
-  );
-}
-
-/**
- * The chance the leader holds the seat. A margin of error describes a sample,
- * and a count part-way through is not a sample — the honest figure is how
- * likely the lead is to survive the votes still to count.
- *
- * A finished count keeps its number rather than a word. The count stopping is
- * not the seat deciding: specials are still to come (21% of all votes in 2023,
- * and they moved seats), which is exactly why a finished count can sit at 55%
- * under this header. Printing `Complete` there hid the number the seat panel
- * and the rest of the app quote for the same seat.
- *
- * The tooltip carries what the word used to: the ordinary count is done, and
- * this is the chance of holding the seat once the specials are added.
- */
-function WinPercentCell({ chance }: { chance?: SeatChance }) {
-  if (chance?.state === 'counting') {
-    return (
-      <span className="font-bold tabular-nums">
-        {Math.round(chance.probability * 100)}%
-      </span>
-    );
-  }
-
-  if (chance?.state === 'complete') {
-    return (
-      <span
-        className="font-bold tabular-nums"
-        title="The ordinary count is complete; this is the chance of holding the seat once the special votes are added"
-      >
-        {Math.round(chance.probability * 100)}%
-      </span>
-    );
-  }
-
-  return (
-    <span className="text-muted-foreground" title="No votes counted yet">
-      &mdash;
-    </span>
   );
 }
 

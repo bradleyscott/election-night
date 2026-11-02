@@ -4,12 +4,20 @@ import { cn } from '../lib/utils.js';
 export function TimelineItem({
   dot = 'bg-blue-700 dark:bg-blue-400',
   isLast = false,
+  divider = false,
   children,
   className,
 }: {
   /** The dot's fill classes, e.g. `feedEventStyle(type).dot`. */
   dot?: string;
   isLast?: boolean;
+  /**
+   * Draw a hairline under this item, inside the text column, so one event ends
+   * where the next begins. The caller decides where the rules stop (the feed
+   * keeps a clean edge under its last event); the timeline itself does not
+   * assume anything about `isLast`.
+   */
+  divider?: boolean;
   children: ReactNode;
   className?: string;
 }) {
@@ -24,7 +32,10 @@ export function TimelineItem({
         />
         {!isLast && <div className="w-0.5 flex-1 bg-border/80" />}
       </div>
-      <div className="pb-3 flex-1 min-w-0 pl-5">{children}</div>
+      <div className="pb-3 flex-1 min-w-0 pl-5">
+        {children}
+        {divider && <hr className="mt-3 border-t border-border" />}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,14 @@ import type { CSSProperties } from 'react';
 import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { PartyDot } from './PartyDot.js';
-import { Th } from './Table.js';
+import {
+  Th,
+  TR_ROW,
+  TR_ROW_HOVER,
+  NUMERIC,
+  NUMERIC_CELL,
+  TABLE_FRAME,
+} from './Table.js';
 import type { PartyListResult } from '@election-night/core/types';
 
 /**
@@ -72,12 +79,19 @@ export function PartyFilterChips({
 /**
  * One party's candidate list, with the cut drawn where the seats run out.
  *
- * `members` arrives already filtered and sorted by adjusted rank; the card
+ * `members` arrives already filtered and sorted by adjusted rank; the table
  * does not decide who is in the list, only how a list reads. A candidate who
  * won an electorate is marked and reads no rank or cut distance (they are in
  * Parliament either way), which is why `electorateForCandidate` is optional:
  * the Close Calls view has already removed those candidates, so it passes
  * nothing and every row shows its rank.
+ *
+ * It is a plain table like every other data table in the app: the party is
+ * named by the chips above it, so a bordered card with its own party banner
+ * repeated a choice the reader had just made. `party` remains for the table's
+ * accessible name. Below `sm` the secondary List rank drops and `Rank` and
+ * `From Cut` carry the cut, so the table and its frame fit a phone without a
+ * sideways scroll.
  *
  * The cut is drawn where the "From cut" column crosses zero: after the last
  * row printing a non-negative distance. An electorate winner prints no
@@ -92,13 +106,13 @@ export function PartyListCard({
   electorateForCandidate,
   revealDelay,
   rowDelayBase = 0,
-  rowDelayStep = 0.04,
+  rowDelayStep = 0.03,
 }: {
   party: string;
   members: PartyListResult[];
   /** Candidate → electorate name, for the link and the electorate-seat rule. */
   electorateForCandidate?: Map<string, string>;
-  /** Seconds before the card reveals; omit for a card that is not revealed. */
+  /** Seconds before the table reveals; omit for a table that is not revealed. */
   revealDelay?: number;
   /** Seconds before the first row reveals, on top of `revealDelay`. */
   rowDelayBase?: number;
@@ -121,23 +135,26 @@ export function PartyListCard({
   return (
     <div
       className={cn(
-        'border overflow-hidden',
         revealDelay !== undefined && 'opacity-0 animate-fade-in-up'
       )}
       style={wrapperStyle}
     >
-      <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-border font-display font-bold text-sm sm:text-base tracking-tight flex items-center gap-2">
-        <PartyDot color={partyColor(party)} size="md" />
-        {party}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-base">
+      <div className={cn('overflow-x-auto', TABLE_FRAME)}>
+        <table className="w-full text-base" aria-label={`${party} party list`}>
           <thead>
             <tr className="border-b">
-              <Th className="w-14">List</Th>
-              <Th className="w-14">Rank</Th>
+              {/* The list rank is the secondary of the two numbers: the cut is
+                  read from `Rank` and `From Cut`, so below `sm` the List column
+                  drops and the table fits a phone, as Electorate Races drops
+                  Second. */}
+              <Th align="right" className="hidden w-14 sm:table-cell">
+                List
+              </Th>
+              <Th align="right" className="w-14">
+                Rank
+              </Th>
               <Th>Candidate</Th>
-              <Th align="right" className="w-24">
+              <Th align="right" className="w-24 whitespace-nowrap">
                 From Cut
               </Th>
             </tr>
@@ -171,7 +188,8 @@ export function PartyListCard({
                 <tr
                   key={member.candidate}
                   className={cn(
-                    'border-b last:border-0 transition-colors hover:bg-muted/20',
+                    TR_ROW,
+                    TR_ROW_HOVER,
                     isElected ? 'bg-green-700/5 dark:bg-green-950/20' : '',
                     'opacity-0 animate-fade-in-up'
                   )}
@@ -179,11 +197,28 @@ export function PartyListCard({
                     animationDelay: `${rowDelayBase + index * rowDelayStep}s`,
                   }}
                 >
-                  <td className="py-2 sm:py-3 px-3 text-muted-foreground tabular-nums font-semibold">
+                  <td
+                    className={cn(
+                      'py-2 sm:py-3 px-3 text-muted-foreground font-semibold hidden sm:table-cell',
+                      NUMERIC,
+                      NUMERIC_CELL
+                    )}
+                  >
                     {member.listRank}
                   </td>
-                  <td className="py-2 sm:py-3 px-3 tabular-nums font-bold">
-                    {electorate ? null : member.adjustedRank}
+                  <td
+                    className={cn(
+                      'py-2 sm:py-3 px-3 font-bold',
+                      NUMERIC,
+                      NUMERIC_CELL,
+                      electorate && 'text-muted-foreground font-normal'
+                    )}
+                  >
+                    {electorate ? (
+                      <span aria-label="No adjusted rank">—</span>
+                    ) : (
+                      member.adjustedRank
+                    )}
                   </td>
                   <td className="py-2 sm:py-3 px-3 font-semibold">
                     <span className="flex flex-wrap items-center gap-1.5">
@@ -198,8 +233,21 @@ export function PartyListCard({
                       )}
                     </span>
                   </td>
-                  <td className="py-2 sm:py-3 px-3 text-right tabular-nums font-bold">
-                    {electorate ? null : isElected ? (
+                  <td
+                    className={cn(
+                      'py-2 sm:py-3 px-3 font-bold',
+                      NUMERIC,
+                      NUMERIC_CELL
+                    )}
+                  >
+                    {electorate ? (
+                      <span
+                        className="text-muted-foreground font-normal"
+                        aria-label="No distance from the cut"
+                      >
+                        —
+                      </span>
+                    ) : isElected ? (
                       <span className="text-green-700 dark:text-green-400">
                         +{Math.round(member.distanceFromCut)}
                       </span>

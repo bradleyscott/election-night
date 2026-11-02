@@ -12,7 +12,7 @@ const older: FeedEvent = {
   id: 'event-older',
   timestamp: mockFeedEvent.timestamp - 60_000,
   electorateName: 'Banks Peninsula',
-  commentary: 'THOMAS, Alex leads Banks Peninsula at 35% counted.',
+  commentary: 'THOMAS, Alex leads, with about 3,000 votes still to come.',
   diff: {
     ...mockFeedEvent.diff,
     electorateName: 'Banks Peninsula',
@@ -25,7 +25,7 @@ const newer: FeedEvent = {
   id: 'event-newer',
   timestamp: mockFeedEvent.timestamp,
   electorateName: 'Auckland Central',
-  commentary: 'SMITH, John leads Auckland Central at 95% counted.',
+  commentary: 'SMITH, John leads, with about 3,000 votes still to come.',
   diff: {
     ...mockFeedEvent.diff,
     electorateName: 'Auckland Central',

@@ -6,6 +6,84 @@ drawn ahead of implementation, so review them as a proposal — the tokens,
 utilities and component classes are the real ones, the markup is not the
 component.
 
+## `win-percent-explainer` (`.html` / `.png`)
+
+An explainer for **Win %**, one click from the column header on every surface
+that prints it (the seat panel, *Seats*, *Close Calls*, *Flipped*). It shipped as a single
+hidden page — `/how-win-percent-works`, no nav entry — and on review became a
+drawer instead: the question is asked at a table, so the reader keeps the table.
+There is no route and no nav entry; the entry is a plain `Win % i` in the header.
+
+Two review rounds shaped it. The first asked for the method to be explained
+rather than asserted; the second cut the parts that were explaining the obvious
+or the already-drawn. So there is one version only (no dialog, no phone sheet),
+the answers to "what is a percentage" and "why is a number sometimes missing"
+are gone, and **the page now spends its words on how the count becomes one
+number**: the expected result, the width of the range around it, the share of
+that range each candidate wins, and the special votes priced against the lead.
+The special votes are introduced in step 4, where they are used, rather than
+listed as an input to a count they are not part of.
+
+The second round also removed the terminology table. It had been substituting
+invented words for the model's own — "endings" for probability, "one guess at
+the finish" for the expected result, "level" for a tie — and the substitutions
+were the ambiguity. The page now uses the plain precise word each time: **tie**
+for a dead heat, **lead** for the vote difference (never "margin", which the
+seat panel uses for the same thing under a different heading), **spread** for
+the range of plausible results.
+
+**The drawings.** Every figure is a share of one line — a track, a fill, a
+hairline — except two curves. The wide/narrow pair (a fifth counted, four fifths
+counted) is the load-bearing one: the same electorate, the same lead, and a Win %
+that moves because the amount counted moved. The special-vote curve is a bell centred
+on *no change* with the overturning tail in red, so the 66/34 split is visible
+rather than asserted; it replaced a two-bar comparison whose red 0–4 segment read
+as "4 of 10, therefore under half", which is the opposite of what the model says.
+
+**Implemented** as `components/WinPercentDrawer.tsx` (shell, provider and open
+state), `components/WinPercentContent.tsx` (copy and layout),
+`components/WinPercentFigures.tsx` (the drawings) and
+`components/WinPercentLink.tsx` (the header trigger). Four deviations from the
+file above: it is a **drawer**, not a page, so there is no route and no feed-rail
+exception; the caption's second door was not built, because the seat panel has no
+caption sentence to put a link on (AGENTS.md describes one; the panel does not
+render it); the map sidebar's `Win %` row was left unlinked, so the header is the
+single table entry; and Seats opens it from a quiet button in the page head,
+because Seats calls the same number **Certainty** and that header is a sort
+control. The copy shipped unchanged apart from the vocabulary review (electorate,
+tie, no em-dashes), the removal of the footer that named `seat-probability.ts`,
+and a "Worked example · Not tonight's results" note, added because the numbers are
+static and a reader could otherwise take them for tonight's counts.
+
+**Provenance.** The figures are constructed and self-consistent, not a real
+count: 68% counted (19,846 in, ≈9,300 out), 42.4 / 40.4 / 17.2 tonight,
+46.3 / 34.3 / 19.4 last time (a 12-point lead), a five-point swing to Labour
+(hence a two-point expected result), 54/46 on the curve, 393 against ≈9,700
+special votes for the four-point step, a ten-point spread on the special vote,
+and 66 for the lead surviving. The seat is never named and no candidate is
+named: the page is about the method, so a reader cannot mistake the worked
+example for their own seat's numbers. The prior shares are illustrative in a way
+the other mockups' figures are not — the real Banks Peninsula was much closer —
+which is the second reason to keep the seat anonymous.
+
+The eligibility sentence was checked against the 2026 rules: the Electoral
+Amendment Act 2025 ended same-day enrolment, so "enrolled late" is no longer a
+way to cast a special vote, and the page names only overseas votes and votes cast
+outside the voter's electorate.
+
+```bash
+cd packages/dashboard
+./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
+  -o /tmp/winpct.css \
+  --content "../../docs/mockups/proposals/win-percent-explainer.html"
+
+# inline /tmp/winpct.css into the <style> block at /*STYLES*/, then capture the
+# full page at 1400 wide. At 3,974 CSS px it is 7,948 device px at 2x: inside the
+# 8,192 limit by barely 240px, so the next addition to the copy needs the stitched
+# capture the notes on `electorate-page` describe. Re-measure
+# document.documentElement.scrollHeight before capturing.
+```
+
 ## `counted-tape` (`.html` / `.png`)
 
 The two **Counted** charts — the electorate panel's `VoteHistoryChart` and the

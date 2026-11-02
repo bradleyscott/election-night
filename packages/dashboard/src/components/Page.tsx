@@ -8,8 +8,8 @@ import { WaitingState } from './WaitingState.js';
  * Every page head was the same four lines of JSX, so the rule (a two-pixel
  * foreground line), the h1 sizing and the baseline alignment lived in twelve
  * copies. `children` takes the extra masthead items a page puts beside the
- * title (Flipped's kicker), and `className` carries the one real variant,
- * `mb-0`, for a head inside a flex row.
+ * title (a kicker, a sort control), and `className` carries the one real
+ * variant, `mb-0`, for a head inside a flex row.
  */
 export function PageHead({
   title,

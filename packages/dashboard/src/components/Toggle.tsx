@@ -14,8 +14,15 @@ export function Toggle<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  // `w-fit` keeps the control hugging its buttons: as a flex item in a column
+  // parent (the Close Calls head on a phone) the default `stretch` would
+  // otherwise blow it out to the full width and read as a table.
+  //
+  // `divide-x` keeps neighbouring options distinct while they are both
+  // inactive: without a hairline between them, `# Votes` and `% of Vote` read
+  // as one long word rather than two buttons.
   return (
-    <div className="flex border overflow-hidden text-sm font-bold flex-shrink-0 font-label">
+    <div className="flex w-fit border divide-x divide-border overflow-hidden text-sm font-bold flex-shrink-0 font-label">
       {options.map((opt) => (
         <button
           key={opt.value}

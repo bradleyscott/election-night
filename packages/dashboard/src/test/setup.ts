@@ -11,6 +11,18 @@ class ResizeObserverStub {
 globalThis.ResizeObserver =
   ResizeObserverStub as unknown as typeof ResizeObserver;
 
+// jsdom has no layout and no scrolling, so the Seats page's jump to the Close
+// Calls section (and its scroll reset) are no-ops here — but the calls have to
+// exist, or every test that renders the page returns from the effect on an
+// error.
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'scrollTo', {
+    writable: true,
+    value: vi.fn(),
+  });
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
