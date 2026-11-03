@@ -37,11 +37,14 @@ import { Toggle } from '../components/Toggle.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
 
-/** The four chart modes, in the order the toggle offers them. */
+/**
+ * The four chart modes, in the order the toggle offers them. The default mode
+ * comes first, so the selected option is the leftmost one on first paint.
+ */
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'seats', label: '# Seats' },
   { value: 'votes', label: '# Votes' },
   { value: 'percent', label: '% of Vote' },
-  { value: 'seats', label: '# Seats' },
   { value: 'counted', label: 'Counted' },
 ];
 

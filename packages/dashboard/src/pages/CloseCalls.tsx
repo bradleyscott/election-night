@@ -55,8 +55,8 @@ export default function CloseCalls() {
         <PageHead title="Close Calls" className="mb-0" />
         <Toggle
           options={[
-            { value: 'electorates', label: 'Electorate Races' },
             { value: 'list', label: 'List Cut Lines' },
+            { value: 'electorates', label: 'Electorate Races' },
           ]}
           value={view}
           onChange={setView}
