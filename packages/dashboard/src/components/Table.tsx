@@ -6,7 +6,10 @@ import { cn } from '../lib/utils.js';
  *
  * Set at `text-sm` (14px) to sit a step under the 1rem body: a 12px header
  * over 16px rows read as a caption rather than a heading. It stays smaller
- * than the data and tracked, which is what makes it a label.
+ * than the data and tracked, which is what makes it a label. Below `sm` it
+ * drops one pixel to 13px, because on a phone a tracked header such as
+ * `Win chance` is what pushes a column into wrapping and the table into a
+ * sideways scroll.
  *
  * Padding, alignment and width stay at the call site — the wide tables pad
  * `px-3 py-2 sm:py-3` while the compact ones pad `px-2` and no vertical — but
@@ -14,7 +17,31 @@ import { cn } from '../lib/utils.js';
  * twenty-eight `<th>`s before this existed.
  */
 export const TH_CLASS =
-  'font-label font-semibold uppercase tracking-wide text-sm text-muted-foreground';
+  'font-label font-semibold uppercase tracking-wide text-[0.8125rem] text-muted-foreground sm:text-sm';
+
+/**
+ * Cell type: the table's step above body copy, one pixel smaller on a phone.
+ *
+ * `sm` and up keep the 1rem the design system specifies. Below `sm`, 16px
+ * makes a four-column result table wrap names and scroll sideways on a 390px
+ * screen, so the type drops to 15px — still larger than the 0.875rem second
+ * line, and the difference between one line and two in a name column.
+ */
+export const TABLE_TEXT = 'text-[0.9375rem] sm:text-base';
+
+/**
+ * The Parliament table is set a size larger on purpose; it takes the same one
+ * pixel cut on a phone, so its rows stay level with every other table there.
+ */
+export const TABLE_TEXT_LG = 'text-[0.9375rem] sm:text-lg';
+
+/**
+ * The compact table inside the open seat's panel, which already ran a step
+ * under the rest on a phone so five columns could fit. It makes the same one
+ * pixel cut, and its header meets its cells at 13px below `sm` — uppercase and
+ * tracked, so it still reads as the label rather than as data.
+ */
+export const TABLE_TEXT_COMPACT = 'text-[0.8125rem] sm:text-base';
 
 /**
  * The row shell every data table shares: hairline rule under each row, no rule

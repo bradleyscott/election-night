@@ -39,7 +39,64 @@ describe('PastWinners', () => {
     // inferred.
     expect(screen.getAllByText('vote margin')).toHaveLength(2);
     expect(screen.getByText('8,000')).toBeInTheDocument();
-    expect(screen.getByText('30.0% of votes cast')).toBeInTheDocument();
+    expect(screen.getByText('30.0%')).toBeInTheDocument();
+    expect(screen.getAllByText('of votes cast')).toHaveLength(2);
+  });
+
+  test('sets both margin labels in the label font at one size', () => {
+    render(<PastWinners winners={winners} unavailable={false} />);
+
+    // The labels used to disagree — "vote margin" inherited the body serif
+    // while the share was mono — which read as two sizes beside each other on
+    // a phone. Both words now take the same label class.
+    for (const label of [
+      ...screen.getAllByText('vote margin'),
+      ...screen.getAllByText('of votes cast'),
+    ]) {
+      expect(label).toHaveClass('font-label', 'text-xs', 'sm:text-sm');
+      // The figure and its label are separated by the row's gap, not by a
+      // whitespace text node: that space was 8px while the line was all mono
+      // and 4px once the label changed face, which read as the words being
+      // crushed after the number.
+      expect(label.parentElement).toHaveClass('gap-x-1.5');
+    }
+  });
+
+  test('names run a point above the compact scale', () => {
+    render(<PastWinners winners={winners} unavailable={false} />);
+
+    // The rows take the count table's compact step (13px on a phone), because
+    // this panel sits directly under that table. The candidate and party are
+    // the panel's content, so they go one point above it rather than shrinking
+    // with the numbers; at `sm` and up they meet the 16px row.
+    expect(screen.getByRole('table')).toHaveClass('text-[0.8125rem]');
+    expect(screen.getByText('2023')).toHaveClass('text-xs', 'sm:text-sm');
+    expect(screen.getAllByText('HIPKINS, Chris')[0]).toHaveClass(
+      'text-sm',
+      'sm:text-base'
+    );
+    expect(screen.getAllByText('Labour Party')[0]).toHaveClass(
+      'text-[0.8125rem]',
+      'sm:text-sm'
+    );
+  });
+
+  test('gives the added width to the candidate column, not the figures', () => {
+    render(<PastWinners winners={winners} unavailable={false} />);
+
+    // A wide viewport used to widen the year and margin columns in proportion,
+    // leaving the names in a narrow column and the four-digit year in a wide
+    // one. `w-px` pins both outer columns to their content, so the remainder
+    // is the candidate and party column's.
+    expect(screen.getByText('2023').closest('td')).toHaveClass('w-px');
+    expect(screen.getAllByText('vote margin')[0]!.closest('td')).toHaveClass(
+      'w-px'
+    );
+    for (const line of screen
+      .getAllByText('vote margin')
+      .map((label) => label.parentElement)) {
+      expect(line).toHaveClass('whitespace-nowrap');
+    }
   });
 
   test('names the seat as it was called in that cycle', () => {
