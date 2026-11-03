@@ -2,332 +2,60 @@
 
 Hand-built mockups, not captures. The parent folder holds captures of the
 running application (see [`../README.md`](../README.md)); these are static HTML
-drawn ahead of implementation, so review them as a proposal — the tokens,
-utilities and component classes are the real ones, the markup is not the
+drawn ahead of implementation, so review them as a proposal. The tokens,
+utilities and component classes are the real ones; the markup is not the
 component.
 
-## `win-percent-explainer` (`.html` / `.png`)
+## `win-percent-header-mobile` (`.html` / `.png`)
 
-An explainer for **Win %**, one click from the column header on every surface
-that prints it (the seat panel, *Seats*, *Close Calls*, *Flipped*). It shipped as a single
-hidden page — `/how-win-percent-works`, no nav entry — and on review became a
-drawer instead: the question is asked at a table, so the reader keeps the table.
-There is no route and no nav entry; the entry is a plain `Win % i` in the header.
+The **Win %** header after the two-line version proved too wide on a phone: at
+390px the second line, `ⓘ How it works`, was 83px against a 45px label, so the
+sentence set the column (103px in the running app) and the header stood 43px
+tall. The page holds four compact forms of the same header, each in the seat
+panel's results table at 390px, with the desktop behaviour stated per variant:
 
-Two review rounds shaped it. The first asked for the method to be explained
-rather than asserted; the second cut the parts that were explaining the obvious
-or the already-drawn. So there is one version only (no dialog, no phone sheet),
-the answers to "what is a percentage" and "why is a number sometimes missing"
-are gone, and **the page now spends its words on how the count becomes one
-number**: the expected result, the width of the range around it, the share of
-that range each candidate wins, and the special votes priced against the lead.
-The special votes are introduced in step 4, where they are used, rather than
-listed as an input to a count they are not part of.
+- **1 · Short line** — `Info` below the label on phones; the column falls back
+  to the label's width (78px in the drawing) and the line stays.
+- **2 · Box mark** — the 18px boxed `i` on the label's line; one line, but the
+  words go.
+- **3 · Inline info** — `Win % info` on one line; a word, but barely narrower
+  than the box.
+- **4 · Dotted label** — the label wears a 2px dotted rule in its own ink; one
+  line at every width, with no separate mark.
 
-The second round also removed the terminology table. It had been substituting
-invented words for the model's own — "endings" for probability, "one guess at
-the finish" for the expected result, "level" for a tie — and the substitutions
-were the ambiguity. The page now uses the plain precise word each time: **tie**
-for a dead heat, **lead** for the vote difference (never "margin", which the
-seat panel uses for the same thing under a different heading), **spread** for
-the range of plausible results.
+**Decided: 4, the dotted rule.** A dotted rule is the printed mark for a term
+with more behind it, so it reads as a definition rather than a link, and it
+keeps the header to one line. With the mark gone it gives back 31px, level with
+option 1 in the drawing, and it has no word on the phone; that is the accepted
+trade. Shipped in `packages/dashboard/src/components/WinPercentLink.tsx`: the
+label is a span with `underline decoration-current decoration-dotted
+decoration-2 underline-offset-4`, so the 2px rule is in the label's ink and the
+existing hover colour change carries it. There is no icon; the accessible name,
+the whole-cell hit area and the drawer are unchanged.
+`WinPercentDrawer.test.tsx` pins the dotted rule, the weight, the label text and
+that the header is not a flex column.
 
-**The drawings.** Every figure is a share of one line — a track, a fill, a
-hairline — except two curves. The wide/narrow pair (a fifth counted, four fifths
-counted) is the load-bearing one: the same electorate, the same lead, and a Win %
-that moves because the amount counted moved. The special-vote curve is a bell centred
-on *no change* with the overturning tail in red, so the 66/34 split is visible
-rather than asserted; it replaced a two-bar comparison whose red 0–4 segment read
-as "4 of 10, therefore under half", which is the opposite of what the model says.
-
-**Implemented** as `components/WinPercentDrawer.tsx` (shell, provider and open
-state), `components/WinPercentContent.tsx` (copy and layout),
-`components/WinPercentFigures.tsx` (the drawings) and
-`components/WinPercentLink.tsx` (the header trigger). Four deviations from the
-file above: it is a **drawer**, not a page, so there is no route and no feed-rail
-exception; the caption's second door was not built, because the seat panel has no
-caption sentence to put a link on (AGENTS.md describes one; the panel does not
-render it); the map sidebar's `Win %` row was left unlinked, so the header is the
-single table entry; and Seats opens it from a quiet button in the page head,
-because Seats calls the same number **Certainty** and that header is a sort
-control. The copy shipped unchanged apart from the vocabulary review (electorate,
-tie, no em-dashes), the removal of the footer that named `seat-probability.ts`,
-and a "Worked example · Not tonight's results" note, added because the numbers are
-static and a reader could otherwise take them for tonight's counts. That note was
-later removed altogether: one caveat at the top was read once and long forgotten
-by the time a number appeared, so every drawing now carries its own `Example`
-chip, and each step runs heading, figure, prose, which also puts the drawing
-directly under the heading on a phone.
-
-**Provenance.** The figures are constructed and self-consistent, not a real
-count: 68% counted (19,846 in, ≈9,300 out), 42.4 / 40.4 / 17.2 tonight,
-46.3 / 34.3 / 19.4 last time (a 12-point lead), a five-point swing to Labour
-(hence a two-point expected result), 54/46 on the curve, 393 against ≈9,700
-special votes for the four-point step, a ten-point spread on the special vote,
-and 66 for the lead surviving. The seat is never named and no candidate is
-named: the page is about the method, so a reader cannot mistake the worked
-example for their own seat's numbers. The prior shares are illustrative in a way
-the other mockups' figures are not — the real Banks Peninsula was much closer —
-which is the second reason to keep the seat anonymous.
-
-The eligibility sentence was checked against the 2026 rules: the Electoral
-Amendment Act 2025 ended same-day enrolment, so "enrolled late" is no longer a
-way to cast a special vote, and the page names only overseas votes and votes cast
-outside the voter's electorate.
+**Measurements.** The running app went from a 103px column and 43px row to
+68px and 36px at 390px. The hand-drawn tables here render C at 109px and the
+dotted variant at 78px; the difference from the app is the table's auto layout
+distributing more slack in a two-row table, so compare the deltas. The content
+widths are the same (45px label, 83px subline for C); the dotted variant's
+content is the label alone. The vote figures are the same illustrative Banks
+Peninsula moment as the earlier header work: 68% counted, 8,412 to 8,019, 54
+and 45.
 
 ```bash
 cd packages/dashboard
 ./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
-  -o /tmp/winpct.css \
-  --content "../../docs/mockups/proposals/win-percent-explainer.html"
+  -o /tmp/winpct-mobile.css \
+  --content "../../docs/mockups/proposals/win-percent-header-mobile.html"
 
-# inline /tmp/winpct.css into the <style> block at /*STYLES*/, then capture the
-# full page at 1400 wide. At 3,974 CSS px it is 7,948 device px at 2x: inside the
-# 8,192 limit by barely 240px, so the next addition to the copy needs the stitched
-# capture the notes on `electorate-page` describe. Re-measure
-# document.documentElement.scrollHeight before capturing.
-```
-
-## `counted-tape` (`.html` / `.png`)
-
-The two **Counted** charts — the electorate panel's `VoteHistoryChart` and the
-Trends page — redrawn in the vocabulary of the **night tape** from
-`voting-places-map.html`: the Counted series in its own green, drawn as a step,
-with mono numerals, hairline rules and dashed gridlines. Each surface gets the
-element only it can have: the seat has per-voting-place receipt times, so its
-tape carries a rug of them; the country has only snapshots, so its tape steps
-between scrapes. Both stop at the last scrape rather than running to midnight —
-a count is a record, not a forecast — and nothing marks "now", because the step
-already begins at the most recent observation.
-
-**Shipped.** `packages/dashboard/src/components/CountedTape.tsx` draws it; both
-charts swap their monotone green line for it when their mode is Counted, and the
-axis vocabulary (mono ticks, `1.4M` / `47%` rounding, dashed grid, tooltip
-chrome) lives in `packages/dashboard/src/lib/chart-format.ts` so the three modes
-of each chart read alike.
-
-Numbers are a synthetic night rather than any real cycle — advance votes land
-just after seven and the count climbs through the evening — and the seat label
-(Epsom) is illustrative. Regenerate the capture as
-described for `electorate-pwin` below, at 1400 px wide.
-
-## `electorate-pwin` (`.html` / `.png`)
-
-The electorate detail panel with the margin-of-error strip replaced by a single
-chance-of-winning number, shown in its three states: before counting, counting,
-and the night's count complete.
-
-**Decided:** **A, E and C are locked** — the same panel in its three states
-(before counting, counting, count complete). Everything else in the file is a
-rejected alternative and can be deleted:
-
-- **B, D, F** — superseded by E. Their count figures (`68% in`, `≈46,450`) are
-  the older, incoherent ones and are not what shipped.
-- **E · party mode** is part of the lock: the verdict is *removed*, not
-  relabelled — no margin, no status, no chance of winning, because those are
-  candidate facts. The count chip stays in the same top-right slot in both
-  modes, because it describes the count, not the vote.
-
-**The count chip never states a total.** A seat's eventual total is not in the
-feed: `votePercentageCounted` is `percent_voting_places_counted`
-(`packages/core/src/sources/nz-election-xml.ts:340`), and
-`ElectorateStats.tsx:58-66` divides votes by it to print "of N total" as if
-measured. Because advance votes are counted from 9am and land in large blocks
-first, that division understates the final total early in the night. Show votes
-counted and a percentage, both from votes, and put any estimated total behind a
-disclosure.
-
-Regenerate the stylesheet and the capture:
-
-```bash
-cd packages/dashboard
-./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
-  -o /tmp/pwin.css \
-  --content "../../docs/mockups/proposals/electorate-pwin.html"
-
-# inline /tmp/pwin.css into the <style> block, then capture 760×3465 at 2x
+# inline /tmp/winpct-mobile.css into the <style> block (replace the existing
+# block; the file is already inlined), then capture 1400×2380 at 2x. The height
+# is document.documentElement.scrollHeight; re-measure after copy changes.
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
   --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
-  --window-size=760,3465 --virtual-time-budget=12000 \
-  --screenshot=electorate-pwin.png \
-  "file://$PWD/../../docs/mockups/proposals/electorate-pwin.html"
-```
-
-Panel B's names and partial counts are illustrative, and the party-vote figures
-in the party-mode panel are illustrative too (they sum to 31,590 so the shares
-are self-consistent). Panel C is the real 2023 Banks Peninsula result (WEENINK
-17,860 · McLELLAN 17,464 · margin 396), and the seat's final total of 48,891 is
-the sum of its real candidate votes.
-
-## `electorate-map-controls` (`.html` / `.png`)
-
-Where the electorates page's three map controls — seat search, the General/Māori
-switch and Clear — should live. Today they are the page header's second half, a
-row that acts on a panel 30px below it; Clear only exists once a seat is open,
-so the header's contents depend on the map's state. The file draws the header as
-it is, then two placements that keep all three controls: **A** a floating card
-in the map's top-left corner (zoom moved to the top-right, ledger keeps the
-bottom-left), **B** a hairline row inside the map card above the map, and **C**
-a full-width landing state where there is no Clear to show. **D** is the same
-three states at 390px.
-
-**Decided: B, everywhere** — desktop and phone, with a seat open and without
-one. A costs geometry rather than header furniture: after a click the seat's
-bounds fill the frame, so the card sits over whatever the fit put in that
-corner, and the open search list covers more of it. B adds a 56px row to the
-card (the controls are 44px hit targets plus the row's padding) and gives the
-map every pixel; at `sm` and below those controls already wrapped to their own
-row, so the phone gains nothing and loses nothing. C is not a third design, it
-is what B looks like before a seat is picked — the same card, Clear absent.
-
-Shipped as `packages/dashboard/src/components/MapControls.tsx`, used as the map
-card's first child on `packages/dashboard/src/pages/Electorates.tsx`. The row
-carries `z-[1100]`: the open search list has to clear the corners Leaflet stacks
-its zoom buttons in (`z-index: 1000`), and the map's panes are at 400, so
-anything lower puts the list under the geometry or under the buttons — both
-observed while building it.
-
-The map is real 2023 general-electorate geometry, projected and inlined once as
-an SVG group from
-`packages/dashboard/public/boundaries/2023/general-electorates.geojson`, with
-the seat-open panels framed the way `fitBounds` frames Banks Peninsula and fills
-taken from `mapFillOpacity`. The island group is drawn at the time of writing and
-is edited by hand in the file like the rest of the markup; the numeric detail
-panel is a stub (Banks Peninsula, 54 / 45).
-
-```bash
-cd packages/dashboard
-./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
-  -o /tmp/map-controls.css \
-  --content "../../docs/mockups/proposals/electorate-map-controls.html"
-
-# inline /tmp/map-controls.css into the <style> block, then capture 1400×4131 at
-# 2x (the page height is document.documentElement.scrollHeight; re-measure after
-# editing copy, an over-tall window pads the bottom with the page background)
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
-  --window-size=1400,4131 --virtual-time-budget=12000 \
-  --screenshot=electorate-map-controls.png \
-  "file://$PWD/../../docs/mockups/proposals/electorate-map-controls.html"
-```
-
-## `count-complete` (`.html` / `.png`)
-
-The electorate panel's **count complete** card, drawn four ways plus today at
-the 512px the detail column gives it on a 1400px page: **A** is the counting
-card's own rows handed over unchanged, with the strip reinterpreted; **B** names
-the winner and puts the margin in a sentence; **C** leads with the margin at
-6xl; **D** is a returns sheet of mono facts. Every card holds Banks Peninsula at
-the same moment — 13,984 against 13,674, a margin of 310, 80% of the expected
-final vote in, about 9,700 special votes to come — so only the design moves.
-
-The card's problem is not the number: once the count is complete a probability
-would have to read 100%, so the card has to lead with something else. It is
-that today's card stops at *Tonight's count complete* and says nothing about the
-special votes, which is the one thing that can still move the seat. The page
-therefore keeps a second column of real 2023 figures beside the constructions:
-Banks Peninsula finished 17,860 to 17,464 — a margin of 396, 0.8% — after the
-specials were added, so a card that hides them is silent through the only
-fortnight in which the seat was still undecided.
-
-**Decided: A**, because the panel needs no second vocabulary when the count
-stops: the rows, the bars and the margin line are already the ones on screen all
-night, and the specials arrive in the slot the outstanding votes just left. B's
-closing *not final* block is worth taking for A's caption. B, C and D are
-rejected alternatives and can be deleted.
-
-**Shipped.** `ElectorateStats.tsx` draws the complete state from the same
-`ChanceRow` the counting state uses, with three switches: the 4xl slot prints a
-share of the votes counted to one decimal, the leader's line reads `Ahead by 310
-(0.8% of votes)`, and the even tick goes — half the votes is not the line a
-finished count is judged against. `SpecialsStrip` replaces `CountStrip` on the
-same `SplitBar`, so the hatched end means the same thing in both states. The
-field it needed is now on `SeatChance`'s complete variant: `specialsOutstanding`,
-which `computeSeatChance` already computed and discarded. Vote counts reaching
-the card are rounded at the display boundary (`votes()` in the component) —
-enrolment × turnout × share lands on a fraction, and the card otherwise prints
-*about 6,307.826 votes*; the feed commentary had the same leak and rounds too.
-
-**Provenance.** The seat, the final margin (396) and the share of the vote that
-arrives as specials (21.0% in 2023) are real. The archive publishes only final
-files, so the night's own candidate votes were reconstructed by removing the
-specials from the final counts in proportion: the preliminary numbers are a
-construction, and the margin they produce (310) is the right order of magnitude
-rather than a record.
-
-```bash
-cd packages/dashboard
-./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
-  -o /tmp/complete.css \
-  --content "../../docs/mockups/proposals/count-complete.html"
-
-# inline /tmp/complete.css into the <style> block, then capture 1400×3590 at 2x
-# (the height is document.documentElement.scrollHeight; re-measure after copy
-# changes — an over-tall window pads the bottom with the page background)
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
-  --window-size=1400,3590 --virtual-time-budget=12000 \
-  --screenshot=count-complete.png \
-  "file://$PWD/../../docs/mockups/proposals/count-complete.html"
-```
-
-## `chance-card` (`.html` / `.png`)
-
-The electorate panel's **chance of winning** card, in its counting state, drawn
-five ways at the 512px the detail column gives it on a 1400px page: **Today** as
-it ships, then **A** one bar split 54 / 45, **B** the number with a 100-square
-pictogram, **C** a position on an axis whose centre is marked *coin toss*, and
-**D** today's two rows over a strip showing the count in and the votes still
-out. Every card holds the same seat at the same moment (Banks Peninsula, 68%
-counted, 54%, margin 393, about 9,300 still out), so only the design moves.
-
-**Decided: D**, amended twice before shipping. The count left the header chip
-and joined the strip, because *68% counted* and *9,300 still out* are the same
-fact told from both ends and the strip is where the votes are; and the count
-line's companion, *updated 4 min ago*, lost its box and its capitals — the
-header now reads `Win %` with a plain muted *Updated 4 min ago* opposite it, so
-there is no framed chip left on the card at all. A, B and C are rejected
-alternatives and can be deleted.
-
-**Shipped.** `packages/dashboard/src/components/ElectorateStats.tsx` draws the
-counting state as `ChanceRow` + `CountStrip`: the row keeps its track across the
-full hundred (so the fill is a share of one) and marks even with a hairline, and
-the strip's hatched end is `.hatch-outstanding` in
-`packages/dashboard/src/styles/index.css` — a token-level utility, because
-"counted" and "still to come" must read as two states in both colour modes. The
-percentage in the strip is `votesCounted / (votesCounted + remainingVotes)`, not
-`percent_voting_places_counted`. `ElectorateStats.test.tsx` pins that the header
-carries no chip.
-
-The page also repeats all four on a nearly settled seat (92%, margin 4,120,
-about 900 still out). A card that only works at 54 is not a card: at 92 the bar
-is nearly one colour, the pictogram is nearly full and the marker sits at the
-end of its scale, and each design has to stay legible without reading as a
-call — which is why the printed number, not the drawing, carries the caution.
-
-Two states are deliberately not redesigned and appear once at the foot of the
-file: the settled count prints the winner, the votes and the margin as facts
-(a completed count's percentage could only read 100%), and before the first
-result the card says when results are expected rather than showing a number.
-Party view renders nothing at all — all of that is shipped behaviour, not a
-choice on this page.
-
-The figures are illustrative but self-consistent: 19,846 counted, about 9,300
-out, a 393 margin, 8,412 / 8,019 for the top two, and a settled count of 12,904
-/ 12,188 of 25,092.
-
-```bash
-cd packages/dashboard
-./node_modules/.bin/tailwindcss -c tailwind.config.ts -i src/styles/index.css \
-  -o /tmp/chance.css \
-  --content "../../docs/mockups/proposals/chance-card.html"
-
-# inline /tmp/chance.css into the <style> block, then capture 1400×3838 at 2x
-# (the height is document.documentElement.scrollHeight; re-measure after copy
-# changes — an over-tall window pads the bottom with the page background)
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
-  --window-size=1400,3838 --virtual-time-budget=12000 \
-  --screenshot=chance-card.png \
-  "file://$PWD/../../docs/mockups/proposals/chance-card.html"
+  --window-size=1400,2380 --virtual-time-budget=12000 \
+  --screenshot=win-percent-header-mobile.png \
+  "file://$PWD/../../docs/mockups/proposals/win-percent-header-mobile.html"
 ```
