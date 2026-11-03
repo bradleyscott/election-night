@@ -45,14 +45,6 @@ const MODE_OPTIONS: { value: Mode; label: string }[] = [
   { value: 'counted', label: 'Counted' },
 ];
 
-/** One sentence per mode, so the copy cannot drift from the control. */
-const MODE_DESCRIPTION: Record<Mode, string> = {
-  votes: 'Party vote totals over time.',
-  percent: 'Party vote share over time.',
-  seats: 'Party seat totals over time.',
-  counted: 'Vote count progress over time.',
-};
-
 /**
  * Row field per mode. The rows are pre-aggregated under these keys in
  * `chartData`, so the mode is a key prefix rather than a second pass.
@@ -264,13 +256,7 @@ export default function Trends() {
     <div className="space-y-4 animate-fade-in">
       <PageHead title="Trends" />
 
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-muted-foreground font-semibold">
-          {MODE_DESCRIPTION[mode]}
-        </p>
-
-        <Toggle options={MODE_OPTIONS} value={mode} onChange={setMode} />
-      </div>
+      <Toggle options={MODE_OPTIONS} value={mode} onChange={setMode} />
 
       {mode !== 'counted' && (
         <div className="flex flex-wrap gap-1.5">

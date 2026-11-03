@@ -197,7 +197,9 @@ const SHOTS = [
     viewports: ['desktop'],
     click: 'Counted',
     ready: `
-      /count progress over time/i.test(document.body.innerText) &&
+      [...document.querySelectorAll('button[aria-pressed="true"]')].some(
+        (b) => b.textContent.trim() === 'Counted'
+      ) &&
       !!document.querySelector('svg[aria-label^="Counted"]') &&
       ${NO_WAITING}
     `,
@@ -209,7 +211,9 @@ const SHOTS = [
     viewports: ['desktop'],
     click: '% of Vote',
     ready: `
-      /party vote share over time/i.test(document.body.innerText) &&
+      [...document.querySelectorAll('button[aria-pressed="true"]')].some(
+        (b) => b.textContent.trim() === '% of Vote'
+      ) &&
       document.querySelectorAll('.recharts-line').length > 0 &&
       ${NO_WAITING}
     `,
