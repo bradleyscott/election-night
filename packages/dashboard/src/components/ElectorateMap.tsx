@@ -3,7 +3,8 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { partyColor } from '../lib/constants.js';
-import { mapFillOpacity } from '../lib/seat-chance.js';
+import { mapFillOpacity, MAP_FILL_RANGE } from '../lib/seat-chance.js';
+import { cn } from '../lib/utils.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { dashboardClientConfig } from '../config.js';
 import type { VotingPlaceSummary } from '../hooks/useVotingPlaces.js';
@@ -60,6 +61,22 @@ const GEO_KINDS: Record<'general' | 'maori', BoundaryKind> = {
   general: 'general',
   maori: 'maori',
 };
+
+/**
+ * The map's height, as a share of the visible viewport rather than a fixed
+ * 600px.
+ *
+ * A fixed height could fill — or overrun — a laptop window or a phone held in
+ * landscape, so the map read as the page and the count as an appendix to it.
+ * A maximum of the viewport keeps it a panel at every size. `svh` is the
+ * viewport with the browser's own chrome showing, which is the smallest the
+ * visible area will be, so the cap holds even before a phone's URL bar
+ * retracts. The pixel ceiling stops it ballooning on a tall monitor.
+ *
+ * Used by the loading and error placeholders too, so the card does not jump
+ * when the boundaries arrive.
+ */
+export const MAP_HEIGHT = 'h-[min(380px,55svh)] sm:h-[min(600px,62svh)]';
 
 /** Whole-country view, used when nothing is selected or nothing can be fitted. */
 const DEFAULT_CENTER: L.LatLngTuple = [-41.5, 173.5];
@@ -336,7 +353,12 @@ export default function ElectorateMap({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-[300px] sm:h-[600px] border bg-muted/20">
+      <div
+        className={cn(
+          'flex items-center justify-center border bg-muted/20',
+          MAP_HEIGHT
+        )}
+      >
         <p className="text-muted-foreground text-sm">Map error: {error}</p>
       </div>
     );
@@ -344,7 +366,12 @@ export default function ElectorateMap({
 
   if (!boundary) {
     return (
-      <div className="flex items-center justify-center h-[300px] sm:h-[600px] border bg-muted/20">
+      <div
+        className={cn(
+          'flex items-center justify-center border bg-muted/20',
+          MAP_HEIGHT
+        )}
+      >
         <p className="text-muted-foreground animate-pulse-soft">Loading map…</p>
       </div>
     );
@@ -370,7 +397,7 @@ export default function ElectorateMap({
           center={DEFAULT_CENTER}
           zoom={DEFAULT_ZOOM}
           zoomSnap={0.5}
-          className="h-[300px] sm:h-[600px] w-full"
+          className={cn(MAP_HEIGHT, 'w-full')}
           scrollWheelZoom={true}
           zoomControl={true}
         >
@@ -429,17 +456,17 @@ export default function ElectorateMap({
           between a thumb and the seat. */}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {chances && !showPartyVote ? (
-          <span className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-4 bg-[#9ca3af]"
-              style={{ opacity: 0.25 }}
-            />
+          <span className="flex items-center gap-2 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
             <span>50/50</span>
+            {/* A spectrum rather than two swatches: the map is a continuous
+                fill, and the key draws the same range `mapFillOpacity` uses, so
+                the depth of a seat can be read off the bar. */}
             <span
               aria-hidden="true"
-              className="h-2.5 w-4 bg-[#9ca3af]"
-              style={{ opacity: 0.8 }}
+              className="h-2.5 w-16 border border-border sm:w-24"
+              style={{
+                background: `linear-gradient(to right, rgb(156 163 175 / ${MAP_FILL_RANGE.min}), rgb(156 163 175 / ${MAP_FILL_RANGE.max}))`,
+              }}
             />
             <span>decided</span>
           </span>

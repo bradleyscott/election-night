@@ -100,6 +100,16 @@ export function countProgress(
 }
 
 /**
+ * The two ends of the map's shading, as fill opacity: a seat at even odds is
+ * nearly invisible and one that is decided is almost solid.
+ *
+ * Exported because the map's legend draws the same range. The two swatches it
+ * used to print were 0.25 and 0.8 while the fills ran 0.2 to 0.8, so the key
+ * was slightly darker than the lightest seat it claimed to explain.
+ */
+export const MAP_FILL_RANGE = { min: 0.2, max: 0.8 } as const;
+
+/**
  * How solidly a seat is painted on the map.
  *
  * The map answers one question — how decided is this seat — so the shading runs
@@ -115,9 +125,14 @@ export function countProgress(
  */
 export function mapFillOpacity(chance: SeatChance | null | undefined): number {
   if (!chance || chance.state === 'waiting') return 0.15;
-  // 0.5 → 0.2, 0.99 → 0.8. A seat at even odds is nearly invisible on purpose:
-  // painting it solid in the leader's colour is the mistake this replaces.
-  return 0.2 + Math.min(1, Math.abs(chance.probability - 0.5) / 0.49) * 0.6;
+  // 0.5 → min, 0.99 → max, so a seat at even odds is nearly invisible on
+  // purpose: painting it solid in the leader's colour is the mistake this
+  // replaces.
+  return (
+    MAP_FILL_RANGE.min +
+    Math.min(1, Math.abs(chance.probability - 0.5) / 0.49) *
+      (MAP_FILL_RANGE.max - MAP_FILL_RANGE.min)
+  );
 }
 
 /** "4 min ago", "just now", "2 hours ago". */

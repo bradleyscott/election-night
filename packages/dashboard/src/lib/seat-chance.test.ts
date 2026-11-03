@@ -7,7 +7,12 @@ import {
   tauFor,
 } from '@election-night/core/notional-baseline';
 import { CYCLE_CONSTANTS } from '@election-night/core/seat-probability';
-import { baselineFor, countProgress, mapFillOpacity } from './seat-chance.js';
+import {
+  baselineFor,
+  countProgress,
+  MAP_FILL_RANGE,
+  mapFillOpacity,
+} from './seat-chance.js';
 import type { ElectorateResult } from '@election-night/core/types';
 
 /** The shipped 2026 baseline, which every lookup below reads through. */
@@ -171,7 +176,22 @@ describe('mapFillOpacity', () => {
     for (let i = 1; i < opacities.length; i++) {
       expect(opacities[i]).toBeGreaterThan(opacities[i - 1]);
     }
-    expect(Math.max(...opacities)).toBeLessThanOrEqual(0.8);
+    expect(Math.max(...opacities)).toBeLessThanOrEqual(MAP_FILL_RANGE.max);
+  });
+
+  it('runs between the two ends the legend draws', () => {
+    // The map's legend is a gradient of the shading's own range. The swatches it
+    // replaced used 0.25 to 0.8, so its palest box was darker than the palest
+    // seat it explained.
+    expect(MAP_FILL_RANGE).toEqual({ min: 0.2, max: 0.8 });
+    expect(mapFillOpacity(counting(0.5) as never)).toBeCloseTo(
+      MAP_FILL_RANGE.min,
+      3
+    );
+    expect(mapFillOpacity(counting(0.99) as never)).toBeCloseTo(
+      MAP_FILL_RANGE.max,
+      3
+    );
   });
 });
 
