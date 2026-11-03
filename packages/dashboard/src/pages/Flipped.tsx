@@ -15,6 +15,7 @@ import {
   NUMERIC,
   NUMERIC_CELL,
   TABLE_FRAME,
+  TABLE_TEXT,
 } from '../components/Table.js';
 import { cn } from '../lib/utils.js';
 import { WinPercentLink } from '../components/WinPercentLink.js';
@@ -26,6 +27,7 @@ import {
 import type { PriorWinner } from '../lib/history-types.js';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
+import { canonicalParty } from '@election-night/core/seat-probability';
 import type { ElectorateResult } from '@election-night/core/types';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
@@ -92,8 +94,12 @@ export default function Flipped() {
       comparable
         .filter(
           ({ electorate, prior: winner }) =>
-            (winner.party ?? null) !==
-            (electorate.leaders.leadingCandidateParty ?? null)
+            // Compared as parties rather than as spellings: the Commission
+            // renames a party between cycles, so 2020's "Māori Party" and
+            // tonight's "Te Pāti Māori" are one party, and a string compare
+            // listed Waiariki as a flip while Rawiri Waititi still held it.
+            canonicalParty(winner.party) !==
+            canonicalParty(electorate.leaders.leadingCandidateParty)
         )
         .sort(
           (a, b) =>
@@ -174,7 +180,7 @@ export default function Flipped() {
             </div>
 
             <div className={cn('overflow-x-auto', TABLE_FRAME)}>
-              <table className="w-full text-base">
+              <table className={cn('w-full', TABLE_TEXT)}>
                 <thead>
                   <tr className="border-b border-border">
                     {/* Widths are fixed rather than left to the browser: with
@@ -264,14 +270,20 @@ export default function Flipped() {
                               ? ` · as ${winner.priorElectorateName}`
                               : ''}
                           </div>
-                          <div
-                            className={cn(
-                              'text-sm text-muted-foreground sm:hidden',
-                              NUMERIC
-                            )}
-                          >
-                            majority {winner.majority.toLocaleString()} ·{' '}
-                            {(winner.majorityPercent * 100).toFixed(1)}%
+                          {/* Below `sm` the two numeric columns are gone, so
+                              the pair they print folds into the comparisons.
+                              It keeps the desktop cell's shape — the margin,
+                              then its share beneath — rather than running them
+                              into a sentence: "majority 2,392 · 5.9%" is 176px
+                              of 14px mono, twice this column's width, so it
+                              wrapped to three lines and stranded the dot. The
+                              words are dropped for the same reason, and
+                              because the header above names the comparison. */}
+                          <div className={cn('mt-1 sm:hidden', NUMERIC)}>
+                            <div>{winner.majority.toLocaleString()}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {(winner.majorityPercent * 100).toFixed(1)}%
+                            </div>
                           </div>
                         </td>
                         <td
@@ -298,14 +310,13 @@ export default function Flipped() {
                           <div className="text-sm text-muted-foreground">
                             {l.leadingCandidateParty ?? 'Independent'}
                           </div>
-                          <div
-                            className={cn(
-                              'text-sm text-muted-foreground sm:hidden',
-                              NUMERIC
-                            )}
-                          >
-                            leads {l.margin.toLocaleString()} ·{' '}
-                            {(l.marginPercent * 100).toFixed(1)}%
+                          {/* The same fold as the prior holder's cell, so the
+                              two columns are read as one comparison. */}
+                          <div className={cn('mt-1 sm:hidden', NUMERIC)}>
+                            <div>{l.margin.toLocaleString()}</div>
+                            <div className="whitespace-nowrap text-sm text-muted-foreground">
+                              {(l.marginPercent * 100).toFixed(1)}%
+                            </div>
                           </div>
                         </td>
                         <td

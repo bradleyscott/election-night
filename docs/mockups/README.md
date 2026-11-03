@@ -62,6 +62,11 @@ replace the table with a one-line explanation. See
 
 The same page at 390px wide (deviceScaleFactor 2, mobile emulation). Below the
 `sm` breakpoint the table keeps three columns — electorate, held, now leading —
-and folds the numbers into them (`majority 2,392 · 5.9%`, `leads 11,192 ·
-27.0%`), dropping the margin, MoE and status columns. The lead stays visible
-without horizontal scrolling, which is the point of the page.
+and folds the numbers into them: each comparison cell prints the margin and
+then its share beneath, the desktop cell's own shape (`2,392` over `5.9%`,
+`11,192` over `27.0%`), while the margin, Win % and chance columns drop out. It
+is a stack rather than a sentence because the column is about 100px wide: the
+old `majority 2,392 · 5.9%` was 176px of mono, wrapped to three lines and left
+the middle dot stranded at the end of one. The words live in the header, which
+names the comparison. The lead stays visible without horizontal scrolling,
+which is the point of the page.

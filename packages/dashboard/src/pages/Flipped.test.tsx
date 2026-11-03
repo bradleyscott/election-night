@@ -56,6 +56,10 @@ const liveResults: ResultsPayload = {
     electorate('Remutaka', 'Labour Party', 'HIPKINS, Chris', 6_000),
     electorate('Kelston', 'National Party', 'SMITH, John', 900),
     electorate('Tāmaki Makaurau', 'Te Pāti Māori', 'KEMP, Rawiri', 2_000),
+    // Waiariki was held by Rawiri Waititi for the Māori Party, which is the
+    // party the feed now calls Te Pāti Māori. Same party, same holder, so it
+    // has not changed hands — only its name has.
+    electorate('Waiariki', 'Te Pāti Māori', 'WAITITI, Rawiri', 12_000),
   ],
   partyVote: [],
   partyLists: [],
@@ -110,6 +114,16 @@ const priorWinners: PriorWinnersResponse = {
         },
         // Kelston is absent: merged into Glendene/Henderson/Waitākere, so it
         // has no comparable prior holder.
+        {
+          electorateName: 'Waiariki',
+          priorElectorateName: null,
+          year: '2023',
+          candidate: 'WAITITI, Rawiri',
+          party: 'Māori Party',
+          votes: 12_389,
+          majority: 836,
+          majorityPercent: 0.03,
+        },
       ],
     },
   ],
@@ -169,14 +183,16 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    // The prior cycle's majority, and tonight's lead in the same units…
-    expect(screen.getByText('2,311')).toBeInTheDocument();
-    expect(screen.getByText('9.2%')).toBeInTheDocument();
-    expect(screen.getByText('5,000')).toBeInTheDocument();
+    // The prior cycle's majority, and tonight's lead in the same units. Each
+    // figure appears twice: in the numeric column above `sm`, and in the fold
+    // inside the comparison cell below it.
+    expect(screen.getAllByText('2,311')).toHaveLength(2);
+    expect(screen.getAllByText('9.2%')).toHaveLength(2);
+    expect(screen.getAllByText('5,000')).toHaveLength(2);
     // The lead is a share of the votes counted — not the count progress (the
     // fixture counts 80%) — and it is left bare: a margin of error describes a
     // sample, and this is a count part-way through.
-    expect(screen.getByText('10.0%')).toBeInTheDocument();
+    expect(screen.getAllByText('10.0%')).toHaveLength(2);
     expect(screen.queryByText(/±/)).not.toBeInTheDocument();
     // …with the percentage left bare. "10.0% of votes counted" reads as count
     // progress, not as a lead.
@@ -186,6 +202,48 @@ describe('Flipped page', () => {
     expect(
       screen.queryByText(/Percentages are each margin/)
     ).not.toBeInTheDocument();
+  });
+
+  test('folds the figures as a pair, not as a sentence', async () => {
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    // Below `sm` the margin and the lead columns are gone, so each comparison
+    // cell prints its own pair. It is the desktop cell's shape — the figure,
+    // then its share beneath — because a sentence cannot fit: "majority 2,311
+    // · 9.2%" is twice the column's width and wrapped to three lines, leaving
+    // the middle dot stranded at the end of one. The wording lives in the
+    // header instead.
+    expect(screen.queryByText(/^majority /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^leads /)).not.toBeInTheDocument();
+
+    const row = screen.getByRole('button', {
+      name: 'View details for Ōtāhuhu',
+    });
+    const folds = [...row.querySelectorAll('td > div.mt-1')];
+    // One for the prior holder, one for tonight's leader.
+    expect(folds).toHaveLength(2);
+    expect(
+      folds.map((fold) => [...fold.children].map((line) => line.textContent))
+    ).toEqual([
+      ['2,311', '9.2%'],
+      ['5,000', '10.0%'],
+    ]);
+    // Mono and tabular on both lines: the figures are data, and the words that
+    // used to sit around them in the same face were not.
+    expect(folds[0]).toHaveClass('font-mono');
+    expect(folds[0]).toHaveClass('tabular-nums');
+  });
+
+  test('a party renamed between cycles is not a seat changing hands', async () => {
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    // The Commission renames parties: 2020's "Māori Party" is tonight's "Te
+    // Pāti Māori". Comparing the raw strings listed Waiariki as a flip while
+    // Rawiri Waititi still held it, and it sorted to the top of the page on a
+    // 52.9% "lead".
+    expect(screen.queryByText('Waiariki')).not.toBeInTheDocument();
   });
 
   test('sorts by share of the vote, not raw votes', async () => {
@@ -334,9 +392,10 @@ describe('Flipped page', () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
-    // 3 flips of 4 comparable seats (Ōtāhuhu, Kapiti, Remutaka, Tāmaki
-    // Makaurau) — general and Māori counted the same way.
-    expect(screen.getByText('3 of 4 seats')).toBeInTheDocument();
+    // 3 flips of 5 comparable seats (Ōtāhuhu, Kapiti, Remutaka, Tāmaki
+    // Makaurau, Waiariki) — general and Māori counted the same way, and
+    // Waiariki not counted as a flip for its party's rename.
+    expect(screen.getByText('3 of 5 seats')).toBeInTheDocument();
   });
 
   test('filters the list, macron-insensitively', async () => {
@@ -349,7 +408,7 @@ describe('Flipped page', () => {
 
     expect(screen.getByText('Ōtāhuhu')).toBeInTheDocument();
     expect(screen.queryByText('Kapiti')).not.toBeInTheDocument();
-    expect(screen.getByText('1 of 4 seats matching')).toBeInTheDocument();
+    expect(screen.getByText('1 of 5 seats matching')).toBeInTheDocument();
   });
 
   test('paginates long lists ten rows at a time', async () => {
