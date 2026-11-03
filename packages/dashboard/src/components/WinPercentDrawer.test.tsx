@@ -23,22 +23,23 @@ describe('WinPercentDrawer', () => {
     ).toHaveClass('uppercase');
   });
 
-  test('names the action under the label, in sentence case', () => {
+  test('rules the label so the header reads as a control, not a footnote', () => {
     renderHarness();
 
     const trigger = screen.getByRole('button', {
       name: /how we work out win %/i,
     });
 
-    // The words are the affordance: the mark alone was a footnote.
-    expect(trigger).toHaveTextContent(/how it works/i);
-    expect(trigger).toHaveClass('flex-col');
-
-    // The button is uppercased, so the second line restates `normal-case` or
-    // it reads "HOW IT WORKS" under "WIN %".
-    expect(within(trigger).getByText(/how it works/i)).toHaveClass(
-      'normal-case'
+    // A dotted rule is the print convention for a term with more behind it.
+    // It is also the whole affordance on a phone: one line, no second label
+    // and no separate mark.
+    expect(within(trigger).getByText('Win %')).toHaveClass(
+      'underline',
+      'decoration-dotted',
+      'decoration-2'
     );
+    expect(trigger.textContent?.trim()).toBe('Win %');
+    expect(trigger).not.toHaveClass('flex-col');
   });
 
   test('is closed until the header is asked', () => {
