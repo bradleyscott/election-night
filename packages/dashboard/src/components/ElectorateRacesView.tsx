@@ -16,6 +16,7 @@ import {
   NUMERIC,
   NUMERIC_CELL,
   TABLE_FRAME,
+  TABLE_TEXT,
 } from './Table.js';
 import { WinPercentLink } from './WinPercentLink.js';
 import {
@@ -69,7 +70,7 @@ export function ElectorateRacesView({
   return (
     <div>
       <div className={cn('overflow-x-auto', TABLE_FRAME)}>
-        <table className="w-full text-base">
+        <table className={cn('w-full', TABLE_TEXT)}>
           <thead>
             <tr className="border-b">
               <Th>Electorate</Th>

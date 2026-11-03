@@ -10,6 +10,7 @@ import {
   NUMERIC,
   NUMERIC_CELL,
   TABLE_FRAME,
+  TABLE_TEXT,
 } from './Table.js';
 import type { PartyListResult } from '@election-night/core/types';
 
@@ -140,7 +141,10 @@ export function PartyListCard({
       style={wrapperStyle}
     >
       <div className={cn('overflow-x-auto', TABLE_FRAME)}>
-        <table className="w-full text-base" aria-label={`${party} party list`}>
+        <table
+          className={cn('w-full', TABLE_TEXT)}
+          aria-label={`${party} party list`}
+        >
           <thead>
             <tr className="border-b">
               {/* The list rank is the secondary of the two numbers: the cut is

@@ -98,7 +98,12 @@ to it. Amend intentionally — the file is the rule.
   majority's share), and `.chip-print--table` / `.kicker--table` where a chip
   or a kicker stands inside a row: a 0.625rem chip beside 1rem cells reads as
   fine print, not as a marker. Anything else set inside a table follows the
-  same rule, so no row is half body type and half footnote.
+  same rule, so no row is half body type and half footnote. Below `sm` every
+  table size drops one pixel — 1rem → 0.9375rem in the cell, 0.875rem →
+  0.8125rem for the header and the compact seat table — because at desktop
+  sizes a four-column table wraps names and scrolls sideways on a 390px phone.
+  The step lives in `TABLE_TEXT`, `TABLE_TEXT_LG`, `TABLE_TEXT_COMPACT` and
+  `TH_CLASS` (`components/Table.tsx`), never at a call site.
 - **Table rows and figures share one shell** — every data table uses the same
   hairline row rule and `hover:bg-muted/30` tint, numeric cells are mono and
   right-aligned (`TR_ROW`, `NUMERIC` and `NUMERIC_CELL` in

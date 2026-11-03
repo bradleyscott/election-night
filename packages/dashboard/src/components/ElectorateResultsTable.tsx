@@ -16,6 +16,7 @@ import {
   TR_ROW_HOVER,
   NUMERIC,
   NUMERIC_CELL,
+  TABLE_TEXT_COMPACT,
 } from './Table.js';
 
 function hasParty(
@@ -87,7 +88,7 @@ export function ElectorateResultsTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm sm:text-base">
+      <table className={cn('w-full', TABLE_TEXT_COMPACT)}>
         <thead>
           <tr className="border-b">
             {showPartyVote ? <Th>Party</Th> : <Th>Candidate</Th>}
