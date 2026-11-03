@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { WinPercentProvider } from './WinPercentDrawer.js';
 import { WinPercentLink } from './WinPercentLink.js';
 
@@ -21,6 +21,24 @@ describe('WinPercentDrawer', () => {
     expect(
       screen.getByRole('button', { name: /how we work out win %/i })
     ).toHaveClass('uppercase');
+  });
+
+  test('names the action under the label, in sentence case', () => {
+    renderHarness();
+
+    const trigger = screen.getByRole('button', {
+      name: /how we work out win %/i,
+    });
+
+    // The words are the affordance: the mark alone was a footnote.
+    expect(trigger).toHaveTextContent(/how it works/i);
+    expect(trigger).toHaveClass('flex-col');
+
+    // The button is uppercased, so the second line restates `normal-case` or
+    // it reads "HOW IT WORKS" under "WIN %".
+    expect(within(trigger).getByText(/how it works/i)).toHaveClass(
+      'normal-case'
+    );
   });
 
   test('is closed until the header is asked', () => {
