@@ -16,6 +16,27 @@ export const AXIS_FONT = '"IBM Plex Mono", ui-monospace, monospace';
 /** Recharts tick styling, identical on every axis of every chart. */
 export const AXIS_TICK = { fontSize: 10, fontFamily: AXIS_FONT } as const;
 
+/** IBM Plex Mono's advance, in ems: every glyph is the same width. */
+const MONO_ADVANCE = 0.6;
+
+/**
+ * How wide a y axis has to be for its own labels.
+ *
+ * The tick face is IBM Plex Mono, whose advance is a fixed 0.6em, so a label's
+ * width is a character count rather than something that has to be measured:
+ * `100%` is 24px at the 10px tick size. That is what lets the hand-drawn tape
+ * reserve exactly the gutter its labels need instead of a guessed one — the
+ * recharts charts measure instead (`<YAxis width="auto" />`), because recharts
+ * decides its own tick values and so does not know the strings in advance.
+ */
+export function axisLabelWidth(labels: string[]): number {
+  const widest = labels.reduce(
+    (longest, label) => Math.max(longest, label.length),
+    0
+  );
+  return Math.ceil(widest * AXIS_TICK.fontSize * MONO_ADVANCE);
+}
+
 /** Grid/axis hairline, from the print palette. */
 export const AXIS_STROKE = 'hsl(var(--muted-foreground))';
 export const GRID_STROKE = 'hsl(var(--border))';

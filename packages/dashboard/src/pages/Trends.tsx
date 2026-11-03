@@ -307,7 +307,7 @@ export default function Trends() {
           <ResponsiveContainer width="100%" height={400}>
             <LineChart
               data={chartData}
-              margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray={GRID_DASH} stroke={GRID_STROKE} />
               <XAxis
@@ -320,10 +320,14 @@ export default function Trends() {
                 stroke={AXIS_STROKE}
                 tickLine={false}
               />
+              {/* Sized to the widest label rather than recharts' 60px guess,
+                  which is ~30px of empty paper on a phone and was the largest
+                  slice of the chart's left gutter. */}
               <YAxis
                 tick={AXIS_TICK}
                 stroke={AXIS_STROKE}
                 tickLine={false}
+                width="auto"
                 domain={['auto', 'auto']}
                 tickFormatter={MODE_TICK[mode]}
               />

@@ -6,6 +6,7 @@ import {
   COUNTED_COLOR,
   GRID_DASH,
   GRID_STROKE,
+  axisLabelWidth,
   formatClock,
   formatTooltipStamp,
   timeTicks,
@@ -43,7 +44,11 @@ type CountedTapeProps = {
   className?: string;
 };
 
-const PAD = { left: 46, right: 14, top: 14, bottom: 26 };
+/** Gap between a y-axis label and the axis line. */
+const AXIS_LABEL_GAP = 8;
+/** Hairline between the widest label and the drawing's own edge. */
+const AXIS_EDGE = 4;
+const PAD = { right: 14, top: 14, bottom: 26 };
 const RUG_HEIGHT = 10;
 const FALLBACK_WIDTH = 720;
 
@@ -117,7 +122,11 @@ export function CountedTape({
   const hasRug = rugTicks.length > 0;
   const plotTop = PAD.top;
   const plotBottom = height - PAD.bottom - (hasRug ? RUG_HEIGHT : 0);
-  const plotLeft = PAD.left;
+  // The gutter is the labels' own width plus the gap, not a fixed reservation:
+  // `100%` needs 24px, where the old 46px pad left a third of the axis empty
+  // and that space is the plot's on a phone.
+  const plotLeft =
+    AXIS_EDGE + axisLabelWidth(yTicks.map(formatTick)) + AXIS_LABEL_GAP;
   const plotRight = Math.max(plotLeft + 1, width - PAD.right);
   const plotWidth = plotRight - plotLeft;
   const plotHeight = Math.max(1, plotBottom - plotTop);
@@ -204,7 +213,7 @@ export function CountedTape({
                 strokeDasharray={GRID_DASH}
               />
               <text
-                x={plotLeft - 8}
+                x={plotLeft - AXIS_LABEL_GAP}
                 y={y(tick)}
                 textAnchor="end"
                 dominantBaseline="middle"

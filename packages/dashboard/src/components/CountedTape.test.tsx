@@ -129,6 +129,20 @@ describe('CountedTape', () => {
     expect(screen.getByText('9 / 22 places')).toBeInTheDocument();
   });
 
+  it('reserves only the gutter its labels need, not a guessed pad', () => {
+    const { container } = render(
+      <CountedTape {...base} points={points([10, 41])} />
+    );
+    const axisLine = Array.from(container.querySelectorAll('line')).find(
+      (line) =>
+        line.getAttribute('stroke') === 'hsl(var(--muted-foreground))' &&
+        line.getAttribute('x1') === line.getAttribute('x2')
+    );
+    // 4px edge + "100%" at 24px + an 8px gap. The plot used to start at a flat
+    // 46px whatever the labels said, which on a phone is a tenth of the chart.
+    expect(Number(axisLine!.getAttribute('x1'))).toBe(36);
+  });
+
   it('shows the value and the votes behind it on hover', () => {
     const { container } = render(
       <CountedTape {...base} points={points([10, 41])} />

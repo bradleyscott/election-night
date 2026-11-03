@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { formatEstimate, formatVotes } from './chart-format.js';
+import { axisLabelWidth, formatEstimate, formatVotes } from './chart-format.js';
+
+describe('axisLabelWidth', () => {
+  it('sizes the gutter to the widest label at the tick size', () => {
+    // IBM Plex Mono advances 0.6em, so at the 10px tick size a glyph is 6px:
+    // "100%" is 24px, and the axis reserves that rather than a fixed 60px.
+    expect(axisLabelWidth(['0%', '25%', '100%'])).toBe(24);
+    expect(axisLabelWidth(['0', '15', '60'])).toBe(12);
+    expect(axisLabelWidth(['0', '1.4M'])).toBe(24);
+  });
+
+  it('has nothing to reserve when there is no label', () => {
+    expect(axisLabelWidth([])).toBe(0);
+  });
+});
 
 describe('formatVotes', () => {
   it('prints a counted figure exactly', () => {
