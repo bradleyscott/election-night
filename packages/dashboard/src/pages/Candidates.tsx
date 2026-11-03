@@ -19,6 +19,7 @@ import {
   NUMERIC,
   NUMERIC_CELL,
   TABLE_FRAME,
+  TABLE_TEXT,
 } from '../components/Table.js';
 import { WinPercentValue } from '../components/WinPercentValue.js';
 
@@ -61,7 +62,10 @@ function ElectorateWinChance({ chance }: { chance: number | null }) {
  * candidate's rank and their distance from the party's cut (`+5` green above it,
  * `-9` muted below). Showing only the seat would leave the page looking as
  * though nobody were on a list at all; showing two rows would count one person
- * twice. Someone who is only on a list gets the List chip alone.
+ * twice. Someone who is only on a list gets the List chip alone, with no seat
+ * line and no chance beside it; someone who stands only in a seat gets the
+ * Electorate chip alone. A route the candidate does not have is left out rather
+ * than dashed, so a row shows only the routes that exist.
  *
  * Win chance stays the seat's chance and nothing else: the same two candidates
  * the seat panel prices, from the same function, so the page cannot quote a
@@ -226,7 +230,7 @@ function AllCandidates({
         />
       </div>
       <div className={cn('overflow-x-auto', TABLE_FRAME)}>
-        <table className="w-full text-base">
+        <table className={cn('w-full', TABLE_TEXT)}>
           <thead>
             <tr className="border-b border-border">
               <Header column="name" className="text-left">
@@ -279,9 +283,12 @@ function AllCandidates({
                     {/* Two lines, in step with the Win chance column: the seat
                         on the first and the list on the second, so a seat name
                         lines up with the chance and a List chip with the
-                        distance from the cut. */}
+                        distance from the cut. A route the candidate does not
+                        have is absent rather than dashed: a list-only row has no
+                        seat line and no chance beside it, and a seat-only row
+                        has no list line. */}
                     <div className="flex flex-col gap-y-1">
-                      {c.electorateName ? (
+                      {c.electorateName && (
                         <span className="flex items-center gap-1.5">
                           <span className="hidden sm:inline chip-print chip-print--ink chip-print--table">
                             Electorate
@@ -293,8 +300,6 @@ function AllCandidates({
                             {c.electorateName}
                           </Link>
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
                       )}
                       {c.listRank !== null && (
                         <span className="flex items-center gap-1.5">
@@ -319,7 +324,9 @@ function AllCandidates({
                     )}
                   >
                     <div className="flex flex-col gap-y-1">
-                      <ElectorateWinChance chance={c.winChance} />
+                      {c.electorateName && (
+                        <ElectorateWinChance chance={c.winChance} />
+                      )}
                       {c.listRank !== null && (
                         <span
                           className="text-sm text-foreground"

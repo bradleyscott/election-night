@@ -153,6 +153,27 @@ describe('Candidates page', () => {
     expect(fromCutLine('-2 from cut')).toBeInTheDocument();
   });
 
+  test('leaves out the route a candidate does not have rather than dashing it', () => {
+    renderCandidates();
+
+    // BROWN, Sam is on National's list and contests no seat: there is no seat
+    // line to dash, and no chance beside it either. The row is the list alone.
+    const listOnly = screen.getByText('BROWN, Sam').closest('tr');
+    expect(listOnly).not.toBeNull();
+    expect(listOnly?.textContent).not.toContain('—');
+    expect(within(listOnly as HTMLElement).queryByText(/^\d+%$/)).toBeNull();
+    expect(
+      within(listOnly as HTMLElement).getByText('List')
+    ).toBeInTheDocument();
+
+    // WHITE, Sue stands in Wellington Central and is on no list: no List chip
+    // and no cut line to go with it.
+    const seatOnly = screen.getByText('WHITE, Sue').closest('tr');
+    expect(seatOnly).not.toBeNull();
+    expect(within(seatOnly as HTMLElement).queryByText('List')).toBeNull();
+    expect(seatOnly?.textContent).not.toContain('from cut');
+  });
+
   test('prints 0% rather than a dash where there is no chance to print', () => {
     renderCandidates();
 
