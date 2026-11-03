@@ -53,7 +53,11 @@ because Seats calls the same number **Certainty** and that header is a sort
 control. The copy shipped unchanged apart from the vocabulary review (electorate,
 tie, no em-dashes), the removal of the footer that named `seat-probability.ts`,
 and a "Worked example · Not tonight's results" note, added because the numbers are
-static and a reader could otherwise take them for tonight's counts.
+static and a reader could otherwise take them for tonight's counts. That note was
+later removed altogether: one caveat at the top was read once and long forgotten
+by the time a number appeared, so every drawing now carries its own `Example`
+chip, and each step runs heading, figure, prose, which also puts the drawing
+directly under the heading on a phone.
 
 **Provenance.** The figures are constructed and self-consistent, not a real
 count: 68% counted (19,846 in, ≈9,300 out), 42.4 / 40.4 / 17.2 tonight,

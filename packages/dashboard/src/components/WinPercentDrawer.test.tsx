@@ -38,17 +38,36 @@ describe('WinPercentDrawer', () => {
     ).toBeInTheDocument();
   });
 
-  test('says the numbers are a worked example, not tonight’s results', () => {
+  test('marks every figure as an example, rather than saying it once at the top', () => {
     renderHarness();
     fireEvent.click(
       screen.getByRole('button', { name: /how we work out win %/i })
     );
 
     const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveTextContent(/worked example/i);
-    expect(dialog).toHaveTextContent(/not tonight's results/i);
-    expect(dialog).toHaveTextContent(
-      /Every electorate page applies the same method to its own counts/i
+    // Six steps, six drawings, each carrying its own chip.
+    expect(screen.getAllByText(/^example$/i)).toHaveLength(6);
+    expect(dialog).not.toHaveTextContent(/not tonight's results/i);
+    expect(dialog).not.toHaveTextContent(/round numbers/i);
+  });
+
+  test('puts each figure directly under its heading, before the prose', () => {
+    renderHarness();
+    fireEvent.click(
+      screen.getByRole('button', { name: /how we work out win %/i })
+    );
+
+    // On a phone the drawing is the shortest statement of the step, so it comes
+    // straight after the heading; the prose underneath explains it.
+    const heading = screen.getByRole('heading', {
+      level: 3,
+      name: 'How many votes are left',
+    });
+    const figure = heading.nextElementSibling;
+    expect(figure).toHaveTextContent(/^example/i);
+    expect(figure).not.toHaveTextContent(/Electoral Commission/);
+    expect(figure?.nextElementSibling).toHaveTextContent(
+      /Electoral Commission/
     );
   });
 
@@ -60,7 +79,7 @@ describe('WinPercentDrawer', () => {
 
     for (const title of [
       'How many votes are left',
-      'Where the rest of them are heading',
+      'Who the remaining votes will favour',
       'The expected result',
       'How far it could still move',
       'Turning the spread into Win %',
