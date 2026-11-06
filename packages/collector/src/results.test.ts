@@ -359,6 +359,9 @@ describe('sendWebhook', () => {
     expect(callBody.result).toEqual(result);
     expect(callBody.diff.currentVotesCounted).toBe(10000);
     expect(callBody.diff.previousVotesCounted).toBe(5000);
+    // No chance lookup was supplied, so there is no modelled progress either:
+    // the automation must not print a progress it does not have.
+    expect(callBody.progress).toBeNull();
 
     expect(fetchMock).toHaveBeenCalledWith(url, {
       method: 'POST',
@@ -552,6 +555,9 @@ describe('processResults', () => {
     const events = payloads.map((p) => p.event);
     expect(events).toContain('prediction_changed');
     expect(payloads[0]!.probability).toBeCloseTo(0.93);
+    // The modelled share of tonight's vote, not the 0.7 share of voting places
+    // the feed reported.
+    expect(payloads[0]!.progress).toBeCloseTo(0.6);
 
     vi.unstubAllGlobals();
   });

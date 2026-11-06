@@ -154,6 +154,14 @@ export type WebhookPayload = {
    * `null` on a finished count, and absent when the collector had no baseline.
    */
   probability?: number | null;
+  /**
+   * How far through tonight's count the seat is: votes counted ÷ the votes
+   * tonight is expected to produce (`SeatChance.progress`), as a fraction.
+   * The same number the dashboard's count band prints, and not
+   * `votePercentageCounted`, which is the share of *voting places* reported and
+   * runs hot early. `null` on a finished count, absent without a baseline.
+   */
+  progress?: number | null;
 };
 
 // ---- Feed / Commentary ----

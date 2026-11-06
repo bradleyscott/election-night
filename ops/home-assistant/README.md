@@ -1,15 +1,97 @@
-# Election-night lamp (Home Assistant)
+# Election-night lamp and announcement (Home Assistant)
 
-`automations/election-lamp.yaml` is a single Home Assistant automation that turns
-`light.drawing_room_lamp` on at 100% brightness in the colour of the party whose
-candidate has just been called as a seat's winner, holds it for 30 seconds, and
-turns it off. Calls are queued, so a burst of calls plays out one at a time
-rather than collapsing into one lamp state. Every party has a colour; there are
-no patterns, flashes or transitions to read.
+`automations/election-lamp.yaml` is a single Home Assistant automation that, when
+a seat's winner is called, turns `light.drawing_room_lamp` on at 100% brightness
+in the winning party's colour and **says the call out loud** on
+`media_player.googlehome7455`, then turns the lamp off after 30 seconds. Calls
+are queued, so a burst of calls plays out one at a time rather than collapsing
+into one lamp state and one overlapping sentence. Every party has a colour; there
+are no patterns, flashes or transitions to read.
 
 It relies on nothing in this repo at runtime — it is driven entirely by the
 webhook payload in `WebhookPayload` (`packages/core/src/types.ts`), which is
-`{ event, timestamp, electorateName, result, diff, probability }`.
+`{ event, timestamp, electorateName, result, diff, probability, progress }`.
+
+## What it says
+
+Two sentences, built entirely from the webhook payload:
+
+> Nicola WILLIS of National has a 94 percent chance of winning Selwyn. They lead
+> by a margin of 12.4 percent, with 83 percent of the vote counted.
+
+- **The name is reversed for speech.** The feed publishes names surname-first
+  (`WILLIS, Nicola`), which a voice reads as a list. Only the order changes: the
+  feed's own spelling is kept, because title-casing would turn `McANULTY` into
+  `Mcanulty`, and a voice reads upper case identically anyway.
+- **Parties are said, not written.** `National Party` becomes "National",
+  `Green Party` becomes "the Green Party", `ACT New Zealand` becomes "ACT", and
+  `Opportunity Party` / `The Opportunities Party (TOP)` both become "The
+  Opportunity Party". An unknown party is read as published rather than dropped.
+- **The percentage is the chance of winning**, rounded to a whole point, from the
+  same `probability` the lamp's condition checks.
+- **The margin is a counted fact, not a projection**, which is why the two
+  numbers are two sentences rather than one blended figure. `marginPercent` is
+  stored as a **fraction of the votes counted** (`margin / votesCounted` in
+  `calculateLead`, 0.124), the same number the dashboard multiplies by 100 before
+  it prints `12.4%`. The template does that multiplication itself, prints one
+  decimal, and drops a trailing `.0` so a whole point reads "12 percent" rather
+  than "12.0 percent".
+- **"of the vote counted" is the payload's `progress`, not
+  `votePercentageCounted`.** `progress` is `SeatChance.progress`: votes counted ÷
+  the votes tonight is expected to produce, the same number the dashboard's count
+  band prints and the feed's commentary uses. `votePercentageCounted` is the share
+  of **voting places** reported, which runs hot early (advance votes arrive in
+  blocks after 7pm), so when a collector predates the `progress` field the clause
+  says "voting places" rather than labelling that number votes. Both are
+  formatted to one decimal with a trailing `.0` dropped.
+- **Missing parts drop their clause.** No candidate name gives "The Green Party
+  has a 92 percent chance of winning Example."; no party (an independent) gives
+  "Jane Smith has a 93 percent chance of winning Hutt South." The subject is
+  capitalised with `who[:1] | upper` rather than `capitalize`, which would
+  lowercase the rest of "Green Party".
+- The message stays well under Google Translate's 200-character limit (the
+  longest fixture is 162). That limit is silent: a longer message is truncated,
+  not refused.
+
+The wording is template logic, so it is tested rather than eyeballed:
+
+```bash
+uv run --with jinja2 --with pyyaml ops/home-assistant/test-templates.py
+```
+
+That reads the `variables:` block out of the YAML, renders it with Jinja2 the way
+Home Assistant does (in order, so later variables see earlier ones), and checks
+the spoken sentence for a National call, a Green call, Te Pāti Māori under both
+spellings, TOP under both of its labels, an independent, an unknown party, an
+apostrophe name, a missing name and a name with no comma. It also checks the
+gate (`0.94` and `0.9` pass; `0.72`, `null`, an absent `probability` and every
+other event type do not) and that the lamp palette still resolves every party.
+
+## Which TTS entity?
+
+Home Assistant names the Google Translate TTS entity after how it was added, so
+the automation tries each in turn and uses whichever exists:
+
+| entity / action               | where it comes from                                                       |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `tts.google_en_com`           | Google Translate text-to-speech added under Settings → Devices & services |
+| `tts.google_translate_en_com` | the legacy `tts:` platform in `configuration.yaml`                        |
+| `tts.google_translate_say`    | older installs, before the `tts.speak` action existed                     |
+
+The branch is chosen by checking `state_attr(..., 'friendly_name')`, which is set
+on any entity that exists, so a missing entity is skipped rather than raising.
+Every branch continues on error, so a TTS failure still reaches the lamp-off
+step. If none of them speaks, the TTS integration is missing entirely: add
+**Google Translate text-to-speech** under Settings → Devices & services, and the
+first branch starts working with no YAML change.
+
+Nothing sets the speaker's volume. A fixed `volume_set` would be louder than the
+house sometimes wants and would need a restore step that a failed announcement
+could skip; set the Google Home's own volume and leave it alone.
+
+The announcement makes the queue's backlog audible as well as visible: with
+`max: 20` and 30 seconds a call, a large wave can talk about seats called ten
+minutes ago. `max: 8` is about four minutes of speaking.
 
 ## Wiring the collector to it
 
@@ -126,7 +208,7 @@ npm run log:webhooks        # listens on :3458
 WEBHOOK_URL=http://localhost:3458 npm run start:mock   # separate shell + collector
 ```
 
-Then a single synthetic call straight at the lamp:
+Then a single synthetic call straight at the automation:
 
 ```bash
 curl -X POST http://homeassistant.local:8123/api/webhook/election-night-verdict \
@@ -136,17 +218,18 @@ curl -X POST http://homeassistant.local:8123/api/webhook/election-night-verdict 
     "timestamp": 1790000000000,
     "electorateName": "Auckland Central",
     "probability": 0.94,
+    "progress": 0.83,
     "result": {
       "electorateName": "Auckland Central",
       "votesCounted": 24000,
-      "votePercentageCounted": 0.83,
+      "votePercentageCounted": 0.91,
       "leaders": {
         "leadingCandidate": "Swarbrick, Chlöe",
         "leadingCandidateParty": "Green Party",
         "secondCandidate": "Example, Candidate",
         "secondCandidateParty": "Labour Party",
         "margin": 4200,
-        "marginPercent": 8.9
+        "marginPercent": 0.089
       }
     },
     "diff": {}
@@ -156,7 +239,24 @@ curl -X POST http://homeassistant.local:8123/api/webhook/election-night-verdict 
 Set `Content-Type: application/json` or Home Assistant exposes the body as
 `trigger.data` instead of `trigger.json` and the conditions never match. To test
 the ignore path, re-send with `"probability": 0.72` (a withdrawal) or
-`"probability": null` (a completed count) — neither should light anything.
+`"probability": null` (a completed count) — neither should light anything or say
+anything.
+
+A passing call does three things, in order: the lamp goes to the Green Party's
+colour, the speaker says
+
+> Chlöe Swarbrick of the Green Party has a 94 percent chance of winning Auckland
+> Central. They lead by a margin of 8.9 percent, with 83 percent of the vote
+> counted.
+
+(`votePercentageCounted` is deliberately `0.91` there while `progress` is
+`0.83`, so the sentence proves which field it read.)
+
+and the lamp turns off 30 seconds later. If the lamp changes but nothing is said,
+open the automation's last trace: a skipped `tts.speak` step names the entity that
+was missing, and a failed one carries the error. The sentence itself is checked
+offline by `test-templates.py` above, so a wrong-sounding sentence is a template
+bug, not a Home Assistant one.
 
 ### Is the webhook actually registered?
 
@@ -221,17 +321,27 @@ off, so:
 Any other party renders as white, which is a visible "unknown" rather than a
 silent failure.
 
+Everything else is the dashboard's brand value, unchanged. A lamp can render
+those cooler than the swatch - the Green Party's blue-leaning `#098137` reads
+teal and Labour's warm `#D82C20` reads pink on some bulbs - but per-party tuning
+for one bulb was tried (CSS colour names, then hand-tuned RGB) and traded one
+distortion for another without a clear win. The brand value keeps the lamp and
+the dashboard telling the same story, and a bulb that cannot show a saturated
+green is not something a hex value can fix.
+
 ## Bursts
 
 Seats get called in waves, so `mode: queued` with `max: 20` gives each call its
 own 30 seconds — up to ten minutes of backlog. Beyond that the newest triggers
 are dropped (`max_exceeded: silent`) rather than narrating seats called ten
-minutes ago. Lower `max` to narrate less of a burst; raise it to lose less.
+minutes ago. Lower `max` to narrate less of a burst; raise it to lose less. With
+the announcement the backlog is spoken, not just lit, so this is the number to
+lower if a wave talks over itself.
 
 Two consequences worth knowing:
 
-- A call that is later withdrawn and re-called lights the lamp twice, because
-  both crossings are `prediction_changed`.
+- A call that is later withdrawn and re-called lights the lamp and says the seat
+  twice, because both crossings are `prediction_changed`.
 - Nothing is durable on the collector side. If Home Assistant is unreachable the
   webhook is retried three times (`sendWebhook`, 500ms base delay) and then
-  dropped; the lamp simply misses that seat.
+  dropped; the lamp and the announcement simply miss that seat.

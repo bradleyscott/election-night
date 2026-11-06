@@ -109,6 +109,9 @@ export async function sendWebhook(
     result,
     diff,
     probability: chance?.state === 'counting' ? chance.probability : null,
+    // Same gate as `probability`: without a modelled seat there is no expected
+    // total, so there is no honest progress to report.
+    progress: chance?.state === 'counting' ? chance.progress : null,
   };
 
   const startedAt = performance.now();

@@ -1,8 +1,9 @@
-# Election-night lamp — Home Assistant automation.
+# Election-night lamp and announcement — Home Assistant automation.
 #
 # Lights `light.drawing_room_lamp` at 100% brightness in the colour of the party
-# whose candidate has just been called as the seat's winner, for 30 seconds,
-# then turns it off. One call per queue slot, in arrival order.
+# whose candidate has just been called as the seat's winner, says the call out
+# loud on `media_player.googlehome7455`, and turns the lamp off after 30 seconds.
+# One call per queue slot, in arrival order.
 #
 # Wire the collector to it with:
 #   WEBHOOK_URL=http://<home-assistant>:8123/api/webhook/election-night-verdict
@@ -16,15 +17,19 @@
 # which point the payload carries `probability: null`) also emits
 # `prediction_changed`. Lighting on the event alone would light the lamp when a
 # call is withdrawn.
-alias: Election night - lamp for predicted seat winner
+alias: Election night - lamp and announcement for predicted seat winner
 description: >-
-  Lights the drawing room lamp in the winning party's colour for 30 seconds when
-  the collector reports a seat has been called. Queued: each call gets its turn.
+  Lights the drawing room lamp in the winning party's colour and announces the
+  call on the Google Home when the collector reports a seat has been called.
+  Queued: each call gets its turn.
 id: election_night_seat_lamp
 mode: queued
 # 30s per call, so 20 slots is a ten-minute backlog. A bigger burst than that
 # would leave the lamp narrating seats that were called long ago; the oldest
-# runs finish, the newest triggers are dropped rather than queued forever.
+# runs finish, the newest triggers are dropped rather than queued forever. The
+# announcement makes that backlog audible as well as visible, so if a wave of
+# calls ever talks over itself this is the number to lower (8 is about four
+# minutes of speaking).
 max: 20
 max_exceeded: silent
 
@@ -97,6 +102,86 @@ actions:
            } -%}
         {{ palette.get(party, [255, 255, 255]) }}
 
+      # ---- What the speaker says -------------------------------------------
+      # These are separate variables rather than one nested template so the
+      # wording can be read (and tested) on its own. Home Assistant renders them
+      # in order, so `tts_message` may use the ones above it.
+      electorate: >-
+        {{ trigger.json.electorateName | default('', true)
+           or trigger.json.result.electorateName | default('', true) }}
+      # The feed writes names surname first ("Swarbrick, Chlöe"), which a voice
+      # reads as a list. Reverse it for speech. Leave the rest of the spelling
+      # alone: title-casing would turn McANULTY into Mcanulty.
+      candidate: >-
+        {%- set raw = trigger.json.result.leaders.leadingCandidate
+                       | default('', true) | trim -%}
+        {%- if ',' in raw -%}
+          {%- set surname, given = raw.split(',', 1) -%}
+          {{ ((given | trim) ~ ' ' ~ (surname | trim)) | trim }}
+        {%- else -%}
+          {{ raw }}
+        {%- endif -%}
+      # How each party is said, not how it is written. "of National" and "of the
+      # Green Party" are how people say it; "of National Party" is not. Both
+      # labels the feed has used are keys, and an unknown party is read as
+      # written rather than dropped from the sentence.
+      spoken_party: >-
+        {%- set spoken = {
+             'National Party':                'National',
+             'Labour Party':                  'Labour',
+             'Green Party':                   'the Green Party',
+             'ACT New Zealand':               'ACT',
+             'New Zealand First Party':       'New Zealand First',
+             'Te Pāti Māori':                 'Te Pāti Māori',
+             'Te Pati Maori':                 'Te Pāti Māori',
+             'Opportunity Party':             'The Opportunity Party',
+             'The Opportunities Party (TOP)': 'The Opportunity Party'
+           } -%}
+        {{ spoken.get(party, party) }}
+      # Who the sentence is about: "Name of Party", or just the one we have. A
+      # probability only exists when the model can price two candidates, so the
+      # leading candidate is always named in practice; the shorter forms are
+      # here so a partial payload cannot produce " of  has a ...".
+      who: >-
+        {%- if candidate and spoken_party -%}
+          {{ candidate }} of {{ spoken_party }}
+        {%- elif candidate -%}
+          {{ candidate }}
+        {%- else -%}
+          {{ spoken_party or 'The leading candidate' }}
+        {%- endif -%}
+      percent: '{{ (trigger.json.probability * 100) | round(0) | int }}'
+      # `marginPercent` is a fraction of the votes counted (0.124), the same
+      # number the dashboard multiplies by 100 before printing it. One decimal,
+      # and a whole point drops the ".0" because a voice says both the same and
+      # "12 percent" is tidier than "12.0 percent".
+      margin_percent: >-
+        {{ ((trigger.json.result.leaders.marginPercent | default(0) | float(0)) * 100)
+           | round(1) | string | replace('.0', '') }}
+      # How much of the vote is in. `progress` is the collector's modelled share
+      # of tonight's vote (votes counted / the votes tonight is expected to
+      # produce), the same number the dashboard's count band prints. A collector
+      # that predates the field only sends `votePercentageCounted`, which is the
+      # share of *voting places* reported and runs hot early, so the fallback
+      # says "voting places" rather than passing it off as votes.
+      counted_clause: >-
+        {%- if trigger.json.progress is number -%}
+        with {{ ((trigger.json.progress * 100) | round(1) | string | replace('.0', '')) }} percent of the vote counted
+        {%- elif trigger.json.result.votePercentageCounted is number -%}
+        with {{ ((trigger.json.result.votePercentageCounted * 100) | round(1) | string | replace('.0', '')) }} percent of voting places counted
+        {%- else -%}
+        with the count under way
+        {%- endif -%}
+      # Two sentences: who is ahead and how sure the model is, then the lead the
+      # count has actually produced and how much of the vote is in. The first is
+      # a projection; the second pair are the count's own numbers, which is why
+      # they are not blended into one. The lamp already carries the party as a
+      # colour, so the words agree with it.
+      tts_message: >-
+        {{ who[:1] | upper }}{{ who[1:] }} has a {{ percent }} percent chance of
+        winning {{ electorate }}. They lead by a margin of {{ margin_percent }} percent,
+        {{ counted_clause }}.
+
   - action: light.turn_on
     target:
       entity_id: light.drawing_room_lamp
@@ -104,6 +189,47 @@ actions:
       brightness_pct: 100
       rgb_color: '{{ colour }}'
       transition: 1
+
+  # Say it. Home Assistant names the Google Translate TTS entity after how it
+  # was added - `tts.google_en_com` from the UI integration, and
+  # `tts.google_translate_en_com` from the legacy `tts:` platform in
+  # configuration.yaml - and an older install may only have the
+  # `tts.google_translate_say` action. Try whichever exists, so a difference
+  # that has nothing to do with this automation cannot make it silent. Every
+  # branch continues on error so a TTS failure still turns the lamp off.
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ state_attr('tts.google_en_com', 'friendly_name') is not none }}
+        sequence:
+          - action: tts.speak
+            target:
+              entity_id: tts.google_en_com
+            data:
+              media_player_entity_id: media_player.googlehome7455
+              message: '{{ tts_message }}'
+            continue_on_error: true
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ state_attr('tts.google_translate_en_com', 'friendly_name')
+                 is not none }}
+        sequence:
+          - action: tts.speak
+            target:
+              entity_id: tts.google_translate_en_com
+            data:
+              media_player_entity_id: media_player.googlehome7455
+              message: '{{ tts_message }}'
+            continue_on_error: true
+    default:
+      - action: tts.google_translate_say
+        target:
+          entity_id: media_player.googlehome7455
+        data:
+          message: '{{ tts_message }}'
+        continue_on_error: true
 
   - delay:
       seconds: 30
