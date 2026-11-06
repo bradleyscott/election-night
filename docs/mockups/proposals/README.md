@@ -6,6 +6,47 @@ drawn ahead of implementation, so review them as a proposal. The tokens,
 utilities and component classes are the real ones; the markup is not the
 component.
 
+## `candidates-chance-mobile` (folder + `.png` at this level)
+
+On a phone the Candidates page drops the Win chance column
+(`hidden sm:table-cell`), so the chance and the distance from the party's cut —
+the two things the Seat cell's `List` chip is pointing at — are invisible below
+640px. The folder holds seven 390px frames and `sheet.html`, the review sheet
+that carries them at their true size with the trade per variant:
+
+- **Today** — Candidate (194px) and Seat (162px), 67px rows. Nothing in a row
+  says a number exists.
+- **A · Let the table scroll** — the column returns; the table is 500px in a
+  356px frame, so 144px sits past the right edge. Cue: a `Swipe for Win chance →`
+  kicker and a right-edge fade.
+- **B · Scroll, with the name pinned** — A plus `sticky left-0` on the candidate
+  column. Pinning 199px of 356 leaves ~90px empty between the name and the
+  number once the seat column has slid underneath.
+- **C · Two columns, routes under the name** — the Seat column goes, its routes
+  fold into the candidate cell, Win chance keeps its column, header and right
+  edge. 230/126, 72px rows.
+- **D · One column** — the chance takes the right end of the name line and the
+  cut joins the route line. 68px rows, but the numbers lose their header and,
+  with the cut moved into the route line, D breaks `AGENTS.md`'s rule that the
+  distance is never folded into the Seat column.
+
+**Recommended: C** — no gesture, the numbers stay a column under their own
+header, and it is the shape the seat panel already uses on a phone
+(`ElectorateResultsTable.tsx` folds the party under the name to keep `Win %`).
+The change is three moves: `hidden sm:table-cell` on Seat, its routes into the
+candidate cell behind `sm:hidden`, and `hidden` off the Win chance column.
+Desktop keeps all four columns. Not mocked: tap a row to reveal it — one tap per
+row, on a page listing every candidate in the country.
+
+**Decided:** nothing yet. The frame numbers are illustrative and cover the four
+row shapes; the capture recipe is in the folder's `README.md`.
+
+```bash
+# tailwindcss over "../../docs/mockups/proposals/candidates-chance-mobile/*.html",
+# inline into every frame and sheet.html, then Playwright chromium at 390px / 2x
+# per frame and 1400px / 2x for the sheet.
+```
+
 ## `win-percent-header-mobile` (`.html` / `.png`)
 
 The **Win %** header after the two-line version proved too wide on a phone: at
