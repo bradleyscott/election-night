@@ -34,31 +34,39 @@ export type NzElectionXmlSourceOptions = {
    * Must end with a trailing slash.
    */
   baseUrl?: string;
-  /** Optional custom fetch implementation (defaults to global fetch). */
-  fetch?: (url: string) => Promise<string>;
   /**
-   * Optional custom fetch that keeps the response metadata a conditional
-   * request needs. Injected tests use this to serve 304s; when only `fetch` is
-   * given, conditional fetches degrade to unconditional ones.
+   * Optional custom fetch implementation (defaults to global fetch).
+   *
+   * A body-only fetch cannot see `Last-Modified` or answer 304, so a source
+   * built with one polls unconditionally — the loop still runs, it just never
+   * gets to skip a download.
    */
-  fetchWithMeta?: (
-    url: string,
-    ifModifiedSince?: string
-  ) => Promise<FeedFetchResponse>;
+  fetch?: (url: string) => Promise<string>;
   /** Per-request HTTP timeout in milliseconds (default 30s). */
   timeoutMs?: number;
   /** Optional verbose logging. */
   verbose?: boolean;
 };
 
-/** One feed request, with the header a conditional cycle has to remember. */
-export type FeedFetchResponse = {
-  status: 'ok' | 'not-modified';
-  /** The body; absent for a 304. */
-  body?: string;
-  /** The response's `Last-Modified`, or null when the server sent none. */
-  lastModified: string | null;
-};
+/**
+ * One feed request, with the header a conditional cycle has to remember.
+ *
+ * A union rather than an optional `body`: a 200 with an empty body is a parse
+ * failure the caller should see, not a seat that silently has no candidates.
+ */
+export type FeedFetchResponse =
+  | {
+      status: 'ok';
+      /** The response body. Present on every 200. */
+      body: string;
+      /** The response's `Last-Modified`, or null when the server sent none. */
+      lastModified: string | null;
+    }
+  | {
+      status: 'not-modified';
+      /** The 304's `Last-Modified`, or null when the server sent none. */
+      lastModified: string | null;
+    };
 
 type XmlCandidate = {
   c_no: string;
@@ -117,22 +125,6 @@ export function resolveFeedBaseUrl(
   return buildBaseUrl(options);
 }
 
-function makeFetch(timeoutMs: number) {
-  return (url: string): Promise<string> =>
-    fetch(url, {
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        Accept: 'application/xml,text/xml,*/*',
-        'User-Agent': 'Mozilla/5.0 (compatible; election-night-collector/1.0)',
-      },
-    }).then((res) => {
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} fetching ${url}`);
-      }
-      return res.text();
-    });
-}
-
 /**
  * One request, keeping `Last-Modified` and honouring `If-Modified-Since`.
  *
@@ -166,6 +158,25 @@ function makeFetchWithMeta(timeoutMs: number) {
   };
 }
 
+/**
+ * The same request for callers that only want a body (reference data and
+ * non-conditional reads). Derived from `makeFetchWithMeta` so the two cannot
+ * drift on headers, user agent, timeout or the error message an alert matches.
+ */
+function makeFetch(timeoutMs: number) {
+  const fetchWithMeta = makeFetchWithMeta(timeoutMs);
+  return async (url: string): Promise<string> => {
+    const res = await fetchWithMeta(url);
+    // This path never sets `If-Modified-Since`, so a 304 here means a cache in
+    // front of the feed answered on its own. Treat it as a fetch failure rather
+    // than returning an empty body that would parse into a seat with no votes.
+    if (res.status === 'not-modified') {
+      throw new Error(`HTTP 304 fetching ${url} without a conditional header`);
+    }
+    return res.body;
+  };
+}
+
 export class NzElectionXmlSource implements ElectionSource {
   private baseUrl: string;
   private fetchHtml: (url: string) => Promise<string>;
@@ -187,19 +198,17 @@ export class NzElectionXmlSource implements ElectionSource {
     const timeoutMs = options.timeoutMs ?? 30_000;
     this.fetchHtml = options.fetch ?? makeFetch(timeoutMs);
 
-    // An injected body-only fetch cannot answer 304, so a conditional request
-    // through it becomes an ordinary one: the loop still runs, it just never
-    // gets to skip a download.
+    // An injected body-only fetch cannot answer 304 or report `Last-Modified`,
+    // so a conditional request through it becomes an ordinary one: the loop
+    // still runs, it just never gets to skip a download.
     const injectedFetch = options.fetch;
-    this.fetchMeta =
-      options.fetchWithMeta ??
-      (injectedFetch
-        ? async (url: string) => ({
-            status: 'ok' as const,
-            body: await injectedFetch(url),
-            lastModified: null,
-          })
-        : makeFetchWithMeta(timeoutMs));
+    this.fetchMeta = injectedFetch
+      ? async (url: string) => ({
+          status: 'ok' as const,
+          body: await injectedFetch(url),
+          lastModified: null,
+        })
+      : makeFetchWithMeta(timeoutMs);
     this.verbose = options.verbose ?? false;
   }
 
@@ -242,7 +251,7 @@ export class NzElectionXmlSource implements ElectionSource {
     }
     return {
       status: 'modified',
-      results: this.parseElectorateXml(res.body ?? '', config.electorateName),
+      results: this.parseElectorateXml(res.body, config.electorateName),
       lastModified: res.lastModified,
     };
   }

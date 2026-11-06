@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -254,5 +254,134 @@ describe('NzElectionXmlSource', () => {
         party: 'Red & Blue Party',
       },
     ]);
+  });
+});
+
+describe('NzElectionXmlSource — conditional reads', () => {
+  const REFERENCE_FILES = ['candidates.xml', 'parties.xml', 'electorates.xml'];
+
+  type Call = { url: string; headers: Record<string, string> };
+
+  /**
+   * Serve the reference fixtures normally and hand every other request to
+   * `respond`, which is the electorate file under test. Records what the source
+   * actually sent, because the header is the whole point.
+   */
+  function stubFeed(respond: () => Response): Call[] {
+    const calls: Call[] = [];
+    vi.stubGlobal(
+      'fetch',
+      async (url: string, init?: RequestInit): Promise<Response> => {
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        calls.push({ url, headers });
+        const path = url.slice(BASE_URL.length);
+        if (REFERENCE_FILES.includes(path)) {
+          return new Response(readFileSync(join(fixturesDir, path), 'utf-8'), {
+            status: 200,
+          });
+        }
+        return respond();
+      }
+    );
+    return calls;
+  }
+
+  const SEAT_XML = readFileSync(join(fixturesDir, 'e01/e01.xml'), 'utf-8');
+  const STAMP = 'Fri, 06 Nov 2026 03:19:53 GMT';
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('sends exactly the stamp it was given, and no ETag', async () => {
+    const calls = stubFeed(
+      () =>
+        new Response(SEAT_XML, {
+          status: 200,
+          headers: { 'last-modified': STAMP },
+        })
+    );
+
+    const source = new NzElectionXmlSource({ baseUrl: BASE_URL });
+    const [config] = await source.loadElectorates();
+    await source.fetchResultsConditional(config!, STAMP);
+
+    const electorateCall = calls.find((c) => c.url.endsWith('e01.xml'));
+    expect(electorateCall?.headers['If-Modified-Since']).toBe(STAMP);
+    // A failed If-None-Match overrides If-Modified-Since and forces a full
+    // 200, so the pair must never be sent together.
+    expect(electorateCall?.headers['If-None-Match']).toBeUndefined();
+  });
+
+  test('reports a body and its Last-Modified on a 200', async () => {
+    stubFeed(
+      () =>
+        new Response(SEAT_XML, {
+          status: 200,
+          headers: { 'last-modified': STAMP },
+        })
+    );
+
+    const source = new NzElectionXmlSource({ baseUrl: BASE_URL });
+    const [config] = await source.loadElectorates();
+    const answer = await source.fetchResultsConditional(config!, STAMP);
+
+    expect(answer.status).toBe('modified');
+    expect(answer.lastModified).toBe(STAMP);
+    if (answer.status !== 'modified') throw new Error('unreachable');
+    expect(answer.results.electorateName).toBe(config!.electorateName);
+    expect(answer.results.votesCounted).toBeGreaterThan(0);
+  });
+
+  test('reports not-modified on a 304 without parsing a body', async () => {
+    stubFeed(() => new Response(null, { status: 304 }));
+
+    const source = new NzElectionXmlSource({ baseUrl: BASE_URL });
+    const [config] = await source.loadElectorates();
+    const answer = await source.fetchResultsConditional(config!, STAMP);
+
+    expect(answer).toEqual({ status: 'not-modified', lastModified: null });
+  });
+
+  test('keeps the stamp a 304 carries', async () => {
+    stubFeed(
+      () =>
+        new Response(null, {
+          status: 304,
+          headers: { 'last-modified': STAMP },
+        })
+    );
+
+    const source = new NzElectionXmlSource({ baseUrl: BASE_URL });
+    const [config] = await source.loadElectorates();
+    const answer = await source.fetchResultsConditional(config!, STAMP);
+
+    expect(answer.status).toBe('not-modified');
+    expect(answer.lastModified).toBe(STAMP);
+  });
+
+  test('throws on a non-ok response instead of returning an empty seat', async () => {
+    stubFeed(() => new Response('nope', { status: 503 }));
+
+    const source = new NzElectionXmlSource({ baseUrl: BASE_URL });
+    const [config] = await source.loadElectorates();
+
+    await expect(source.fetchResultsConditional(config!)).rejects.toThrow(
+      /HTTP 503/
+    );
+  });
+
+  test('an injected body-only fetch still serves a conditional call', async () => {
+    // Custom adapters and tests inject a body-only fetch. It cannot 304 or stamp
+    // a seat, so the call must degrade to an ordinary read rather than fail.
+    const source = new NzElectionXmlSource({
+      baseUrl: BASE_URL,
+      fetch: fixtureFetch,
+    });
+    const [config] = await source.loadElectorates();
+    const answer = await source.fetchResultsConditional(config!, STAMP);
+
+    expect(answer.status).toBe('modified');
+    expect(answer.lastModified).toBeNull();
   });
 });
