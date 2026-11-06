@@ -20,8 +20,10 @@ that carries them at their true size with the trade per variant:
   356px frame, so 144px sits past the right edge. Cue: a `Swipe for Win chance →`
   kicker and a right-edge fade.
 - **B · Scroll, with the name pinned** — A plus `sticky left-0` on the candidate
-  column. Pinning 199px of 356 leaves ~90px empty between the name and the
-  number once the seat column has slid underneath.
+  column. At full scroll the name is still there, the seat column leaves a 21px
+  tail beside it and the chance cell fills the remaining 136px, so nothing is
+  cut off or empty; the cost is the seat name, 144px of scroll and a gesture to
+  learn. **Chosen.**
 - **C · Two columns, routes under the name** — the Seat column goes, its routes
   fold into the candidate cell, Win chance keeps its column, header and right
   edge. 230/126, 72px rows.
@@ -30,16 +32,11 @@ that carries them at their true size with the trade per variant:
   with the cut moved into the route line, D breaks `AGENTS.md`'s rule that the
   distance is never folded into the Seat column.
 
-**Recommended: C** — no gesture, the numbers stay a column under their own
-header, and it is the shape the seat panel already uses on a phone
-(`ElectorateResultsTable.tsx` folds the party under the name to keep `Win %`).
-The change is three moves: `hidden sm:table-cell` on Seat, its routes into the
-candidate cell behind `sm:hidden`, and `hidden` off the Win chance column.
-Desktop keeps all four columns. Not mocked: tap a row to reveal it — one tap per
-row, on a page listing every candidate in the country.
-
-**Decided:** nothing yet. The frame numbers are illustrative and cover the four
-row shapes; the capture recipe is in the folder's `README.md`.
+**Decided: B, the pinned name.** The reader who swipes right keeps the name
+beside the number, which is the whole point of the column, and the numbers stay
+in the two lines the desktop table draws. C and D are kept as the alternatives
+considered; C shows the chance with no gesture but gives up the seat column's
+own place in the row.
 
 ```bash
 # tailwindcss over "../../docs/mockups/proposals/candidates-chance-mobile/*.html",

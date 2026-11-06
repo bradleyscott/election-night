@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Win chance on a phone &middot; four ways to see the column</title>
+    <title>Win chance on a phone &middot; the pinned name</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Crimson+Pro:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <style>*, ::before, ::after {
   --tw-border-spacing-x: 0;
@@ -1517,25 +1517,27 @@ h1,
       </p>
 
       <div class="mt-4 flex items-baseline gap-3 border panel-print px-4 py-2.5">
-        <span class="kicker text-brand">Recommendation</span>
+        <span class="kicker text-brand">Decided</span>
         <p class="max-w-[1120px] font-label text-xs leading-relaxed text-muted-foreground">
-          <strong class="text-foreground">C, two columns.</strong> It is the only one of the
-          four that shows the chance without a gesture, keeps the numbers in a column under
-          their own header, and costs five pixels a row. The table below is the same table
-          the seat panel already uses on a phone, where the party folds under the
-          candidate&rsquo;s name so that Win % can stay in its column.
+          <strong class="text-foreground">B, the pinned name.</strong> The table scrolls to the
+          chance and the candidate column stays put, so a reader who swipes right never loses
+          whose row they are on. Corrected after the first pass: at full scroll nothing is
+          empty and nothing is cut off. The seat column slides under the pinned one and leaves
+          a 21px tail, the chance cell fills the rest, and the two numbers sit exactly where
+          the four-column table puts them.
         </p>
       </div>
 
       <p class="mt-3 max-w-[1120px] font-label text-[12px] leading-relaxed text-muted-foreground">
-        <span class="text-foreground">In code, C is three moves.</span> The Seat column takes
-        <span class="font-mono text-[11.5px]">hidden sm:table-cell</span>; its two routes move
-        into the candidate cell on a second line that is
-        <span class="font-mono text-[11.5px]">sm:hidden</span>, exactly as
-        <span class="font-mono text-[11.5px]">ElectorateResultsTable</span> folds the party
-        under a name; and the Win chance column loses its
-        <span class="font-mono text-[11.5px]">hidden</span>, keeping the chance above the
-        distance from the cut. Desktop renders the same four columns it does today.
+        <span class="text-foreground">In code, B is three moves.</span> The Win chance column
+        loses its <span class="font-mono text-[11.5px]">hidden</span>; the candidate cell and
+        its header take <span class="font-mono text-[11.5px]">sticky left-0</span> with a paper
+        background and a hairline so the seat column passes under it cleanly (both reset at
+        <span class="font-mono text-[11.5px]">sm</span>, where the table does not scroll); and
+        the swipe cue is a <span class="font-mono text-[11.5px]">sm:hidden</span> line above
+        the table. The right-edge fade should hide itself once the table is scrolled to the
+        end, which is a scroll listener the drawing cannot show. Desktop keeps all four
+        columns.
       </p>
 
       <div class="mt-8 grid grid-cols-3 items-start gap-x-9 gap-y-8">
@@ -1570,8 +1572,7 @@ the table and a soft fade at the edge, and it has to be learned once per visit.<
         </figcaption>
         <img src="scroll-end.png" width="390" class="block w-[390px] border border-border bg-background" alt="">
         <div class="mt-2.5 font-label text-[12.5px] leading-[1.5] text-muted-foreground">61% is legible, and the name has gone off the left. A chance column is only useful read
-down, and at this scroll position the reader cannot tell whose numbers they are. The cut
-distance rides along with the chance, which is the one thing this variant gets right.</div>
+down, and at this scroll position the reader cannot tell whose numbers they are.</div>
       </figure>
       <figure class="m-0">
         <figcaption class="mb-2">
@@ -1580,32 +1581,34 @@ distance rides along with the chance, which is the one thing this variant gets r
           </div>
         </figcaption>
         <img src="pin-rest.png" width="390" class="block w-[390px] border border-border bg-background" alt="">
-        <div class="mt-2.5 font-label text-[12.5px] leading-[1.5] text-muted-foreground">The same scroll with the first column frozen (<span class="font-mono text-[12.5px]">sticky left-0</span>
-plus a paper background and a hairline), so the name stays while the rest moves under it.</div>
+        <div class="mt-2.5 font-label text-[12.5px] leading-[1.5] text-muted-foreground">The same scroll with the first column frozen
+(<span class="font-mono text-[12.5px]">sticky left-0</span> plus a paper background and a
+hairline), so the name stays while the rest moves under it.</div>
       </figure>
       <figure class="m-0">
         <figcaption class="mb-2">
           <div class="flex items-baseline">
-            <span class="kicker">B &middot; pinned, scrolled to the end</span>
+            <span class="kicker">B &middot; pinned, scrolled to the end</span><span class="chip-print chip-print--red ml-2">Decided</span>
           </div>
         </figcaption>
         <img src="pin-end.png" width="390" class="block w-[390px] border border-border bg-background" alt="">
-        <div class="mt-2.5 font-label text-[12.5px] leading-[1.5] text-muted-foreground">The seat column has slid in under the pinned name, so roughly 90px of the frame is empty
-between the name and the number, and 199 of the 356 usable pixels are spent on a column the
-reader has already read. Pinning buys the name and charges the number its room.</div>
+        <div class="mt-2.5 font-label text-[12.5px] leading-[1.5] text-muted-foreground">At full scroll the name is still there, 21px of the seat column are visible beside it, and
+the chance cell takes the remaining 136px with the number right-aligned in it. Nothing is
+cut off and nothing is empty. Pinning costs the seat name, 144px of scroll before the number
+is readable, and a gesture to learn; it buys a name that stays beside the number.</div>
       </figure>
       <figure class="m-0">
         <figcaption class="mb-2">
           <div class="flex items-baseline">
-            <span class="kicker">C &middot; Two columns, routes under the name</span><span class="chip-print chip-print--red ml-2">Recommended</span>
+            <span class="kicker">C &middot; Two columns, routes under the name</span>
           </div>
         </figcaption>
         <img src="two-col.png" width="390" class="block w-[390px] border border-border bg-background" alt="">
         <div class="mt-2.5 font-label text-[12.5px] leading-[1.5] text-muted-foreground">The Seat column goes below <span class="font-mono text-[12.5px]">sm</span> and its two routes
 fold into the candidate cell, the way the seat panel already folds the party under a
 candidate's name on a phone. Win chance keeps its column, its header and its right edge:
-230px for the name and routes, 126px for the chance. Nothing is hidden and there is no
-gesture. Rows go from 67px to 72px (+5 on today, +70px on a page of seven).</div>
+230px for the name and routes, 126px for the chance, 72px rows. Nothing is hidden and there
+is no gesture, but the routes and the numbers compete for the same 356px.</div>
       </figure>
       <figure class="m-0">
         <figcaption class="mb-2">
