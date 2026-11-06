@@ -151,3 +151,22 @@ export function formatUpdatedAgo(
   const hours = Math.round(minutes / 60);
   return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
 }
+
+/**
+ * When this seat's count last moved.
+ *
+ * The feed stamps each seat with its own `Last-Modified`, which is the honest
+ * answer: the collector publishes nothing while the feed is quiet, so the
+ * payload-level "when this browser's copy changed" ages on a page whose count
+ * is perfectly current. Sources that cannot stamp a seat (a custom adapter, an
+ * archived cycle) fall back to the payload time, and a stamp that will not
+ * parse falls back too rather than printing `Invalid Date`.
+ */
+export function seatUpdatedAt(
+  result: { updatedAt?: string | null } | null | undefined,
+  payloadUpdatedAt: Date | null
+): Date | null {
+  if (!result?.updatedAt) return payloadUpdatedAt;
+  const parsed = new Date(result.updatedAt);
+  return Number.isNaN(parsed.getTime()) ? payloadUpdatedAt : parsed;
+}

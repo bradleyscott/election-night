@@ -31,7 +31,7 @@ export function ElectorateDetail({
   priorUnavailable?: boolean;
   /** Chance of winning, computed by the page from the cycle's baseline. */
   chance?: SeatChance | null;
-  /** When this browser's results last changed. */
+  /** When this seat's count last changed (the feed's own stamp for the seat). */
   updatedAt?: Date | null;
   /** Polls-close state, for the panel's before-counting copy. */
   pollsClose?: PollsCloseState | null;

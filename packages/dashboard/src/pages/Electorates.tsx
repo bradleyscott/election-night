@@ -13,6 +13,7 @@ import {
   normalizeElectorateName,
 } from '../lib/electorates.js';
 import { useSeatChances } from '../hooks/useSeatChances.js';
+import { seatUpdatedAt } from '../lib/seat-chance.js';
 import { usePollsClose } from '../hooks/usePollsClose.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
@@ -51,6 +52,11 @@ export default function Electorates() {
   const selectedElectorate = selectedName
     ? electorates.find((e) => e.electorateName === selectedName)
     : null;
+
+  // When this seat's count last moved, not when this browser last received a
+  // payload: the collector publishes nothing while the feed is quiet, so a
+  // payload-level timestamp ages on a page whose count is perfectly current.
+  const selectedUpdatedAt = seatUpdatedAt(selectedElectorate, updatedAt);
 
   // Every seat's chance, not just the open one: the map's shading is this
   // number, so a seat at even odds is painted pale and one that is gone is
@@ -156,7 +162,7 @@ export default function Electorates() {
             priorWinners={priorLoading ? undefined : priorWinners}
             priorUnavailable={priorUnavailable}
             chance={chance}
-            updatedAt={updatedAt}
+            updatedAt={selectedUpdatedAt}
             pollsClose={pollsClose}
           />
         )}
