@@ -18,8 +18,10 @@ const collectorConfigSchema = z.object({
     .number()
     .int()
     .min(1000)
-    .default(120_000)
-    .describe('Time between scrape polls'),
+    .default(60_000)
+    .describe(
+      'How often the collector asks the feed whether anything changed. Each check is conditional (304 when nothing has been republished), so the cadence costs headers, not payload.'
+    ),
   wsPort: z.coerce.number().int().min(1).max(65535).default(3456),
   wsUrl: z.string().default('ws://localhost:3456'),
   concurrency: z.coerce.number().int().min(1).default(10),

@@ -12,6 +12,7 @@ import {
   countProgress,
   MAP_FILL_RANGE,
   mapFillOpacity,
+  seatUpdatedAt,
 } from './seat-chance.js';
 import type { ElectorateResult } from '@election-night/core/types';
 
@@ -258,5 +259,30 @@ describe('countProgress', () => {
     );
     expect(progress.fraction).toBeNull();
     expect(progress.votesCounted).toBe(0);
+  });
+});
+
+describe('seatUpdatedAt', () => {
+  const payloadTime = new Date('2026-11-06T09:00:00.000Z');
+
+  it("prefers the seat's own publish time over when the payload arrived", () => {
+    // The page can be an hour into a quiet feed while this seat's count is
+    // current, or the other way round: the seat's stamp is the fact.
+    const seat = { updatedAt: '2026-11-06T08:58:00.000Z' };
+    expect(seatUpdatedAt(seat, payloadTime)?.toISOString()).toBe(
+      '2026-11-06T08:58:00.000Z'
+    );
+  });
+
+  it('falls back to the payload time when the source cannot stamp a seat', () => {
+    expect(seatUpdatedAt({ updatedAt: null }, payloadTime)).toBe(payloadTime);
+    expect(seatUpdatedAt({}, payloadTime)).toBe(payloadTime);
+    expect(seatUpdatedAt(null, payloadTime)).toBe(payloadTime);
+  });
+
+  it('falls back rather than printing an invalid date', () => {
+    expect(seatUpdatedAt({ updatedAt: 'not a date' }, payloadTime)).toBe(
+      payloadTime
+    );
   });
 });

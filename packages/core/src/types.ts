@@ -13,6 +13,18 @@ export type ElectorateResults = {
    * count into a share of the vote still to come.
    */
   percentVotesCast?: number;
+  /**
+   * When the Commission last republished *this seat's* file, as an ISO instant
+   * taken from the HTTP `Last-Modified` (which equals the file's own `updated`
+   * attribute). Absent when the source cannot say — a custom adapter, or an
+   * archived cycle fetched through `fetchResults`, where the stamp would be the
+   * archive's rebuild time rather than anything about the count.
+   *
+   * The electorate panel prints this rather than when the browser last received
+   * a payload: a quiet feed publishes nothing, so the payload can be an hour old
+   * while this seat's count is current.
+   */
+  updatedAt?: string | null;
 };
 
 export type VotingResults = {
@@ -136,7 +148,35 @@ export interface ElectionSource {
    * `party` on each candidate vote so downstream calculations work.
    */
   fetchResults(config: ElectorateConfig): Promise<RawElectorateResults>;
+  /**
+   * Optional: fetch one seat, keeping the response's `Last-Modified`.
+   *
+   * With `ifModifiedSince`, the Commission's feed answers `304 Not Modified`
+   * and an empty body when nothing has been republished, which lets a cycle
+   * confirm a seat is unchanged without downloading it. Without it the seat is
+   * always downloaded — an unconditional sweep — but the stamp still comes back
+   * so the next cycle can ask cheaply. Sources that do not implement this are
+   * fetched unconditionally through `fetchResults`, which remains the contract
+   * every adapter meets.
+   */
+  fetchResultsConditional?(
+    config: ElectorateConfig,
+    ifModifiedSince?: string
+  ): Promise<ConditionalFetchOutcome>;
 }
+
+/** The answer to a conditional fetch: either a body, or "not since then". */
+export type ConditionalFetchOutcome =
+  | {
+      status: 'modified';
+      results: RawElectorateResults;
+      /** The response's `Last-Modified`, or null if the server sent none. */
+      lastModified: string | null;
+    }
+  | {
+      status: 'not-modified';
+      lastModified: string | null;
+    };
 
 // ---- Webhook Event Types ----
 
@@ -233,14 +273,19 @@ export type MetricEvent =
     }
   | {
       metric: 'scrapeElectoratesTotal';
-      outcome: 'success' | 'error' | 'cached';
+      outcome: 'success' | 'unchanged' | 'error' | 'cached';
     }
   | { metric: 'collectorSocketConnected'; connected: boolean }
   | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' }
   | {
       metric: 'electorateFetchDurationSeconds';
       seconds: number;
-      outcome: 'success' | 'error';
+      /**
+       * `unchanged` is a 304: a confirmed seat that transferred no body. It is
+       * kept apart from `success` because the two latencies are an order of
+       * magnitude apart, and mixing them makes the per-fetch p95 meaningless.
+       */
+      outcome: 'success' | 'unchanged' | 'error';
     }
   | {
       metric: 'electorateFetchErrorsTotal';

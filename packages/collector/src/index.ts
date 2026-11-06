@@ -54,6 +54,26 @@ const {
 /** When the last retention sweep ran; null until the first one. */
 let lastSweepAt: number | null = null;
 
+/**
+ * `Last-Modified` per electorate, from the last cycle that observed it.
+ *
+ * Kept in memory rather than on the volume: a restart costs exactly one
+ * unconditional cycle, and a persisted stamp that outlived its cache could only
+ * ever produce 304s for data we no longer hold.
+ */
+let feedStamps = new Map<string, string>();
+
+/**
+ * Digest of the last payload whose publish *completed*: written, cached,
+ * broadcast. A cycle whose signature matches it has nothing to say, so it writes
+ * no snapshot and broadcasts nothing.
+ *
+ * Set only after every step of the publish path has returned, which is what
+ * makes a failed write self-healing: the signature stays put, so the next cycle
+ * (even one where every seat 304s) still looks different and tries again.
+ */
+let lastPublishedSignature: string | null = null;
+
 let partyListRecords: PartyList[] = [];
 let source: ElectionSource | null = null;
 let electorateConfigs: ElectorateConfig[] = [];
@@ -96,6 +116,13 @@ function logConfiguration(): void {
   log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
   log.info(
     `RETENTION_HOURS:  ${RETENTION_HOURS > 0 ? `${RETENTION_HOURS} (prune older snapshots on startup and every ${Math.round(RETENTION_SWEEP_MS / 1000)}s)` : 'disabled (keep every snapshot)'}`
+  );
+  log.info(
+    `CONDITIONAL POLL: ${
+      typeof source?.fetchResultsConditional === 'function'
+        ? 'yes (If-Modified-Since; a quiet seat costs headers, not a body)'
+        : 'no — this source cannot answer 304, so every poll downloads every seat'
+    }`
   );
   log.info(`CONCURRENCY:      ${collectorConfig.concurrency}`);
   log.info(`FETCH_TIMEOUT_MS: ${collectorConfig.fetchTimeoutMs}`);
@@ -152,23 +179,46 @@ async function ensureSource(): Promise<ElectionSource | null> {
 async function runOnce(current: ElectionSource): Promise<void> {
   health.cycleCount += 1;
   health.lastCycleStartedAt = Date.now();
-  health.lastError = null;
+  // `lastError` is cleared only by a cycle that finished its work, below, not
+  // here: clearing it up front left `/health` reporting "ok" between the start
+  // of a retry and the step that failed last time, which reads as recovery.
   // Sample the volume before this cycle writes to it, so a full disk is
   // visible in the metrics ahead of the write that fails because of it.
   recordDiskUsage(dbPath);
 
   try {
-    const payload = await scrapeCycle({
+    const outcome = await scrapeCycle({
       source: current,
       configs: electorateConfigs,
       partyListRecords,
       concurrency: CONCURRENCY,
+      previousStamps: feedStamps,
     });
+    feedStamps = outcome.stamps;
 
+    const payload = outcome.payload;
     const votesCounted = payload.electorateResults.reduce(
       (sum, r) => sum + (r.votesCounted || 0),
       0
     );
+
+    // The payload is compared against the last one whose publish *completed*,
+    // not against what the feed did: a seat republished with identical content
+    // is not a change, a seat whose body moved without a moving `Last-Modified`
+    // still is, and a failed write leaves the signature unset so the next cycle
+    // retries it. Writing an identical payload would add a snapshot row and a
+    // socket broadcast per poll — 1,440 a day at the one-minute cadence — for
+    // no new information, which is what makes a fast poll loop affordable.
+    if (outcome.signature === lastPublishedSignature) {
+      health.lastCycleFinishedAt = Date.now();
+      health.lastCycleOk = true;
+      health.lastError = null;
+      health.lastVotesCounted = votesCounted;
+      log.info(
+        `Feed unchanged (fresh ${outcome.counts.fresh}, unchanged ${outcome.counts.unchanged}, cached ${outcome.counts.cached}, failed ${outcome.counts.failed} of ${electorateConfigs.length}); nothing written or published`
+      );
+      return;
+    }
 
     // A scrape where nothing has been counted yet is the ballot, not a result.
     // The feed publishes every electorate with zero votes ahead of election
@@ -183,8 +233,10 @@ async function runOnce(current: ElectionSource): Promise<void> {
       health.cacheYear = cacheCycle();
       resultsService.setLiveResults(payload);
       publishResults(payload);
+      lastPublishedSignature = outcome.signature;
       health.lastCycleFinishedAt = Date.now();
       health.lastCycleOk = true;
+      health.lastError = null;
       health.lastVotesCounted = 0;
       log.info(
         'No votes counted yet — holding the results timeline until the first count arrives'
@@ -227,8 +279,13 @@ async function runOnce(current: ElectionSource): Promise<void> {
     health.cacheYear = cacheCycle();
     resultsService.setLiveResults(payload);
     publishResults(payload);
+    // Recorded only now, after the write, the cache and the broadcast have all
+    // returned: everything before this line can throw, and a signature recorded
+    // before the work was done would make the next cycle skip the retry.
+    lastPublishedSignature = outcome.signature;
     health.lastCycleFinishedAt = Date.now();
     health.lastCycleOk = true;
+    health.lastError = null;
     health.lastVotesCounted = payload.electorateResults.reduce(
       (sum, r) => sum + (r.votesCounted || 0),
       0
@@ -313,7 +370,11 @@ async function loopRun(): Promise<void> {
     log.warn('Prior-year warm-up failed', err);
   });
   retentionSweep();
-  setTimeout(loopRun, POLL_INTERVAL_MS);
+  // ±20% on the tick: a machine hitting the feed at exactly POLL_INTERVAL_MS
+  // forever is a metronome in front of the feed's bot scoring, however few
+  // bytes each request costs.
+  const nextDelay = Math.round(POLL_INTERVAL_MS * (0.8 + Math.random() * 0.4));
+  setTimeout(loopRun, nextDelay);
 }
 
 process.on('unhandledRejection', (reason) => {

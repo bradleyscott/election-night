@@ -166,7 +166,7 @@ export function emitScrapeDuration(
 }
 
 export function emitScrapeElectorate(
-  outcome: 'success' | 'error' | 'cached'
+  outcome: 'success' | 'unchanged' | 'error' | 'cached'
 ): MetricEvent {
   scrapeElectoratesTotal.inc({ outcome });
   return { metric: 'scrapeElectoratesTotal', outcome };
@@ -174,7 +174,7 @@ export function emitScrapeElectorate(
 
 export function emitElectorateFetchDuration(
   seconds: number,
-  outcome: 'success' | 'error'
+  outcome: 'success' | 'unchanged' | 'error'
 ): MetricEvent {
   electorateFetchDurationSeconds.observe({ outcome }, seconds);
   return { metric: 'electorateFetchDurationSeconds', seconds, outcome };

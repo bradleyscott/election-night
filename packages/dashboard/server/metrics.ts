@@ -40,7 +40,7 @@ export const feedEventsStored = new Gauge({
 
 export const lastScrapeTimestampSeconds = new Gauge({
   name: 'election_last_scrape_timestamp_seconds',
-  help: 'Unix timestamp of the last received scrape update',
+  help: 'Unix timestamp of the last published results change (freshness, not liveness: a quiet feed publishes nothing)',
   registers: [register],
 });
 

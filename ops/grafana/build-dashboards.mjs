@@ -255,13 +255,21 @@ const overview = dashboard({
   links: LINKS,
   panels: [
     stat({
-      title: 'Pipeline status',
+      title: 'Collector liveness',
       description:
-        'Age of the last results update received by the dashboard server. Green under 2 poll intervals, red past 5. Poll interval defaults to 120s.',
+        'Age of the last metric event from the collector, which it sends every cycle even when the feed has nothing new. Green under 2 poll intervals, red past 5. Poll interval defaults to 60s. This is the panel the pipeline alert reads.',
+      expr: `time() - election_collector_metrics_last_received_timestamp_seconds`,
+      unit: 's',
+      decimals: 0,
+      thresholds: [green(null), yellow(120), red(300)],
+    }),
+    stat({
+      title: 'Results last moved',
+      description:
+        'Age of the last published results change. This is freshness, not liveness: the collector publishes nothing while the feed is quiet, so a still value is normal before polls close and between counts. Only meaningful during the count.',
       expr: `time() - election_last_scrape_timestamp_seconds`,
       unit: 's',
       decimals: 0,
-      thresholds: [green(null), yellow(240), red(600)],
     }),
     stat({
       title: 'Collector connected',

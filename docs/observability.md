@@ -131,7 +131,7 @@ re-register the series.
 - Use template variables instead of dashboard copies; version-control the JSON.
 - Don't stack unless the parts genuinely sum; set units; set thresholds; add a
   panel description; link alerts to the dashboard.
-- Avoid dashboard sprawl and needless auto-refresh (the poll interval is 120s —
+- Avoid dashboard sprawl and needless auto-refresh (the poll interval is 60s —
   a 30s refresh is more than enough).
 
 **PromQL** ([histogram_quantile](https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile), [Grafana `$__rate_interval`](https://grafana.com/blog/new-in-grafana-7-2-rate-interval-for-prometheus-rate-queries-that-just-work/))
@@ -258,9 +258,10 @@ saturation context. See `ops/grafana/README.md` for import instructions.
 
 Panel-level mapping to metrics (all series from §1):
 
-- **Overview** — pipeline age (`last_scrape_timestamp_seconds`), collector
-  socket state, reporting share, votes counted, cycles/min, outcome ratios,
-  fetch outcomes, error ratio, feed events by type, clients, memory headroom.
+- **Overview** — collector liveness (`collector_metrics_last_received`), age of
+  the last published result (`last_scrape_timestamp_seconds`), collector socket
+  state, reporting share, votes counted, cycles/min, outcome ratios, fetch
+  outcomes, error ratio, feed events by type, clients, memory headroom.
 - **Collector & Pipeline** — cycle p50/p95/p99 (overall and by status), cycles
   completed, per-fetch p50/p95, failures by reason, retried electorates,
   cached-vs-fresh share, snapshot writes + p95 write duration, volume used,
@@ -272,26 +273,40 @@ Panel-level mapping to metrics (all series from §1):
 ## 6. Alerting
 
 Alert on symptoms (the RED view), not causes. `$POLL` below is the configured
-`POLL_INTERVAL_MS` (default 120s); substitute it into the duration and
+`POLL_INTERVAL_MS` (default 60s); substitute it into the duration and
 thresholds. Fly provides no built-in alerting, so these run as Grafana alert
 rules against the Fly Prometheus data source (§7).
 
-| Alert                             | Expression                                                                                                                                         | For | Severity |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------- |
-| Pipeline stalled                  | `time() - election_last_scrape_timestamp_seconds > 3 * $POLL` OR `time() - election_collector_metrics_last_received_timestamp_seconds > 3 * $POLL` | 2m  | critical |
-| Collector disconnected            | `election_collector_socket_connected == 0`                                                                                                         | 5m  | critical |
-| Collector metrics merge failing   | `election_collector_metrics_reachable == 0`                                                                                                        | 5m  | warning  |
-| Electorate fetch error ratio high | `sum(rate(election_scrape_electorates_total{outcome="error"}[10m])) / sum(rate(election_scrape_electorates_total[10m])) > 0.1`                     | 10m | warning  |
-| Data going stale (serving cache)  | `sum(rate(election_scrape_electorates_total{outcome="cached"}[10m])) > 0`                                                                          | 15m | warning  |
-| Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket[15m]))) > 60`                                                  | 15m | warning  |
-| Webhook failures                  | `sum(rate(election_webhook_publishes_total{status="error"}[10m])) / sum(rate(election_webhook_publishes_total[10m])) > 0.5`                        | 10m | warning  |
-| History upstream failing          | `sum(rate(election_history_upstream_requests_total{outcome!="ok"}[10m])) > 0`                                                                      | 5m  | warning  |
-| API 5xx ratio                     | `sum(rate(election_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(election_http_requests_total[5m])) > 0.01`                             | 5m  | critical |
-| Ready failing                     | `increase(election_http_requests_total{route="/ready", status_code="503"}[5m]) > 0`                                                                | 5m  | critical |
-| No clients during a live window   | `election_websocket_clients_connected == 0` (time-boxed, election night only)                                                                      | 10m | info     |
-| Database volume filling up        | `election_disk_available_bytes / election_disk_size_bytes < 0.15`                                                                                  | 10m | warning  |
-| Database volume nearly full       | `election_disk_available_bytes / election_disk_size_bytes < 0.05`                                                                                  | 5m  | critical |
-| Snapshot writes failing           | `increase(election_snapshot_writes_total{status="error"}[10m]) > 0`                                                                                | 5m  | critical |
+**Two timestamps, two meanings, two alerts.**
+`election_collector_metrics_last_received_timestamp_seconds` is _liveness_: the
+collector emits a metric event on every cycle, including one that found nothing
+changed, so it moves once per `POLL_INTERVAL_MS` whenever the collector is alive
+and reaching the feed. `election_last_scrape_timestamp_seconds` is _freshness_:
+it moves only when a changed payload is published, so a quiet feed legitimately
+leaves it still for hours — before polls close, and between counts.
+
+Alerting on the freshness gauge as if it were a heartbeat makes the pipeline
+alert permanently red, which is how a real stall gets ignored. Liveness gets the
+pipeline alert; freshness gets its own, time-boxed to the window in which the
+count is supposed to move.
+
+| Alert                             | Expression                                                                                                                     | For | Severity |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --- | -------- |
+| Pipeline stalled                  | `time() - election_collector_metrics_last_received_timestamp_seconds > 3 * $POLL`                                              | 2m  | critical |
+| Results not moving during count   | `time() - election_last_scrape_timestamp_seconds > 15 * 60` (election night only, from polls close until the count is final)   | 15m | warning  |
+| Collector disconnected            | `election_collector_socket_connected == 0`                                                                                     | 5m  | critical |
+| Collector metrics merge failing   | `election_collector_metrics_reachable == 0`                                                                                    | 5m  | warning  |
+| Electorate fetch error ratio high | `sum(rate(election_scrape_electorates_total{outcome="error"}[10m])) / sum(rate(election_scrape_electorates_total[10m])) > 0.1` | 10m | warning  |
+| Data going stale (serving cache)  | `sum(rate(election_scrape_electorates_total{outcome="cached"}[10m])) > 0`                                                      | 15m | warning  |
+| Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket[15m]))) > 60`                              | 15m | warning  |
+| Webhook failures                  | `sum(rate(election_webhook_publishes_total{status="error"}[10m])) / sum(rate(election_webhook_publishes_total[10m])) > 0.5`    | 10m | warning  |
+| History upstream failing          | `sum(rate(election_history_upstream_requests_total{outcome!="ok"}[10m])) > 0`                                                  | 5m  | warning  |
+| API 5xx ratio                     | `sum(rate(election_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(election_http_requests_total[5m])) > 0.01`         | 5m  | critical |
+| Ready failing                     | `increase(election_http_requests_total{route="/ready", status_code="503"}[5m]) > 0`                                            | 5m  | critical |
+| No clients during a live window   | `election_websocket_clients_connected == 0` (time-boxed, election night only)                                                  | 10m | info     |
+| Database volume filling up        | `election_disk_available_bytes / election_disk_size_bytes < 0.15`                                                              | 10m | warning  |
+| Database volume nearly full       | `election_disk_available_bytes / election_disk_size_bytes < 0.05`                                                              | 5m  | critical |
+| Snapshot writes failing           | `increase(election_snapshot_writes_total{status="error"}[10m]) > 0`                                                            | 5m  | critical |
 
 Machine-tier alerts are out of scope here but trivially available from the same
 data source: `fly_instance_exit_oom == 1` (OOM kill),
