@@ -224,6 +224,85 @@ describe('Candidates page', () => {
     );
   });
 
+  test('keeps Win chance on a phone and pins the name beside it', () => {
+    renderCandidates();
+
+    // The column used to be `hidden sm:table-cell`, so a phone showed a name
+    // and a route and no number at all. It is the page's subject: below `sm`
+    // the table scrolls sideways to it instead.
+    expect(screen.getByText('Win chance').closest('th')).not.toHaveClass(
+      'hidden'
+    );
+
+    // The candidate column is the one thing that must not slide away, so it is
+    // pinned — and only below `sm`: the hairline that keeps the Seat column
+    // from showing through as it passes underneath is reset where nothing
+    // scrolls, or it would draw a line through the wide table for no reason.
+    const nameHeader = screen
+      .getByText('Candidate')
+      .closest('th') as HTMLElement;
+    expect(nameHeader).toHaveClass('sticky', 'left-0', 'bg-background');
+    expect(nameHeader).toHaveClass('border-r', 'sm:border-r-0');
+
+    const firstCell = screen
+      .getByText('BLACK, Bob')
+      .closest('tr')
+      ?.querySelector('td');
+    expect(firstCell).toHaveClass('sticky', 'left-0', 'sm:border-r-0');
+  });
+
+  test('keeps the Electorate chip off the phone, where the name needs the room', () => {
+    renderCandidates();
+
+    // `.chip-print` sets its own display and is emitted after the generated
+    // utilities, so a `hidden sm:inline` on the chip itself lost and the chip
+    // stayed on a phone. It cost the candidate column 69px — enough that every
+    // name wrapped onto two lines — so the breakpoint lives on a wrapper.
+    const chip = screen.getAllByText('Electorate')[0];
+    expect(chip).toHaveClass('chip-print');
+    expect(chip.parentElement).toHaveClass('hidden', 'sm:inline');
+  });
+
+  test('cues the swipe and fades the edge only while there is more to reach', () => {
+    renderCandidates();
+
+    const cue = screen.getByText(/Swipe for Win chance/);
+    expect(cue).toHaveClass('sm:hidden');
+
+    const scroller = screen.getByRole('table').closest('div') as HTMLElement;
+    const fade = () =>
+      scroller.parentElement?.querySelector('.bg-gradient-to-l');
+
+    // jsdom has no layout: give the frame a width and the table a longer one,
+    // which is the phone's situation, then scroll to the end of it.
+    Object.defineProperty(scroller, 'clientWidth', {
+      configurable: true,
+      value: 300,
+    });
+    Object.defineProperty(scroller, 'scrollWidth', {
+      configurable: true,
+      value: 500,
+    });
+
+    const pinned = () =>
+      screen.getByText('BLACK, Bob').closest('tr')?.querySelector('td');
+
+    fireEvent.scroll(scroller);
+    expect(fade()).not.toBeNull();
+    expect(pinned()).not.toHaveClass(
+      'shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)]'
+    );
+
+    scroller.scrollLeft = 200;
+    fireEvent.scroll(scroller);
+    expect(fade()).toBeNull();
+    // The pinned column is raised once it has something to be raised over, so
+    // the Seat cell passing under it reads as depth and not as clipped text.
+    expect(pinned()?.className).toContain(
+      'shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)]'
+    );
+  });
+
   test('drops the votes column', () => {
     renderCandidates();
 

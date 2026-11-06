@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
@@ -22,6 +22,23 @@ import {
   TABLE_TEXT,
 } from '../components/Table.js';
 import { WinPercentValue } from '../components/WinPercentValue.js';
+
+/**
+ * The candidate column, frozen below `sm` while the table scrolls to the Win
+ * chance column: the paper ground stops the Seat cell showing through, and the
+ * hairline is where it goes under. Both are reset at `sm`, where all four
+ * columns fit and a rule there would be a line through a table that has no
+ * reason for one.
+ *
+ * `PINNED_MOVED` is the same column once the table has actually moved: a soft
+ * shadow on its right edge, and a fade bleeding 24px over the seat column that
+ * is sliding under it — without the fade the passing cell reads as text with
+ * its first letters cut off rather than as something travelling underneath.
+ */
+const PINNED =
+  'sticky left-0 z-10 border-r border-border bg-background sm:border-r-0';
+const PINNED_MOVED =
+  "shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:translate-x-full after:bg-gradient-to-r after:from-background after:to-transparent after:content-[''] sm:after:hidden";
 
 /**
  * What the Win chance column means for a seat: the chance this candidate holds
@@ -95,6 +112,13 @@ function AllCandidates({
   const [sortDesc, setSortDesc] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Where the table has got to: `moreRight` draws the fade that says a column
+  // is still over there, `scrolled` raises the pinned column so the Seat cell
+  // sliding underneath reads as depth rather than as clipped text. Both are
+  // false on every wider screen, where the four columns fit and nothing moves.
+  const [moreRight, setMoreRight] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   type CandidateRow = {
     name: string;
@@ -178,6 +202,31 @@ function AllCandidates({
     return filtered;
   }, [electorateResults, partyLists, sortKey, sortDesc, search, chances]);
 
+  /**
+   * Below `sm` the table scrolls sideways to reach the Win chance column, and
+   * the reader has to be told something is over there. The fade on the right
+   * edge says "more" while more exists, and has to disappear at the end or it
+   * would dim the column the reader has just arrived at — so it is measured
+   * rather than drawn once: on mount, on scroll and on resize (a rotation or a
+   * window drag changes how much fits). `candidates.length` redraws the table
+   * under the search field and the sort buttons, which changes its width.
+   */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      setMoreRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+      setScrolled(el.scrollLeft > 1);
+    };
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => {
+      el.removeEventListener('scroll', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, [candidates.length]);
+
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
       setSortDesc(!sortDesc);
@@ -229,134 +278,171 @@ function AllCandidates({
           className="w-full px-3 py-2 sm:py-1.5 border bg-background text-sm font-label outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
         />
       </div>
-      <div className={cn('overflow-x-auto', TABLE_FRAME)}>
-        <table className={cn('w-full', TABLE_TEXT)}>
-          <thead>
-            <tr className="border-b border-border">
-              <Header column="name" className="text-left">
-                Candidate
-              </Header>
-              <Header column="party" className="hidden sm:table-cell text-left">
-                Party
-              </Header>
-              <Th>Seat</Th>
-              <Th
-                align="right"
-                className="hidden sm:table-cell whitespace-nowrap"
-              >
-                Win chance
-              </Th>
-            </tr>
-          </thead>
-          <tbody>
-            {candidates.map((c, i) => {
-              const fromCut = c.distanceFromCut ?? 0;
-              return (
-                <tr
-                  key={`${c.party}|${c.name}`}
-                  className={cn(
-                    TR_ROW,
-                    TR_ROW_HOVER,
-                    'opacity-0 animate-fade-in-up'
-                  )}
-                  // Capped: this is every candidate in the country, and an
-                  // uncapped stagger would still be revealing rows a reader has
-                  // scrolled past a minute later.
-                  style={{ animationDelay: `${Math.min(i, 24) * 0.015}s` }}
+      {/* The phone's cue for the sideways scroll. A table that scrolls is only
+          discoverable if something says so, and the fade alone is invisible on
+          a paper ground until a column is under it. Hidden from `sm` up, where
+          all four columns fit. */}
+      <p className="kicker mb-2 flex items-center gap-1.5 sm:hidden">
+        Swipe for Win chance <span aria-hidden="true">→</span>
+      </p>
+      <div className="relative">
+        <div ref={scrollRef} className={cn('overflow-x-auto', TABLE_FRAME)}>
+          <table className={cn('w-full', TABLE_TEXT)}>
+            <thead>
+              <tr className="border-b border-border">
+                {/* Pinned below `sm`, where the table is wider than the phone:
+                    the reader who swipes right to reach the chance keeps the
+                    name in view, which is the only thing tying a number to a
+                    person. The paper ground and the hairline keep the Seat
+                    column from showing through as it passes underneath. Both
+                    are reset at `sm`, where nothing scrolls and the rule would
+                    be a line through a table that has no reason for one. */}
+                <Header
+                  column="name"
+                  className={cn(PINNED, 'text-left', scrolled && PINNED_MOVED)}
                 >
-                  <td className="py-2 sm:py-3 px-3 font-medium">
-                    <div className="flex items-center gap-1.5">
-                      <PartyDot
-                        color={partyColor(c.party)}
-                        className="sm:hidden"
-                      />
-                      {c.name}
-                    </div>
-                  </td>
-                  <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <PartyDot color={partyColor(c.party)} />
-                      <span>{c.party || 'Independent'}</span>
-                    </div>
-                  </td>
-                  <td className="py-2 sm:py-3 px-3">
-                    {/* Two lines, in step with the Win chance column: the seat
+                  Candidate
+                </Header>
+                <Header
+                  column="party"
+                  className="hidden sm:table-cell text-left"
+                >
+                  Party
+                </Header>
+                <Th>Seat</Th>
+                <Th align="right" className="whitespace-nowrap">
+                  Win chance
+                </Th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((c, i) => {
+                const fromCut = c.distanceFromCut ?? 0;
+                return (
+                  <tr
+                    key={`${c.party}|${c.name}`}
+                    className={cn(
+                      TR_ROW,
+                      TR_ROW_HOVER,
+                      'opacity-0 animate-fade-in-up'
+                    )}
+                    // Capped: this is every candidate in the country, and an
+                    // uncapped stagger would still be revealing rows a reader has
+                    // scrolled past a minute later.
+                    style={{ animationDelay: `${Math.min(i, 24) * 0.015}s` }}
+                  >
+                    <td
+                      className={cn(
+                        PINNED,
+                        'whitespace-nowrap py-2 px-3 font-medium sm:whitespace-normal sm:py-3',
+                        scrolled && PINNED_MOVED
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <PartyDot
+                          color={partyColor(c.party)}
+                          className="sm:hidden"
+                        />
+                        {c.name}
+                      </div>
+                    </td>
+                    <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <PartyDot color={partyColor(c.party)} />
+                        <span>{c.party || 'Independent'}</span>
+                      </div>
+                    </td>
+                    <td className="py-2 sm:py-3 px-3">
+                      {/* Two lines, in step with the Win chance column: the seat
                         on the first and the list on the second, so a seat name
                         lines up with the chance and a List chip with the
                         distance from the cut. A route the candidate does not
                         have is absent rather than dashed: a list-only row has no
                         seat line and no chance beside it, and a seat-only row
                         has no list line. */}
-                    <div className="flex flex-col gap-y-1">
-                      {c.electorateName && (
-                        <span className="flex items-center gap-1.5">
-                          <span className="hidden sm:inline chip-print chip-print--ink chip-print--table">
-                            Electorate
+                      <div className="flex flex-col gap-y-1">
+                        {c.electorateName && (
+                          <span className="flex items-center gap-1.5">
+                            {/* Wrapped rather than given `hidden sm:inline` of its own:
+                                `.chip-print` sets `display: inline-flex` and is emitted
+                                after the generated utilities, so a `hidden` on the chip
+                                itself loses and the chip stayed on the phone — which
+                                squeezed the pinned name column down to a wrapped
+                                two-liner. The wrapper carries the breakpoint. */}
+                            <span className="hidden sm:inline">
+                              <span className="chip-print chip-print--ink chip-print--table">
+                                Electorate
+                              </span>
+                            </span>
+                            <Link
+                              to={`/electorates/${encodeURIComponent(c.electorateName)}`}
+                              className="text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                            >
+                              {c.electorateName}
+                            </Link>
                           </span>
-                          <Link
-                            to={`/electorates/${encodeURIComponent(c.electorateName)}`}
-                            className="text-muted-foreground hover:text-foreground hover:underline transition-colors"
-                          >
-                            {c.electorateName}
-                          </Link>
-                        </span>
-                      )}
-                      {c.listRank !== null && (
-                        <span className="flex items-center gap-1.5">
-                          <Link
-                            to={`/parties?party=${encodeURIComponent(c.party)}`}
-                            className="chip-print chip-print--red chip-print--table hover:bg-muted/40 transition-colors"
-                          >
-                            List
-                          </Link>
-                          <span className="font-mono text-sm text-foreground tabular-nums">
-                            #{c.listRank}
+                        )}
+                        {c.listRank !== null && (
+                          <span className="flex items-center gap-1.5">
+                            <Link
+                              to={`/parties?party=${encodeURIComponent(c.party)}`}
+                              className="chip-print chip-print--red chip-print--table hover:bg-muted/40 transition-colors"
+                            >
+                              List
+                            </Link>
+                            <span className="font-mono text-sm text-foreground tabular-nums">
+                              #{c.listRank}
+                            </span>
                           </span>
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td
-                    className={cn(
-                      'hidden sm:table-cell py-2 sm:py-3 px-3',
-                      NUMERIC,
-                      NUMERIC_CELL
-                    )}
-                  >
-                    <div className="flex flex-col gap-y-1">
-                      {c.electorateName && (
-                        <ElectorateWinChance chance={c.winChance} />
-                      )}
-                      {c.listRank !== null && (
-                        <span
-                          className="text-sm text-foreground"
-                          title={
-                            fromCut === 0
-                              ? 'On their party’s cut'
-                              : `${Math.abs(fromCut)} ${Math.abs(fromCut) === 1 ? 'place' : 'places'} ${fromCut > 0 ? 'above' : 'below'} their party’s cut`
-                          }
-                        >
+                        )}
+                      </div>
+                    </td>
+                    <td
+                      className={cn('py-2 sm:py-3 px-3', NUMERIC, NUMERIC_CELL)}
+                    >
+                      <div className="flex flex-col gap-y-1">
+                        {c.electorateName && (
+                          <ElectorateWinChance chance={c.winChance} />
+                        )}
+                        {c.listRank !== null && (
                           <span
-                            className={cn(
-                              fromCut > 0
-                                ? 'text-green-700 dark:text-green-400'
-                                : fromCut < 0
-                                  ? 'text-destructive'
-                                  : undefined
-                            )}
+                            className="text-sm text-foreground"
+                            title={
+                              fromCut === 0
+                                ? 'On their party’s cut'
+                                : `${Math.abs(fromCut)} ${Math.abs(fromCut) === 1 ? 'place' : 'places'} ${fromCut > 0 ? 'above' : 'below'} their party’s cut`
+                            }
                           >
-                            {fromCut > 0 ? `+${fromCut}` : fromCut}
-                          </span>{' '}
-                          from cut
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                            <span
+                              className={cn(
+                                fromCut > 0
+                                  ? 'text-green-700 dark:text-green-400'
+                                  : fromCut < 0
+                                    ? 'text-destructive'
+                                    : undefined
+                              )}
+                            >
+                              {fromCut > 0 ? `+${fromCut}` : fromCut}
+                            </span>{' '}
+                            from cut
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Drawn over the table's own right edge while there is more to reach,
+            and gone once the reader is at the end of it. */}
+        {moreRight && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-foreground/15 via-foreground/5 to-transparent"
+          />
+        )}
       </div>
     </div>
   );
