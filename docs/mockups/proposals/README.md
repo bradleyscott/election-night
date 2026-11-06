@@ -34,7 +34,11 @@ that carries them at their true size with the trade per variant:
 
 **Decided: B, the pinned name.** The reader who swipes right keeps the name
 beside the number, which is the whole point of the column, and the numbers stay
-in the two lines the desktop table draws. C and D are kept as the alternatives
+in the two lines the desktop table draws. Two things changed on review when it
+was built: the `Swipe for Win chance →` line above the table was dropped (the
+cut column under the edge fade is the cue), and seat names are kept on one line
+below `sm` as the candidate's name is, so the table grows rather than wrapping
+them. See #126. C and D are kept as the alternatives
 considered; C shows the chance with no gesture but gives up the seat column's
 own place in the row.
 
