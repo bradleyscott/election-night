@@ -15,7 +15,7 @@ export default function Parties() {
   const [selectedParty, setSelectedParty] = useState<string>(
     searchParams.get('party') ?? ''
   );
-  const [showElectorateLeaders, setShowElectorateLeaders] = useState(false);
+  const [showElectorateLeaders, setShowElectorateLeaders] = useState(true);
 
   useEffect(() => {
     setSelectedParty(searchParams.get('party') ?? '');
