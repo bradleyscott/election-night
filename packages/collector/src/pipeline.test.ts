@@ -98,7 +98,7 @@ describe('pipeline integration', () => {
 
     openDb(dbPath);
 
-    const payload = await scrapeCycle({
+    const { payload } = await scrapeCycle({
       source,
       configs,
       partyListRecords,

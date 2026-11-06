@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type {
   ElectorateConfig,
   ElectorateFetchErrorReason,
@@ -41,23 +42,66 @@ export type ScrapeCycleOptions = {
   previousStamps?: ReadonlyMap<string, string>;
 };
 
+/** How the cycle covered each electorate. */
+export type ScrapeCycleCounts = {
+  /** Seats that returned a body this cycle. */
+  fresh: number;
+  /** Seats the feed confirmed unchanged with a 304. */
+  unchanged: number;
+  /** Seats that failed but had a cached result to fall back on. */
+  cached: number;
+  /** Seats with no result at all this cycle. */
+  failed: number;
+};
+
 /**
  * What one cycle produced.
  *
- * `advanced` is the transport-independent answer to "did anything change?": it
- * compares the stamps the feed returned against the ones the previous cycle
- * held, so a full sweep — where every file comes back 200 even when its content
- * is identical — is not mistaken for a change.
+ * `signature` is the answer to "would publishing this change anything?": a
+ * digest of the counted facts in the payload, not of the transport. Comparing
+ * it against the signature of the last *successfully published* payload makes
+ * "changed" exact — a seat republished with identical content does not count,
+ * a seat whose body changed without a moving `Last-Modified` does, and a failed
+ * write is retried on the next cycle because the signature was never stored.
  */
 export type ScrapeCycleResult = {
   payload: ResultsPayload;
   /** `Last-Modified` per electorate, carried forward for seats that 304'd. */
   stamps: Map<string, string>;
-  /** True when at least one seat's stamp differs from the previous cycle's. */
-  advanced: boolean;
-  /** Seats that returned a body this cycle (the rest were 304 or failed). */
-  refreshed: number;
+  /** Digest of the counted facts in `payload`; see `payloadSignature`. */
+  signature: string;
+  counts: ScrapeCycleCounts;
 };
+
+/**
+ * A stable digest of the facts a publish would carry.
+ *
+ * Built from an explicit projection rather than `JSON.stringify(payload)` so
+ * the key cannot depend on property order or on fields that change without the
+ * count changing (`updatedAt`, derived leaders, percentages). Both the live
+ * cycle and the cached result it reuses from a 304 go through the same
+ * projection, so an unchanged seat hashes the same either way.
+ */
+export function payloadSignature(payload: ResultsPayload): string {
+  const facts = {
+    electorates: payload.electorateResults.map((r) => [
+      r.electorateName,
+      r.votesCounted ?? 0,
+      r.votePercentageCounted ?? 0,
+      r.percentVotesCast ?? 0,
+      r.candidateVotes.map((v) => [v.candidate, v.party ?? '', v.votes]),
+      r.partyVotes.map((v) => [v.candidate, v.votes]),
+    ]),
+    parties: payload.partyVote.map((p) => [p.candidate, p.votes, p.seats]),
+    lists: payload.partyLists.map((p) => [
+      p.party,
+      p.listRank,
+      p.adjustedRank,
+      p.distanceFromCut,
+    ]),
+  };
+  return createHash('sha256').update(JSON.stringify(facts)).digest('hex');
+}
 
 /**
  * Bucket a fetch failure into the bounded `reason` label. Messages come from
@@ -95,12 +139,6 @@ export function classifyFetchError(
 
 export async function scrapeCycle(
   options: ScrapeCycleOptions
-): Promise<ResultsPayload> {
-  return (await scrapeCycleWithMeta(options)).payload;
-}
-
-export async function scrapeCycleWithMeta(
-  options: ScrapeCycleOptions
 ): Promise<ScrapeCycleResult> {
   const { source, configs, partyListRecords, concurrency } = options;
   const previousStamps = options.previousStamps ?? new Map<string, string>();
@@ -115,7 +153,8 @@ export async function scrapeCycleWithMeta(
 
   async function fetchWithPacing(
     electorateConfig: ElectorateConfig,
-    ifModifiedSince?: string
+    ifModifiedSince: string | undefined,
+    hasCachedResult: boolean
   ): Promise<FetchOutcome> {
     // Gentle pacing between requests (jittered) so bursts don't trip
     // rate limiting mid-cycle.
@@ -124,10 +163,24 @@ export async function scrapeCycleWithMeta(
     try {
       let outcome: FetchOutcome;
       if (typeof source.fetchResultsConditional === 'function') {
-        const answer = await source.fetchResultsConditional(
+        let answer = await source.fetchResultsConditional(
           electorateConfig,
           ifModifiedSince
         );
+        // A 304 for a seat we hold no body for describes data we have never
+        // seen. Ask again without the header instead of leaving the seat out of
+        // the payload: publishing a payload with an electorate missing would
+        // take it off every page and record the drop in history.
+        if (
+          answer.status === 'not-modified' &&
+          ifModifiedSince &&
+          !hasCachedResult
+        ) {
+          log.warn(
+            `${electorateConfig.electorateName}: feed answered not-modified but no cached result exists; refetching unconditionally`
+          );
+          answer = await source.fetchResultsConditional(electorateConfig);
+        }
         outcome =
           answer.status === 'not-modified'
             ? { kind: 'unchanged', lastModified: answer.lastModified }
@@ -143,7 +196,9 @@ export async function scrapeCycleWithMeta(
       cycleEvents.push(
         emitElectorateFetchDuration(
           (performance.now() - startedAt) / 1000,
-          'success'
+          // A 304 is a healthy answer with a ten-times-shorter latency; mixing
+          // the two under one histogram label makes the per-fetch p95 lie.
+          outcome.kind === 'unchanged' ? 'unchanged' : 'success'
         )
       );
       return outcome;
@@ -166,7 +221,11 @@ export async function scrapeCycleWithMeta(
   const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   const settled = await mapSettledWithConcurrency(configs, concurrency, (cfg) =>
-    fetchWithPacing(cfg, previousStamps.get(cfg.electorateName))
+    fetchWithPacing(
+      cfg,
+      previousStamps.get(cfg.electorateName),
+      cachedByName.has(cfg.electorateName)
+    )
   );
 
   const failedIndexes: number[] = [];
@@ -185,7 +244,7 @@ export async function scrapeCycleWithMeta(
     const retryResults = await mapSettledWithConcurrency(
       failedIndexes.map((i) => configs[i]),
       concurrency,
-      (cfg) => fetchWithPacing(cfg)
+      (cfg) => fetchWithPacing(cfg, undefined, true)
     );
     failedIndexes.forEach((originalIndex, k) => {
       retried.set(originalIndex, retryResults[k]);
@@ -208,7 +267,12 @@ export async function scrapeCycleWithMeta(
   // Stamps carry forward rather than being rebuilt each cycle: a seat that
   // answered 304, or failed, keeps the stamp the previous cycle held, so one
   // bad cycle cannot forget what we know and re-download a seat for nothing.
-  const stamps = new Map(previousStamps);
+  // Seats that left the cycle are dropped, so a redrawn electorate list cannot
+  // leave a stamp waiting for a seat that is no longer fetched.
+  const wanted = new Set(configs.map((c) => c.electorateName));
+  const stamps = new Map(
+    [...previousStamps].filter(([name]) => wanted.has(name))
+  );
 
   for (let i = 0; i < settled.length; i++) {
     const s = retried.get(i) ?? settled[i];
@@ -222,15 +286,19 @@ export async function scrapeCycleWithMeta(
       if (outcome.kind === 'unchanged') {
         const cached = cachedByName.get(cfg.electorateName);
         if (cached) {
-          results.push(cached);
+          // A copy, because the stamp below is written onto the result: the
+          // cached object is also what the results cache and the live results
+          // service hold, and mutating it would restamp published data.
+          results.push({ ...cached });
           electorateSources.push('unchanged');
         } else {
-          // A 304 with nothing cached is a contradiction — a stamp describing
-          // data we have never seen. Drop the stamp so the next cycle fetches
-          // the seat unconditionally; keeping it would pin the hole forever.
+          // `fetchWithPacing` already re-asks when it sees this, so reaching
+          // here means the source answered 304 twice. Drop the stamp so the
+          // next cycle fetches the seat unconditionally; keeping it would pin
+          // the hole forever.
           stamps.delete(cfg.electorateName);
           log.warn(
-            `${cfg.electorateName}: feed answered not-modified but no cached result exists; refetching unconditionally next cycle`
+            `${cfg.electorateName}: feed answered not-modified twice with no cached result exists; refetching unconditionally next cycle`
           );
           electorateSources.push('failed');
         }
@@ -251,7 +319,7 @@ export async function scrapeCycleWithMeta(
           );
         }
       }
-      results.push(electorateResults);
+      results.push({ ...electorateResults });
       electorateSources.push('fresh');
     } else {
       const cached = cachedByName.get(cfg.electorateName);
@@ -259,7 +327,7 @@ export async function scrapeCycleWithMeta(
         log.warn(
           `${cfg.electorateName}: scrape failed (${s.reason}); using cached result from previous poll`
         );
-        results.push(cached);
+        results.push({ ...cached });
         electorateSources.push('cached');
       } else {
         log.error(`Failed to scrape electorate`, s.reason);
@@ -271,19 +339,29 @@ export async function scrapeCycleWithMeta(
   // Each seat carries when the Commission last republished it, so the page can
   // say how old *this seat's* count is instead of when this browser last
   // received a payload from a feed where most seats had not moved. A seat that
-  // answered 304 carries the stamp forward with it.
+  // answered 304 carries the stamp forward with it. A source that cannot stamp
+  // (a custom adapter, an archived cycle) clears the field rather than leaving
+  // a date from whenever this seat last had one.
   for (const r of results) {
     const stamp = stamps.get(r.electorateName);
-    if (!stamp) continue;
-    const published = new Date(stamp);
-    if (!Number.isNaN(published.getTime())) {
+    const published = stamp ? new Date(stamp) : null;
+    if (published && !Number.isNaN(published.getTime())) {
       r.updatedAt = published.toISOString();
+    } else {
+      delete r.updatedAt;
     }
   }
 
+  const counts: ScrapeCycleCounts = {
+    fresh: electorateSources.filter((s) => s === 'fresh').length,
+    unchanged: electorateSources.filter((s) => s === 'unchanged').length,
+    cached: electorateSources.filter((s) => s === 'cached').length,
+    failed: electorateSources.filter((s) => s === 'failed').length,
+  };
+
   const totalVotes = results.reduce((s, r) => s + (r.votesCounted || 0), 0);
   log.info(
-    `Finished with ${results.length}/${configs.length} electorates (total votes counted: ${totalVotes.toLocaleString()})`
+    `Finished with ${results.length}/${configs.length} electorates (fresh ${counts.fresh}, unchanged ${counts.unchanged}, cached ${counts.cached}, failed ${counts.failed}; total votes counted: ${totalVotes.toLocaleString()})`
   );
   if (results.length > 0) {
     const zeroVoteElectorates = results.filter(
@@ -327,14 +405,10 @@ export async function scrapeCycleWithMeta(
   log.debug(`${totalListCandidates} list candidates above the cut`);
 
   const duration = (performance.now() - start) / 1000;
-  const freshCount = electorateSources.filter((s) => s === 'fresh').length;
-  const unchangedCount = electorateSources.filter(
-    (s) => s === 'unchanged'
-  ).length;
   // An unchanged seat is a healthy answer, not a partial scrape: the cycle
   // covered every electorate either way.
   const status: 'success' | 'partial' | 'error' =
-    freshCount + unchangedCount === configs.length
+    counts.fresh + counts.unchanged === configs.length
       ? 'success'
       : results.length > 0
         ? 'partial'
@@ -358,24 +432,16 @@ export async function scrapeCycleWithMeta(
   }
   publishMetrics(events);
 
-  // A cycle that starts from no stamps at all is an advance in itself: the
-  // payload went from "nothing known" to a full set of seats, and downstream
-  // (dashboard preload, webhook baseline) needs it published once.
-  const advanced =
-    previousStamps.size === 0
-      ? results.length > 0
-      : [...stamps].some(
-          ([name, stamp]) => previousStamps.get(name) !== stamp
-        );
+  const payload = {
+    electorateResults: withPredictions,
+    partyVote,
+    partyLists,
+  };
 
   return {
-    payload: {
-      electorateResults: withPredictions,
-      partyVote,
-      partyLists,
-    },
+    payload,
     stamps,
-    advanced,
-    refreshed: freshCount,
+    signature: payloadSignature(payload),
+    counts,
   };
 }

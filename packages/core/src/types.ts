@@ -19,6 +19,10 @@ export type ElectorateResults = {
    * attribute). Absent when the source cannot say — a custom adapter, or an
    * archived cycle fetched through `fetchResults`, where the stamp would be the
    * archive's rebuild time rather than anything about the count.
+   *
+   * The electorate panel prints this rather than when the browser last received
+   * a payload: a quiet feed publishes nothing, so the payload can be an hour old
+   * while this seat's count is current.
    */
   updatedAt?: string | null;
 };
@@ -268,7 +272,12 @@ export type MetricEvent =
   | {
       metric: 'electorateFetchDurationSeconds';
       seconds: number;
-      outcome: 'success' | 'error';
+      /**
+       * `unchanged` is a 304: a confirmed seat that transferred no body. It is
+       * kept apart from `success` because the two latencies are an order of
+       * magnitude apart, and mixing them makes the per-fetch p95 meaningless.
+       */
+      outcome: 'success' | 'unchanged' | 'error';
     }
   | {
       metric: 'electorateFetchErrorsTotal';

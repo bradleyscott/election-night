@@ -174,7 +174,7 @@ export function emitScrapeElectorate(
 
 export function emitElectorateFetchDuration(
   seconds: number,
-  outcome: 'success' | 'error'
+  outcome: 'success' | 'unchanged' | 'error'
 ): MetricEvent {
   electorateFetchDurationSeconds.observe({ outcome }, seconds);
   return { metric: 'electorateFetchDurationSeconds', seconds, outcome };
