@@ -413,9 +413,20 @@ export async function scrapeCycle(
       : results.length > 0
         ? 'partial'
         : 'error';
+  // What the cycle spent its time on, which is not the same question as whether
+  // it succeeded: once most polls are 304s, a blended cycle-duration p95 is an
+  // average of two unrelated measurements. `degraded` is deliberately not
+  // `quiet` — a cycle where a seat failed also transferred nothing, and calling
+  // that quiet is how an outage hides inside a healthy-looking baseline.
+  const mode: 'reading' | 'quiet' | 'degraded' =
+    counts.fresh > 0
+      ? 'reading'
+      : counts.unchanged === configs.length
+        ? 'quiet'
+        : 'degraded';
   const reporting = results.filter((r) => (r.votesCounted || 0) > 0).length;
   const events: MetricEvent[] = [
-    emitScrapeDuration(duration, status),
+    emitScrapeDuration(duration, status, mode),
     emitVotesCounted(totalVotes, reporting, configs.length),
     ...cycleEvents,
   ];

@@ -311,7 +311,7 @@ const overview = dashboard({
     timeseries({
       title: 'Scrape outcome ratio',
       description:
-        'Cycles per second by outcome (success = every electorate fresh, partial = cache fallback used, error = nothing fetched).',
+        'Cycles per second by outcome. success = every electorate answered, whether it returned a body or confirmed a 304; partial = a cache fallback was used; error = nothing fetched. A quiet feed is all success and all silent.',
       targets: [
         target(
           `sum by (status) (rate(election_scrape_duration_seconds_count[${RATE}]))`,
@@ -323,7 +323,7 @@ const overview = dashboard({
     timeseries({
       title: 'Electorate fetch outcomes',
       description:
-        'Per-electorate outcomes per second. A rising `cached` line means results are being served from the previous poll.',
+        'Per-electorate outcomes per second. `unchanged` is the quiet-feed answer (the feed said 304, the cached copy stands); `cached` is not — the fetch failed and the previous poll is being served; `failed` means no result at all. Only `cached` and `failed` are trouble.',
       targets: [
         target(
           `sum by (outcome) (rate(election_scrape_electorates_total[${RATE}]))`,
@@ -391,20 +391,21 @@ const collector = dashboard({
   links: LINKS,
   panels: [
     timeseries({
-      title: 'Cycle duration p50 / p95 / p99',
-      description: 'End-to-end duration of one fetch-and-reduce cycle.',
+      title: 'Cycle duration p50 / p95 / p99 (reading cycles)',
+      description:
+        'End-to-end duration of a cycle that downloaded at least one seat. Quiet cycles are excluded on purpose: a cycle where every seat answered 304 does no parsing and no reduction worth timing, so including them turns this panel into an average of two unrelated measurements. The next panel carries them.',
       targets: [
         target(
-          `histogram_quantile(0.50, sum by (le) (rate(election_scrape_duration_seconds_bucket[${RATE}])))`,
+          `histogram_quantile(0.50, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode="reading"}[${RATE}])))`,
           'p50'
         ),
         target(
-          `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket[${RATE}])))`,
+          `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode="reading"}[${RATE}])))`,
           'p95',
           'B'
         ),
         target(
-          `histogram_quantile(0.99, sum by (le) (rate(election_scrape_duration_seconds_bucket[${RATE}])))`,
+          `histogram_quantile(0.99, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode="reading"}[${RATE}])))`,
           'p99',
           'C'
         ),
@@ -413,12 +414,13 @@ const collector = dashboard({
       thresholds: [green(null), yellow(60)],
     }),
     timeseries({
-      title: 'Cycle duration p95 by outcome',
-      description: 'p95 cycle duration split by cycle status.',
+      title: 'Cycle duration p95 by cycle kind',
+      description:
+        'p95 cycle duration split by what the cycle did. `reading` downloaded at least one seat; `quiet` had every seat answer 304; `degraded` transferred nothing but did not succeed cleanly (a seat failed or fell back to cache). Read this beside the cycle counts: a quiet feed is a flat line of cheap cycles, which is the system working.',
       targets: [
         target(
-          `histogram_quantile(0.95, sum by (le, status) (rate(election_scrape_duration_seconds_bucket[${RATE}])))`,
-          '{{status}}'
+          `histogram_quantile(0.95, sum by (le, mode) (rate(election_scrape_duration_seconds_bucket[${RATE}])))`,
+          '{{mode}}'
         ),
       ],
       unit: 's',
@@ -442,16 +444,21 @@ const collector = dashboard({
     timeseries({
       title: 'Per-electorate fetch duration',
       description:
-        'Duration of a single electorate result fetch — the number that drives pacing and rate-limit decisions.',
+        'Duration of a single electorate fetch, split by what it was. `success` is a downloaded body — the number that drives pacing and rate-limit decisions; `unchanged` is a 304 revalidation, which is the cost of a quiet check and should stay an order of magnitude below a download. Blending the two makes the p95 describe neither.',
       targets: [
         target(
-          `histogram_quantile(0.50, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket[${RATE}])))`,
-          'p50'
+          `histogram_quantile(0.50, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket{outcome="success"}[${RATE}])))`,
+          'p50 download'
         ),
         target(
-          `histogram_quantile(0.95, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket[${RATE}])))`,
-          'p95',
+          `histogram_quantile(0.95, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket{outcome="success"}[${RATE}])))`,
+          'p95 download',
           'B'
+        ),
+        target(
+          `histogram_quantile(0.95, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket{outcome="unchanged"}[${RATE}])))`,
+          'p95 revalidation',
+          'C'
         ),
       ],
       unit: 's',
@@ -478,22 +485,21 @@ const collector = dashboard({
       thresholds: [green(null), yellow(5), red(15)],
     }),
     timeseries({
-      title: 'Cached vs fresh share',
+      title: 'Seat outcomes per second',
       description:
-        'Share of electorates served from the previous poll instead of a fresh fetch. Any sustained value above zero means data is going stale.',
+        'How each seat was covered, which is the shape of a cycle. `unchanged` is the quiet-feed answer and should be the whole line between counts; `fresh` means the feed republished; `cached` means a fetch failed and the previous poll is being served (data going stale); `failed` means no result at all.',
       targets: [
         target(
-          `sum(rate(election_scrape_electorates_total{outcome="cached"}[${RATE}])) / sum(rate(election_scrape_electorates_total[${RATE}]))`,
-          'cached share'
+          `sum by (outcome) (rate(election_scrape_electorates_total[${RATE}]))`,
+          '{{outcome}}'
         ),
       ],
-      unit: 'percentunit',
-      thresholds: [green(null), yellow(0.05), red(0.2)],
+      unit: 'ops',
     }),
     timeseries({
       title: 'SQLite snapshot writes',
       description:
-        'Snapshot writes per second by outcome, and the p95 write duration. The DB lives on the Fly volume.',
+        'Snapshot writes per second by outcome, and the p95 write duration. One write per publish, not per poll: a cycle that would publish the same counted facts as the last completed publish writes nothing, so a flat zero through a quiet feed is the expected shape. Use "Results last moved" on the Overview for freshness.',
       targets: [
         target(
           `sum by (status) (rate(election_snapshot_writes_total[${RATE}]))`,
