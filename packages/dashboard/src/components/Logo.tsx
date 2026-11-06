@@ -33,10 +33,6 @@ export default function Logo({ className }: { className?: string }) {
           <stop offset="0%" stopColor="#FF8000" />
           <stop offset="100%" stopColor="#FF6600" />
         </linearGradient>
-        <linearGradient id="ogHighlight" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
       </defs>
 
       <g>
@@ -55,39 +51,6 @@ export default function Logo({ className }: { className?: string }) {
             C 98 122 106 116 104 104
             C 102 86 98 62 98 46
             C 98 28 86 16 60 16
-            Z
-          "
-          fill="url(#ogBody)"
-        />
-
-        <path
-          d="
-            M 22 44
-            C 14 36 6 26 6 18
-            C 6 12 14 10 18 16
-            C 22 22 28 32 26 44
-            Z
-          "
-          fill="url(#ogBody)"
-        />
-
-        <path
-          d="
-            M 22 44
-            C 14 36 6 26 6 18
-            C 6 12 14 10 18 16
-            C 22 22 28 32 26 44
-            Z
-          "
-          fill="url(#ogHighlight)"
-        />
-
-        <path
-          d="
-            M 98 46
-            C 98 40 106 34 110 36
-            C 114 38 114 46 108 48
-            C 104 50 98 50 98 46
             Z
           "
           fill="url(#ogBody)"
