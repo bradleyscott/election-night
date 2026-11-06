@@ -292,6 +292,8 @@ fly volumes create election_data --size 1 --region syd
 
 State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml`, where high-severity advisories in production dependencies block the deploy and dev-only ones are reported without blocking). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
 
+Machine size is `fly.toml`'s `[[vm]]` section, set for election night rather than for a quiet day: two shared vCPUs and 1 GB. The dashboard holds every websocket in one process, so the memory is headroom for the connections alongside the collector, and the second vCPU is CPU quota rather than a second Node thread (Node runs one thread, but a shared vCPU is throttled). Change it in `fly.toml`, not with `fly scale` or `fly machine update`, because `[[vm]]` takes precedence on the next deploy — the same rule as `ELECTION_YEAR` in the cycle section. A resize restarts the Machine, so size it before the count, not during it.
+
 ### Switching to a new cycle
 
 The served cycle is `ELECTION_YEAR` in `fly.toml`'s `[env]`, and it decides four
