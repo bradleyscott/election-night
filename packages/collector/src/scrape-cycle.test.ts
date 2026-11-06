@@ -213,7 +213,6 @@ describe('scrapeCycleWithMeta — conditional feed reads', () => {
       configs: [config],
       partyListRecords: [],
       concurrency: 1,
-      conditional: true,
       previousStamps: new Map([[config.electorateName, STAMP]]),
     });
 
@@ -227,7 +226,6 @@ describe('scrapeCycleWithMeta — conditional feed reads', () => {
     );
     expect(outcome.stamps.get(config.electorateName)).toBe(STAMP);
   });
-
   test('a seat whose stamp moved reports the cycle as advanced', async () => {
     const source = conditionalSource(async () => ({
       status: 'modified',
@@ -240,7 +238,6 @@ describe('scrapeCycleWithMeta — conditional feed reads', () => {
       configs: [config],
       partyListRecords: [],
       concurrency: 1,
-      conditional: true,
       previousStamps: new Map([
         [config.electorateName, 'Thu, 05 Nov 2026 09:00:00 GMT'],
       ]),
@@ -251,23 +248,52 @@ describe('scrapeCycleWithMeta — conditional feed reads', () => {
     expect(outcome.stamps.get(config.electorateName)).toBe(STAMP);
   });
 
-  test('an unconditional sweep is not mistaken for a change', async () => {
-    // Every file comes back 200 on a sweep, so "a body arrived" proves nothing.
-    // Only a stamp that differs from the one we held counts.
-    const source = makeSource(vi.fn().mockResolvedValue(SEAT));
+  test('stamps each seat with its own publish time', async () => {
+    // The page reads this to print "17 min ago" for a seat that has not moved
+    // while other seats have.
+    const source = conditionalSource(async () => ({
+      status: 'modified',
+      results: SEAT,
+      lastModified: STAMP,
+    }));
 
     const outcome = await scrapeCycleWithMeta({
       source,
       configs: [config],
       partyListRecords: [],
       concurrency: 1,
-      conditional: false,
-      previousStamps: new Map([[config.electorateName, STAMP]]),
+      previousStamps: new Map(),
+    });
+
+    expect(outcome.payload.electorateResults[0].updatedAt).toBe(
+      new Date(STAMP).toISOString()
+    );
+  });
+
+  test('a seat with no stamp is fetched unconditionally and fabricates nothing', async () => {
+    // No stamp means nothing to ask about — a first cycle, a restart, or a seat
+    // that never answered. It must fetch, and it must not invent a stamp that
+    // would make the next cycle skip a seat we have not actually read.
+    const fetchResults = vi.fn().mockResolvedValue(SEAT);
+    const source = conditionalSource(
+      async () => ({
+        status: 'modified',
+        results: SEAT,
+        lastModified: null,
+      }),
+      fetchResults
+    );
+
+    const outcome = await scrapeCycleWithMeta({
+      source,
+      configs: [config],
+      partyListRecords: [],
+      concurrency: 1,
+      previousStamps: new Map(),
     });
 
     expect(outcome.refreshed).toBe(1);
-    expect(outcome.advanced).toBe(false);
-    expect(outcome.stamps.get(config.electorateName)).toBe(STAMP);
+    expect(outcome.stamps.has(config.electorateName)).toBe(false);
   });
 
   test('a first cycle with no stamps advances, so the first payload publishes', async () => {
@@ -278,7 +304,6 @@ describe('scrapeCycleWithMeta — conditional feed reads', () => {
       configs: [config],
       partyListRecords: [],
       concurrency: 1,
-      conditional: false,
       previousStamps: new Map(),
     });
 
@@ -298,7 +323,6 @@ describe('scrapeCycleWithMeta — conditional feed reads', () => {
       configs: [config],
       partyListRecords: [],
       concurrency: 1,
-      conditional: true,
       previousStamps: new Map([[config.electorateName, STAMP]]),
     });
 

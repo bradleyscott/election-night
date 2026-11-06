@@ -47,12 +47,8 @@ primary_region = "syd"
   # Every cycle asks the feed whether anything changed (If-Modified-Since: a
   # 304 costs headers and no body), and a cycle where every seat 304s writes no
   # snapshot and publishes nothing. One minute is affordable because of that;
-  # it is not a per-minute download of 71 files.
+# it is not a per-minute download of 71 files.
   POLL_INTERVAL_MS = "60000"
-  # Backstop: re-download every electorate unconditionally this often, so a
-  # Last-Modified that stops moving while the count does not cannot pin the
-  # site to a stale result. A sweep is not treated as a change on its own.
-  FULL_SWEEP_INTERVAL_MS = "300000"
   # Keep a day of snapshots; pruning runs on startup. Without it the volume
   # fills, SQLite starts failing every write with SQLITE_FULL, and the site
   # serves nothing (see docs/observability.md §6 for the alerts).

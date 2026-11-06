@@ -13,6 +13,14 @@ export type ElectorateResults = {
    * count into a share of the vote still to come.
    */
   percentVotesCast?: number;
+  /**
+   * When the Commission last republished *this seat's* file, as an ISO instant
+   * taken from the HTTP `Last-Modified` (which equals the file's own `updated`
+   * attribute). Absent when the source cannot say — a custom adapter, or an
+   * archived cycle fetched through `fetchResults`, where the stamp would be the
+   * archive's rebuild time rather than anything about the count.
+   */
+  updatedAt?: string | null;
 };
 
 export type VotingResults = {

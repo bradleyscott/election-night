@@ -33,12 +33,11 @@ export type ScrapeCycleOptions = {
   partyListRecords: PartyList[];
   concurrency: number;
   /**
-   * Ask each seat whether it changed since `previousStamps` and reuse the
-   * cached result when the feed answers `304 Not Modified`. Off (the default)
-   * re-downloads every seat, which is what an unconditional sweep does.
+   * `Last-Modified` per electorate from the previous cycle. When a seat has one
+   * the fetch asks `If-Modified-Since` and reuses the cached result on a 304;
+   * with no stamp — a first cycle, a restart, a seat that never answered — the
+   * seat is downloaded unconditionally.
    */
-  conditional?: boolean;
-  /** `Last-Modified` per electorate from the previous cycle. */
   previousStamps?: ReadonlyMap<string, string>;
 };
 
@@ -116,25 +115,18 @@ export async function scrapeCycleWithMeta(
 
   async function fetchWithPacing(
     electorateConfig: ElectorateConfig,
-    useConditional: boolean
+    ifModifiedSince?: string
   ): Promise<FetchOutcome> {
     // Gentle pacing between requests (jittered) so bursts don't trip
     // rate limiting mid-cycle.
     await sleep(collectorConfig.fetchPacingMs * (0.5 + Math.random()));
     const startedAt = performance.now();
-    const since = useConditional
-      ? previousStamps.get(electorateConfig.electorateName)
-      : undefined;
     try {
       let outcome: FetchOutcome;
-      // A sweep still goes through the meta fetch: "unconditional" means "send
-      // no If-Modified-Since", not "throw the stamp away". Without that, a
-      // sweep would leave the collector with no stamps and no way to start
-      // asking cheaply again.
       if (typeof source.fetchResultsConditional === 'function') {
         const answer = await source.fetchResultsConditional(
           electorateConfig,
-          since
+          ifModifiedSince
         );
         outcome =
           answer.status === 'not-modified'
@@ -174,7 +166,7 @@ export async function scrapeCycleWithMeta(
   const cachedByName = new Map(cachedResults.map((r) => [r.electorateName, r]));
 
   const settled = await mapSettledWithConcurrency(configs, concurrency, (cfg) =>
-    fetchWithPacing(cfg, options.conditional === true)
+    fetchWithPacing(cfg, previousStamps.get(cfg.electorateName))
   );
 
   const failedIndexes: number[] = [];
@@ -184,8 +176,8 @@ export async function scrapeCycleWithMeta(
 
   // One retry pass over failures. Skipped entirely when nothing succeeded at
   // all — retrying would just double the burn time while the feed is down.
-  // Retries go out unconditionally: a seat that failed has no answer, and a
-  // 304 would leave it with nothing to show.
+  // Retries go out without a conditional header: a seat that failed has no
+  // answer to reuse, and another 304 would leave it with nothing to show.
   const retried = new Map<number, Settled<FetchOutcome>>();
   const anySucceeded = settled.some((s) => s.status === 'fulfilled');
   if (failedIndexes.length > 0 && anySucceeded) {
@@ -193,7 +185,7 @@ export async function scrapeCycleWithMeta(
     const retryResults = await mapSettledWithConcurrency(
       failedIndexes.map((i) => configs[i]),
       concurrency,
-      (cfg) => fetchWithPacing(cfg, false)
+      (cfg) => fetchWithPacing(cfg)
     );
     failedIndexes.forEach((originalIndex, k) => {
       retried.set(originalIndex, retryResults[k]);
@@ -273,6 +265,19 @@ export async function scrapeCycleWithMeta(
         log.error(`Failed to scrape electorate`, s.reason);
         electorateSources.push('failed');
       }
+    }
+  }
+
+  // Each seat carries when the Commission last republished it, so the page can
+  // say how old *this seat's* count is instead of when this browser last
+  // received a payload from a feed where most seats had not moved. A seat that
+  // answered 304 carries the stamp forward with it.
+  for (const r of results) {
+    const stamp = stamps.get(r.electorateName);
+    if (!stamp) continue;
+    const published = new Date(stamp);
+    if (!Number.isNaN(published.getTime())) {
+      r.updatedAt = published.toISOString();
     }
   }
 

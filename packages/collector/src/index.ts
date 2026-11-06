@@ -44,7 +44,6 @@ if (process.argv[2] === 'clear') {
 
 const {
   pollIntervalMs: POLL_INTERVAL_MS,
-  fullSweepIntervalMs: FULL_SWEEP_INTERVAL_MS,
   wsUrl: WS_URL,
   concurrency: CONCURRENCY,
   dbPath,
@@ -59,17 +58,10 @@ let lastSweepAt: number | null = null;
  * `Last-Modified` per electorate, from the last cycle that observed it.
  *
  * Kept in memory rather than on the volume: a restart costs exactly one
- * unconditional sweep, and a persisted stamp that outlived its cache could only
+ * unconditional cycle, and a persisted stamp that outlived its cache could only
  * ever produce 304s for data we no longer hold.
  */
 let feedStamps = new Map<string, string>();
-
-/**
- * When every electorate was last re-downloaded unconditionally; null until the
- * first cycle. Drives the backstop that stops a frozen `Last-Modified` from
- * pinning the site to a stale count for the whole night.
- */
-let lastFullSweepAt: number | null = null;
 
 /**
  * Votes counted in the last payload we published. The skip test pairs it with
@@ -118,9 +110,6 @@ function logConfiguration(): void {
   log.info(`ELECTION_YEAR:    ${collectorConfig.electionYear}`);
   log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
   log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
-  log.info(
-    `FULL_SWEEP_INTERVAL_MS: ${collectorConfig.fullSweepIntervalMs} (unconditional re-download backstop)`
-  );
   log.info(
     `RETENTION_HOURS:  ${RETENTION_HOURS > 0 ? `${RETENTION_HOURS} (prune older snapshots on startup and every ${Math.round(RETENTION_SWEEP_MS / 1000)}s)` : 'disabled (keep every snapshot)'}`
   );
@@ -184,24 +173,15 @@ async function runOnce(current: ElectionSource): Promise<void> {
   // visible in the metrics ahead of the write that fails because of it.
   recordDiskUsage(dbPath);
 
-  // Every cycle asks the feed whether it changed; every FULL_SWEEP_INTERVAL_MS
-  // it stops asking and re-reads every seat. The sweep is the only defence
-  // against a `Last-Modified` that has stopped moving while the count has not.
-  const fullSweep =
-    lastFullSweepAt === null ||
-    Date.now() - lastFullSweepAt >= FULL_SWEEP_INTERVAL_MS;
-
   try {
     const outcome = await scrapeCycleWithMeta({
       source: current,
       configs: electorateConfigs,
       partyListRecords,
       concurrency: CONCURRENCY,
-      conditional: !fullSweep,
       previousStamps: feedStamps,
     });
     feedStamps = outcome.stamps;
-    if (fullSweep) lastFullSweepAt = Date.now();
 
     const payload = outcome.payload;
     const votesCounted = payload.electorateResults.reduce(
@@ -224,7 +204,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
       health.lastCycleOk = true;
       health.lastVotesCounted = votesCounted;
       log.info(
-        `Feed unchanged (${outcome.refreshed}/${electorateConfigs.length} seats refetched, ${fullSweep ? 'unconditional sweep' : 'conditional'}); nothing written or published`
+        `Feed unchanged (${outcome.refreshed}/${electorateConfigs.length} seats refetched); nothing written or published`
       );
       return;
     }
