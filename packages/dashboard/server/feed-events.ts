@@ -86,6 +86,17 @@ function renderCopy(
       ? chance.progress * 100
       : result.votePercentageCounted * 100
   ).toFixed(0);
+
+  // A seat with no leader (no votes, or a tie at the top) has no name to put
+  // in the sentence. Saying so is better than promoting the first row of the
+  // feed's alphabetical candidate list into the copy.
+  if (!l.leadingCandidate) {
+    return {
+      summary: `${name}: no leader at ${pct}% counted.`,
+      commentary: `No leader at ${pct}% counted.`,
+    };
+  }
+
   const marginPct = (l.marginPercent * 100).toFixed(2);
   const votes = diff.currentMargin.toLocaleString();
   const party = (p: string | null | undefined) => p ?? 'Independent';

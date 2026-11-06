@@ -72,7 +72,11 @@ export function buildSeats(
 
   const electorateWinner = new Map<string, string>();
   for (const e of electorates) {
-    electorateWinner.set(e.leaders.leadingCandidate, e.electorateName);
+    // Only a seat with a leader has an electorate winner. An uncounted seat
+    // must not remove its alphabetical first candidate from the list pool.
+    const candidate = e.leaders.leadingCandidate;
+    if (!candidate) continue;
+    electorateWinner.set(candidate, e.electorateName);
   }
 
   const listCandidatesByParty = new Map<string, PartyListResult[]>();
@@ -117,7 +121,7 @@ export function buildSeats(
         ),
         type: 'electorate',
         name: e.electorateName,
-        candidate: e.leaders.leadingCandidate,
+        candidate: e.leaders.leadingCandidate ?? undefined,
         margin: e.leaders.margin,
         marginPercent: e.leaders.marginPercent,
         chance: chances?.get(normalizeElectorateName(e.electorateName)),

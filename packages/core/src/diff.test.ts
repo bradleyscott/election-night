@@ -41,9 +41,9 @@ describe('computeDiff', () => {
       partyVotes: [],
       candidateVotes: [],
       leaders: {
-        leadingCandidate: '',
+        leadingCandidate: null,
         leadingCandidateParty: null,
-        secondCandidate: '',
+        secondCandidate: null,
         secondCandidateParty: null,
         margin: 0,
         marginPercent: 0,
@@ -77,6 +77,25 @@ describe('computeDiff', () => {
     expect(diff.leaderChanged).toBe(false);
     expect(diff.previousLeaderName).toBeNull();
     expect(diff.previousLeaderParty).toBeNull();
+  });
+
+  it('does not call a move out of a tie a leader change', () => {
+    // A tie has no leader to change from. The vote movement is still an
+    // update, but it must not be announced as one leader replacing another.
+    const tie = makeResult({
+      leaders: {
+        ...makeResult().leaders,
+        leadingCandidate: null,
+        leadingCandidateParty: null,
+        margin: 0,
+        marginPercent: 0,
+      },
+    });
+    const diff = computeDiff(tie, makeResult({ votesCounted: 1200 }));
+
+    expect(diff.leaderChanged).toBe(false);
+    expect(diff.previousLeaderName).toBeNull();
+    expect(determineWebhookEvents(diff)).toEqual(['result_updated']);
   });
 });
 

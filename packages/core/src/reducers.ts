@@ -17,12 +17,19 @@ function calculateLead(
     (a, b) => b.votes - a.votes
   );
 
-  const leadingCandidate = sortedCandidates[0]?.candidate ?? '';
-  const leadingCandidateParty = sortedCandidates[0]?.party;
-  const secondCandidate = sortedCandidates[1]?.candidate ?? '';
-  const secondCandidateParty = sortedCandidates[1]?.party;
-  const margin =
-    (sortedCandidates[0]?.votes ?? 0) - (sortedCandidates[1]?.votes ?? 0);
+  const top = sortedCandidates[0];
+  const second = sortedCandidates[1];
+  // A leader has to be earned by the count. With no votes the sort is stable,
+  // so its first row is only the feed's alphabetical order; and a tie at the
+  // top has no leader either, because naming one would pick an order the count
+  // cannot support. Both cases return null rather than a candidate name.
+  const hasLeader = !!top && top.votes > 0 && top.votes > (second?.votes ?? -1);
+
+  const leadingCandidate = hasLeader ? top.candidate : null;
+  const leadingCandidateParty = hasLeader ? (top.party ?? null) : null;
+  const secondCandidate = hasLeader ? (second?.candidate ?? null) : null;
+  const secondCandidateParty = hasLeader ? (second?.party ?? null) : null;
+  const margin = (top?.votes ?? 0) - (second?.votes ?? 0);
   const marginPercent = results.votesCounted
     ? margin / results.votesCounted
     : 0;
@@ -106,12 +113,16 @@ function getElectorateWinners(
   return electoralVotes.reduce(
     (acc, r) => {
       const party = r.leaders.leadingCandidateParty;
-      if (!party) return acc;
+      const candidate = r.leaders.leadingCandidate;
+      // An uncounted or tied seat has no winner to contribute. Counting its
+      // first row here is what used to promote the alphabetically first
+      // candidate on every zero-vote seat and shift the list cut for everyone.
+      if (!party || !candidate) return acc;
       if (!acc[party]) {
-        acc[party] = [r.leaders.leadingCandidate];
+        acc[party] = [candidate];
         return acc;
       }
-      acc[party] = [...acc[party], r.leaders.leadingCandidate];
+      acc[party] = [...acc[party], candidate];
       return acc;
     },
     {} as Record<string, string[]>

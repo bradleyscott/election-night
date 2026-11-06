@@ -126,28 +126,49 @@ export function ElectorateRacesView({
                     </span>
                   </td>
                   <td className="py-2 sm:py-3 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <PartyDot color={partyColor(l.leadingCandidateParty)} />
-                      <span className="font-semibold">
-                        {l.leadingCandidate}
+                    {l.leadingCandidate ? (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <PartyDot
+                            color={partyColor(l.leadingCandidateParty)}
+                          />
+                          <span className="font-semibold">
+                            {l.leadingCandidate}
+                          </span>
+                        </div>
+                        {/* Named, not just dotted: a swatch is not a party name,
+                            and the Flipped table already prints both. */}
+                        <div className="text-sm text-muted-foreground">
+                          {l.leadingCandidateParty ?? 'Independent'}
+                        </div>
+                      </>
+                    ) : (
+                      <span
+                        className="text-muted-foreground"
+                        title="No votes counted yet"
+                      >
+                        —
                       </span>
-                    </div>
-                    {/* Named, not just dotted: a swatch is not a party name,
-                        and the Flipped table already prints both. */}
-                    <div className="text-sm text-muted-foreground">
-                      {l.leadingCandidateParty ?? 'Independent'}
-                    </div>
+                    )}
                   </td>
                   <td className="hidden sm:table-cell py-2 sm:py-3 px-3">
-                    <div className="flex items-center gap-1.5">
-                      <PartyDot color={partyColor(l.secondCandidateParty)} />
-                      <span className="text-muted-foreground">
-                        {l.secondCandidate}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {l.secondCandidateParty ?? 'Independent'}
-                    </div>
+                    {l.secondCandidate ? (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <PartyDot
+                            color={partyColor(l.secondCandidateParty)}
+                          />
+                          <span className="text-muted-foreground">
+                            {l.secondCandidate}
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {l.secondCandidateParty ?? 'Independent'}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td
                     className={cn(
@@ -156,7 +177,7 @@ export function ElectorateRacesView({
                       NUMERIC_CELL
                     )}
                   >
-                    {l.margin.toLocaleString()}
+                    {l.leadingCandidate ? l.margin.toLocaleString() : '—'}
                   </td>
                   <td
                     className={cn(
@@ -165,7 +186,9 @@ export function ElectorateRacesView({
                       NUMERIC_CELL
                     )}
                   >
-                    {(l.marginPercent * 100).toFixed(1)}%
+                    {l.leadingCandidate
+                      ? `${(l.marginPercent * 100).toFixed(1)}%`
+                      : '—'}
                   </td>
                   <td
                     className={cn('py-2 sm:py-3 px-3', NUMERIC, NUMERIC_CELL)}

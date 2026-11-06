@@ -140,6 +140,12 @@ function leadingPartyVote(
   for (let i = 1; i < partyVotes.length; i++) {
     if (partyVotes[i].votes > top.votes) top = partyVotes[i];
   }
+  // No votes means no leading party: every row is 0 and the first is only the
+  // feed's party-number order. A tie for the top is no lead either.
+  if (top.votes <= 0) return undefined;
+  if (partyVotes.filter((p) => p.votes === top.votes).length > 1) {
+    return undefined;
+  }
   return top;
 }
 

@@ -119,12 +119,17 @@ export function splitParties(parties: string[]): {
 export function buildElectorateLookup(
   electorateResults: {
     electorateName: string;
-    leaders: { leadingCandidate: string };
+    leaders: { leadingCandidate: string | null };
   }[]
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const r of electorateResults) {
-    map.set(r.leaders.leadingCandidate, r.electorateName);
+    // A seat with no leader (no votes, or a tie at the top) has not taken
+    // anyone out of their party list. Skipping it keeps the live cut line tied
+    // to the count instead of to the feed's alphabetical candidate order.
+    const candidate = r.leaders.leadingCandidate;
+    if (!candidate) continue;
+    map.set(candidate, r.electorateName);
   }
   return map;
 }

@@ -44,7 +44,7 @@ describe('calculateLead party resolution', () => {
     expect(r.leaders.secondCandidateParty).toBe('Blue Party');
   });
 
-  test('leaves party undefined when the candidate has no party', () => {
+  test('leaves party null when the candidate has no party', () => {
     const r = calculateLead(
       makeElectorate({
         candidateVotes: [
@@ -54,8 +54,127 @@ describe('calculateLead party resolution', () => {
       })
     );
 
-    expect(r.leaders.leadingCandidateParty).toBeUndefined();
-    expect(r.leaders.secondCandidateParty).toBeUndefined();
+    expect(r.leaders.leadingCandidateParty).toBeNull();
+    expect(r.leaders.secondCandidateParty).toBeNull();
+  });
+});
+
+describe('calculateLead before any vote is counted', () => {
+  // The feed publishes every seat with zero votes, and its candidate order is
+  // alphabetical by surname. A stable sort therefore leaves the first row as
+  // "leader" unless the reducer refuses to name one.
+  test('has no leader on a zero count', () => {
+    const r = calculateLead(
+      makeElectorate({
+        votesCounted: 0,
+        votePercentageCounted: 0,
+        partyVotes: [],
+        candidateVotes: [
+          { candidate: 'AARDVARK, Ann', votes: 0, party: 'Red Party' },
+          { candidate: 'ZEBRA, Zed', votes: 0, party: 'Blue Party' },
+        ],
+      })
+    );
+
+    expect(r.leaders.leadingCandidate).toBeNull();
+    expect(r.leaders.leadingCandidateParty).toBeNull();
+    expect(r.leaders.secondCandidate).toBeNull();
+    expect(r.leaders.secondCandidateParty).toBeNull();
+    expect(r.leaders.margin).toBe(0);
+  });
+
+  test('has no leader when the top two are tied', () => {
+    const r = calculateLead(
+      makeElectorate({
+        votesCounted: 9000,
+        candidateVotes: [
+          { candidate: 'Alice', votes: 4000, party: 'Red Party' },
+          { candidate: 'Bob', votes: 4000, party: 'Blue Party' },
+          { candidate: 'Carol', votes: 1000, party: 'Green Party' },
+        ],
+      })
+    );
+
+    expect(r.leaders.leadingCandidate).toBeNull();
+    expect(r.leaders.leadingCandidateParty).toBeNull();
+    expect(r.leaders.margin).toBe(0);
+  });
+});
+
+describe('buildResultsPayload with an uncounted seat alongside a counted one', () => {
+  const status = {
+    parties: [
+      {
+        party: 'Red Party',
+        votes: 4000,
+        listSeats: 0,
+        electorateSeats: 1,
+        totalSeats: 1,
+      },
+    ],
+    totalVotesCast: 4000,
+    percentVotesCast: 0.5,
+    totalElectoratesFinal: 1,
+    percentElectoratesFinal: 0.5,
+    totalMinimalVotes: 0,
+    totalSpecialVotes: 0,
+    updated: null,
+  };
+
+  const list = [
+    { party: 'Red Party', candidate: 'AARDVARK, Ann', listRank: 1 },
+    { party: 'Red Party', candidate: 'ZULU, Zoe', listRank: 2 },
+  ];
+
+  function payloadFor(
+    uncountedCandidateVotes: ElectorateResults['candidateVotes']
+  ) {
+    const counted = makeElectorate({
+      electorateName: 'Counted',
+      candidateVotes: [
+        { candidate: 'Alice', votes: 4000, party: 'Red Party' },
+        { candidate: 'Bob', votes: 1000, party: 'Blue Party' },
+      ],
+      votesCounted: 5000,
+    });
+    const uncounted = makeElectorate({
+      electorateName: 'Uncounted',
+      votesCounted: 0,
+      votePercentageCounted: 0,
+      partyVotes: [],
+      candidateVotes: uncountedCandidateVotes,
+    });
+    return buildResultsPayload([counted, uncounted], list, status);
+  }
+
+  test('does not count the uncounted seat as an electorate win', () => {
+    const payload = payloadFor([
+      { candidate: 'AARDVARK, Ann', votes: 0, party: 'Red Party' },
+      { candidate: 'ZEBRA, Zed', votes: 0, party: 'Blue Party' },
+    ]);
+    const aardvark = payload.partyLists.find(
+      (x) => x.candidate === 'AARDVARK, Ann'
+    );
+    const zulu = payload.partyLists.find((x) => x.candidate === 'ZULU, Zoe');
+
+    // No electorate winner, so neither list rank is adjusted by that seat.
+    expect(aardvark?.adjustedRank).toBe(1);
+    expect(zulu?.adjustedRank).toBe(2);
+  });
+
+  test('does adjust the list when the seat has actually been counted', () => {
+    const payload = payloadFor([
+      { candidate: 'AARDVARK, Ann', votes: 4000, party: 'Red Party' },
+      { candidate: 'ZEBRA, Zed', votes: 1000, party: 'Blue Party' },
+    ]);
+    const aardvark = payload.partyLists.find(
+      (x) => x.candidate === 'AARDVARK, Ann'
+    );
+    const zulu = payload.partyLists.find((x) => x.candidate === 'ZULU, Zoe');
+
+    expect(aardvark?.adjustedRank).toBe(1);
+    // AARDVARK is leading the counted seat, so ZULU moves up one place.
+    expect(zulu?.adjustedRank).toBe(1);
   });
 });
 
