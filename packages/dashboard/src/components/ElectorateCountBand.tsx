@@ -114,9 +114,11 @@ export function ElectorateCountBand({
    */
   chance?: SeatChance | null;
   /**
-   * When this browser's results last changed, printed at the top of the panel
-   * where the eye lands — the count is the thing being refreshed, so the time
-   * it last moved belongs above the figures rather than in a footnote.
+   * When this seat's count last changed, printed at the top of the panel where
+   * the eye lands — the count is the thing being refreshed, so the time it last
+   * moved belongs above the figures rather than in a footnote. This is the
+   * seat's own publish stamp, not when this browser last received a payload:
+   * one seat can sit still for forty minutes while others move.
    */
   updatedAt?: Date | null;
   /**

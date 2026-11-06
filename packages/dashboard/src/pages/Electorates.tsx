@@ -13,6 +13,7 @@ import {
   normalizeElectorateName,
 } from '../lib/electorates.js';
 import { useSeatChances } from '../hooks/useSeatChances.js';
+import { seatUpdatedAt } from '../lib/seat-chance.js';
 import { usePollsClose } from '../hooks/usePollsClose.js';
 import { useVotingPlaces } from '../hooks/useVotingPlaces.js';
 import { cn } from '../lib/utils.js';
@@ -156,7 +157,7 @@ export default function Electorates() {
             priorWinners={priorLoading ? undefined : priorWinners}
             priorUnavailable={priorUnavailable}
             chance={chance}
-            updatedAt={updatedAt}
+            updatedAt={seatUpdatedAt(selectedElectorate.updatedAt, updatedAt)}
             pollsClose={pollsClose}
           />
         )}

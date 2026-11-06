@@ -151,3 +151,21 @@ export function formatUpdatedAgo(
   const hours = Math.round(minutes / 60);
   return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
 }
+
+/**
+ * The instant to print as "4 min ago".
+ *
+ * The seat's own publish stamp when the feed gave us one — a seat can sit
+ * unchanged for forty minutes while other seats move, and the payload's arrival
+ * time would describe the wrong thing. Falls back to when this browser last
+ * received a payload for sources that cannot say (a custom adapter, an archived
+ * cycle), so the label never goes blank where it used to have a value.
+ */
+export function seatUpdatedAt(
+  publishedAt: string | null | undefined,
+  fallback: Date | null
+): Date | null {
+  if (!publishedAt) return fallback;
+  const parsed = new Date(publishedAt);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
