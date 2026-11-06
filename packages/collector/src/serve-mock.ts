@@ -82,6 +82,35 @@ const STAGE_NAMES = ['early', 'mid', 'late', 'full'];
 
 let currentStage = 0;
 
+/**
+ * When the current stage took effect, in milliseconds — the mock's
+ * `Last-Modified`. It moves only when the stage does, so a collector that asks
+ * with `If-Modified-Since` gets a 304 until `/advance` (or `--auto-step`) makes
+ * every file say something new.
+ *
+ * Each advance moves it at least one second past the previous value. HTTP dates
+ * have one-second resolution, so a stage changed inside the second the previous
+ * `Last-Modified` already named could not be observed by a conditional client —
+ * the mock would be unable to express a change at all. The cost is that the
+ * mock's clock can run a few seconds ahead after rapid manual advances, which
+ * only affects the mock.
+ */
+let stageUpdatedAt = Date.now();
+
+function setStage(next: number): void {
+  if (next === currentStage) return;
+  currentStage = next;
+  stageUpdatedAt = Math.max(
+    Date.now(),
+    Math.floor(stageUpdatedAt / 1000) * 1000 + 1000
+  );
+}
+
+/** The stage's `Last-Modified` at the second resolution HTTP compares with. */
+function stageLastModifiedMs(): number {
+  return Math.floor(stageUpdatedAt / 1000) * 1000;
+}
+
 // ---- Reference data (mock parties, electorates, candidates) ----
 
 const PARTY_INDEX = new Map(MOCK_PARTIES.map((p, i) => [p.name, i + 1]));
@@ -409,7 +438,7 @@ ${links}
 const stageArg = parsed['--stage'];
 if (stageArg) {
   const idx = STAGE_NAMES.indexOf(stageArg);
-  if (idx !== -1) currentStage = idx;
+  if (idx !== -1) setStage(idx);
   else
     console.error(
       `Unknown stage "${stageArg}", valid: ${STAGE_NAMES.join(', ')}`
@@ -738,8 +767,31 @@ function renderVotingPlaceResult(
 `;
 }
 
-function sendXml(res: http.ServerResponse, body: string) {
-  res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
+/**
+ * Serve XML with the headers a conditional client needs.
+ *
+ * The stage's `Last-Modified` is sent on every file and `If-Modified-Since` is
+ * honoured, so a collector run against the mock exercises the same 304 path as
+ * production: the stage is the mock's equivalent of "the Commission
+ * republished", and asking between stages returns an empty 304.
+ */
+function sendXml(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  body: string
+) {
+  const lastModified = new Date(stageUpdatedAt).toUTCString();
+  const since = req.headers['if-modified-since'];
+  const sinceMs = since ? Date.parse(since) : Number.NaN;
+  if (Number.isFinite(sinceMs) && sinceMs >= stageLastModifiedMs()) {
+    res.writeHead(304, { 'Last-Modified': lastModified });
+    res.end();
+    return;
+  }
+  res.writeHead(200, {
+    'Content-Type': 'application/xml; charset=utf-8',
+    'Last-Modified': lastModified,
+  });
   res.end(body);
 }
 
@@ -748,7 +800,7 @@ const server = http.createServer((req, res) => {
   const path = url.pathname;
 
   if (req.method === 'POST' && path === '/advance') {
-    currentStage = (currentStage + 1) % STAGES.length;
+    setStage((currentStage + 1) % STAGES.length);
     const stage = STAGE_NAMES[currentStage];
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ stage, index: currentStage }));
@@ -756,7 +808,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'POST' && path === '/reset') {
-    currentStage = 0;
+    setStage(0);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ stage: STAGE_NAMES[0], index: 0 }));
     return;
@@ -775,27 +827,27 @@ const server = http.createServer((req, res) => {
   }
 
   if (path === '/candidates.xml') {
-    sendXml(res, renderCandidatesXml());
+    sendXml(req, res, renderCandidatesXml());
     return;
   }
 
   if (path === '/parties.xml') {
-    sendXml(res, renderPartiesXml());
+    sendXml(req, res, renderPartiesXml());
     return;
   }
 
   if (path === '/electorates.xml') {
-    sendXml(res, renderElectoratesXml());
+    sendXml(req, res, renderElectoratesXml());
     return;
   }
 
   if (path === '/election.xml') {
-    sendXml(res, renderElectionXml());
+    sendXml(req, res, renderElectionXml());
     return;
   }
 
   if (path === '/votingplaces.xml') {
-    sendXml(res, renderVotingPlacesXml());
+    sendXml(req, res, renderVotingPlacesXml());
     return;
   }
 
@@ -825,7 +877,7 @@ const server = http.createServer((req, res) => {
       res.end('Not found');
       return;
     }
-    sendXml(res, renderVotingPlaceResult(place, seatNo));
+    sendXml(req, res, renderVotingPlaceResult(place, seatNo));
     return;
   }
 
@@ -839,7 +891,7 @@ const server = http.createServer((req, res) => {
       res.end('Not found');
       return;
     }
-    sendXml(res, renderElectorateXml(results[currentStage], eNo));
+    sendXml(req, res, renderElectorateXml(results[currentStage], eNo));
     return;
   }
 
@@ -874,7 +926,7 @@ server.listen(PORT, () => {
 
   if (autoStepMs && autoStepMs > 0) {
     autoStepTimer = setInterval(() => {
-      currentStage = (currentStage + 1) % STAGES.length;
+      setStage((currentStage + 1) % STAGES.length);
       console.log(
         `Auto-advanced to stage: ${STAGE_NAMES[currentStage]} (${currentStage + 1}/${STAGES.length})`
       );
