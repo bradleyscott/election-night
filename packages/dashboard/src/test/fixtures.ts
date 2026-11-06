@@ -105,3 +105,40 @@ export const mockFeedEvent: FeedEvent = {
 };
 
 export const mockFeedEvents: FeedEvent[] = [mockFeedEvent];
+
+/**
+ * The payload the feed serves before election day: the whole ballot — every
+ * seat, every candidate, every party list — with every count zeroed. It is not
+ * a result, and the tests below it are what stop a page rendering it as one.
+ */
+export const mockZeroedResults: ResultsPayload = {
+  electorateResults: [
+    {
+      ...mockElectorateResult,
+      candidateVotes: mockElectorateResult.candidateVotes.map((c) => ({
+        ...c,
+        votes: 0,
+      })),
+      partyVotes: mockElectorateResult.partyVotes.map((p) => ({
+        ...p,
+        votes: 0,
+      })),
+      votesCounted: 0,
+      percentVotesCast: 0,
+      votePercentageCounted: 0,
+      leaders: {
+        ...mockElectorateResult.leaders,
+        margin: 0,
+        marginPercent: 0,
+      },
+    },
+  ],
+  partyVote: mockPartyVote.map((p) => ({
+    ...p,
+    votes: 0,
+    seats: 0,
+    electorateSeats: 0,
+    listSeats: 0,
+  })),
+  partyLists: mockPartyList,
+};

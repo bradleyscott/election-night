@@ -5,6 +5,7 @@ import { Toggle } from '../components/Toggle.js';
 import { ElectorateRacesView } from '../components/ElectorateRacesView.js';
 import { ListCutLinesView } from '../components/ListCutLinesView.js';
 import { splitParties } from '../lib/constants.js';
+import { hasCounted } from '../lib/results.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
 import type {
   ElectorateResult,
@@ -45,7 +46,12 @@ export default function CloseCalls() {
     setSelectedParty(majorParties[0]);
   }, [majorParties, selectedParty]);
 
-  if (!electorates.length && !partyLists.length) {
+  // Both views are derived from the count: before a vote is counted every
+  // candidate is "1 to 72 places below their party's cut" (no party has won a
+  // seat yet), which reads as a result rather than as an absence of one. The
+  // zeroed ballot still carries the party lists, so the length test alone let
+  // that through. Await the count, as the Seats and Feed pages do.
+  if (!hasCounted(results)) {
     return <PageWaiting title="Close Calls" context="closecalls" />;
   }
 
