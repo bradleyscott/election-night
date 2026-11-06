@@ -33,6 +33,7 @@ describe('ParliamentSeatGrid', () => {
     render(
       <ParliamentSeatGrid
         seats={seats}
+        majority={62}
         draggingParty={null}
         dropTargetParty={null}
         hoveredParty={null}
@@ -60,10 +61,41 @@ describe('ParliamentSeatGrid', () => {
     expect(onDragEnd).toHaveBeenCalled();
   });
 
+  test('seats are placed on the chamber floor by percentage, not laid out in a grid', () => {
+    render(
+      <ParliamentSeatGrid
+        seats={seats}
+        majority={62}
+        draggingParty={null}
+        dropTargetParty={null}
+        hoveredParty={null}
+        selectedSeat={null}
+        onDragStart={noop}
+        onDragEnter={noop}
+        onDragEnd={noop}
+        onDrop={noop}
+        onHover={noop}
+        onSelect={noop}
+      />
+    );
+
+    const nationalSeat = screen.getByLabelText(
+      'National Party electorate seat'
+    );
+    // The first seat of the order is the bottom of the left bench.
+    expect(parseFloat(nationalSeat.style.left)).toBeLessThan(5);
+    expect(nationalSeat.style.top).toMatch(/%$/);
+    expect(nationalSeat).toHaveClass('absolute', 'rounded-full');
+
+    // The majority divider is drawn on the same frame, with the label above it.
+    expect(screen.getByText('62 seats required to govern')).toBeInTheDocument();
+  });
+
   test('vacant seats are not focusable', () => {
     render(
       <ParliamentSeatGrid
         seats={seats}
+        majority={62}
         draggingParty={null}
         dropTargetParty={null}
         hoveredParty={null}

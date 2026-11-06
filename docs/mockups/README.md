@@ -89,3 +89,17 @@ old `majority 2,392 · 5.9%` was 176px of mono, wrapped to three lines and left
 the middle dot stranded at the end of one. The words live in the header, which
 names the comparison. The lead stays visible without horizontal scrolling,
 which is the point of the page.
+
+### `seats-hemicycle-desktop` / `seats-hemicycle-mobile` (`.png`)
+
+The Seats page after the seat grid became the debating chamber: straight benches
+either side of the floor, a round end, and the Speaker in the gap between the
+arms. Against the 2026 mock feed at 87.5% counted, 123 seats. On the desktop the
+room is 704 × 525 in the panel with 19px seats; at 390px it is 324 × 242 with
+8.8px seats and no sideways scroll, where the grid it replaced was a 480px
+minimum and scrolled. The majority divider is a radial line at the apex, half a
+column past centre so it falls between the two middle columns, with its label a
+fixed 8px above the back bench at both sizes.
+
+Both captures are the running app; `packages/dashboard/src/lib/chamber.ts`
+holds the geometry and `chamber.test.ts` the invariants.
