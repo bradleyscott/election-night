@@ -58,6 +58,25 @@ Seats with no comparable prior holder (created by a merge or split, or new)
 replace the table with a one-line explanation. See
 [`../prior-election-results.md`](../prior-election-results.md).
 
+### `candidates-mobile-rest` / `candidates-mobile-scrolled` (`.png`)
+
+`/candidates` at 390px (deviceScaleFactor 2), against the mock feed replaying
+2026, before and after the sideways scroll. Below `sm` the table keeps all three
+live columns — Candidate, Seat, Win chance — and scrolls to the last of them:
+the candidate column is pinned (`sticky left-0`, paper ground, hairline), and
+the only cue that the table scrolls is the Win chance column sitting cut off
+under a right-edge fade, shown while there is more to reach. The second capture is the end of the
+scroll: the name is still in place, the chance and its distance from the cut are
+readable, the fade has gone, and the pinned column has been raised with a shadow
+and a 24px fade over its right edge so the Seat cell sliding under it reads as
+depth rather than as clipped text.
+
+The captures also show the **Electorate** chip gone from the phone, which was
+the point of the change: `.chip-print` sets its own display and is emitted after
+the generated utilities, so `hidden sm:inline` on the chip itself never applied
+and it was costing the candidate column 69px — enough that every name wrapped
+onto two lines. The breakpoint now lives on a wrapper.
+
 ### `flipped-page-mobile` (`.html` / `.png`)
 
 The same page at 390px wide (deviceScaleFactor 2, mobile emulation). Below the
