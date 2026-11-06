@@ -46,8 +46,8 @@
   ],
   "panels": [
     {
-      "title": "Cycle duration p50 / p95 / p99",
-      "description": "End-to-end duration of one fetch-and-reduce cycle.",
+      "title": "Cycle duration p50 / p95 / p99 (reading cycles)",
+      "description": "End-to-end duration of a cycle that downloaded at least one seat. Quiet cycles are excluded on purpose: a cycle where every seat answered 304 does no parsing and no reduction worth timing, so including them turns this panel into an average of two unrelated measurements. The next panel carries them.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -127,7 +127,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(election_scrape_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode=\"reading\"}[$__rate_interval])))",
           "legendFormat": "p50",
           "range": true,
           "refId": "A"
@@ -138,7 +138,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode=\"reading\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "range": true,
           "refId": "B"
@@ -149,7 +149,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(election_scrape_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode=\"reading\"}[$__rate_interval])))",
           "legendFormat": "p99",
           "range": true,
           "refId": "C"
@@ -164,8 +164,8 @@
       "id": 1
     },
     {
-      "title": "Cycle duration p95 by outcome",
-      "description": "p95 cycle duration split by cycle status.",
+      "title": "Cycle duration p95 by cycle kind",
+      "description": "p95 cycle duration split by what the cycle did. `reading` downloaded at least one seat; `quiet` had every seat answer 304; `degraded` transferred nothing but did not succeed cleanly (a seat failed or fell back to cache). Read this beside the cycle counts: a quiet feed is a flat line of cheap cycles, which is the system working.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -241,8 +241,8 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, status) (rate(election_scrape_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{status}}",
+          "expr": "histogram_quantile(0.95, sum by (le, mode) (rate(election_scrape_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{mode}}",
           "range": true,
           "refId": "A"
         }
@@ -360,7 +360,7 @@
     },
     {
       "title": "Per-electorate fetch duration",
-      "description": "Duration of a single electorate result fetch — the number that drives pacing and rate-limit decisions.",
+      "description": "Duration of a single electorate fetch, split by what it was. `success` is a downloaded body — the number that drives pacing and rate-limit decisions; `unchanged` is a 304 revalidation, which is the cost of a quiet check and should stay an order of magnitude below a download. Blending the two makes the p95 describe neither.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -440,8 +440,8 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "p50",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket{outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p50 download",
           "range": true,
           "refId": "A"
         },
@@ -451,10 +451,21 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "p95",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket{outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p95 download",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(election_electorate_fetch_duration_seconds_bucket{outcome=\"unchanged\"}[$__rate_interval])))",
+          "legendFormat": "p95 revalidation",
+          "range": true,
+          "refId": "C"
         }
       ],
       "gridPos": {
@@ -627,8 +638,8 @@
       "id": 6
     },
     {
-      "title": "Cached vs fresh share",
-      "description": "Share of electorates served from the previous poll instead of a fresh fetch. Any sustained value above zero means data is going stale.",
+      "title": "Seat outcomes per second",
+      "description": "How each seat was covered, which is the shape of a cycle. `unchanged` is the quiet-feed answer and should be the whole line between counts; `fresh` means the feed republished; `cached` means a fetch failed and the previous poll is being served (data going stale); `failed` means no result at all.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -668,7 +679,7 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "dashed"
+              "mode": "off"
             }
           },
           "mappings": [],
@@ -678,18 +689,10 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.05
-              },
-              {
-                "color": "red",
-                "value": 0.2
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "ops"
         },
         "overrides": []
       },
@@ -712,8 +715,8 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(election_scrape_electorates_total{outcome=\"cached\"}[$__rate_interval])) / sum(rate(election_scrape_electorates_total[$__rate_interval]))",
-          "legendFormat": "cached share",
+          "expr": "sum by (outcome) (rate(election_scrape_electorates_total[$__rate_interval]))",
+          "legendFormat": "{{outcome}}",
           "range": true,
           "refId": "A"
         }
@@ -728,7 +731,7 @@
     },
     {
       "title": "SQLite snapshot writes",
-      "description": "Snapshot writes per second by outcome, and the p95 write duration. The DB lives on the Fly volume.",
+      "description": "Snapshot writes per second by outcome, and the p95 write duration. One write per publish, not per poll: a cycle that would publish the same counted facts as the last completed publish writes nothing, so a flat zero through a quiet feed is the expected shape. Use \"Results last moved\" on the Overview for freshness.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",

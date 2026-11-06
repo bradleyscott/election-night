@@ -270,6 +270,14 @@ export type MetricEvent =
       metric: 'scrapeDurationSeconds';
       seconds: number;
       status: 'success' | 'partial' | 'error';
+      /**
+       * What the cycle spent its time on, independent of whether it succeeded:
+       * `reading` if any seat returned a body, `quiet` if every seat answered
+       * 304, `degraded` for anything else (a seat failed, or was served from
+       * cache). A quiet cycle and a reading cycle are not the same measurement,
+       * and averaging them hides a slow scrape behind an afternoon of 304s.
+       */
+      mode: 'reading' | 'quiet' | 'degraded';
     }
   | {
       metric: 'scrapeElectoratesTotal';

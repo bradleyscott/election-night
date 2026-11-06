@@ -24,10 +24,11 @@ describe('collector metric events', () => {
   });
 
   it('emits scrape duration events', () => {
-    expect(emitScrapeDuration(2.5, 'partial')).toEqual({
+    expect(emitScrapeDuration(2.5, 'partial', 'degraded')).toEqual({
       metric: 'scrapeDurationSeconds',
       seconds: 2.5,
       status: 'partial',
+      mode: 'degraded',
     });
   });
 
@@ -91,7 +92,7 @@ describe('collector metric events', () => {
   });
 
   it('records everything in the collector registry for scraping', async () => {
-    emitScrapeDuration(2.5, 'success');
+    emitScrapeDuration(2.5, 'success', 'reading');
     emitScrapeElectorate('cached');
     emitElectorateFetchDuration(0.2, 'success');
     emitElectorateFetchError('timeout');
@@ -103,8 +104,10 @@ describe('collector metric events', () => {
 
     const output = await collectorRegister.metrics();
 
+    // `mode` separates a cycle that read bodies from one that only revalidated;
+    // without it the cycle p95 blends two unrelated measurements.
     expect(output).toContain(
-      'election_scrape_duration_seconds_count{status="success"} 1'
+      'election_scrape_duration_seconds_count{status="success",mode="reading"} 1'
     );
     expect(output).toContain(
       'election_scrape_electorates_total{outcome="cached"} 1'

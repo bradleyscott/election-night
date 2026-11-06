@@ -458,7 +458,7 @@
     },
     {
       "title": "Scrape outcome ratio",
-      "description": "Cycles per second by outcome (success = every electorate fresh, partial = cache fallback used, error = nothing fetched).",
+      "description": "Cycles per second by outcome. success = every electorate answered, whether it returned a body or confirmed a 304; partial = a cache fallback was used; error = nothing fetched. A quiet feed is all success and all silent.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -550,7 +550,7 @@
     },
     {
       "title": "Electorate fetch outcomes",
-      "description": "Per-electorate outcomes per second. A rising `cached` line means results are being served from the previous poll.",
+      "description": "Per-electorate outcomes per second. `unchanged` is the quiet-feed answer (the feed said 304, the cached copy stands); `cached` is not — the fetch failed and the previous poll is being served; `failed` means no result at all. Only `cached` and `failed` are trouble.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
