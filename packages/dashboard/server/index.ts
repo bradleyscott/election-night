@@ -22,7 +22,7 @@ import {
 import { routeLabel } from './routes.js';
 import { serveHealth, serveMetrics, serveReady } from './health.js';
 import { canonicalRedirect } from './redirect.js';
-import { serveStatic } from './static.js';
+import { createStaticHandler } from './static.js';
 import { serveApi } from './api.js';
 import {
   addFeedEvents,
@@ -92,6 +92,8 @@ function loadCachedResults() {
 const historySource: HistorySource = createHistorySource({
   baseUrl: dashboardServerConfig.historyUpstream,
 });
+
+const serveStatic = createStaticHandler(DIST_DIR);
 
 const server = createServer(
   async (req: IncomingMessage, res: ServerResponse) => {
@@ -184,7 +186,7 @@ const server = createServer(
       }
     }
 
-    serveStatic(req, res);
+    await serveStatic(req, res);
   }
 );
 
