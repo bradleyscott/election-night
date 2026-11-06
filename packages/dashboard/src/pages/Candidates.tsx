@@ -278,13 +278,9 @@ function AllCandidates({
           className="w-full px-3 py-2 sm:py-1.5 border bg-background text-sm font-label outline-none focus:ring-2 focus:ring-ring/25 transition-shadow"
         />
       </div>
-      {/* The phone's cue for the sideways scroll. A table that scrolls is only
-          discoverable if something says so, and the fade alone is invisible on
-          a paper ground until a column is under it. Hidden from `sm` up, where
-          all four columns fit. */}
-      <p className="kicker mb-2 flex items-center gap-1.5 sm:hidden">
-        Swipe for Win chance <span aria-hidden="true">→</span>
-      </p>
+      {/* No line above the table telling the reader to swipe: the fade over the
+          cut column is the cue, and a caption that has to be read before the
+          table is read is a worse trade than a column that looks cut off. */}
       <div className="relative">
         <div ref={scrollRef} className={cn('overflow-x-auto', TABLE_FRAME)}>
           <table className={cn('w-full', TABLE_TEXT)}>
@@ -352,7 +348,13 @@ function AllCandidates({
                         <span>{c.party || 'Independent'}</span>
                       </div>
                     </td>
-                    <td className="py-2 sm:py-3 px-3">
+                    {/* Seat names do not wrap on the phone either: the column is
+                        already narrower than a name like "Christchurch Central",
+                        and a wrapped one is what made the row read as a paragraph
+                        rather than as a route. The table is wider than the frame
+                        below `sm` for exactly this reason — it scrolls, so a name
+                        does not have to break. Desktop keeps the cell as it was. */}
+                    <td className="whitespace-nowrap py-2 px-3 sm:whitespace-normal sm:py-3">
                       {/* Two lines, in step with the Win chance column: the seat
                         on the first and the list on the second, so a seat name
                         lines up with the chance and a List chip with the

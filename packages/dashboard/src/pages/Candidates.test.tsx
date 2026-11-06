@@ -263,11 +263,12 @@ describe('Candidates page', () => {
     expect(chip.parentElement).toHaveClass('hidden', 'sm:inline');
   });
 
-  test('cues the swipe and fades the edge only while there is more to reach', () => {
+  test('fades the edge only while there is more to reach', () => {
     renderCandidates();
 
-    const cue = screen.getByText(/Swipe for Win chance/);
-    expect(cue).toHaveClass('sm:hidden');
+    // No caption above the table telling the reader to swipe: the fade over the
+    // cut column is the cue, and the line was removed on review.
+    expect(screen.queryByText(/Swipe/)).toBeNull();
 
     const scroller = screen.getByRole('table').closest('div') as HTMLElement;
     const fade = () =>
