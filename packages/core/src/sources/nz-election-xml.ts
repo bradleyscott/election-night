@@ -1,4 +1,5 @@
 import type {
+  ConditionalFetchOutcome,
   ElectorateConfig,
   ElectionSource,
   NationalStatus,
@@ -35,10 +36,28 @@ export type NzElectionXmlSourceOptions = {
   baseUrl?: string;
   /** Optional custom fetch implementation (defaults to global fetch). */
   fetch?: (url: string) => Promise<string>;
+  /**
+   * Optional custom fetch that keeps the response metadata a conditional
+   * request needs. Injected tests use this to serve 304s; when only `fetch` is
+   * given, conditional fetches degrade to unconditional ones.
+   */
+  fetchWithMeta?: (
+    url: string,
+    ifModifiedSince?: string
+  ) => Promise<FeedFetchResponse>;
   /** Per-request HTTP timeout in milliseconds (default 30s). */
   timeoutMs?: number;
   /** Optional verbose logging. */
   verbose?: boolean;
+};
+
+/** One feed request, with the header a conditional cycle has to remember. */
+export type FeedFetchResponse = {
+  status: 'ok' | 'not-modified';
+  /** The body; absent for a 304. */
+  body?: string;
+  /** The response's `Last-Modified`, or null when the server sent none. */
+  lastModified: string | null;
 };
 
 type XmlCandidate = {
@@ -114,9 +133,46 @@ function makeFetch(timeoutMs: number) {
     });
 }
 
+/**
+ * One request, keeping `Last-Modified` and honouring `If-Modified-Since`.
+ *
+ * Only `If-Modified-Since` is sent. The feed's ETag is a weak gzip variant that
+ * never matches, and a failed `If-None-Match` overrides `If-Modified-Since` and
+ * forces a full 200 — so sending both would defeat the point of asking.
+ */
+function makeFetchWithMeta(timeoutMs: number) {
+  return async (
+    url: string,
+    ifModifiedSince?: string
+  ): Promise<FeedFetchResponse> => {
+    const headers: Record<string, string> = {
+      Accept: 'application/xml,text/xml,*/*',
+      'User-Agent': 'Mozilla/5.0 (compatible; election-night-collector/1.0)',
+    };
+    if (ifModifiedSince) headers['If-Modified-Since'] = ifModifiedSince;
+
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(timeoutMs),
+      headers,
+    });
+    const lastModified = res.headers.get('last-modified');
+    if (res.status === 304) {
+      return { status: 'not-modified', lastModified };
+    }
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} fetching ${url}`);
+    }
+    return { status: 'ok', body: await res.text(), lastModified };
+  };
+}
+
 export class NzElectionXmlSource implements ElectionSource {
   private baseUrl: string;
   private fetchHtml: (url: string) => Promise<string>;
+  private fetchMeta: (
+    url: string,
+    ifModifiedSince?: string
+  ) => Promise<FeedFetchResponse>;
   private verbose: boolean;
 
   private candidateMap = new Map<string, XmlCandidate>();
@@ -128,7 +184,22 @@ export class NzElectionXmlSource implements ElectionSource {
 
   constructor(options: NzElectionXmlSourceOptions = {}) {
     this.baseUrl = buildBaseUrl(options);
-    this.fetchHtml = options.fetch ?? makeFetch(options.timeoutMs ?? 30_000);
+    const timeoutMs = options.timeoutMs ?? 30_000;
+    this.fetchHtml = options.fetch ?? makeFetch(timeoutMs);
+
+    // An injected body-only fetch cannot answer 304, so a conditional request
+    // through it becomes an ordinary one: the loop still runs, it just never
+    // gets to skip a download.
+    const injectedFetch = options.fetch;
+    this.fetchMeta =
+      options.fetchWithMeta ??
+      (injectedFetch
+        ? async (url: string) => ({
+            status: 'ok' as const,
+            body: await injectedFetch(url),
+            lastModified: null,
+          })
+        : makeFetchWithMeta(timeoutMs));
     this.verbose = options.verbose ?? false;
   }
 
@@ -158,6 +229,22 @@ export class NzElectionXmlSource implements ElectionSource {
     await this.ensureLoaded();
     const xml = await this.fetchHtml(config.url);
     return this.parseElectorateXml(xml, config.electorateName);
+  }
+
+  async fetchResultsConditional(
+    config: ElectorateConfig,
+    ifModifiedSince?: string
+  ): Promise<ConditionalFetchOutcome> {
+    await this.ensureLoaded();
+    const res = await this.fetchMeta(config.url, ifModifiedSince);
+    if (res.status === 'not-modified') {
+      return { status: 'not-modified', lastModified: res.lastModified };
+    }
+    return {
+      status: 'modified',
+      results: this.parseElectorateXml(res.body ?? '', config.electorateName),
+      lastModified: res.lastModified,
+    };
   }
 
   /**

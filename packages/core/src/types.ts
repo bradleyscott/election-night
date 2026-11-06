@@ -136,7 +136,35 @@ export interface ElectionSource {
    * `party` on each candidate vote so downstream calculations work.
    */
   fetchResults(config: ElectorateConfig): Promise<RawElectorateResults>;
+  /**
+   * Optional: fetch one seat, keeping the response's `Last-Modified`.
+   *
+   * With `ifModifiedSince`, the Commission's feed answers `304 Not Modified`
+   * and an empty body when nothing has been republished, which lets a cycle
+   * confirm a seat is unchanged without downloading it. Without it the seat is
+   * always downloaded — an unconditional sweep — but the stamp still comes back
+   * so the next cycle can ask cheaply. Sources that do not implement this are
+   * fetched unconditionally through `fetchResults`, which remains the contract
+   * every adapter meets.
+   */
+  fetchResultsConditional?(
+    config: ElectorateConfig,
+    ifModifiedSince?: string
+  ): Promise<ConditionalFetchOutcome>;
 }
+
+/** The answer to a conditional fetch: either a body, or "not since then". */
+export type ConditionalFetchOutcome =
+  | {
+      status: 'modified';
+      results: RawElectorateResults;
+      /** The response's `Last-Modified`, or null if the server sent none. */
+      lastModified: string | null;
+    }
+  | {
+      status: 'not-modified';
+      lastModified: string | null;
+    };
 
 // ---- Webhook Event Types ----
 
@@ -225,7 +253,7 @@ export type MetricEvent =
     }
   | {
       metric: 'scrapeElectoratesTotal';
-      outcome: 'success' | 'error' | 'cached';
+      outcome: 'success' | 'unchanged' | 'error' | 'cached';
     }
   | { metric: 'collectorSocketConnected'; connected: boolean }
   | { metric: 'webhookPublishesTotal'; status: 'success' | 'error' }

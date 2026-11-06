@@ -27,7 +27,7 @@ import { describeSweep, effectiveKeepHours, shouldSweep } from './retention.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
-import { scrapeCycle } from './scrape-cycle.js';
+import { scrapeCycleWithMeta } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
 import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
@@ -44,6 +44,7 @@ if (process.argv[2] === 'clear') {
 
 const {
   pollIntervalMs: POLL_INTERVAL_MS,
+  fullSweepIntervalMs: FULL_SWEEP_INTERVAL_MS,
   wsUrl: WS_URL,
   concurrency: CONCURRENCY,
   dbPath,
@@ -53,6 +54,29 @@ const {
 
 /** When the last retention sweep ran; null until the first one. */
 let lastSweepAt: number | null = null;
+
+/**
+ * `Last-Modified` per electorate, from the last cycle that observed it.
+ *
+ * Kept in memory rather than on the volume: a restart costs exactly one
+ * unconditional sweep, and a persisted stamp that outlived its cache could only
+ * ever produce 304s for data we no longer hold.
+ */
+let feedStamps = new Map<string, string>();
+
+/**
+ * When every electorate was last re-downloaded unconditionally; null until the
+ * first cycle. Drives the backstop that stops a frozen `Last-Modified` from
+ * pinning the site to a stale count for the whole night.
+ */
+let lastFullSweepAt: number | null = null;
+
+/**
+ * Votes counted in the last payload we published. The skip test pairs it with
+ * the feed stamps: a changed stamp says the Commission republished, and a
+ * changed total says the count actually moved.
+ */
+let lastPublishedVotes: number | null = null;
 
 let partyListRecords: PartyList[] = [];
 let source: ElectionSource | null = null;
@@ -94,6 +118,9 @@ function logConfiguration(): void {
   log.info(`ELECTION_YEAR:    ${collectorConfig.electionYear}`);
   log.info(`WS_URL:           ${collectorConfig.wsUrl}`);
   log.info(`POLL_INTERVAL_MS: ${collectorConfig.pollIntervalMs}`);
+  log.info(
+    `FULL_SWEEP_INTERVAL_MS: ${collectorConfig.fullSweepIntervalMs} (unconditional re-download backstop)`
+  );
   log.info(
     `RETENTION_HOURS:  ${RETENTION_HOURS > 0 ? `${RETENTION_HOURS} (prune older snapshots on startup and every ${Math.round(RETENTION_SWEEP_MS / 1000)}s)` : 'disabled (keep every snapshot)'}`
   );
@@ -157,18 +184,52 @@ async function runOnce(current: ElectionSource): Promise<void> {
   // visible in the metrics ahead of the write that fails because of it.
   recordDiskUsage(dbPath);
 
+  // Every cycle asks the feed whether it changed; every FULL_SWEEP_INTERVAL_MS
+  // it stops asking and re-reads every seat. The sweep is the only defence
+  // against a `Last-Modified` that has stopped moving while the count has not.
+  const fullSweep =
+    lastFullSweepAt === null ||
+    Date.now() - lastFullSweepAt >= FULL_SWEEP_INTERVAL_MS;
+
   try {
-    const payload = await scrapeCycle({
+    const outcome = await scrapeCycleWithMeta({
       source: current,
       configs: electorateConfigs,
       partyListRecords,
       concurrency: CONCURRENCY,
+      conditional: !fullSweep,
+      previousStamps: feedStamps,
     });
+    feedStamps = outcome.stamps;
+    if (fullSweep) lastFullSweepAt = Date.now();
 
+    const payload = outcome.payload;
     const votesCounted = payload.electorateResults.reduce(
       (sum, r) => sum + (r.votesCounted || 0),
       0
     );
+
+    // A cycle where no seat's stamp moved, and the total has not moved either,
+    // describes exactly the payload we already published. Writing it would add
+    // a snapshot row and a socket broadcast per poll — 1,440 a day at the
+    // one-minute cadence — for no new information. This is the reason a fast
+    // poll loop is affordable.
+    const changed =
+      lastPublishedVotes === null ||
+      outcome.advanced ||
+      votesCounted !== lastPublishedVotes;
+
+    if (!changed) {
+      health.lastCycleFinishedAt = Date.now();
+      health.lastCycleOk = true;
+      health.lastVotesCounted = votesCounted;
+      log.info(
+        `Feed unchanged (${outcome.refreshed}/${electorateConfigs.length} seats refetched, ${fullSweep ? 'unconditional sweep' : 'conditional'}); nothing written or published`
+      );
+      return;
+    }
+
+    lastPublishedVotes = votesCounted;
 
     // A scrape where nothing has been counted yet is the ballot, not a result.
     // The feed publishes every electorate with zero votes ahead of election
@@ -313,7 +374,11 @@ async function loopRun(): Promise<void> {
     log.warn('Prior-year warm-up failed', err);
   });
   retentionSweep();
-  setTimeout(loopRun, POLL_INTERVAL_MS);
+  // ±20% on the tick: a machine hitting the feed at exactly POLL_INTERVAL_MS
+  // forever is a metronome in front of the feed's bot scoring, however few
+  // bytes each request costs.
+  const nextDelay = Math.round(POLL_INTERVAL_MS * (0.8 + Math.random() * 0.4));
+  setTimeout(loopRun, nextDelay);
 }
 
 process.on('unhandledRejection', (reason) => {

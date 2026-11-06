@@ -18,8 +18,18 @@ const collectorConfigSchema = z.object({
     .number()
     .int()
     .min(1000)
-    .default(120_000)
-    .describe('Time between scrape polls'),
+    .default(60_000)
+    .describe(
+      'How often the collector asks the feed whether anything changed. Each check is conditional (304 when nothing has been republished), so the cadence costs headers, not payload.'
+    ),
+  fullSweepIntervalMs: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .default(300_000)
+    .describe(
+      'Backstop: at least this often, re-download every electorate unconditionally instead of trusting the feed\u2019s Last-Modified header. Guards against a frozen mtime pinning the site to a stale count.'
+    ),
   wsPort: z.coerce.number().int().min(1).max(65535).default(3456),
   wsUrl: z.string().default('ws://localhost:3456'),
   concurrency: z.coerce.number().int().min(1).default(10),
@@ -90,6 +100,7 @@ function loadCollectorConfig(): CollectorConfig {
     electionYear: process.env.ELECTION_YEAR,
     xmlFeedBaseUrl: process.env.XML_FEED_BASE_URL,
     pollIntervalMs: process.env.POLL_INTERVAL_MS,
+    fullSweepIntervalMs: process.env.FULL_SWEEP_INTERVAL_MS,
     wsPort: process.env.WS_PORT,
     wsUrl: process.env.WS_URL,
     concurrency: process.env.CONCURRENCY,

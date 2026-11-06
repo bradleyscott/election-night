@@ -272,9 +272,18 @@ Panel-level mapping to metrics (all series from §1):
 ## 6. Alerting
 
 Alert on symptoms (the RED view), not causes. `$POLL` below is the configured
-`POLL_INTERVAL_MS` (default 120s); substitute it into the duration and
+`POLL_INTERVAL_MS` (default 60s); substitute it into the duration and
 thresholds. Fly provides no built-in alerting, so these run as Grafana alert
 rules against the Fly Prometheus data source (§7).
+
+**Two timestamps, two meanings.** `election_collector_metrics_last_received_timestamp_seconds`
+is *liveness*: the collector emits a metric event on every cycle, including one
+that found nothing changed, so it moves once per `POLL_INTERVAL_MS` whenever the
+collector is alive and reaching the feed. `election_last_scrape_timestamp_seconds`
+is *freshness*: it moves only when a changed payload is published, so a quiet
+feed legitimately leaves it still for hours — before polls close, and between
+counts. Alert on the first for a stalled pipeline; read the second as "when did
+the results last move", never as a heartbeat.
 
 | Alert                             | Expression                                                                                                                                         | For | Severity |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------- |
