@@ -144,6 +144,18 @@ describe('app icons', () => {
     );
   });
 
+  test('the shipped mascot is a blob with two arms, and no ears', () => {
+    // `scripts/generate-icons.mjs` keeps its own copy of the artwork in the
+    // icon's coordinates, so the masthead's silhouette rule has to be pinned
+    // here too: the body (a fill) and the two arms (strokes) are the whole
+    // character. A head protrusion in an install icon is what nobody sees
+    // until the home screen has had it for a while.
+    const bodyFills = faviconSvg.match(/fill="url\(#og\)"/g) ?? [];
+    const armStrokes = faviconSvg.match(/stroke="url\(#og\)"/g) ?? [];
+    expect(bodyFills).toHaveLength(1);
+    expect(armStrokes).toHaveLength(2);
+  });
+
   test('the mascot is Orange Guy orange, not the masthead red', () => {
     // The artwork is a quote of the Electoral Commission's enrolment mascot, so
     // it is drawn in that character's orange rather than in the dashboard's

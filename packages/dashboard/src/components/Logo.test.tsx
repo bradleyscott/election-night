@@ -30,6 +30,26 @@ describe('Logo', () => {
     expect(bodyStops(container)).toEqual(MASCOT_ORANGE);
   });
 
+  test('the character is a blob with two arms, and no ears', () => {
+    // The mark is a blob Thing holding a flag in each hand. An ear was once
+    // drawn on either side of the head; both were removed because the character
+    // is not an animal, and only a shape-count catches one being added back —
+    // a head protrusion is otherwise invisible until someone notices it in the
+    // masthead. Everything painted in the body's own ink is the body (a fill)
+    // and the two arms (strokes).
+    const { container } = render(<Logo />);
+    const bodyInk = Array.from(
+      container.querySelectorAll(
+        '[fill="url(#ogBody)"], [stroke="url(#ogBody)"]'
+      )
+    );
+    expect(bodyInk).toHaveLength(3);
+    expect(bodyInk[0].getAttribute('stroke')).toBeNull();
+    expect(bodyInk.slice(1).map((node) => node.getAttribute('stroke'))).toEqual(
+      ['url(#ogBody)', 'url(#ogBody)']
+    );
+  });
+
   test('the body shades without darkening towards red', () => {
     // Both stops sit at the same lightness, so the gradient gives the body form
     // rather than a burnt bottom — a dark second stop is what read as red.

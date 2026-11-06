@@ -88,6 +88,13 @@ to it. Amend intentionally — the file is the rule.
   artwork: the mascot never sets type, state, chips or leader markers, so the
   accent rule above is untouched. `components/Logo.test.tsx` and
   `lib/app-icons.test.ts` pin the pair.
+  The shape is a blob holding a flag in each hand, and **nothing else** — no
+  ears, no tufts, no hat. A pointed ear once sat on each side of the head: the
+  left one read as a horn, and the right one as a dent, so the character stopped
+  being the thing it quotes. Both are gone, in `Logo.tsx` and in the artwork
+  `scripts/generate-icons.mjs` keeps for the icons, and both tests count the
+  shapes drawn in the body's ink (one body, two arms) so a protrusion cannot be
+  added back quietly.
 - **Data is set in mono, labels in Inter, prose in Crimson Pro, display in
   Playfair.** Tables rule-based, figures tabular. Party colours are data
   semantics and stay untouched (National #00529F, Labour #D82A20, Green

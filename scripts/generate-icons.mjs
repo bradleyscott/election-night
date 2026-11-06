@@ -2,7 +2,7 @@
 /**
  * Regenerate the dashboard's app icons.
  *
- * The logo is a wide mark — the mascot plus two ballot flags, 81.4 × 54.6 in its
+ * The logo is a wide mark — the mascot plus two ballot flags, 81.4 × 51.5 in its
  * own coordinates — and every platform that shows an app icon crops it to a
  * square: the home screen, the Android splash, the iOS splash, the browser tab.
  * Rasterising the wide mark straight to a "512x512" filename therefore ships a
@@ -38,7 +38,7 @@ const PAPER = '#f7f4eb';
  * The artwork's own bounding box, measured from the rendered mark (it is a
  * hair wider than the paths alone because it includes their antialiased edge).
  */
-const ARTWORK = { x: -8.7, y: 2.2, width: 81.4, height: 54.6 };
+const ARTWORK = { x: -8.7, y: 5.3, width: 81.4, height: 51.5 };
 /** Fraction of the canvas the "any" icons let the artwork span. */
 const ANY_FRACTION = 0.96;
 /**
@@ -67,7 +67,6 @@ const ARTWORK_SVG = `  <defs>
     </linearGradient>
   </defs>
   <path d="M32 6C18 6 12 14 12 22C12 30 10 38 8 46C6 52 12 56 20 56C26 56 30 54 32 54C34 54 38 56 44 56C52 56 58 52 56 46C54 38 52 30 52 22C52 14 46 6 32 6Z" fill="url(#og)"/>
-  <path d="M12 20C8 16 4 12 4 8C4 4 10 2 12 6C14 10 16 16 14 20Z" fill="url(#og)"/>
   <rect x="26" y="18" width="4.5" height="8" rx="1.5" fill="white"/>
   <rect x="33.5" y="18" width="4.5" height="8" rx="1.5" fill="white"/>
   <path d="M23 30 Q32 38 41 30" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
