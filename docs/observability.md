@@ -43,7 +43,7 @@ merged into the server's `/metrics` (see below):
 
 | Metric                                       | Type      | Labels                |
 | -------------------------------------------- | --------- | --------------------- |
-| `election_scrape_duration_seconds`           | Histogram | `status`              |
+| `election_scrape_duration_seconds`           | Histogram | `status`, `mode`      |
 | `election_scrape_electorates_total`          | Counter   | `outcome`             |
 | `election_electorate_fetch_duration_seconds` | Histogram | `outcome`             |
 | `election_electorate_fetch_errors_total`     | Counter   | `reason`              |
@@ -60,9 +60,18 @@ merged into the server's `/metrics` (see below):
 | `election_disk_available_bytes`              | Gauge     | `path`                |
 | `election_build_info`                        | Gauge     | `version`, `revision` |
 
+`election_scrape_duration_seconds` carries `mode` = `reading` (at least one
+seat returned a body), `quiet` (every seat answered 304) or `degraded` (nothing
+transferred and the cycle did not succeed cleanly). `election_scrape_electorates_total`
+and `election_electorate_fetch_duration_seconds` both carry `unchanged` for a
+304, kept apart from `success` so a revalidation does not sit in the same
+aggregate as a download.
+
 Bounded label values:
 
-- `outcome` (electorates): `success` | `cached` | `error`.
+- `outcome` (electorates and fetches): `success` | `unchanged` | `cached` |
+  `error` for electorates; `success` | `unchanged` | `error` for fetch duration.
+- `mode` (cycles): `reading` | `quiet` | `degraded`.
 - `status` (cycles, webhooks, DB): `success` | `partial` | `error` as applicable.
 - `reason` (fetch errors): `timeout` | `http` | `parse` | `network`.
 - `route` is always a route template (`/api/history/electorate/:name`), never a
@@ -262,10 +271,12 @@ Panel-level mapping to metrics (all series from §1):
   the last published result (`last_scrape_timestamp_seconds`), collector socket
   state, reporting share, votes counted, cycles/min, outcome ratios, fetch
   outcomes, error ratio, feed events by type, clients, memory headroom.
-- **Collector & Pipeline** — cycle p50/p95/p99 (overall and by status), cycles
-  completed, per-fetch p50/p95, failures by reason, retried electorates,
-  cached-vs-fresh share, snapshot writes + p95 write duration, volume used,
-  webhook rate, webhook failure ratio + p95 latency.
+- **Collector & Pipeline** — cycle p50/p95/p99 for reading cycles, cycle p95
+  by cycle kind (reading / quiet / degraded), cycles completed, per-fetch p50/p95
+  split into downloads and revalidations, failures by reason, retried
+  electorates, seat outcomes per second (fresh / unchanged / cached / failed),
+  snapshot writes + p95 write duration, volume used, webhook rate, webhook
+  failure ratio + p95 latency.
 - **Live Delivery & API** — edge request rate/status and p95, request rate and
   p95 by route, app 5xx ratio, history upstream p95, cache outcomes, stale
   serves, socket messages by event, feed events stored, ready failures, clients.
@@ -298,7 +309,7 @@ count is supposed to move.
 | Collector metrics merge failing   | `election_collector_metrics_reachable == 0`                                                                                    | 5m  | warning  |
 | Electorate fetch error ratio high | `sum(rate(election_scrape_electorates_total{outcome="error"}[10m])) / sum(rate(election_scrape_electorates_total[10m])) > 0.1` | 10m | warning  |
 | Data going stale (serving cache)  | `sum(rate(election_scrape_electorates_total{outcome="cached"}[10m])) > 0`                                                      | 15m | warning  |
-| Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket[15m]))) > 60`                              | 15m | warning  |
+| Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode="reading"}[15m]))) > 60`              | 15m | warning  |
 | Webhook failures                  | `sum(rate(election_webhook_publishes_total{status="error"}[10m])) / sum(rate(election_webhook_publishes_total[10m])) > 0.5`    | 10m | warning  |
 | History upstream failing          | `sum(rate(election_history_upstream_requests_total{outcome!="ok"}[10m])) > 0`                                                  | 5m  | warning  |
 | API 5xx ratio                     | `sum(rate(election_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(election_http_requests_total[5m])) > 0.01`         | 5m  | critical |

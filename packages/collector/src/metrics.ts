@@ -24,7 +24,7 @@ const fetchBuckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5];
 export const scrapeDurationSeconds = new Histogram({
   name: 'election_scrape_duration_seconds',
   help: 'Time spent fetching and reducing one full cycle of results',
-  labelNames: ['status'],
+  labelNames: ['status', 'mode'],
   buckets: scrapeBuckets,
   registers: [collectorRegister],
 });
@@ -159,10 +159,11 @@ collectorSocketConnected.set(0);
 
 export function emitScrapeDuration(
   seconds: number,
-  status: 'success' | 'partial' | 'error'
+  status: 'success' | 'partial' | 'error',
+  mode: 'reading' | 'quiet' | 'degraded'
 ): MetricEvent {
-  scrapeDurationSeconds.observe({ status }, seconds);
-  return { metric: 'scrapeDurationSeconds', seconds, status };
+  scrapeDurationSeconds.observe({ status, mode }, seconds);
+  return { metric: 'scrapeDurationSeconds', seconds, status, mode };
 }
 
 export function emitScrapeElectorate(
