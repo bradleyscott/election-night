@@ -92,15 +92,18 @@ export default function Flipped() {
   const flipped = useMemo(
     () =>
       comparable
-        .filter(
-          ({ electorate, prior: winner }) =>
-            // Compared as parties rather than as spellings: the Commission
-            // renames a party between cycles, so 2020's "Māori Party" and
-            // tonight's "Te Pāti Māori" are one party, and a string compare
-            // listed Waiariki as a flip while Rawiri Waititi still held it.
-            canonicalParty(winner.party) !==
-            canonicalParty(electorate.leaders.leadingCandidateParty)
-        )
+        .filter(({ electorate, prior: winner }) => {
+          const leadingParty = electorate.leaders.leadingCandidateParty;
+          // A seat with no leader has not changed hands: before the first
+          // count the "leader" would be the feed's alphabetically first
+          // candidate. A tie at the top is equally not a flip.
+          if (!leadingParty) return false;
+          // Compared as parties rather than as spellings: the Commission
+          // renames a party between cycles, so 2020's "Māori Party" and
+          // tonight's "Te Pāti Māori" are one party, and a string compare
+          // listed Waiariki as a flip while Rawiri Waititi still held it.
+          return canonicalParty(winner.party) !== canonicalParty(leadingParty);
+        })
         .sort(
           (a, b) =>
             b.electorate.leaders.marginPercent -
@@ -304,7 +307,7 @@ export default function Flipped() {
                               color={partyColor(l.leadingCandidateParty)}
                             />
                             <span className="font-medium">
-                              {l.leadingCandidate}
+                              {l.leadingCandidate ?? '—'}
                             </span>
                           </div>
                           <div className="text-sm text-muted-foreground">

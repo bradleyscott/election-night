@@ -22,11 +22,15 @@ export function computeDiff(
   previous: ComparableResult | null | undefined,
   current: ComparableResult
 ): ElectorateDiff {
+  const previousLeaderParty = previous?.leaders.leadingCandidateParty ?? null;
+  const currentLeaderParty = current.leaders.leadingCandidateParty ?? null;
+  // A transition into or out of "no leader" (a tie, or a seat with no votes)
+  // is not a change of leader: there was nobody to change from, or nobody to
+  // change to. The first real count is already handled as a first result.
   const leaderChanged =
-    previous !== null &&
-    previous !== undefined &&
-    previous.leaders.leadingCandidateParty !==
-      current.leaders.leadingCandidateParty;
+    previousLeaderParty !== null &&
+    currentLeaderParty !== null &&
+    previousLeaderParty !== currentLeaderParty;
 
   return {
     electorateName: current.electorateName,
@@ -42,9 +46,7 @@ export function computeDiff(
     previousLeaderName: leaderChanged
       ? (previous?.leaders.leadingCandidate ?? null)
       : null,
-    previousLeaderParty: leaderChanged
-      ? (previous?.leaders.leadingCandidateParty ?? null)
-      : null,
+    previousLeaderParty: leaderChanged ? previousLeaderParty : null,
   };
 }
 

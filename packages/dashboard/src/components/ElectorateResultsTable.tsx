@@ -85,6 +85,12 @@ export function ElectorateResultsTable({
   // print: a party can contest the party vote in a seat it nominates no
   // candidate for.
   const chances = showPartyVote ? null : chanceByCandidate(chance);
+  // Before the first vote the candidate rows are in the feed's alphabetical
+  // order, not a count order, so none of them is a leader to emphasise. The
+  // party view has the same problem for the same reason.
+  const emphasiseFirst = showPartyVote
+    ? result.votesCounted > 0
+    : result.leaders.leadingCandidate !== null;
 
   return (
     <div className="overflow-x-auto">
@@ -120,7 +126,7 @@ export function ElectorateResultsTable({
                 className={cn(
                   TR_ROW,
                   TR_ROW_HOVER,
-                  i === 0 ? 'font-bold' : 'font-semibold'
+                  i === 0 && emphasiseFirst ? 'font-bold' : 'font-semibold'
                 )}
               >
                 {showPartyVote ? (

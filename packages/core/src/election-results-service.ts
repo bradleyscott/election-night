@@ -285,14 +285,22 @@ export class ElectionResultsService {
   }
 
   private cycleWinners(payload: ResultsPayload): CycleWinner[] {
-    return payload.electorateResults.map((r) => ({
-      electorateName: r.electorateName,
-      candidate: r.leaders.leadingCandidate,
-      party: r.leaders.leadingCandidateParty ?? null,
-      votes: r.candidateVotes[0]?.votes ?? 0,
-      majority: r.leaders.margin,
-      majorityPercent: r.leaders.marginPercent,
-    }));
+    return payload.electorateResults.flatMap((r) => {
+      const candidate = r.leaders.leadingCandidate;
+      // An archived cycle has votes in every seat, but the contract allows a
+      // seat with no leader; it has no winner to match against today's names.
+      if (!candidate) return [];
+      return [
+        {
+          electorateName: r.electorateName,
+          candidate,
+          party: r.leaders.leadingCandidateParty ?? null,
+          votes: r.candidateVotes[0]?.votes ?? 0,
+          majority: r.leaders.margin,
+          majorityPercent: r.leaders.marginPercent,
+        },
+      ];
+    });
   }
 
   /**

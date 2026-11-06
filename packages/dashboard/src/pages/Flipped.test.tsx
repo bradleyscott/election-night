@@ -246,6 +246,45 @@ describe('Flipped page', () => {
     expect(screen.queryByText('Waiariki')).not.toBeInTheDocument();
   });
 
+  test('does not list a seat before its first vote', async () => {
+    // Before the count, the feed's candidate order is alphabetical, so the
+    // "leader" would be whichever surname sorts first. That is not a hand
+    // change and must not appear on the page.
+    const noVotes: ElectorateResult = {
+      ...electorate('Ōtāhuhu', 'ACT New Zealand', 'AARDVARK, Ann', 0, 0),
+      leaders: {
+        leadingCandidate: null,
+        leadingCandidateParty: null,
+        secondCandidate: null,
+        secondCandidateParty: null,
+        margin: 0,
+        marginPercent: 0,
+      },
+    };
+
+    render(
+      <BrowserRouter>
+        <WinPercentProvider>
+          <MockSocketProvider
+            results={{
+              electorateResults: [noVotes],
+              partyVote: [],
+              partyLists: [],
+            }}
+            connected
+          >
+            <Flipped />
+          </MockSocketProvider>
+        </WinPercentProvider>
+      </BrowserRouter>
+    );
+
+    expect(
+      await screen.findByText('No seats have changed hands since 2023')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Ōtāhuhu')).not.toBeInTheDocument();
+  });
+
   test('sorts by share of the vote, not raw votes', async () => {
     renderFlipped();
 

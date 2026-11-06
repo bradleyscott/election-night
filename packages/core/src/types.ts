@@ -46,12 +46,22 @@ export type WithSeats = {
   listSeats: number;
 };
 
+/**
+ * Who is ahead in a seat, if anyone.
+ *
+ * The names are null when the count cannot support a leader: before any vote
+ * has been cast, and when the top two are tied. A stable sort on an all-zero
+ * count returns the feed's own order, which is alphabetical by surname, so a
+ * non-null leader there would be an artefact of the candidate list rather than
+ * of the count. Consumers must treat null as "no leader yet", not as an
+ * independent candidate.
+ */
 export type WithLeaders = {
   leaders: {
-    leadingCandidate: string;
-    leadingCandidateParty: string | undefined;
-    secondCandidate: string;
-    secondCandidateParty: string | undefined;
+    leadingCandidate: string | null;
+    leadingCandidateParty: string | null;
+    secondCandidate: string | null;
+    secondCandidateParty: string | null;
     margin: number;
     marginPercent: number;
   };
