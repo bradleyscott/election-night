@@ -118,7 +118,11 @@ to it. Amend intentionally — the file is the rule.
   `WinPercentValue` everywhere. The seat panel's larger Playfair number is that
   component's `feature` variant, not a second style. Every table is framed:
   flush tables wear `TABLE_FRAME`, while the Parliament and electorate tables
-  sit inside their panel's border rather than adding a second one.
+  sit inside their panel's border rather than adding a second one. The
+  Parliament table is the only reorderable one, so its draggable rows carry
+  Material Design's six-dot `drag_indicator` grip in muted ink
+  (`DragGrip.tsx`) and a grab cursor: 8px wide, so the affordance never costs
+  the phone a column or a name's worth of width.
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

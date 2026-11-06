@@ -2,6 +2,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
 import { NUMERIC, NUMERIC_CELL, TR_ROW } from './Table.js';
+import { DragGrip } from './DragGrip.js';
 import { PartyDot } from './PartyDot.js';
 import type { PartyVoteResult } from '@election-night/core/types';
 
@@ -31,19 +32,25 @@ export function SortableRow({
       onMouseLeave={() => onHoveredPartyChange(null)}
       className={cn(
         TR_ROW,
+        'group cursor-grab active:cursor-grabbing',
         isHovered && !isDragging ? 'bg-muted/40' : 'hover:bg-muted/30',
         isDragging && 'opacity-50',
         isDropTarget && !isDragging && 'border-t-2 border-brand'
       )}
     >
       <td className="py-2 sm:py-3 pr-4 min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <PartyDot
-            color={partyColor(party.candidate)}
-            size="md"
-            className="sm:h-3 sm:w-3"
-          />
-          <span className="font-bold truncate min-w-0">{party.candidate}</span>
+        <div className="flex items-center gap-1 min-w-0">
+          <DragGrip />
+          <div className="flex items-center gap-2 min-w-0">
+            <PartyDot
+              color={partyColor(party.candidate)}
+              size="md"
+              className="sm:h-3 sm:w-3"
+            />
+            <span className="font-bold truncate min-w-0">
+              {party.candidate}
+            </span>
+          </div>
         </div>
       </td>
       <td className={cn('px-2 font-semibold', NUMERIC, NUMERIC_CELL)}>

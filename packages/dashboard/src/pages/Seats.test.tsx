@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Seats from './Seats.js';
 import { MockSocketProvider } from '../test/test-utils.js';
@@ -42,6 +42,33 @@ describe('Seats page', () => {
     expect(screen.getByText('25,000')).toBeInTheDocument();
     expect(screen.getByText('88.7%')).toBeInTheDocument();
     expect(screen.queryByText('95.0%')).not.toBeInTheDocument();
+  });
+
+  test('marks each reorderable party row with a drag grip, and only those', () => {
+    const results: ResultsPayload = {
+      ...mockResults,
+      partyVote: [
+        ...mockResults.partyVote,
+        {
+          candidate: 'Opportunity Party',
+          votes: 5000,
+          seats: 0,
+          electorateSeats: 0,
+          listSeats: 0,
+        },
+      ],
+    };
+    renderSeats(results);
+
+    expect(document.querySelectorAll('[data-drag-grip]')).toHaveLength(3);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /show all parties with votes/i })
+    );
+
+    // The extra row has votes but no seats, so it is not draggable and carries
+    // no grip — the grip is what says a row can be moved.
+    expect(document.querySelectorAll('[data-drag-grip]')).toHaveLength(3);
   });
 
   test('leaves Close Calls to its own page', () => {
