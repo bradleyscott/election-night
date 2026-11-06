@@ -186,6 +186,11 @@ describe('Parties page cut line', () => {
 
   test('sits between +0 and the first negative distance', () => {
     render(renderWithProvidersAndData(<Parties />, { results }));
+    // Electorate leaders are shown by default; the cut line still has to sit
+    // where the list's own distance crosses zero once they are switched off.
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /Show electorate leaders/ })
+    );
 
     expect(renderedRows()).toEqual([
       'BROWN, Sam',
@@ -196,11 +201,8 @@ describe('Parties page cut line', () => {
     ]);
   });
 
-  test('follows the electorate winners when they are shown', () => {
+  test('follows the electorate winners by default', () => {
     render(renderWithProvidersAndData(<Parties />, { results }));
-    fireEvent.click(
-      screen.getByRole('checkbox', { name: /Show electorate leaders/ })
-    );
 
     // Both winners are elected by right, so neither may fall below the line.
     expect(renderedRows()).toEqual([
