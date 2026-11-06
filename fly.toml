@@ -44,10 +44,10 @@ primary_region = "syd"
   DIST_DIR = "/app/packages/dashboard/dist"
   COLLECTOR_ENABLED = "true"
   ELECTION_YEAR = "2026"
-  # Every cycle asks the feed whether anything changed (If-Modified-Since: a
-  # 304 costs headers and no body), and a cycle where every seat 304s writes no
-  # snapshot and publishes nothing. One minute is affordable because of that;
-# it is not a per-minute download of 71 files.
+  # Every cycle asks each seat whether it changed (If-Modified-Since: a 304
+  # costs headers and no body), and a cycle that publishes nothing new writes no
+  # snapshot. One minute is affordable because of that; it is not a per-minute
+  # download of 71 files. See README "Election-night caveats".
   POLL_INTERVAL_MS = "60000"
   # Keep a day of snapshots; pruning runs on startup. Without it the volume
   # fills, SQLite starts failing every write with SQLITE_FULL, and the site
