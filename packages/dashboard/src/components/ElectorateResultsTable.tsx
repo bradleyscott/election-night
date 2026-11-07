@@ -12,10 +12,12 @@ import { WinPercentValue } from './WinPercentValue.js';
 import {
   Th,
   TH_CLASS,
+  TH_STICKY,
   TR_ROW,
   TR_ROW_HOVER,
   NUMERIC,
   NUMERIC_CELL,
+  TABLE_SCROLL,
   TABLE_TEXT_COMPACT,
 } from './Table.js';
 
@@ -93,13 +95,15 @@ export function ElectorateResultsTable({
     : result.leaders.leadingCandidate !== null;
 
   return (
-    <div className="overflow-x-auto">
+    <div className={TABLE_SCROLL}>
       <table className={cn('w-full', TABLE_TEXT_COMPACT)}>
         <thead>
-          <tr className="border-b">
+          <tr>
             {showPartyVote ? <Th>Party</Th> : <Th>Candidate</Th>}
             {!showPartyVote && (
-              <th className={cn(TH_CLASS, 'hidden px-2 sm:table-cell')}>
+              <th
+                className={cn(TH_CLASS, TH_STICKY, 'hidden px-2 sm:table-cell')}
+              >
                 Party
               </th>
             )}

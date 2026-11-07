@@ -10,6 +10,8 @@ import { partyColor } from '../lib/constants.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
 import {
   Th,
+  TH_PINNED,
+  TH_PINNED_MOVED,
   TR_ROW,
   TR_ROW_HOVER,
   TR_CLICKABLE,
@@ -18,6 +20,7 @@ import {
   PINNED,
   PINNED_MOVED,
   TABLE_FRAME,
+  TABLE_SCROLL,
   TABLE_TEXT,
 } from '../components/Table.js';
 import { cn } from '../lib/utils.js';
@@ -34,6 +37,48 @@ import { canonicalParty } from '@election-night/core/seat-probability';
 import type { ElectorateResult } from '@election-night/core/types';
 
 type FlippedSeat = { electorate: ElectorateResult; prior: PriorWinner };
+
+/**
+ * The margin and its share, folded under a candidate on a phone.
+ *
+ * It is the desktop cell's two lines at the phone's table scale: the figure
+ * takes the cell's own 15px in mono, and the share drops one step to the
+ * second-line 13px, the same relationship the wide table has (16px over 14px).
+ * The words that name the figure take that same second-line size in the label
+ * face, so the cell holds two sizes rather than three: it used to run an 11px
+ * label, a 14px figure and a 13px share, which left the count and its own share
+ * a single pixel apart and made the phrase look like fine print around a
+ * number. A 15px figure also keeps the fold level with the candidate's name
+ * above it, instead of reading as a footnote to it.
+ */
+function FoldedResult({
+  label,
+  value,
+  share,
+}: {
+  label: string;
+  value: number;
+  share: number;
+}) {
+  return (
+    <div className="mt-1 sm:hidden">
+      <div className="whitespace-nowrap leading-snug">
+        <span className="font-label text-[0.8125rem] font-normal text-muted-foreground">
+          {label}
+        </span>{' '}
+        <span className={NUMERIC}>{value.toLocaleString()}</span>
+      </div>
+      <div
+        className={cn(
+          'whitespace-nowrap text-[0.8125rem] text-muted-foreground',
+          NUMERIC
+        )}
+      >
+        {(share * 100).toFixed(1)}%
+      </div>
+    </div>
+  );
+}
 
 /** Rows per page, matching the Close Calls table. */
 const PAGE_SIZE = 10;
@@ -198,10 +243,7 @@ export default function Flipped() {
             </div>
 
             <div className="relative">
-              <div
-                ref={scrollRef}
-                className={cn('overflow-x-auto', TABLE_FRAME)}
-              >
+              <div ref={scrollRef} className={cn(TABLE_SCROLL, TABLE_FRAME)}>
                 <table
                   className={cn(
                     // Wider than the phone below `sm`, so the Win % column is
@@ -214,7 +256,7 @@ export default function Flipped() {
                   )}
                 >
                   <thead>
-                    <tr className="border-b border-border">
+                    <tr>
                       {/* Widths are fixed rather than left to the browser: with
                       auto layout the slack goes to whichever column has the
                       most text, and `Held` carries a third line (“· as Port
@@ -229,8 +271,8 @@ export default function Flipped() {
                         align="left"
                         className={cn(
                           'w-[26%] px-2 sm:w-[19%] sm:px-3',
-                          PINNED,
-                          scrolled && PINNED_MOVED
+                          TH_PINNED,
+                          scrolled && TH_PINNED_MOVED
                         )}
                       >
                         Electorate
@@ -324,30 +366,14 @@ export default function Flipped() {
                                 : ''}
                             </div>
                             {/* Below `sm` the two numeric columns are gone, so
-                              the pair they print folds into the comparisons.
-                              The figure keeps its own line under the words, so
-                              the comparison reads as a phrase rather than as
-                              two bare numbers — "won by" is what stops 2,392
-                              being taken for a vote count. The words are set in
-                              the label face at 11px and the figure at 14px in
-                              the mono face, which is what lets "won by 21,567"
-                              sit on one line in a column this narrow. The space
-                              between them belongs to the label too: a mono space
-                              is 8px wide and pushed the largest leads onto a
-                              second line. */}
-                            <div className={cn('mt-1 sm:hidden', NUMERIC)}>
-                              <div className="text-sm leading-snug">
-                                <span className="whitespace-nowrap font-label text-[0.6875rem] font-normal text-muted-foreground">
-                                  won by{' '}
-                                </span>
-                                <span className="whitespace-nowrap">
-                                  {winner.majority.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="whitespace-nowrap text-[0.8125rem] text-muted-foreground">
-                                {(winner.majorityPercent * 100).toFixed(1)}%
-                              </div>
-                            </div>
+                              the pair they print folds into the comparison,
+                              with the words that say which side it belongs to.
+                              FoldedResult owns the type scale. */}
+                            <FoldedResult
+                              label="won by"
+                              value={winner.majority}
+                              share={winner.majorityPercent}
+                            />
                           </td>
                           <td
                             className={cn(
@@ -377,19 +403,11 @@ export default function Flipped() {
                               two columns are read as one comparison — and the
                               words differ ("leads by" against "won by"), which
                               is what the two bare figures were missing. */}
-                            <div className={cn('mt-1 sm:hidden', NUMERIC)}>
-                              <div className="text-sm leading-snug">
-                                <span className="whitespace-nowrap font-label text-[0.6875rem] font-normal text-muted-foreground">
-                                  leads by{' '}
-                                </span>
-                                <span className="whitespace-nowrap">
-                                  {l.margin.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="whitespace-nowrap text-[0.8125rem] text-muted-foreground">
-                                {(l.marginPercent * 100).toFixed(1)}%
-                              </div>
-                            </div>
+                            <FoldedResult
+                              label="leads by"
+                              value={l.margin}
+                              share={l.marginPercent}
+                            />
                           </td>
                           <td
                             className={cn(

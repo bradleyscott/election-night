@@ -9,7 +9,14 @@ import { partyColor } from '../lib/constants.js';
 import { SortableRow } from './SortableRow.js';
 import { PartyDot } from './PartyDot.js';
 import type { PartyVoteResult } from '@election-night/core/types';
-import { Th, TR_ROW, NUMERIC, NUMERIC_CELL, TABLE_TEXT_LG } from './Table.js';
+import {
+  Th,
+  TR_ROW,
+  NUMERIC,
+  NUMERIC_CELL,
+  TABLE_SCROLL,
+  TABLE_TEXT_LG,
+} from './Table.js';
 
 const touchSensor = PointerSensor.configure({
   activationConstraints(event) {
@@ -58,10 +65,10 @@ export function ParliamentTable({
 
   return (
     <DragDropProvider onDragEnd={onDragEnd} sensors={[touchSensor]}>
-      <div className="overflow-x-auto">
+      <div className={TABLE_SCROLL}>
         <table className={cn('w-full', TABLE_TEXT_LG)}>
           <thead>
-            <tr className="border-b">
+            <tr>
               <Th className="pl-0 pr-4">Party</Th>
               <Th align="right" className="px-2">
                 Party votes

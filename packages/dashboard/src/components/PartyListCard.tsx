@@ -10,6 +10,7 @@ import {
   NUMERIC,
   NUMERIC_CELL,
   TABLE_FRAME,
+  TABLE_SCROLL,
   TABLE_TEXT,
 } from './Table.js';
 import type { PartyListResult } from '@election-night/core/types';
@@ -140,13 +141,13 @@ export function PartyListCard({
       )}
       style={wrapperStyle}
     >
-      <div className={cn('overflow-x-auto', TABLE_FRAME)}>
+      <div className={cn(TABLE_SCROLL, TABLE_FRAME)}>
         <table
           className={cn('w-full', TABLE_TEXT)}
           aria-label={`${party} party list`}
         >
           <thead>
-            <tr className="border-b">
+            <tr>
               {/* The list rank is the secondary of the two numbers: the cut is
                   read from `Rank` and `From Cut`, so below `sm` the List column
                   drops and the table fits a phone, as Electorate Races drops

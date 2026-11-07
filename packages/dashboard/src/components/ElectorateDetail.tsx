@@ -47,7 +47,11 @@ export function ElectorateDetail({
           facts disagree on one line instead of reconciling two panels. The
           seat's name and its Candidate/Party switch live in the page head, so
           the panel starts with the count rather than repeating the title. */}
-      <div className="border overflow-hidden">
+      {/* `overflow-clip` rather than `overflow-hidden`: the seat's count table
+          carries a sticky head, which would be positioned against this panel if
+          it were a scroll container. The panel still clips its band's hairlines
+          to the border. */}
+      <div className="border overflow-clip">
         {!showPartyVote && (
           <ElectorateCountBand
             result={result}

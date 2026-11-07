@@ -14,6 +14,9 @@ import { PageHead, PageWaiting } from '../components/Page.js';
 import {
   Th,
   TH_CLASS,
+  TH_STICKY,
+  TH_PINNED,
+  TH_PINNED_MOVED,
   TR_ROW,
   TR_ROW_HOVER,
   NUMERIC,
@@ -21,6 +24,7 @@ import {
   PINNED,
   PINNED_MOVED,
   TABLE_FRAME,
+  TABLE_SCROLL,
   TABLE_TEXT,
 } from '../components/Table.js';
 import { WinPercentValue } from '../components/WinPercentValue.js';
@@ -220,6 +224,7 @@ function AllCandidates({
       <th
         className={cn(
           TH_CLASS,
+          TH_STICKY,
           'cursor-pointer select-none py-2 transition-colors hover:text-foreground sm:py-3 px-3',
           className
         )}
@@ -248,10 +253,10 @@ function AllCandidates({
           cut column is the cue, and a caption that has to be read before the
           table is read is a worse trade than a column that looks cut off. */}
       <div className="relative">
-        <div ref={scrollRef} className={cn('overflow-x-auto', TABLE_FRAME)}>
+        <div ref={scrollRef} className={cn(TABLE_SCROLL, TABLE_FRAME)}>
           <table className={cn('w-full', TABLE_TEXT)}>
             <thead>
-              <tr className="border-b border-border">
+              <tr>
                 {/* Pinned below `sm`, where the table is wider than the phone:
                     the reader who swipes right to reach the chance keeps the
                     name in view, which is the only thing tying a number to a
@@ -261,7 +266,11 @@ function AllCandidates({
                     be a line through a table that has no reason for one. */}
                 <Header
                   column="name"
-                  className={cn(PINNED, 'text-left', scrolled && PINNED_MOVED)}
+                  className={cn(
+                    TH_PINNED,
+                    'text-left',
+                    scrolled && TH_PINNED_MOVED
+                  )}
                 >
                   Candidate
                 </Header>

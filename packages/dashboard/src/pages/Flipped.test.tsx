@@ -226,14 +226,24 @@ describe('Flipped page', () => {
       ['won by 2,311', '9.2%'],
       ['leads by 5,000', '10.0%'],
     ]);
-    // Mono and tabular on both lines: the figures are data, and the words that
-    // name them are in the label face, a step down.
-    expect(folds[0]).toHaveClass('font-mono');
-    expect(folds[0]).toHaveClass('tabular-nums');
-    expect(folds[0]?.querySelector('.font-label')).toHaveTextContent('won by');
-    expect(folds[1]?.querySelector('.font-label')).toHaveTextContent(
-      'leads by'
-    );
+    // Mono and tabular on both figures: they are data. The words that name them
+    // are labels, set one step down at the cell's second-line size, so the cell
+    // holds two sizes — the count at the table's own 15px and the share and
+    // label at 13px — rather than the 11/14/13 it used to run.
+    for (const fold of folds) {
+      const label = fold.querySelector('.font-label');
+      expect(label).toHaveTextContent(/won by|leads by/);
+      expect(label).toHaveClass('text-[0.8125rem]');
+
+      const [countLine, shareLine] = [...fold.children];
+      const count = countLine.querySelector('.font-mono');
+      expect(count).toHaveClass('font-mono', 'tabular-nums');
+      // The count keeps the cell's size rather than collapsing to `text-sm`:
+      // at 14px it sat one pixel above its own 13px share.
+      expect(count).not.toHaveClass('text-sm');
+      expect(shareLine).toHaveClass('font-mono', 'tabular-nums');
+      expect(shareLine).toHaveClass('text-[0.8125rem]');
+    }
   });
 
   test('a party renamed between cycles is not a seat changing hands', async () => {
@@ -444,6 +454,15 @@ describe('Flipped page', () => {
       .closest('tr')
       ?.querySelector('td');
     expect(firstCell).toHaveClass('sticky', 'left-0', 'sm:border-r-0');
+    // The sticky cell repeats the row's rule on itself: its opaque ground would
+    // otherwise paint over the row's collapsed border wherever the row is its
+    // own stacking context (the reveal animation's retained transform), which
+    // left whole batches of rows with no separator under the electorate. The
+    // last body row drops it, so the frame's bottom edge stays one hairline.
+    expect(firstCell).toHaveClass('border-b', 'border-border');
+    const bodyRows = screen.getByRole('table').querySelectorAll('tbody tr');
+    const lastRowCell = bodyRows.item(bodyRows.length - 1)?.querySelector('td');
+    expect(lastRowCell).toHaveClass('[tbody_tr:last-child_&]:border-b-0');
   });
 
   test('fades the edge only while there is more to reach', async () => {
