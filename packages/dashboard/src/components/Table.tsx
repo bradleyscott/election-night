@@ -81,9 +81,22 @@ export const TABLE_FRAME = 'border border-border';
  * passing underneath from showing through, and the hairline is where they go
  * under. Both are reset at `sm`, where nothing scrolls and a rule there would
  * be a line through a table that has no reason for one.
+ *
+ * The bottom border repeats the row's rule on the cell itself. A row carrying a
+ * CSS transform (the reveal animation's `translateY`, retained by
+ * `animation-fill-mode: forwards`) becomes its own stacking context, and the
+ * pinned cell's opaque `bg-background` then paints over the row's border where
+ * the two overlap — so the first column lost its separator while every other
+ * column kept one. A cell's own border paints over its own background, so the
+ * rule survives whichever stacking context the row creates. The last body row
+ * drops it, matching `TR_ROW`'s `last:border-0`, so the frame's bottom edge
+ * stays a single hairline.
  */
 export const PINNED =
-  'sticky left-0 z-10 border-r border-border bg-background sm:border-r-0';
+  'sticky left-0 z-10 border-r border-b border-border bg-background [tbody_tr:last-child_&]:border-b-0 sm:border-r-0';
+
+const PINNED_EDGE =
+  "after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:translate-x-full after:bg-gradient-to-r after:from-background after:to-transparent after:content-[''] sm:after:hidden";
 
 /**
  * The same column once the table has actually moved: a soft shadow on its right
@@ -91,8 +104,57 @@ export const PINNED =
  * fade the passing cell reads as text with its first letters cut off rather
  * than as something travelling underneath.
  */
-export const PINNED_MOVED =
-  "shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:translate-x-full after:bg-gradient-to-r after:from-background after:to-transparent after:content-[''] sm:after:hidden";
+export const PINNED_MOVED = `shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)] ${PINNED_EDGE}`;
+
+/**
+ * The scroller every data table sits in.
+ *
+ * `overflow-x-auto` alone is what a sideways table needs, but it also computes
+ * `overflow-y: auto`, which makes the box a scroll container on both axes — and
+ * a sticky header inside it is then positioned against that box rather than the
+ * page, so it scrolls away instead of sticking. `overflow-y: clip` leaves the
+ * vertical axis to the page while the table still scrolls horizontally. Do not
+ * "tidy" one of these two classes away: the head stops sticking without it.
+ */
+export const TABLE_SCROLL = 'overflow-x-auto overflow-y-clip';
+
+/**
+ * A header cell that stays under the masthead while the page scrolls.
+ *
+ * `top` is the masthead's own height, published as `--masthead-height` by
+ * `Layout`: the bar is 56px on a phone and ~93px from `sm` up, because the
+ * dateline is hidden below `sm`, so a single offset would either leave a gap or
+ * tuck the head under the bar. Measuring it also survives the mobile menu and
+ * the live label changing width.
+ *
+ * The bottom hairline is an inset shadow rather than the row's `border-b`.
+ * With `border-collapse` the table paints the collapsed rule in table
+ * coordinates, so it stays behind when the head sticks; a shadow is drawn with
+ * the cell and travels with it.
+ *
+ * Every table that can scroll sideways sits in `TABLE_SCROLL` for this. A
+ * scroll container on the vertical axis would own the sticky cells — a sticky
+ * box never escapes an ancestor whose overflow is `auto` — while `clip` still
+ * scrolls the table horizontally. Change one without the other and the head
+ * silently stops sticking.
+ */
+export const TH_STICKY =
+  'sticky top-[var(--masthead-height,0px)] z-20 bg-background shadow-[inset_0_-1px_0_hsl(var(--border))]';
+
+/**
+ * A sticky head cell that also freezes its column while the table scrolls
+ * sideways below `sm`. It is `PINNED` for a head: the same paper ground and
+ * hairline, but a layer above the other sticky cells (20) instead of the body
+ * cells' own layer (10), because a header must never slide under a header.
+ */
+export const TH_PINNED =
+  'left-0 z-30 border-r border-border bg-background sm:border-r-0';
+
+/**
+ * The same edge `PINNED_MOVED` draws, with the head's bottom rule kept: the two
+ * are one `box-shadow`, so the moved header cannot lose its hairline.
+ */
+export const TH_PINNED_MOVED = `shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35),inset_0_-1px_0_hsl(var(--border))] ${PINNED_EDGE}`;
 
 /**
  * A header cell for the tables that use the standard box. `align` and every
@@ -108,6 +170,7 @@ export function Th({
   return (
     <th
       className={cn(
+        TH_STICKY,
         TH_CLASS,
         'px-3 py-2 sm:py-3',
         align === 'right' ? 'text-right' : 'text-left',

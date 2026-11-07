@@ -123,14 +123,27 @@ to it. Amend intentionally — the file is the rule.
   Material Design's six-dot `drag_indicator` grip in muted ink
   (`DragGrip.tsx`) and a grab cursor: 8px wide, so the affordance never costs
   the phone a column or a name's worth of width.
+- **Table heads stick under the masthead** — every head cell is `TH_STICKY`,
+  parked at `top: var(--masthead-height)`, which `Layout` measures and publishes
+  so the head sits against the 56px phone bar and the ~93px bar above `sm`
+  rather than under either. Two pieces are load-bearing. The bottom hairline is
+  an inset shadow, not the row's `border-b`, because `border-collapse` paints a
+  collapsed rule in table coordinates and it stays behind when the head sticks.
+  And every sideways scroller is `TABLE_SCROLL` (`overflow-x-auto
+overflow-y-clip`): an `auto` vertical axis would make the scroller the sticky
+  cells' reference and the head would scroll away, while `clip` leaves the
+  vertical axis to the page. `TH_PINNED` / `TH_PINNED_MOVED` are the frozen
+  first column's head — one layer above the other heads so a header never
+  slides under a header.
 - **A folded figure keeps the words that name it** — where a phone folds a
   numeric column into its neighbour (Flipped's `won by 2,392` over `9.2%`, and
-  `leads by 8,412` in the next cell), the words are set in the 0.6875rem label
-  face the party line under a candidate uses, the figure at 0.875rem, and the
-  share at the phone's 0.8125rem beneath. That is a step down from the cell so
-  the phrase fits a column the desktop table gave to the number alone; it is
-  not permission to shrink table body type. Two bare figures side by side read
-  as one quantity, so the words stay.
+  `leads by 8,412` in the next cell), the words are set in the label face at the
+  cell's second-line 0.8125rem, the figure takes the cell's own 0.9375rem in
+  mono, and the share sits at 0.8125rem beneath. That gives the cell two sizes,
+  the same step the desktop cell has (1rem over 0.875rem). An 11px label over a
+  14px figure over a 13px share left the count and its own share a pixel apart
+  and read as fine print around a number. Two bare figures side by side read as
+  one quantity, so the words stay.
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

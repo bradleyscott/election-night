@@ -172,6 +172,7 @@ function Dateline() {
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
   const {
     rowRef,
     linkRef,
@@ -179,6 +180,41 @@ export default function Layout({ children }: { children: ReactNode }) {
     probeRef,
     fits: wordmarkFits,
   } = useWordmarkFits();
+
+  // Publish the masthead's height so a table head can park directly beneath it.
+  // It is measured rather than hardcoded: the dateline is hidden below `sm`, so
+  // the bar is 56px on a phone and ~93px above it, and the measured value also
+  // follows the mobile menu opening. The whole `<header>` is the right element
+  // to measure because its 2px rule is part of the space a sticky table head has
+  // to clear, and the mobile menu is part of the masthead while it is open.
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        '--masthead-height',
+        `${header.getBoundingClientRect().height}px`
+      );
+    };
+    publish();
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => publish());
+    observer?.observe(header, { box: 'border-box' });
+    window.addEventListener('resize', publish);
+    // The stylesheet is linked at the end of the built document, so the first
+    // measurement can land before the masthead's 2px rule has applied. The
+    // observer watches the border box for that reason: a border change moves
+    // the edge a sticky head must clear but leaves the content box alone, so a
+    // default (content-box) observation would never see it.
+    window.addEventListener('load', publish);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', publish);
+      window.removeEventListener('load', publish);
+    };
+  }, []);
 
   // Close Calls is an ordinary page, so its entry is active like any other and
   // does not need the hash special-casing it had while it was a section.
@@ -195,7 +231,10 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b-2 border-foreground">
+      <header
+        ref={headerRef}
+        className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b-2 border-foreground"
+      >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <Dateline />
 
