@@ -59,4 +59,26 @@ describe('collector health server', () => {
     const res = await fetch(`${baseUrl()}/nope`);
     expect(res.status).toBe(404);
   });
+
+  it('exits the process when the listener fails, so the platform restarts it', async () => {
+    // A listener that dies used to leave the scrape loop and Socket.io
+    // publishing while `/history/*` disappeared, which froze every chart.
+    const blocker = http.createServer();
+    await new Promise<void>((resolve) => blocker.listen(0, '0.0.0.0', resolve));
+    const port = (blocker.address() as AddressInfo).port;
+
+    const exited = new Promise<number | undefined>((resolve) => {
+      vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+        resolve(code);
+      }) as never);
+    });
+
+    try {
+      server = startHealthServer(port);
+      await expect(exited).resolves.toBe(1);
+    } finally {
+      vi.restoreAllMocks();
+      await new Promise<void>((resolve) => blocker.close(() => resolve()));
+    }
+  });
 });

@@ -1,4 +1,5 @@
 import { useApi } from './useApi.js';
+import { useSocket } from '../context/SocketProvider.js';
 import type {
   ElectorateHistoryPoint,
   PartyVoteHistoryPoint,
@@ -7,18 +8,33 @@ import type {
 
 const API_BASE = '/api/history';
 
+/**
+ * History is served by the collector, not by the socket payload, so it does
+ * not move when a results update arrives. Key the request to
+ * `resultsUpdatedAt` so an open chart catches up with the count instead of
+ * freezing on the snapshot it happened to load (the Mt Roskill chart showed
+ * Wood ahead while the table beside it had Cheung ahead).
+ */
+function useResultsRefreshKey(): number | null {
+  return useSocket().resultsUpdatedAt?.getTime() ?? null;
+}
+
 export function useElectorateHistory(electorateName: string | null) {
+  const refreshKey = useResultsRefreshKey();
   const { data, loading, error, refetch } = useApi<ElectorateHistoryPoint[]>(
     electorateName
       ? `${API_BASE}/electorate/${encodeURIComponent(electorateName)}`
-      : null
+      : null,
+    refreshKey
   );
   return { data, loading, error, refetch };
 }
 
 export function usePartyVoteHistory() {
+  const refreshKey = useResultsRefreshKey();
   const { data, loading, error, refetch } = useApi<PartyVoteHistoryPoint[]>(
-    `${API_BASE}/party-votes`
+    `${API_BASE}/party-votes`,
+    refreshKey
   );
   return { data, loading, error, refetch };
 }
