@@ -62,6 +62,25 @@ export const collectorMetricsReachable = new Gauge({
   registers: [register],
 });
 
+/**
+ * The dashboard's own liveness probe of the collector's HTTP surface.
+ *
+ * A different question from `election_collector_metrics_reachable` (which is
+ * only updated when Fly scrapes `/metrics`): this probe runs every 10s and its
+ * failure count is what triggers the watchdog that restarts the machine.
+ */
+export const collectorHealthProbeFailuresTotal = new Counter({
+  name: 'election_collector_health_probe_failures_total',
+  help: 'Failed probes of the collector /health endpoint by the dashboard watchdog',
+  registers: [register],
+});
+
+export const collectorHealthProbeLastSuccess = new Gauge({
+  name: 'election_collector_health_probe_last_success_timestamp_seconds',
+  help: 'Unix timestamp of the last successful collector /health probe',
+  registers: [register],
+});
+
 export const socketMessagesTotal = new Counter({
   name: 'election_socket_messages_total',
   help: 'Socket.io messages handled by the dashboard server',
@@ -140,6 +159,7 @@ export function setBuildInfo(version: string, revision: string): void {
 const startedAtSeconds = Date.now() / 1000;
 lastScrapeTimestampSeconds.set(startedAtSeconds);
 collectorMetricsLastReceived.set(startedAtSeconds);
+collectorHealthProbeLastSuccess.set(startedAtSeconds);
 // 0 until the first successful merge, so an unreachable collector is visible
 // immediately rather than as an absent series.
 collectorMetricsReachable.set(0);

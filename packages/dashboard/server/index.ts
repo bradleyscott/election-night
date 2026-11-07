@@ -25,6 +25,11 @@ import { canonicalRedirect } from './redirect.js';
 import { createStaticHandler } from './static.js';
 import { serveApi } from './api.js';
 import {
+  startCollectorWatchdog,
+  watchdogEnabledFromEnv,
+  type CollectorWatchdog,
+} from './collector-watchdog.js';
+import {
   addFeedEvents,
   buildFeedEvents,
   currentFeedEvents,
@@ -92,6 +97,15 @@ function loadCachedResults() {
 const historySource: HistorySource = createHistorySource({
   baseUrl: dashboardServerConfig.historyUpstream,
 });
+
+/**
+ * The collector's HTTP surface can stop answering while its scrape loop and
+ * Socket.io publishing continue. The dashboard's own `/health` cannot see
+ * that, so this process probes the collector and exits when it stays wedged;
+ * the entrypoint treats either process dying as fatal and the platform
+ * restarts the machine. Started below, once this server is listening.
+ */
+let watchdog: CollectorWatchdog | null = null;
 
 const serveStatic = createStaticHandler(DIST_DIR);
 
@@ -304,6 +318,15 @@ server.listen(PORT, () => {
   log.info(`Socket.io server running on http://localhost:${PORT}`);
   loadCachedResults();
   loadFeedEvents();
+
+  if (watchdogEnabledFromEnv()) {
+    watchdog = startCollectorWatchdog({
+      baseUrl: dashboardServerConfig.historyUpstream,
+    });
+    log.info(
+      `Collector health watchdog enabled: ${dashboardServerConfig.historyUpstream}/health`
+    );
+  }
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
@@ -314,6 +337,8 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 }
 
 export function stopDashboardServer(): void {
+  watchdog?.stop();
+  watchdog = null;
   io.close();
   server.close();
 }

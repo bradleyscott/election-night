@@ -22,21 +22,23 @@ Two registries, so no series has two sources.
 **Dashboard server** — `packages/dashboard/server/metrics.ts`, served on
 `:3456` (the single Fly scrape target):
 
-| Metric                                                       | Type      | Labels                           |
-| ------------------------------------------------------------ | --------- | -------------------------------- |
-| `election_websocket_clients_connected`                       | Gauge     | —                                |
-| `election_feed_events_total`                                 | Counter   | `type`                           |
-| `election_feed_events_stored`                                | Gauge     | —                                |
-| `election_last_scrape_timestamp_seconds`                     | Gauge     | —                                |
-| `election_collector_metrics_last_received_timestamp_seconds` | Gauge     | —                                |
-| `election_collector_metrics_reachable`                       | Gauge     | —                                |
-| `election_socket_messages_total`                             | Counter   | `direction`, `event`             |
-| `election_http_requests_total`                               | Counter   | `method`, `route`, `status_code` |
-| `election_http_request_duration_seconds`                     | Histogram | `method`, `route`                |
-| `election_history_upstream_requests_total`                   | Counter   | `route`, `outcome`               |
-| `election_history_upstream_request_duration_seconds`         | Histogram | `route`                          |
-| `election_history_cache_events_total`                        | Counter   | `result`                         |
-| `election_build_info`                                        | Gauge     | `version`, `revision`            |
+| Metric                                                           | Type      | Labels                           |
+| ---------------------------------------------------------------- | --------- | -------------------------------- |
+| `election_websocket_clients_connected`                           | Gauge     | —                                |
+| `election_feed_events_total`                                     | Counter   | `type`                           |
+| `election_feed_events_stored`                                    | Gauge     | —                                |
+| `election_last_scrape_timestamp_seconds`                         | Gauge     | —                                |
+| `election_collector_metrics_last_received_timestamp_seconds`     | Gauge     | —                                |
+| `election_collector_metrics_reachable`                           | Gauge     | —                                |
+| `election_collector_health_probe_failures_total`                 | Counter   | —                                |
+| `election_collector_health_probe_last_success_timestamp_seconds` | Gauge     | —                                |
+| `election_socket_messages_total`                                 | Counter   | `direction`, `event`             |
+| `election_http_requests_total`                                   | Counter   | `method`, `route`, `status_code` |
+| `election_http_request_duration_seconds`                         | Histogram | `method`, `route`                |
+| `election_history_upstream_requests_total`                       | Counter   | `route`, `outcome`               |
+| `election_history_upstream_request_duration_seconds`             | Histogram | `route`                          |
+| `election_history_cache_events_total`                            | Counter   | `result`                         |
+| `election_build_info`                                            | Gauge     | `version`, `revision`            |
 
 **Collector** — `packages/collector/src/metrics.ts`, served on `:3459` and
 merged into the server's `/metrics` (see below):
@@ -106,6 +108,20 @@ The collector also publishes each event over Socket.io, but only as a
 best-effort heartbeat: the server records receipt as
 `election_collector_metrics_last_received_timestamp_seconds` and does **not**
 re-register the series.
+
+A heartbeat is not enough to prove the collector's HTTP surface is alive. It can
+keep scraping, writing snapshots and publishing over Socket.io while `/health`,
+`/metrics` and `/history/*` stop answering — the listener stays bound and
+`server.on('error')` never fires. The dashboard therefore probes the
+collector's `/health` every 10s (`packages/dashboard/server/collector-watchdog.ts`).
+`/health` is deliberate: it is synchronous and never touches SQLite. After six
+consecutive failures (following a two-minute startup grace) the dashboard exits;
+`docker/entrypoint.sh` treats either process dying as fatal, so the machine
+restarts. `COLLECTOR_WATCHDOG=off` disables the probe; it otherwise runs only
+when `NODE_ENV=production` and `COLLECTOR_ENABLED=true` (the combined
+deployment). `election_collector_health_probe_failures_total` and
+`election_collector_health_probe_last_success_timestamp_seconds` are the
+probe's own signals, kept separate from the scrape-driven metrics above.
 
 ## 2. Best practices this assessment uses
 
@@ -316,6 +332,7 @@ count is supposed to move.
 | Results not moving during count   | `time() - election_last_scrape_timestamp_seconds > 15 * 60` (election night only, from polls close until the count is final)   | 15m | warning  |
 | Collector disconnected            | `election_collector_socket_connected == 0`                                                                                     | 5m  | critical |
 | Collector metrics merge failing   | `election_collector_metrics_reachable == 0`                                                                                    | 5m  | warning  |
+| Collector HTTP surface wedged     | `time() - election_collector_health_probe_last_success_timestamp_seconds > 60`                                                 | 2m  | critical |
 | Electorate fetch error ratio high | `sum(rate(election_scrape_electorates_total{outcome="error"}[10m])) / sum(rate(election_scrape_electorates_total[10m])) > 0.1` | 10m | warning  |
 | Data going stale (serving cache)  | `sum(rate(election_scrape_electorates_total{outcome="cached"}[10m])) > 0`                                                      | 15m | warning  |
 | Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode="reading"}[15m]))) > 60`              | 15m | warning  |
