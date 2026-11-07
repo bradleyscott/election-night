@@ -20,7 +20,30 @@ import {
   serverMetrics,
 } from './metrics.js';
 
-const COLLECTOR_TIMEOUT_MS = 3_000;
+/**
+ * How long the collector gets to answer `GET /metrics`.
+ *
+ * A loopback exposition normally takes a few milliseconds, so this is not a
+ * latency budget — it is a liveness budget. The collector serves its metrics
+ * from the same single-threaded event loop it writes SQLite on, so a scrape can
+ * legitimately be delayed by a snapshot write, a retention sweep
+ * (`pruneSnapshots` + `incremental_vacuum`) or parsing every changed seat. Three
+ * seconds was short enough that a healthy collector could miss it, and a missed
+ * fetch used to erase every collector-owned series from that scrape.
+ */
+const COLLECTOR_TIMEOUT_MS = 10_000;
+
+/**
+ * The last exposition the collector answered with, used only when the current
+ * fetch fails.
+ *
+ * A single slow scrape must not punch a hole in every collector-owned panel:
+ * the collector is usually still alive and the next scrape will succeed. The
+ * cached body keeps the series continuous while `collectorMetricsReachable`
+ * drops to 0 and the heartbeat age grows, so a real outage is still visible and
+ * alertable rather than being disguised as absent data.
+ */
+let lastCollectorText: string | null = null;
 
 export async function collectMetricsBody(): Promise<string> {
   const url = dashboardServerConfig.collectorMetricsUrl;
@@ -32,21 +55,24 @@ export async function collectMetricsBody(): Promise<string> {
     return serverMetrics();
   }
 
-  let collectorText: string | null = null;
+  // Start from the fallback: a failed fetch leaves this in place.
+  let collectorText: string | null = lastCollectorText;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), COLLECTOR_TIMEOUT_MS);
+  const startedAt = performance.now();
   try {
     const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) throw new Error(`responded ${res.status}`);
     collectorText = await res.text();
+    lastCollectorText = collectorText;
     collectorMetricsReachable.set(1);
   } catch (err) {
-    // Serve the server's own metrics rather than failing the whole scrape.
     collectorMetricsReachable.set(0);
-    log.debug(
-      `Collector metrics not merged from ${url}: ${
+    const elapsedMs = Math.round(performance.now() - startedAt);
+    log.warn(
+      `Collector metrics not merged from ${url} after ${elapsedMs}ms: ${
         err instanceof Error ? err.message : String(err)
-      }`
+      }${collectorText ? '; serving the last successful exposition' : ''}`
     );
   } finally {
     clearTimeout(timer);
