@@ -204,19 +204,16 @@ describe('Flipped page', () => {
     ).not.toBeInTheDocument();
   });
 
-  test('folds the figures as a pair, not as a sentence', async () => {
+  test('folds the figures into their own column, with the words that name them', async () => {
     renderFlipped();
 
     await screen.findByText('Ōtāhuhu');
     // Below `sm` the margin and the lead columns are gone, so each comparison
-    // cell prints its own pair. It is the desktop cell's shape — the figure,
-    // then its share beneath — because a sentence cannot fit: "majority 2,311
-    // · 9.2%" is twice the column's width and wrapped to three lines, leaving
-    // the middle dot stranded at the end of one. The wording lives in the
-    // header instead.
-    expect(screen.queryByText(/^majority /)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^leads /)).not.toBeInTheDocument();
-
+    // cell carries its own figure and share under the words that say which side
+    // it belongs to: two bare numbers side by side read as one quantity, and the
+    // header above cannot tell the reader which is which while they are on the
+    // second line. The words are dropped above `sm`, where the columns are
+    // labelled.
     const row = screen.getByRole('button', {
       name: 'View details for Ōtāhuhu',
     });
@@ -226,13 +223,17 @@ describe('Flipped page', () => {
     expect(
       folds.map((fold) => [...fold.children].map((line) => line.textContent))
     ).toEqual([
-      ['2,311', '9.2%'],
-      ['5,000', '10.0%'],
+      ['won by 2,311', '9.2%'],
+      ['leads by 5,000', '10.0%'],
     ]);
     // Mono and tabular on both lines: the figures are data, and the words that
-    // used to sit around them in the same face were not.
+    // name them are in the label face, a step down.
     expect(folds[0]).toHaveClass('font-mono');
     expect(folds[0]).toHaveClass('tabular-nums');
+    expect(folds[0]?.querySelector('.font-label')).toHaveTextContent('won by');
+    expect(folds[1]?.querySelector('.font-label')).toHaveTextContent(
+      'leads by'
+    );
   });
 
   test('a party renamed between cycles is not a seat changing hands', async () => {
@@ -415,16 +416,76 @@ describe('Flipped page', () => {
     expect(screen.getAllByText(/^\d+%$/).length).toBeGreaterThan(0);
 
     // The qualifier columns drop out on narrow screens so the four columns
-    // that make the comparison stay readable.
-    expect(
-      screen
-        .getByRole('button', { name: /how we work out win %/i })
-        .closest('th')
-    ).toHaveClass('hidden', 'sm:table-cell');
+    // that make the comparison stay readable. The chance is the exception: it
+    // stays, at the far end of a sideways scroll.
+    const winHeader = screen
+      .getByRole('button', { name: /how we work out win %/i })
+      .closest('th');
+    expect(winHeader).not.toHaveClass('hidden');
     // There is no MoE column left to qualify.
     expect(screen.queryByText('MoE')).toBeNull();
     expect(screen.getByText('Lead')).toHaveClass('hidden', 'sm:table-cell');
     expect(screen.getByText('Held 2023')).not.toHaveClass('hidden');
+  });
+
+  test('pins the electorate while the table scrolls to the chance', async () => {
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    // The table is wider than the phone below `sm`, so the reader swipes to the
+    // chance. The electorate is the one thing that must not slide away; the
+    // paper ground and hairline stop the Held cell showing through underneath.
+    const seatHeader = screen.getByText('Electorate').closest('th');
+    expect(seatHeader).toHaveClass('sticky', 'left-0', 'bg-background');
+    expect(seatHeader).toHaveClass('border-r', 'sm:border-r-0');
+
+    const firstCell = screen
+      .getByText('Ōtāhuhu')
+      .closest('tr')
+      ?.querySelector('td');
+    expect(firstCell).toHaveClass('sticky', 'left-0', 'sm:border-r-0');
+  });
+
+  test('fades the edge only while there is more to reach', async () => {
+    renderFlipped();
+
+    await screen.findByText('Ōtāhuhu');
+    // No caption above the table telling the reader to swipe: the fade over the
+    // cut column is the cue.
+    expect(screen.queryByText(/Swipe/)).toBeNull();
+
+    const scroller = screen.getByRole('table').closest('div') as HTMLElement;
+    const fade = () =>
+      scroller.parentElement?.querySelector('.bg-gradient-to-l');
+
+    // jsdom has no layout: give the frame a width and the table a longer one,
+    // which is the phone's situation, then scroll to the end of it.
+    Object.defineProperty(scroller, 'clientWidth', {
+      configurable: true,
+      value: 300,
+    });
+    Object.defineProperty(scroller, 'scrollWidth', {
+      configurable: true,
+      value: 500,
+    });
+
+    const pinned = () =>
+      screen.getByText('Ōtāhuhu').closest('tr')?.querySelector('td');
+
+    fireEvent.scroll(scroller);
+    expect(fade()).not.toBeNull();
+    expect(pinned()).not.toHaveClass(
+      'shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)]'
+    );
+
+    scroller.scrollLeft = 200;
+    fireEvent.scroll(scroller);
+    expect(fade()).toBeNull();
+    // The pinned column is raised once it has something to be raised over, so
+    // the Held cell passing under it reads as depth and not as clipped text.
+    expect(pinned()?.className).toContain(
+      'shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)]'
+    );
   });
 
   test('counts flips against the seats that are comparable', async () => {

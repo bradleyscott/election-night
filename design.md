@@ -123,6 +123,14 @@ to it. Amend intentionally — the file is the rule.
   Material Design's six-dot `drag_indicator` grip in muted ink
   (`DragGrip.tsx`) and a grab cursor: 8px wide, so the affordance never costs
   the phone a column or a name's worth of width.
+- **A folded figure keeps the words that name it** — where a phone folds a
+  numeric column into its neighbour (Flipped's `won by 2,392` over `9.2%`, and
+  `leads by 8,412` in the next cell), the words are set in the 0.6875rem label
+  face the party line under a candidate uses, the figure at 0.875rem, and the
+  share at the phone's 0.8125rem beneath. That is a step down from the cell so
+  the phrase fits a column the desktop table gave to the number alone; it is
+  not permission to shrink table body type. Two bare figures side by side read
+  as one quantity, so the words stay.
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

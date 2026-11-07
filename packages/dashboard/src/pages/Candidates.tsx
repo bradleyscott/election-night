@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
@@ -18,27 +18,13 @@ import {
   TR_ROW_HOVER,
   NUMERIC,
   NUMERIC_CELL,
+  PINNED,
+  PINNED_MOVED,
   TABLE_FRAME,
   TABLE_TEXT,
 } from '../components/Table.js';
 import { WinPercentValue } from '../components/WinPercentValue.js';
-
-/**
- * The candidate column, frozen below `sm` while the table scrolls to the Win
- * chance column: the paper ground stops the Seat cell showing through, and the
- * hairline is where it goes under. Both are reset at `sm`, where all four
- * columns fit and a rule there would be a line through a table that has no
- * reason for one.
- *
- * `PINNED_MOVED` is the same column once the table has actually moved: a soft
- * shadow on its right edge, and a fade bleeding 24px over the seat column that
- * is sliding under it — without the fade the passing cell reads as text with
- * its first letters cut off rather than as something travelling underneath.
- */
-const PINNED =
-  'sticky left-0 z-10 border-r border-border bg-background sm:border-r-0';
-const PINNED_MOVED =
-  "shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:translate-x-full after:bg-gradient-to-r after:from-background after:to-transparent after:content-[''] sm:after:hidden";
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow.js';
 
 /**
  * What the Win chance column means for a seat: the chance this candidate holds
@@ -113,12 +99,6 @@ function AllCandidates({
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Where the table has got to: `moreRight` draws the fade that says a column
-  // is still over there, `scrolled` raises the pinned column so the Seat cell
-  // sliding underneath reads as depth rather than as clipped text. Both are
-  // false on every wider screen, where the four columns fit and nothing moves.
-  const [moreRight, setMoreRight] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
 
   type CandidateRow = {
     name: string;
@@ -204,28 +184,14 @@ function AllCandidates({
 
   /**
    * Below `sm` the table scrolls sideways to reach the Win chance column, and
-   * the reader has to be told something is over there. The fade on the right
-   * edge says "more" while more exists, and has to disappear at the end or it
-   * would dim the column the reader has just arrived at — so it is measured
-   * rather than drawn once: on mount, on scroll and on resize (a rotation or a
-   * window drag changes how much fits). `candidates.length` redraws the table
-   * under the search field and the sort buttons, which changes its width.
+   * the reader has to be told something is over there. `candidates.length`
+   * redraws the table under the search field and the sort buttons, which
+   * changes its width.
    */
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const measure = () => {
-      setMoreRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-      setScrolled(el.scrollLeft > 1);
-    };
-    measure();
-    el.addEventListener('scroll', measure, { passive: true });
-    window.addEventListener('resize', measure);
-    return () => {
-      el.removeEventListener('scroll', measure);
-      window.removeEventListener('resize', measure);
-    };
-  }, [candidates.length]);
+  const { moreRight, scrolled } = useHorizontalOverflow(
+    scrollRef,
+    candidates.length
+  );
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
