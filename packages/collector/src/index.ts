@@ -24,6 +24,7 @@ import {
   sampleDiskUsage,
 } from './metrics.js';
 import { describeSweep, effectiveKeepHours, shouldSweep } from './retention.js';
+import { nextPollDelay } from './poll-delay.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
@@ -370,11 +371,11 @@ async function loopRun(): Promise<void> {
     log.warn('Prior-year warm-up failed', err);
   });
   retentionSweep();
-  // ±20% on the tick: a machine hitting the feed at exactly POLL_INTERVAL_MS
-  // forever is a metronome in front of the feed's bot scoring, however few
-  // bytes each request costs.
-  const nextDelay = Math.round(POLL_INTERVAL_MS * (0.8 + Math.random() * 0.4));
-  setTimeout(loopRun, nextDelay);
+  // ±20% on the tick (capped at five minutes each way), so a machine hitting the
+  // feed at exactly POLL_INTERVAL_MS forever is not a metronome in front of the
+  // feed's bot scoring — see `poll-delay.ts` for why the cap matters at a daily
+  // cadence.
+  setTimeout(loopRun, nextPollDelay(POLL_INTERVAL_MS));
 }
 
 process.on('unhandledRejection', (reason) => {

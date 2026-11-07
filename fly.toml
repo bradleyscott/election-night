@@ -44,11 +44,19 @@ primary_region = "syd"
   DIST_DIR = "/app/packages/dashboard/dist"
   COLLECTOR_ENABLED = "true"
   ELECTION_YEAR = "2026"
-  # Every cycle asks each seat whether it changed (If-Modified-Since: a 304
-  # costs headers and no body), and a cycle that publishes nothing new writes no
-  # snapshot. One minute is affordable because of that; it is not a per-minute
-  # download of 71 files. See README "Election-night caveats".
-  POLL_INTERVAL_MS = "60000"
+  # Quiet-period cadence: one sweep a day. The preliminary count finished on the
+  # night (every seat counted) and the next change to the feed is the official
+  # count, declared 20 days after election day (27 Nov 2026) — until then this is
+  # a static asset. Each cycle asks every seat whether it changed
+  # (If-Modified-Since: a 304 costs headers and no body) and a cycle that
+  # publishes nothing new writes no snapshot, so a day here costs 71 conditional
+  # requests rather than ~4,300 an hour.
+  #
+  # Restore 60000 (and 30000 for the final hour) in this file before the official
+  # count is declared — a commit is what applies it, because `[env]` here
+  # outranks an ad-hoc `fly machine update --env` on the next deploy. See README
+  # "Machine size and poll cadence".
+  POLL_INTERVAL_MS = "86400000"
   # Keep a day of snapshots; pruning runs on startup. Without it the volume
   # fills, SQLite starts failing every write with SQLITE_FULL, and the site
   # serves nothing (see docs/observability.md §6 for the alerts).
@@ -64,16 +72,29 @@ primary_region = "syd"
   # (previews, .fly.dev, local dev) means no redirect.
   CANONICAL_HOST = "election-night.live"
 
-# Sized for election night: the dashboard holds every websocket in one process,
-# so 1 GB is headroom for the connections alongside the collector, and the
-# second vCPU is CPU quota rather than a second Node thread — Node runs one
-# thread, but a shared vCPU is throttled, and the extra quota is what stops an
-# 82 KB broadcast to every socket from stretching the event loop.
+# 512 MB, one shared vCPU (~$3.69/month) — a quiet-period size, one step up from
+# Fly's 256 MB floor for the process that also co-locates the collector and its
+# SQLite handle next to the dashboard. The preliminary count is finished and the
+# next thing to publish is the official count, so this only has to hold the
+# dashboard, the collector's idle loop and whatever browsers are connected.
+#
+# Before the official count is declared, restore the election-night sizing here
+# — 1 GB and two shared vCPUs:
+#   [[vm]]
+#     memory = "1gb"
+#     cpu_kind = "shared"
+#     cpus = 2
+#
+# Why those numbers: the dashboard holds every websocket in one process, so the
+# memory is headroom for the connections alongside the collector, and the second
+# vCPU is CPU quota rather than a second Node thread — Node runs one thread, but
+# a shared vCPU is throttled, and the extra quota is what stops an 82 KB
+# broadcast to every socket from stretching the event loop.
 #
 # Change the size here, not with `fly scale` or `fly machine update`: `[[vm]]`
 # takes precedence, so the next deploy reverts an ad-hoc resize (the same rule
 # as ELECTION_YEAR). A resize restarts the Machine, so do it before the count.
 [[vm]]
-  memory = "1gb"
+  memory = "512mb"
   cpu_kind = "shared"
-  cpus = 2
+  cpus = 1
