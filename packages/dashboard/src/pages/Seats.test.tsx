@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, test } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Seats from './Seats.js';
 import { MockSocketProvider } from '../test/test-utils.js';
@@ -121,6 +121,28 @@ describe('Seats page', () => {
     ).not.toBeInTheDocument();
     // The candidate table's search box is the cheapest proof it moved away.
     expect(screen.queryByPlaceholderText(/search candidate/i)).toBeNull();
+  });
+
+  test('opens a seat beside the circle that was clicked', async () => {
+    renderSeats();
+
+    const seat = screen.getAllByRole('button', {
+      name: /electorate seat/i,
+    })[0];
+    fireEvent.click(seat);
+
+    const popover = await waitFor(() =>
+      screen.getByRole('dialog', { name: /seat$/ })
+    );
+    // Anchored to the seat, not parked in a corner: a fixed box in the body
+    // whose offset is carried by `left`/`top`. A transform here would be
+    // overwritten by the element's own fade animation, which is what put it
+    // top-left.
+    expect(popover).toHaveStyle({ position: 'fixed' });
+    expect(popover.parentElement).toBe(document.body);
+    expect(popover.style.transform).toBe('');
+    expect(popover.style.left).not.toBe('');
+    expect(popover.style.top).not.toBe('');
   });
 
   test('renders waiting state when no results are available', () => {

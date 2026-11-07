@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useFloating,
   autoUpdate,
@@ -66,10 +67,19 @@ export default function ParliamentSeats({
 
   const isMobile = useMediaQuery('(max-width: 767px)');
 
-  const { refs, floatingStyles } = useFloating({
+  // The popover is portaled to the body and positioned `fixed`, so it measures
+  // against the viewport both when it is placed and when it is painted. That
+  // matters here: the chamber's card keeps `animate-fade-in-up`'s transform
+  // (fill mode `forwards`), and a transformed ancestor is the containing block
+  // for its descendants, which is what parked the popover in the card's corner.
+  // `transform: false` is the second half of the same fix — the popover's own
+  // fade animates `transform`, and an animated declaration outranks an inline
+  // one, so Floating UI's offset transform was being replaced by `translateY(0)`.
+  const { refs, floatingStyles, isPositioned } = useFloating({
     open: selectedSeat !== null,
     placement: 'right-start',
     strategy: 'fixed',
+    transform: false,
     middleware: [offset(6), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
@@ -82,16 +92,20 @@ export default function ParliamentSeats({
   useEffect(() => {
     if (selectedSeat === null || isMobile) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
+      const target = e.target as Node;
+      // The seat that is already open is the toggle: let its own click close
+      // it rather than closing here and then reopening it.
+      const referenceEl = refs.reference.current;
+      if (referenceEl instanceof HTMLElement && referenceEl.contains(target)) {
+        return;
+      }
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
         setSelectedSeat(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedSeat, isMobile]);
+  }, [selectedSeat, isMobile, refs.reference]);
 
   const totalSeats = useMemo(
     () => partyVote.reduce((s, p) => s + p.seats, 0),
@@ -209,18 +223,30 @@ export default function ParliamentSeats({
         />
       </div>
 
-      {selectedSeatInfo && selectedSeat !== null && !isMobile && (
-        <div
-          ref={setFloatingRef}
-          style={{ ...floatingStyles, zIndex: 50 }}
-          className="bg-popover border border-border p-3 w-60 animate-fade-in-up text-sm pointer-events-auto"
-        >
-          <SeatDetailContent
-            info={selectedSeatInfo}
-            onClose={() => setSelectedSeat(null)}
-          />
-        </div>
-      )}
+      {selectedSeatInfo &&
+        selectedSeat !== null &&
+        !isMobile &&
+        createPortal(
+          <div
+            ref={setFloatingRef}
+            role="dialog"
+            aria-label={`${selectedSeatInfo.party} ${selectedSeatInfo.type} seat`}
+            style={{
+              ...floatingStyles,
+              zIndex: 50,
+              // The first paint happens before Floating UI has measured, and at
+              // `left: 0` that is the corner of the window.
+              visibility: isPositioned ? 'visible' : 'hidden',
+            }}
+            className="bg-popover border border-border p-3 w-60 animate-fade-in-up text-sm pointer-events-auto"
+          >
+            <SeatDetailContent
+              info={selectedSeatInfo}
+              onClose={() => setSelectedSeat(null)}
+            />
+          </div>,
+          document.body
+        )}
 
       <BottomSheet
         open={selectedSeatInfo !== null && isMobile}
