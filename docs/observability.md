@@ -313,6 +313,14 @@ Alert on symptoms (the RED view), not causes. `$POLL` below is the configured
 thresholds. Fly provides no built-in alerting, so these run as Grafana alert
 rules against the Fly Prometheus data source (§7).
 
+**Substitute the value that is deployed, not the default.** While the cycle is
+quiet `fly.toml` sets `POLL_INTERVAL_MS=86400000`, so the pipeline-stalled window
+below is three days and a quiet collector is _expected_ to look silent for
+longer than an hour; that is the cadence working, not a stall. Re-derive the
+window from the deployed value whenever the cadence moves — a rule still written
+against a minute would page all year, and one left at three days through polls
+close would let a real stall go unnoticed until the count was over.
+
 **Two timestamps, two meanings, two alerts.**
 `election_collector_metrics_last_received_timestamp_seconds` is _liveness_: the
 collector emits a metric event on every cycle, including one that found nothing

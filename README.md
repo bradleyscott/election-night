@@ -209,7 +209,7 @@ See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the c
 | `ELECTION_YEAR`         | `2023`                          | Election year for the XML feed. 2026 and later read the live media feed at `https://media.election.net.nz/xml/`; earlier cycles read the archive at `https://archive.electionresults.govt.nz/electionresults_<year>/xml/`. Also tags stored snapshots and the results and feed caches with the cycle, so history, diffs and feed events never mix two elections. Also selects the masthead's polls-close instant ([`packages/core/src/polls-close.ts`](packages/core/src/polls-close.ts), published on `GET /api/config`); a cycle with no listed instant shows the plain clock. |
 | `XML_FEED_BASE_URL`     | —                               | Full override for the XML feed base URL (must end with `/`); takes precedence over `ELECTION_YEAR`. Point this at the mock server. Because the mock serves one cycle, prior-election results are reported unavailable when it is set.                                                                                                                                                                                                                                                                                                                                            |
 | `PRIOR_ELECTION_YEAR`   | previous cycle                  | Cycle the Flipped page compares against. Unset uses the newest prior cycle the archive resolves (the preceding election). Older cycles are still fetched for the per-electorate past-winners table.                                                                                                                                                                                                                                                                                                                                                                              |
-| `POLL_INTERVAL_MS`      | `60000`                         | How often the collector asks the feed whether anything changed. Each check is an `If-Modified-Since` request: a 304 costs headers and no body, and a cycle where every seat 304s writes no snapshot and publishes nothing. Jittered ±20%.                                                                                                                                                                                                                                                                                                                                        |
+| `POLL_INTERVAL_MS`      | `60000`                         | How often the collector asks the feed whether anything changed. Each check is an `If-Modified-Since` request: a 304 costs headers and no body, and a cycle where every seat 304s writes no snapshot and publishes nothing. Jittered ±20%, capped at ±5 minutes so a daily interval still means a day. `fly.toml` deploys `86400000` until the count — see [Machine size and poll cadence](#machine-size-and-poll-cadence).                                                                                                                                                       |
 | `CONCURRENCY`           | `10`                            | Parallel electorate fetches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `FETCH_TIMEOUT_MS`      | `30000`                         | Per-request HTTP timeout for XML feed fetches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `FETCH_PACING_MS`       | `300`                           | Jittered delay between electorate fetches to avoid rate-limit bursts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -296,7 +296,53 @@ fly volumes create election_data --size 1 --region syd
 
 State (SQLite DB, result and feed caches) lives on the volume and survives restarts and deploys. In `fly.toml`, `RESULTS_CACHE_PATH` and `CACHE_PATH` deliberately point at the same file on `/data`: the collector writes the diff baseline and the dashboard server preloads it, so the first page load after a restart is not blank. Pushes to `main` deploy automatically via `.github/workflows/deploy.yml` (gated on lint/typecheck/tests plus `security.yml`, where high-severity advisories in production dependencies block the deploy and dev-only ones are reported without blocking). PR previews use `fly.preview.toml` — no volume and `COLLECTOR_ENABLED=false`, so previews never poll the live feed.
 
-Machine size is `fly.toml`'s `[[vm]]` section, set for election night rather than for a quiet day: two shared vCPUs and 1 GB. The dashboard holds every websocket in one process, so the memory is headroom for the connections alongside the collector, and the second vCPU is CPU quota rather than a second Node thread (Node runs one thread, but a shared vCPU is throttled). Change it in `fly.toml`, not with `fly scale` or `fly machine update`, because `[[vm]]` takes precedence on the next deploy — the same rule as `ELECTION_YEAR` in the cycle section. A resize restarts the Machine, so size it before the count, not during it.
+Machine size and the poll cadence are both `fly.toml` settings, and both are set
+for the quiet period between counts rather than for a count night — see
+[Machine size and poll cadence](#machine-size-and-poll-cadence) for the values in
+force and the ones to restore before the official count is declared.
+
+### Machine size and poll cadence
+
+Two `fly.toml` knobs move with the calendar, and both are currently set for a
+period with nothing left to count:
+
+| Setting                  | Until the official count                                              | Election night                                         |
+| ------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------ |
+| `[env] POLL_INTERVAL_MS` | `86400000` (one sweep a day)                                          | `60000` while results flow, `30000` for the final hour |
+| `[[vm]]`                 | `memory = "256mb"`, `cpus = 1` (Fly's smallest Machine, ~$2.19/month) | `memory = "1gb"`, `cpus = 2`                           |
+
+**The cadence.** Between the night's preliminary count and the official count —
+declared 20 days after election day, and the next time the feed is expected to
+change — the feed is a static asset, so a one-minute poll is ~4,300 requests an
+hour asking it whether it moved. A quiet cycle is 71 conditional requests
+(`If-Modified-Since`, 304, no body), writes no snapshot and broadcasts nothing,
+so a daily sweep costs 71 requests and still notices a recount or an early
+publication, up to a day late.
+
+Two things make the slow interval mean what it says. The tick's ±20% jitter is
+**capped at five minutes either way**
+([`packages/collector/src/poll-delay.ts`](packages/collector/src/poll-delay.ts)),
+because ±20% of a day is ±4.8 hours and would random-walk the schedule by a fifth
+of a day every night. And the collector's liveness signal moves once per poll, so
+the `$POLL` in [the alert table](docs/observability.md#6-alerting) has to be read
+as 24h — the pipeline-stalled window becomes three days — until the cadence is
+back to a minute. Nothing else changes meaning: the dashboard's watchdog probes
+the collector's `/health` every 10s regardless of cadence, and a failed cycle
+still writes nothing and retries on the next tick.
+
+**The size.** 256 MB is the floor Fly offers and is enough for the dashboard, the
+collector's idle loop, one SQLite handle and whoever happens to be connected;
+`fly.preview.toml` runs the dashboard alone at the same size. It is **not** a
+count-night size: the dashboard holds every websocket in one process, so 1 GB is
+headroom for the connections alongside the collector, and the second vCPU is CPU
+quota rather than a second Node thread (Node runs one thread, but a shared vCPU is
+throttled). Watch the memory-headroom panel after any change, and treat
+`fly_instance_exit_oom` as the sign the size is wrong.
+
+Change both here, in a commit — not with `fly scale` or `fly machine update`,
+because `[[vm]]` and `[env]` take precedence on the next deploy, and the next CI
+deploy would revert an ad-hoc change (the same rule as `ELECTION_YEAR`). A resize
+restarts the Machine, so do it before a count, not during one.
 
 ### Switching to a new cycle
 
@@ -318,7 +364,9 @@ quiet cycle costs headers, not downloads.
 
 If you do want a quiet interval while a cycle is unpublished (a long gap between
 elections on a public deployment), raise `POLL_INTERVAL_MS`: nothing else changes
-meaning.
+meaning. That is exactly what `fly.toml` now deploys, so
+[Machine size and poll cadence](#machine-size-and-poll-cadence) lists both the
+current values and the ones to put back before polls close.
 
 While the feed 404s the collector stays up and logs one failed cycle per
 interval, writing nothing: the reference-data load is retried on every poll and a
