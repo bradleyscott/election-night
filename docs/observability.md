@@ -89,9 +89,18 @@ So `GET /metrics` on the server pulls the collector's exposition over loopback
 (`COLLECTOR_METRICS_URL`, default `<HISTORY_UPSTREAM>/metrics`,
 `packages/dashboard/server/collector-metrics.ts`) and appends it, dropping the
 collector's duplicate `election_build_info` family so the body has one HELP/TYPE
-line per family. `election_collector_metrics_reachable` is 1 when that merge
-succeeded on the last scrape and 0 otherwise; if the collector is unreachable
-the endpoint still serves the server's own series.
+line per family. The merge gets 10s, not a latency budget but a liveness one: the collector
+serves `/metrics` from the same event loop it writes SQLite on, so a snapshot
+write, a retention sweep (`incremental_vacuum`) or parsing every changed seat can
+delay it by seconds. When a fetch still fails, the server serves the last
+exposition the collector answered with (and its own series on the first ever
+failure) instead of dropping every collector-owned series from the scrape.
+
+`election_collector_metrics_reachable` is 1 when that merge succeeded on the
+last scrape and 0 otherwise, so a run of failures is still visible and alertable
+even while the cached series keep the panels continuous — the collector
+heartbeat age is the liveness signal, and the cached values are stale by
+definition.
 
 The collector also publishes each event over Socket.io, but only as a
 best-effort heartbeat: the server records receipt as
