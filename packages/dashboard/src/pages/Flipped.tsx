@@ -1,8 +1,9 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResults } from '../hooks/useResults.js';
 import { usePriorWinners } from '../hooks/useVoteHistory.js';
 import { useSeatChances } from '../hooks/useSeatChances.js';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow.js';
 import { Pagination } from '../components/Pagination.js';
 import { WaitingState } from '../components/WaitingState.js';
 import { partyColor } from '../lib/constants.js';
@@ -14,6 +15,8 @@ import {
   TR_CLICKABLE,
   NUMERIC,
   NUMERIC_CELL,
+  PINNED,
+  PINNED_MOVED,
   TABLE_FRAME,
   TABLE_TEXT,
 } from '../components/Table.js';
@@ -60,6 +63,7 @@ export default function Flipped() {
 
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
 
@@ -125,6 +129,17 @@ export default function Flipped() {
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const pageRows = visible.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+  // Below `sm` the table is wider than the phone: the margin and lead columns
+  // are folded into the comparison cells, and the Win % column is reached by
+  // swiping, so the fade says a column is still over there and the pinned
+  // Electorate cell stays put while the others pass under it. Both are false on
+  // wider screens, where everything fits. `visible.length` redraws the table
+  // under a search, which changes its width.
+  const { moreRight, scrolled } = useHorizontalOverflow(
+    scrollRef,
+    visible.length
+  );
+
   // Narrowing the list starts at the first page again, but a results push
   // that merely re-renders the table must not move the reader.
   useEffect(() => {
@@ -182,182 +197,245 @@ export default function Flipped() {
               </span>
             </div>
 
-            <div className={cn('overflow-x-auto', TABLE_FRAME)}>
-              <table className={cn('w-full', TABLE_TEXT)}>
-                <thead>
-                  <tr className="border-b border-border">
-                    {/* Widths are fixed rather than left to the browser: with
+            <div className="relative">
+              <div
+                ref={scrollRef}
+                className={cn('overflow-x-auto', TABLE_FRAME)}
+              >
+                <table
+                  className={cn(
+                    // Wider than the phone below `sm`, so the Win % column is
+                    // reached by swiping rather than dropped: the fold gives
+                    // each comparison cell room for its words, and 26rem is
+                    // where those words sit on one line with the numbers beside
+                    // them. From `sm` up it is an ordinary full-width table.
+                    'w-full min-w-[26rem] sm:min-w-0',
+                    TABLE_TEXT
+                  )}
+                >
+                  <thead>
+                    <tr className="border-b border-border">
+                      {/* Widths are fixed rather than left to the browser: with
                       auto layout the slack goes to whichever column has the
                       most text, and `Held` carries a third line (“· as Port
-                      Hills”) that would hand it the room. Tonight's lead is
-                      the column that should breathe, so it gets the largest
-                      share and the prior holder a readable minimum. The
-                      numeric columns stay auto — they only need their
-                      digits. */}
-                    <Th align="left" className="w-[19%] px-2 sm:px-3">
-                      Electorate
-                    </Th>
-                    <Th align="left" className="w-[24%] px-2 sm:px-3">
-                      Held {primaryYear}
-                    </Th>
-                    <Th
-                      align="right"
-                      className="hidden px-2 sm:table-cell sm:px-3"
-                    >
-                      {primaryYear} margin
-                    </Th>
-                    <Th align="left" className="w-[32%] px-2 sm:px-3">
-                      Now leading
-                    </Th>
-                    {/* Below sm the numbers are folded into the two comparison
-                      columns (see the row cells), so only the margin and
-                      chance columns drop out — the lead stays visible. */}
-                    <Th
-                      align="right"
-                      className="hidden px-2 sm:table-cell sm:px-3"
-                    >
-                      Lead
-                    </Th>
-                    {/* The chance is a qualifier, not part of the comparison, so
-                      it goes last. */}
-                    <Th
-                      align="right"
-                      className="hidden px-2 sm:table-cell sm:px-3"
-                    >
-                      <WinPercentLink />
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map(({ electorate, prior: winner }, i) => {
-                    const l = electorate.leaders;
-                    const chance = chances.get(
-                      normalizeElectorateName(electorate.electorateName)
-                    );
-                    return (
-                      <tr
-                        key={electorate.electorateName}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`View details for ${electorate.electorateName}`}
-                        onClick={() => open(electorate.electorateName)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            open(electorate.electorateName);
-                          }
-                        }}
+                      Hills”) that would hand it the room. On a phone both
+                      comparison cells now carry words (“won by”, “leads by”)
+                      beside their figures, so they take the largest shares and
+                      the Electorate column gives way; from `sm` up the lead is
+                      the column that should breathe, so it takes the largest
+                      share again. The numeric columns stay auto — they only
+                      need their digits. */}
+                      <Th
+                        align="left"
                         className={cn(
-                          TR_ROW,
-                          TR_ROW_HOVER,
-                          TR_CLICKABLE,
-                          'animate-fade-in-up opacity-0'
+                          'w-[26%] px-2 sm:w-[19%] sm:px-3',
+                          PINNED,
+                          scrolled && PINNED_MOVED
                         )}
-                        style={{ animationDelay: `${i * 0.03}s` }}
                       >
-                        <td className="px-2 py-2 font-medium sm:px-3 sm:py-3">
-                          <span className="transition-colors hover:underline">
-                            {electorate.electorateName}
-                          </span>
-                        </td>
-                        <td className="px-2 py-2 sm:px-3 sm:py-3">
-                          <div className="flex items-center gap-1.5">
-                            <PartyDot color={partyColor(winner.party)} />
-                            <span className="font-medium">
-                              {winner.candidate}
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {winner.party ?? 'Independent'}
-                            {winner.priorElectorateName
-                              ? ` · as ${winner.priorElectorateName}`
-                              : ''}
-                          </div>
-                          {/* Below `sm` the two numeric columns are gone, so
-                              the pair they print folds into the comparisons.
-                              It keeps the desktop cell's shape — the margin,
-                              then its share beneath — rather than running them
-                              into a sentence: "majority 2,392 · 5.9%" is 176px
-                              of 14px mono, twice this column's width, so it
-                              wrapped to three lines and stranded the dot. The
-                              words are dropped for the same reason, and
-                              because the header above names the comparison. */}
-                          <div className={cn('mt-1 sm:hidden', NUMERIC)}>
-                            <div>{winner.majority.toLocaleString()}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {(winner.majorityPercent * 100).toFixed(1)}%
-                            </div>
-                          </div>
-                        </td>
-                        <td
-                          className={cn(
-                            'hidden px-2 py-2 sm:table-cell sm:px-3 sm:py-3',
-                            NUMERIC,
-                            NUMERIC_CELL
-                          )}
-                        >
-                          <span>{winner.majority.toLocaleString()}</span>
-                          <span className="block text-sm text-muted-foreground">
-                            {(winner.majorityPercent * 100).toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="px-2 py-2 sm:px-3 sm:py-3">
-                          <div className="flex items-center gap-1.5">
-                            <PartyDot
-                              color={partyColor(l.leadingCandidateParty)}
-                            />
-                            <span className="font-medium">
-                              {l.leadingCandidate ?? '—'}
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {l.leadingCandidateParty ?? 'Independent'}
-                          </div>
-                          {/* The same fold as the prior holder's cell, so the
-                              two columns are read as one comparison. */}
-                          <div className={cn('mt-1 sm:hidden', NUMERIC)}>
-                            <div>{l.margin.toLocaleString()}</div>
-                            <div className="whitespace-nowrap text-sm text-muted-foreground">
-                              {(l.marginPercent * 100).toFixed(1)}%
-                            </div>
-                          </div>
-                        </td>
-                        <td
-                          className={cn(
-                            'hidden px-2 py-2 sm:table-cell sm:px-3 sm:py-3',
-                            NUMERIC,
-                            NUMERIC_CELL
-                          )}
-                        >
-                          <span>{l.margin.toLocaleString()}</span>
-                          <span className="block whitespace-nowrap text-sm text-muted-foreground">
-                            {(l.marginPercent * 100).toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="hidden px-2 py-2 text-right sm:table-cell sm:px-3 sm:py-3">
-                          <WinPercentValue
-                            percent={chancePercent(chance)}
-                            title={winPercentTitle(chance)}
-                            fallback={
-                              <span
-                                className="text-muted-foreground"
-                                title="No votes counted yet"
-                              >
-                                —
-                              </span>
+                        Electorate
+                      </Th>
+                      <Th
+                        align="left"
+                        className="w-[35%] px-2 sm:w-[24%] sm:px-3"
+                      >
+                        Held {primaryYear}
+                      </Th>
+                      <Th
+                        align="right"
+                        className="hidden px-2 sm:table-cell sm:px-3"
+                      >
+                        {primaryYear} margin
+                      </Th>
+                      <Th
+                        align="left"
+                        className="w-[39%] px-2 sm:w-[32%] sm:px-3"
+                      >
+                        Now leading
+                      </Th>
+                      {/* Below sm the margin and lead figures are folded into the
+                      two comparison cells (see the row cells), so those columns
+                      drop out; the chance does not — the table is wider than
+                      the phone and scrolls to it. */}
+                      <Th
+                        align="right"
+                        className="hidden px-2 sm:table-cell sm:px-3"
+                      >
+                        Lead
+                      </Th>
+                      {/* The chance is a qualifier, not part of the comparison, so
+                      it goes last — and it stays on the phone, at the far end of
+                      the swipe, because it is the number a reader came to
+                      compare. */}
+                      <Th align="right" className="px-2 sm:px-3">
+                        <WinPercentLink />
+                      </Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map(({ electorate, prior: winner }, i) => {
+                      const l = electorate.leaders;
+                      const chance = chances.get(
+                        normalizeElectorateName(electorate.electorateName)
+                      );
+                      return (
+                        <tr
+                          key={electorate.electorateName}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`View details for ${electorate.electorateName}`}
+                          onClick={() => open(electorate.electorateName)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              open(electorate.electorateName);
                             }
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          }}
+                          className={cn(
+                            TR_ROW,
+                            TR_ROW_HOVER,
+                            TR_CLICKABLE,
+                            'animate-fade-in-up opacity-0'
+                          )}
+                          style={{ animationDelay: `${i * 0.03}s` }}
+                        >
+                          <td
+                            className={cn(
+                              'px-2 py-2 font-medium sm:px-3 sm:py-3',
+                              PINNED,
+                              scrolled && PINNED_MOVED
+                            )}
+                          >
+                            <span className="transition-colors hover:underline">
+                              {electorate.electorateName}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 sm:px-3 sm:py-3">
+                            <div className="flex items-center gap-1.5">
+                              <PartyDot color={partyColor(winner.party)} />
+                              <span className="font-medium">
+                                {winner.candidate}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {winner.party ?? 'Independent'}
+                              {winner.priorElectorateName
+                                ? ` · as ${winner.priorElectorateName}`
+                                : ''}
+                            </div>
+                            {/* Below `sm` the two numeric columns are gone, so
+                              the pair they print folds into the comparisons.
+                              The figure keeps its own line under the words, so
+                              the comparison reads as a phrase rather than as
+                              two bare numbers — "won by" is what stops 2,392
+                              being taken for a vote count. The words are set in
+                              the label face at 11px and the figure at 14px in
+                              the mono face, which is what lets "won by 21,567"
+                              sit on one line in a column this narrow. The space
+                              between them belongs to the label too: a mono space
+                              is 8px wide and pushed the largest leads onto a
+                              second line. */}
+                            <div className={cn('mt-1 sm:hidden', NUMERIC)}>
+                              <div className="text-sm leading-snug">
+                                <span className="whitespace-nowrap font-label text-[0.6875rem] font-normal text-muted-foreground">
+                                  won by{' '}
+                                </span>
+                                <span className="whitespace-nowrap">
+                                  {winner.majority.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="whitespace-nowrap text-[0.8125rem] text-muted-foreground">
+                                {(winner.majorityPercent * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          </td>
+                          <td
+                            className={cn(
+                              'hidden px-2 py-2 sm:table-cell sm:px-3 sm:py-3',
+                              NUMERIC,
+                              NUMERIC_CELL
+                            )}
+                          >
+                            <span>{winner.majority.toLocaleString()}</span>
+                            <span className="block text-sm text-muted-foreground">
+                              {(winner.majorityPercent * 100).toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 sm:px-3 sm:py-3">
+                            <div className="flex items-center gap-1.5">
+                              <PartyDot
+                                color={partyColor(l.leadingCandidateParty)}
+                              />
+                              <span className="font-medium">
+                                {l.leadingCandidate ?? '—'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {l.leadingCandidateParty ?? 'Independent'}
+                            </div>
+                            {/* The same fold as the prior holder's cell, so the
+                              two columns are read as one comparison — and the
+                              words differ ("leads by" against "won by"), which
+                              is what the two bare figures were missing. */}
+                            <div className={cn('mt-1 sm:hidden', NUMERIC)}>
+                              <div className="text-sm leading-snug">
+                                <span className="whitespace-nowrap font-label text-[0.6875rem] font-normal text-muted-foreground">
+                                  leads by{' '}
+                                </span>
+                                <span className="whitespace-nowrap">
+                                  {l.margin.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="whitespace-nowrap text-[0.8125rem] text-muted-foreground">
+                                {(l.marginPercent * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          </td>
+                          <td
+                            className={cn(
+                              'hidden px-2 py-2 sm:table-cell sm:px-3 sm:py-3',
+                              NUMERIC,
+                              NUMERIC_CELL
+                            )}
+                          >
+                            <span>{l.margin.toLocaleString()}</span>
+                            <span className="block whitespace-nowrap text-sm text-muted-foreground">
+                              {(l.marginPercent * 100).toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right sm:px-3 sm:py-3">
+                            <WinPercentValue
+                              percent={chancePercent(chance)}
+                              title={winPercentTitle(chance)}
+                              fallback={
+                                <span
+                                  className="text-muted-foreground"
+                                  title="No votes counted yet"
+                                >
+                                  —
+                                </span>
+                              }
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
-              {visible.length === 0 && (
-                <p className="px-3 py-4 text-sm text-muted-foreground sm:px-4">
-                  No flipped seats match “{query.trim()}”.
-                </p>
+                {visible.length === 0 && (
+                  <p className="px-3 py-4 text-sm text-muted-foreground sm:px-4">
+                    No flipped seats match “{query.trim()}”.
+                  </p>
+                )}
+              </div>
+              {/* Drawn over the table's own right edge while there is more to
+                  reach, and gone once the reader is at the end of it. */}
+              {moreRight && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-foreground/15 via-foreground/5 to-transparent"
+                />
               )}
             </div>
 

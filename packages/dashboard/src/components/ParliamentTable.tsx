@@ -86,15 +86,23 @@ export function ParliamentTable({
                     className={cn(TR_ROW, 'opacity-60')}
                   >
                     <td className="py-2 sm:py-3 pr-4 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <PartyDot
-                          color={partyColor(party.candidate)}
-                          size="md"
-                          className="sm:h-3 sm:w-3"
+                      <div className="flex items-center gap-1 min-w-0">
+                        {/* A party with no seats cannot be dragged, but its
+                            swatch still lines up with the draggable rows'. */}
+                        <span
+                          aria-hidden="true"
+                          className="h-3.5 w-2 shrink-0"
                         />
-                        <span className="font-bold truncate min-w-0">
-                          {party.candidate}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <PartyDot
+                            color={partyColor(party.candidate)}
+                            size="md"
+                            className="sm:h-3 sm:w-3"
+                          />
+                          <span className="font-bold truncate min-w-0">
+                            {party.candidate}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td

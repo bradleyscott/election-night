@@ -76,6 +76,25 @@ export const NUMERIC_CELL = 'text-right whitespace-nowrap';
 export const TABLE_FRAME = 'border border-border';
 
 /**
+ * The first column, frozen below `sm` while the table scrolls sideways to a
+ * column the phone cannot show beside it. The paper ground stops the cells
+ * passing underneath from showing through, and the hairline is where they go
+ * under. Both are reset at `sm`, where nothing scrolls and a rule there would
+ * be a line through a table that has no reason for one.
+ */
+export const PINNED =
+  'sticky left-0 z-10 border-r border-border bg-background sm:border-r-0';
+
+/**
+ * The same column once the table has actually moved: a soft shadow on its right
+ * edge, and a fade bleeding 24px over the cells sliding under it — without the
+ * fade the passing cell reads as text with its first letters cut off rather
+ * than as something travelling underneath.
+ */
+export const PINNED_MOVED =
+  "shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:translate-x-full after:bg-gradient-to-r after:from-background after:to-transparent after:content-[''] sm:after:hidden";
+
+/**
  * A header cell for the tables that use the standard box. `align` and every
  * other `<th>` attribute pass through, so a sortable header keeps its handler
  * and its cursor affordances in `className`.

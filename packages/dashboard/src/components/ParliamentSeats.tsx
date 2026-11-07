@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useFloating,
   autoUpdate,
@@ -8,7 +9,7 @@ import {
 } from '@floating-ui/react';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { usePartyOrder } from '../hooks/usePartyOrder.js';
-import { buildSeats } from '../lib/parliament.js';
+import { buildSeats, winningCoalition } from '../lib/parliament.js';
 import { WaitingState } from './WaitingState.js';
 import BottomSheet from './BottomSheet.js';
 import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
@@ -25,6 +26,26 @@ import type {
 
 const ROWS = 3;
 
+/** A circular arrow: the seating order goes back to the default. */
+function ResetOrderIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  );
+}
+
 export default function ParliamentSeats({
   partyVote,
   electorateResults,
@@ -36,7 +57,7 @@ export default function ParliamentSeats({
   partyLists: PartyListResult[];
   chances?: Map<string, SeatChance>;
 }) {
-  const { order, setOrder, resetOrder } = usePartyOrder(partyVote);
+  const { order, setOrder, resetOrder, isDefault } = usePartyOrder(partyVote);
   const [draggingParty, setDraggingParty] = useState<string | null>(null);
   const [dropTargetParty, setDropTargetParty] = useState<string | null>(null);
   const [hoveredParty, setHoveredParty] = useState<string | null>(null);
@@ -46,10 +67,19 @@ export default function ParliamentSeats({
 
   const isMobile = useMediaQuery('(max-width: 767px)');
 
-  const { refs, floatingStyles } = useFloating({
+  // The popover is portaled to the body and positioned `fixed`, so it measures
+  // against the viewport both when it is placed and when it is painted. That
+  // matters here: the chamber's card keeps `animate-fade-in-up`'s transform
+  // (fill mode `forwards`), and a transformed ancestor is the containing block
+  // for its descendants, which is what parked the popover in the card's corner.
+  // `transform: false` is the second half of the same fix — the popover's own
+  // fade animates `transform`, and an animated declaration outranks an inline
+  // one, so Floating UI's offset transform was being replaced by `translateY(0)`.
+  const { refs, floatingStyles, isPositioned } = useFloating({
     open: selectedSeat !== null,
     placement: 'right-start',
     strategy: 'fixed',
+    transform: false,
     middleware: [offset(6), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
@@ -62,16 +92,20 @@ export default function ParliamentSeats({
   useEffect(() => {
     if (selectedSeat === null || isMobile) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
+      const target = e.target as Node;
+      // The seat that is already open is the toggle: let its own click close
+      // it rather than closing here and then reopening it.
+      const referenceEl = refs.reference.current;
+      if (referenceEl instanceof HTMLElement && referenceEl.contains(target)) {
+        return;
+      }
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
         setSelectedSeat(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedSeat, isMobile]);
+  }, [selectedSeat, isMobile, refs.reference]);
 
   const totalSeats = useMemo(
     () => partyVote.reduce((s, p) => s + p.seats, 0),
@@ -98,18 +132,10 @@ export default function ParliamentSeats({
     [partyVote]
   );
 
-  const coalitionInfo = useMemo(() => {
-    let cumulative = 0;
-    const parties: PartyVoteResult[] = [];
-    for (const name of order) {
-      const party = partyVote.find((p) => p.candidate === name);
-      if (!party || party.seats <= 0) continue;
-      if (cumulative >= majority) break;
-      parties.push(party);
-      cumulative += party.seats;
-    }
-    return { parties, cumulative };
-  }, [order, partyVote, majority]);
+  const coalitionInfo = useMemo(
+    () => winningCoalition(order, partyVote, majority),
+    [order, partyVote, majority]
+  );
 
   const handleReorder = (dragged: string, target: string) => {
     if (dragged === target) return;
@@ -152,21 +178,22 @@ export default function ParliamentSeats({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h2 className="font-display text-base sm:text-lg font-bold tracking-tight">
-            Parliament
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-display text-base sm:text-lg font-bold tracking-tight">
+          Parliament
+        </h2>
+        {!isDefault && (
           <button
             onClick={resetOrder}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            className="flex h-8 items-center gap-1.5 px-2 font-label text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             type="button"
+            aria-label="Reset coalitions"
+            title="Reset coalitions"
           >
-            Reset
+            <ResetOrderIcon />
+            <span className="hidden lg:inline">Reset coalitions</span>
           </button>
-        </div>
+        )}
       </div>
 
       <div className="mt-2">
@@ -196,18 +223,30 @@ export default function ParliamentSeats({
         />
       </div>
 
-      {selectedSeatInfo && selectedSeat !== null && !isMobile && (
-        <div
-          ref={setFloatingRef}
-          style={{ ...floatingStyles, zIndex: 50 }}
-          className="bg-popover border border-border p-3 w-60 animate-fade-in-up text-sm pointer-events-auto"
-        >
-          <SeatDetailContent
-            info={selectedSeatInfo}
-            onClose={() => setSelectedSeat(null)}
-          />
-        </div>
-      )}
+      {selectedSeatInfo &&
+        selectedSeat !== null &&
+        !isMobile &&
+        createPortal(
+          <div
+            ref={setFloatingRef}
+            role="dialog"
+            aria-label={`${selectedSeatInfo.party} ${selectedSeatInfo.type} seat`}
+            style={{
+              ...floatingStyles,
+              zIndex: 50,
+              // The first paint happens before Floating UI has measured, and at
+              // `left: 0` that is the corner of the window.
+              visibility: isPositioned ? 'visible' : 'hidden',
+            }}
+            className="bg-popover border border-border p-3 w-60 animate-fade-in-up text-sm pointer-events-auto"
+          >
+            <SeatDetailContent
+              info={selectedSeatInfo}
+              onClose={() => setSelectedSeat(null)}
+            />
+          </div>,
+          document.body
+        )}
 
       <BottomSheet
         open={selectedSeatInfo !== null && isMobile}
