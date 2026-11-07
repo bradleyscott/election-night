@@ -72,11 +72,11 @@ primary_region = "syd"
   # (previews, .fly.dev, local dev) means no redirect.
   CANONICAL_HOST = "election-night.live"
 
-# Smallest Machine Fly offers (shared-cpu-1x / 256MB, ~$2.19/month) — a
-# quiet-period size. The preliminary count is finished and the next thing to
-# publish is the official count, so this only has to hold the dashboard, the
-# collector's idle loop, one SQLite handle and whatever browsers are connected;
-# `fly.preview.toml` runs the dashboard alone at the same size.
+# 512 MB, one shared vCPU (~$3.69/month) — a quiet-period size, one step up from
+# Fly's 256 MB floor for the process that also co-locates the collector and its
+# SQLite handle next to the dashboard. The preliminary count is finished and the
+# next thing to publish is the official count, so this only has to hold the
+# dashboard, the collector's idle loop and whatever browsers are connected.
 #
 # Before the official count is declared, restore the election-night sizing here
 # — 1 GB and two shared vCPUs:
@@ -95,6 +95,6 @@ primary_region = "syd"
 # takes precedence, so the next deploy reverts an ad-hoc resize (the same rule
 # as ELECTION_YEAR). A resize restarts the Machine, so do it before the count.
 [[vm]]
-  memory = "256mb"
+  memory = "512mb"
   cpu_kind = "shared"
   cpus = 1

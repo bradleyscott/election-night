@@ -306,10 +306,10 @@ force and the ones to restore before the official count is declared.
 Two `fly.toml` knobs move with the calendar, and both are currently set for a
 period with nothing left to count:
 
-| Setting                  | Until the official count                                              | Election night                                         |
-| ------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------ |
-| `[env] POLL_INTERVAL_MS` | `86400000` (one sweep a day)                                          | `60000` while results flow, `30000` for the final hour |
-| `[[vm]]`                 | `memory = "256mb"`, `cpus = 1` (Fly's smallest Machine, ~$2.19/month) | `memory = "1gb"`, `cpus = 2`                           |
+| Setting                  | Until the official count                                                           | Election night                                         |
+| ------------------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `[env] POLL_INTERVAL_MS` | `86400000` (one sweep a day)                                                       | `60000` while results flow, `30000` for the final hour |
+| `[[vm]]`                 | `memory = "512mb"`, `cpus = 1` (one step up from Fly's 256 MB floor, ~$3.69/month) | `memory = "1gb"`, `cpus = 2`                           |
 
 **The cadence.** Between the night's preliminary count and the official count —
 declared 20 days after election day, and the next time the feed is expected to
@@ -330,9 +330,10 @@ back to a minute. Nothing else changes meaning: the dashboard's watchdog probes
 the collector's `/health` every 10s regardless of cadence, and a failed cycle
 still writes nothing and retries on the next tick.
 
-**The size.** 256 MB is the floor Fly offers and is enough for the dashboard, the
-collector's idle loop, one SQLite handle and whoever happens to be connected;
-`fly.preview.toml` runs the dashboard alone at the same size. It is **not** a
+**The size.** 512 MB and one shared vCPU is a quiet-period size one step up from
+Fly's 256 MB floor: it holds the dashboard, the collector's idle loop, one SQLite
+handle and whoever happens to be connected with a little room left over, which
+the 256 MB floor did not leave for a co-located collector. It is **not** a
 count-night size: the dashboard holds every websocket in one process, so 1 GB is
 headroom for the connections alongside the collector, and the second vCPU is CPU
 quota rather than a second Node thread (Node runs one thread, but a shared vCPU is
