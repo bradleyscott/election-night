@@ -64,10 +64,16 @@ primary_region = "syd"
   # (previews, .fly.dev, local dev) means no redirect.
   CANONICAL_HOST = "election-night.live"
 
-# 512mb gives the collector headroom alongside the dashboard server. Before
-# election night, bump to 1024 if needed:
-#   fly machine update <id> --memory 1024
+# Sized for election night: the dashboard holds every websocket in one process,
+# so 1 GB is headroom for the connections alongside the collector, and the
+# second vCPU is CPU quota rather than a second Node thread — Node runs one
+# thread, but a shared vCPU is throttled, and the extra quota is what stops an
+# 82 KB broadcast to every socket from stretching the event loop.
+#
+# Change the size here, not with `fly scale` or `fly machine update`: `[[vm]]`
+# takes precedence, so the next deploy reverts an ad-hoc resize (the same rule
+# as ELECTION_YEAR). A resize restarts the Machine, so do it before the count.
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
-  cpus = 1
+  cpus = 2
