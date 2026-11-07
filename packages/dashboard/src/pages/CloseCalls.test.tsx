@@ -33,12 +33,12 @@ describe('Close Calls page', () => {
     expect(
       screen.getByRole('button', { name: 'List Cut Lines' })
     ).toBeInTheDocument();
-    // The page opens on List Cut Lines.
-    expect(
-      screen.getByRole('button', { name: 'List Cut Lines' })
-    ).toHaveAttribute('aria-pressed', 'true');
+    // The page opens on Electorate Races.
     expect(
       screen.getByRole('button', { name: 'Electorate Races' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('button', { name: 'List Cut Lines' })
     ).toHaveAttribute('aria-pressed', 'false');
   });
 

@@ -19,7 +19,7 @@ import type {
  */
 export default function CloseCalls() {
   const { results } = useResults();
-  const [view, setView] = useState('list');
+  const [view, setView] = useState('electorates');
 
   const electorates = (results?.electorateResults ?? []) as ElectorateResult[];
   const partyLists = (results?.partyLists ?? []) as PartyListResult[];
@@ -55,8 +55,8 @@ export default function CloseCalls() {
         <PageHead title="Close Calls" className="mb-0" />
         <Toggle
           options={[
-            { value: 'list', label: 'List Cut Lines' },
             { value: 'electorates', label: 'Electorate Races' },
+            { value: 'list', label: 'List Cut Lines' },
           ]}
           value={view}
           onChange={setView}
