@@ -137,6 +137,95 @@ describe('masthead dateline', () => {
   });
 });
 
+describe('masthead wordmark', () => {
+  const WORDMARK = 'election-night.live';
+
+  beforeEach(() => {
+    mockConfig();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function masthead() {
+    const link = screen.getByRole('link', { name: WORDMARK });
+    const row = link.parentElement as HTMLElement;
+    return {
+      link,
+      row,
+      controls: row.lastElementChild as HTMLElement,
+      logo: link.firstElementChild as Element,
+      probe: link.querySelector('span[aria-hidden="true"]') as HTMLElement,
+    };
+  }
+
+  function stubWidth(el: Element, width: number) {
+    Object.defineProperty(el, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        width,
+        height: 0,
+        top: 0,
+        left: 0,
+        right: width,
+        bottom: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+  }
+
+  /** Hand the row the geometry a browser would, then let it re-measure. */
+  function layOut(sizes: {
+    row: number;
+    controls: number;
+    logo: number;
+    probe: number;
+  }) {
+    const parts = masthead();
+    Object.defineProperty(parts.row, 'clientWidth', {
+      configurable: true,
+      value: sizes.row,
+    });
+    stubWidth(parts.controls, sizes.controls);
+    stubWidth(parts.logo, sizes.logo);
+    stubWidth(parts.probe, sizes.probe);
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+  }
+
+  /** The painted wordmark, not the invisible one that measures it. */
+  function printedWordmarks() {
+    return Array.from(masthead().link.querySelectorAll('span')).filter(
+      (span) =>
+        span.textContent === WORDMARK &&
+        span.getAttribute('aria-hidden') !== 'true'
+    );
+  }
+
+  test('hides the wordmark instead of letting it ellipsise', () => {
+    renderLayout();
+    layOut({ row: 800, controls: 600, logo: 40, probe: 190 });
+
+    expect(printedWordmarks()).toHaveLength(0);
+    // The mark is still the way home.
+    expect(screen.getByRole('link', { name: WORDMARK })).toBeInTheDocument();
+  });
+
+  test('brings the wordmark back once the whole of it fits', () => {
+    renderLayout();
+    layOut({ row: 800, controls: 600, logo: 40, probe: 190 });
+    expect(printedWordmarks()).toHaveLength(0);
+
+    layOut({ row: 1200, controls: 500, logo: 40, probe: 190 });
+
+    expect(printedWordmarks()).toHaveLength(1);
+  });
+});
+
 describe('masthead nav', () => {
   beforeEach(() => {
     mockConfig();

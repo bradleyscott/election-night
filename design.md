@@ -158,6 +158,16 @@ state, and the dateline strip beneath them.
   out, while a wrong device clock only affects the person holding it.
 - Set in Inter, uppercase, tabular numerals, muted — masthead red only for the
   counting state.
+- The wordmark is shown only when the whole of it fits beside the menu. There is
+  a band of widths, from the menu appearing horizontally to the masthead sitting
+  comfortably, in which the row cannot hold the mark, the wordmark and the menu
+  together; the browser's only remedy on the text is an ellipsis
+  (`election-n…`), which reads as broken rather than as a smaller masthead. The
+  wordmark is measured against the space the menu leaves and dropped for the
+  logo alone when a letter would go — the icon and the menu still say whose page
+  it is. The measurement comes from an invisible copy laid out outside the flow,
+  because measuring the wordmark itself would be self-defeating: hiding it frees
+  exactly the space whose absence said it did not fit.
 
 ## Exports
 
