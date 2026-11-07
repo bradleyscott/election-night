@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import CloseCalls from './CloseCalls.js';
 import { MockSocketProvider } from '../test/test-utils.js';
 import { WinPercentProvider } from '../components/WinPercentDrawer.js';
-import { mockResults } from '../test/fixtures.js';
+import { mockResults, mockZeroedResults } from '../test/fixtures.js';
 import type { ResultsPayload } from '@election-night/core/types';
 
 function renderCloseCalls(results: ResultsPayload | null = mockResults) {
@@ -60,5 +60,19 @@ describe('Close Calls page', () => {
     renderCloseCalls(null);
 
     expect(screen.getByText('Awaiting First Results')).toBeInTheDocument();
+  });
+
+  // The zeroed ballot carries the party lists, so the page's old length test
+  // passed and it drew both views from counts of zero: every candidate in every
+  // party "1 to 72 places below their party's cut", and no close race anywhere.
+  // Both read as results. The page now waits for the first count.
+  test('shows the awaiting state for the zeroed ballot', () => {
+    renderCloseCalls(mockZeroedResults);
+
+    expect(screen.getByText('Awaiting First Results')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'List Cut Lines' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/from cut/)).not.toBeInTheDocument();
   });
 });
