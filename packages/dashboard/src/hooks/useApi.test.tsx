@@ -3,8 +3,14 @@ import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { useApi } from './useApi.js';
 
-function TestComponent({ url }: { url: string | null }) {
-  const { data, loading, error } = useApi<{ name: string }>(url);
+function TestComponent({
+  url,
+  refreshKey,
+}: {
+  url: string | null;
+  refreshKey?: unknown;
+}) {
+  const { data, loading, error } = useApi<{ name: string }>(url, refreshKey);
   return (
     <div>
       <div data-testid="loading">{loading ? 'loading' : 'idle'}</div>
@@ -58,6 +64,47 @@ describe('useApi', () => {
     );
     expect(screen.getByTestId('loading')).toHaveTextContent('idle');
     expect(screen.getByTestId('data')).toHaveTextContent('no data');
+  });
+
+  test('refetches when the refresh key changes', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ name: 'First' }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ name: 'Second' }), { status: 200 })
+      );
+
+    const { rerender } = render(
+      <TestComponent url="/api/history" refreshKey={1} />
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('data')).toHaveTextContent('First')
+    );
+
+    rerender(<TestComponent url="/api/history" refreshKey={2} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('data')).toHaveTextContent('Second')
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test('does not refetch when an unchanged refresh key rerenders', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ name: 'Auckland Central' }), {
+        status: 200,
+      })
+    );
+
+    const { rerender } = render(
+      <TestComponent url="/api/history" refreshKey={1} />
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('data')).toHaveTextContent('Auckland Central')
+    );
+
+    rerender(<TestComponent url="/api/history" refreshKey={1} />);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   test('aborts previous fetch when url changes', async () => {

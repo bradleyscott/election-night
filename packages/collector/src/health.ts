@@ -69,7 +69,14 @@ export function startHealthServer(
     res.end('Not found');
   });
   server.on('error', (err) => {
+    // Fatal on purpose. This listener is the collector's only HTTP surface:
+    // `/history/*` is the only source of the dashboard's history charts, and
+    // `/health` + `/metrics` are what the platform probes and scrapes. A
+    // listener that dies leaves the scrape loop and Socket.io publishing
+    // happily while every chart freezes on its last snapshot and no alert
+    // fires, so let the supervisor restart the process instead.
     log.error(`Health server failed on port ${port}`, err);
+    process.exit(1);
   });
   server.listen(port, '0.0.0.0', () => {
     log.info(`Health server listening on http://0.0.0.0:${port}/health`);

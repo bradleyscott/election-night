@@ -4,9 +4,15 @@ import { useEffect, useState } from 'react';
  * Generic JSON fetch hook with loading/error state.
  * Pass `null` as the url to skip fetching entirely.
  *
- * The request is aborted when the URL changes or the component unmounts.
+ * `refreshKey` lets a caller re-run a request that depends on live data the
+ * URL cannot express (the socket's `resultsUpdatedAt`, for example). Passing a
+ * different value fetches again; leaving it out keeps the old one-shot
+ * behaviour.
+ *
+ * The request is aborted when the URL or refresh key changes, or the component
+ * unmounts.
  */
-export function useApi<T>(url: string | null) {
+export function useApi<T>(url: string | null, refreshKey?: unknown) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +57,7 @@ export function useApi<T>(url: string | null) {
     return () => {
       controller.abort();
     };
-  }, [url, tick]);
+  }, [url, tick, refreshKey]);
 
   const refetch = () => setTick((t) => t + 1);
 
