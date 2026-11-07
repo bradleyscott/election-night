@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildSeats } from './parliament.js';
+import { buildSeats, defaultOrder, winningCoalition } from './parliament.js';
 import { normalizeElectorateName } from './electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
@@ -129,5 +129,128 @@ describe('list pool before a seat is counted', () => {
     expect(seats).toHaveLength(1);
     expect(seats[0]!.type).toBe('list');
     expect(seats[0]!.candidate).toBe('Alice');
+  });
+});
+
+function party(candidate: string, seats: number): PartyVoteResult {
+  return {
+    candidate,
+    votes: seats * 1000,
+    seats,
+    electorateSeats: seats,
+    listSeats: 0,
+  } as PartyVoteResult;
+}
+
+const chamber2023 = [
+  party('National Party', 48),
+  party('Labour Party', 34),
+  party('Green Party', 15),
+  party('ACT New Zealand', 11),
+  party('New Zealand First Party', 8),
+  party('Te Pāti Māori', 6),
+];
+
+describe('default seating order', () => {
+  test('uses the conventional left-to-right chamber order, not the seat count', () => {
+    expect(defaultOrder(chamber2023)).toEqual([
+      'Labour Party',
+      'Green Party',
+      'Te Pāti Māori',
+      'New Zealand First Party',
+      'ACT New Zealand',
+      'National Party',
+    ]);
+  });
+
+  test('puts a party it does not rank in the centre, between the blocs', () => {
+    const vote = [
+      party('National Party', 40),
+      party('Opportunity Party', 4),
+      party('Labour Party', 30),
+      party('Green Party', 10),
+    ];
+
+    expect(defaultOrder(vote)).toEqual([
+      'Labour Party',
+      'Green Party',
+      'Opportunity Party',
+      'National Party',
+    ]);
+  });
+
+  test('leaves a party with no seats out of the chamber', () => {
+    const vote = [
+      party('Labour Party', 40),
+      party('National Party', 30),
+      party('Opportunity Party', 0),
+    ];
+
+    expect(defaultOrder(vote)).toEqual(['Labour Party', 'National Party']);
+  });
+});
+
+describe('coalition footer', () => {
+  const order = defaultOrder(chamber2023);
+
+  test('picks the fewest neighbouring parties that reach the majority', () => {
+    const coalition = winningCoalition(order, chamber2023, 62);
+
+    // National + ACT alone is 59, so NZ First is needed. Two parties would
+    // clear the threshold arithmetically only if National were paired with
+    // Labour, and those two do not neighbour each other in the chamber.
+    // The row prints the members largest first, not in chamber order.
+    expect(coalition.parties.map((p) => p.candidate)).toEqual([
+      'National Party',
+      'ACT New Zealand',
+      'New Zealand First Party',
+    ]);
+    expect(coalition.cumulative).toBe(67);
+  });
+
+  test('names a single party that has a majority on its own', () => {
+    const vote = [party('Labour Party', 65), party('National Party', 55)];
+
+    const coalition = winningCoalition(defaultOrder(vote), vote, 61);
+
+    expect(coalition.parties.map((p) => p.candidate)).toEqual(['Labour Party']);
+    expect(coalition.cumulative).toBe(65);
+  });
+
+  test('breaks an equal-sized tie on the larger seat total', () => {
+    // 2017 arithmetic: Labour + Greens + NZ First is 63, NZ First + ACT +
+    // National is 66, and both need three parties.
+    const vote = [
+      party('National Party', 56),
+      party('Labour Party', 46),
+      party('New Zealand First Party', 9),
+      party('Green Party', 8),
+      party('ACT New Zealand', 1),
+    ];
+
+    const coalition = winningCoalition(defaultOrder(vote), vote, 61);
+
+    expect(coalition.parties.map((p) => p.candidate)).toEqual([
+      'National Party',
+      'New Zealand First Party',
+      'ACT New Zealand',
+    ]);
+    expect(coalition.cumulative).toBe(66);
+  });
+
+  test('ignores parties outside the chamber when testing a neighbour run', () => {
+    const vote = [
+      ...chamber2023,
+      party('Opportunity Party', 0),
+      party('A New Party', 0),
+    ];
+
+    const coalition = winningCoalition(defaultOrder(vote), vote, 62);
+
+    expect(coalition.parties.map((p) => p.candidate)).toEqual([
+      'National Party',
+      'ACT New Zealand',
+      'New Zealand First Party',
+    ]);
   });
 });

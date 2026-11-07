@@ -83,6 +83,28 @@ export const MAJOR_PARTY_ORDER: readonly string[] = [
 
 export const MAJOR_PARTIES = new Set<string>(MAJOR_PARTY_ORDER);
 
+/**
+ * Conventional left-to-right seating in the chamber: Labour, the Greens and Te
+ * Pāti Māori on the left, then the centre, then New Zealand First, ACT and
+ * National on the right, as the House and the published seating plans are read.
+ * This is deliberately not the seat-count order the parliament chart used to
+ * default to, which put the largest party at the far left and the second
+ * largest at the far right.
+ *
+ * A party this list does not name — Opportunity, or a party registered after
+ * this was written — sits in the centre, between the two blocs, so the order
+ * does not have to be amended every time the feed adds a name. Only parties
+ * this list ranks are treated as belonging to a bloc.
+ */
+export const PARLIAMENT_PARTY_ORDER: readonly string[] = [
+  'Labour Party',
+  'Green Party',
+  'Te Pāti Māori',
+  'New Zealand First Party',
+  'ACT New Zealand',
+  'National Party',
+];
+
 export function isMajorParty(party: string): boolean {
   return MAJOR_PARTIES.has(canonicalPartyName(party));
 }

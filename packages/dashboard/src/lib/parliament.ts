@@ -1,4 +1,8 @@
-import { partyColor } from './constants.js';
+import {
+  PARLIAMENT_PARTY_ORDER,
+  canonicalPartyName,
+  partyColor,
+} from './constants.js';
 import { normalizeElectorateName } from './electorates.js';
 import { mapFillOpacity } from './seat-chance.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
@@ -30,19 +34,107 @@ export type SeatInfo = {
   distanceFromCut?: number;
 };
 
-export function defaultOrder(partyVote: PartyVoteResult[]): string[] {
-  const sorted = [...partyVote]
-    .filter((p) => p.seats > 0)
-    .sort((a, b) => b.seats - a.seats);
+/**
+ * Where an otherwise unnamed party sits: between the left bloc and the right
+ * bloc, just before New Zealand First. This is what puts Opportunity, and any
+ * party registered after this was written, in the centre.
+ */
+const CENTRE_RANK =
+  PARLIAMENT_PARTY_ORDER.indexOf('New Zealand First Party') - 0.5;
 
-  if (sorted.length <= 1) {
-    return sorted.map((p) => p.candidate);
+function parliamentRank(party: string): number {
+  const index = PARLIAMENT_PARTY_ORDER.indexOf(canonicalPartyName(party));
+  return index === -1 ? CENTRE_RANK : index;
+}
+
+/**
+ * The chamber's default seating: the left bloc from the left edge, the centre
+ * next, then the right bloc to the right edge. The chart and the table read in
+ * this order.
+ *
+ * It is deliberately not ordered by seats. That put the largest party at the
+ * far left and the second largest at the far right, which split each bloc
+ * across the room and bore no relation to how the House is read. Ties between
+ * centre parties fall to seats and then to name, so the seating does not
+ * shuffle as the count moves; parties with no seats are left out entirely
+ * (they appear behind "Show all parties" in the table instead).
+ */
+export function defaultOrder(partyVote: PartyVoteResult[]): string[] {
+  return partyVote
+    .filter((p) => p.seats > 0)
+    .sort(
+      (a, b) =>
+        parliamentRank(a.candidate) - parliamentRank(b.candidate) ||
+        b.seats - a.seats ||
+        a.candidate.localeCompare(b.candidate)
+    )
+    .map((p) => p.candidate);
+}
+
+export type Coalition = {
+  parties: PartyVoteResult[];
+  cumulative: number;
+};
+
+/**
+ * The most likely governing arrangement: the contiguous run of parties, in the
+ * chamber's left-to-right order, that reaches the majority with the fewest
+ * parties.
+ *
+ * Contiguity is the point. Choosing the fewest parties outright would pair
+ * National with Labour in 2023, because those two alone clear the threshold,
+ * and that is not a government anyone forms. Only neighbours in the chamber
+ * are considered, so the answer is a bloc plus whatever it must reach across
+ * for. Equal-sized runs are broken by the larger seat total, so the stronger
+ * arrangement is the one shown.
+ *
+ * The members come back largest first: the footer reads as
+ * "National + ACT + NZ First = 67 seats", whichever way round the chamber
+ * happens to seat them.
+ */
+export function winningCoalition(
+  order: string[],
+  partyVote: PartyVoteResult[],
+  majority: number
+): Coalition {
+  const active = order
+    .map((name) => partyVote.find((p) => p.candidate === name))
+    .filter((p): p is PartyVoteResult => p !== undefined && p.seats > 0);
+
+  let best: Coalition | null = null;
+  for (let start = 0; start < active.length; start++) {
+    let cumulative = 0;
+    for (let end = start; end < active.length; end++) {
+      cumulative += active[end].seats;
+      const parties = active.slice(start, end + 1);
+      if (cumulative < majority) continue;
+      if (
+        best === null ||
+        parties.length < best.parties.length ||
+        (parties.length === best.parties.length && cumulative > best.cumulative)
+      ) {
+        best = { parties, cumulative };
+      }
+      // A longer run from this start only adds parties, so it cannot beat
+      // this one on the count that matters.
+      break;
+    }
   }
 
-  const biggest = sorted[0].candidate;
-  const secondBiggest = sorted[1].candidate;
-  const rest = sorted.slice(2).map((p) => p.candidate);
-  return [biggest, ...rest, secondBiggest];
+  if (best !== null) {
+    return {
+      parties: [...best.parties].sort((a, b) => b.seats - a.seats),
+      cumulative: best.cumulative,
+    };
+  }
+
+  // Defensive: the whole chamber is always a winning coalition when the
+  // majority is a majority of its own total, so this is only reachable if a
+  // caller passes an impossible threshold.
+  return {
+    parties: [...active].sort((a, b) => b.seats - a.seats),
+    cumulative: active.reduce((sum, p) => sum + p.seats, 0),
+  };
 }
 
 function getListOpacity(distanceFromCut: number): number {

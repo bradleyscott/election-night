@@ -8,7 +8,7 @@ import {
 } from '@floating-ui/react';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { usePartyOrder } from '../hooks/usePartyOrder.js';
-import { buildSeats } from '../lib/parliament.js';
+import { buildSeats, winningCoalition } from '../lib/parliament.js';
 import { WaitingState } from './WaitingState.js';
 import BottomSheet from './BottomSheet.js';
 import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
@@ -25,6 +25,26 @@ import type {
 
 const ROWS = 3;
 
+/** A circular arrow: the seating order goes back to the default. */
+function ResetOrderIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  );
+}
+
 export default function ParliamentSeats({
   partyVote,
   electorateResults,
@@ -36,7 +56,7 @@ export default function ParliamentSeats({
   partyLists: PartyListResult[];
   chances?: Map<string, SeatChance>;
 }) {
-  const { order, setOrder, resetOrder } = usePartyOrder(partyVote);
+  const { order, setOrder, resetOrder, isDefault } = usePartyOrder(partyVote);
   const [draggingParty, setDraggingParty] = useState<string | null>(null);
   const [dropTargetParty, setDropTargetParty] = useState<string | null>(null);
   const [hoveredParty, setHoveredParty] = useState<string | null>(null);
@@ -98,18 +118,10 @@ export default function ParliamentSeats({
     [partyVote]
   );
 
-  const coalitionInfo = useMemo(() => {
-    let cumulative = 0;
-    const parties: PartyVoteResult[] = [];
-    for (const name of order) {
-      const party = partyVote.find((p) => p.candidate === name);
-      if (!party || party.seats <= 0) continue;
-      if (cumulative >= majority) break;
-      parties.push(party);
-      cumulative += party.seats;
-    }
-    return { parties, cumulative };
-  }, [order, partyVote, majority]);
+  const coalitionInfo = useMemo(
+    () => winningCoalition(order, partyVote, majority),
+    [order, partyVote, majority]
+  );
 
   const handleReorder = (dragged: string, target: string) => {
     if (dragged === target) return;
@@ -152,21 +164,22 @@ export default function ParliamentSeats({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h2 className="font-display text-base sm:text-lg font-bold tracking-tight">
-            Parliament
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-display text-base sm:text-lg font-bold tracking-tight">
+          Parliament
+        </h2>
+        {!isDefault && (
           <button
             onClick={resetOrder}
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            className="flex h-8 items-center gap-1.5 px-2 font-label text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
             type="button"
+            aria-label="Reset coalitions"
+            title="Reset coalitions"
           >
-            Reset
+            <ResetOrderIcon />
+            <span className="hidden lg:inline">Reset coalitions</span>
           </button>
-        </div>
+        )}
       </div>
 
       <div className="mt-2">
