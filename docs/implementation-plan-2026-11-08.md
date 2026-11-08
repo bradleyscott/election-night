@@ -48,7 +48,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 
 | Done | Task / suggested PR title                                            | Priority                     | Findings | Prerequisites                                |
 | ---- | -------------------------------------------------------------------- | ---------------------------- | -------- | -------------------------------------------- |
-| [ ]  | **01 — Expose stale history and fix dependency verification**        | P0                           | R3       | None                                         |
+| [x]  | **01 — Expose stale history and fix dependency verification**        | P0                           | R3       | None                                         |
 | [ ]  | **02a — Bound history queries and global voting-place load**         | P0                           | R6       | 01; capture baseline first                   |
 | [ ]  | **02b — Move database execution off the collector HTTP loop**        | P0                           | R6       | 02a                                          |
 | [ ]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
@@ -131,6 +131,21 @@ HTTP bodies/status through `serveApi`, not only the internal cache function.
 **Done when:** a stale response can no longer look like verified current data and
 a cached response cannot make a failing dependency probe pass. No frontend rewrite
 or database migration is required to land this task.
+
+**Implementation record:** `3d6a87bbef17bb8fd8fe59692630a852596b45d6` on
+`fix/task-01-stale-history`. `HistorySource` now returns `HistoryRead<T>` with
+`state`, `verifiedAt`, a bounded `reason` and `unavailable`; a stale fallback is
+served only within `DEFAULT_MAX_STALE_MS` (120s), and concurrent refreshes share
+one in-flight request that is cleared on failure. `serveApi` keeps array bodies,
+sets `Cache-Control: no-store` plus the three `X-Election-History-*` headers, and
+maps unavailability to a structured 503 while preserving verified 404s. `/ready`
+now calls the watchdog's shared `probeCollectorHealth`, which removed the cached
+snapshot read entirely. Regression coverage: `history-upstream.test.ts` (cache,
+refresh, concurrent sharing, network/500/503 with no cache, stale inside/outside
+120s, reverify, recovery, allowed-404 non-caching, metrics) and `api.test.ts`
+(status, array bodies, headers, 404 vs 503) plus `health.test.ts` (probe failure
+despite identity). `npm run lint`, `npm run typecheck` and `npx vitest run`
+(787 tests) pass.
 
 ### 02a/02b — Bound load, then isolate database work
 
