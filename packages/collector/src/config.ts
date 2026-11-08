@@ -103,6 +103,12 @@ const collectorConfigSchema = z.object({
       'Cycle prior-winner comparisons default to. Unset = the newest prior cycle that resolves (the immediately preceding election); historical cycles are still probed for the past-winners table'
     ),
   wsReconnectDelayMs: z.coerce.number().int().min(100).default(2_000),
+  resultsToken: z
+    .string()
+    .optional()
+    .describe(
+      'Shared token sent in the Socket.IO handshake when the dashboard server is a split deployment behind ALLOW_REMOTE_RESULTS/RESULTS_TOKEN'
+    ),
 });
 
 export type CollectorConfig = z.infer<typeof collectorConfigSchema>;
@@ -130,6 +136,7 @@ function loadCollectorConfig(): CollectorConfig {
     priorResults: process.env.PRIOR_RESULTS,
     priorElectionYear: process.env.PRIOR_ELECTION_YEAR,
     wsReconnectDelayMs: process.env.WS_RECONNECT_DELAY_MS,
+    resultsToken: process.env.RESULTS_TOKEN,
   });
 
   if (!parsed.success) {

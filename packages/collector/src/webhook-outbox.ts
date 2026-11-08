@@ -148,7 +148,7 @@ export function createWebhookOutbox(
 
   function stop(): void {
     stopped = true;
-    if (timer) clearTimeout(timer);
+    if (timer) clearInterval(timer);
     timer = null;
   }
 

@@ -82,6 +82,11 @@ export function connectWs(url: string) {
     reconnection: true,
     reconnectionDelay: collectorConfig.wsReconnectDelayMs,
     reconnectionDelayMax: 30_000,
+    // A split deployment's server requires this when ALLOW_REMOTE_RESULTS is
+    // on; the combined image leaves it unset and publishes over loopback.
+    auth: collectorConfig.resultsToken
+      ? { token: collectorConfig.resultsToken }
+      : undefined,
   });
 
   socket.on('connect', () => {
