@@ -79,6 +79,8 @@ export function summarizePlaces(
  */
 export function useVotingPlaces(electorateName: string | null): {
   summary: VotingPlaceSummary | null;
+  /** The contributing set: places whose results count here, including elsewhere. */
+  contributing: { counted: number; total: number } | null;
   loading: boolean;
   error: string | null;
   refetch: () => void;
@@ -107,6 +109,12 @@ export function useVotingPlaces(electorateName: string | null): {
 
   return {
     summary,
+    // The contributing set is the feed's own count, including places filed
+    // under this seat from elsewhere. The in-seat booths above are what the map
+    // draws; the two are deliberately not the same number.
+    contributing: query.data?.available
+      ? { counted: query.data.counted, total: query.data.total }
+      : null,
     loading: query.isPending && summary === null,
     error: query.error instanceof Error ? query.error.message : null,
     refetch: () => {

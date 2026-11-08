@@ -20,6 +20,8 @@ export function ElectorateDetail({
   historyError,
   onRetryHistory,
   votingPlaces,
+  contributingPlaces,
+  electionYear,
   priorWinners,
   priorUnavailable,
   chance,
@@ -35,6 +37,10 @@ export function ElectorateDetail({
   onRetryHistory?: () => void;
   /** The seat's voting places, for the receipt rug on the count chart. */
   votingPlaces?: { counted: number; total: number; receipts: number[] };
+  /** The contributing place set, which may be larger than the in-seat booths. */
+  contributingPlaces?: { counted: number; total: number } | null;
+  /** Cycle, for the summary's turnouts and specials. */
+  electionYear?: string | number | null;
   /** This seat's prior-cycle winners, newest first; empty when none apply. */
   priorWinners?: PriorWinner[];
   priorUnavailable?: boolean;
@@ -67,6 +73,16 @@ export function ElectorateDetail({
             chance={chance}
             updatedAt={updatedAt}
             pollsClose={pollsClose}
+            contributingPlaces={contributingPlaces}
+            inSeatBooths={
+              votingPlaces
+                ? {
+                    counted: votingPlaces.counted,
+                    total: votingPlaces.total,
+                  }
+                : null
+            }
+            electionYear={electionYear}
           />
         )}
 

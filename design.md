@@ -144,6 +144,18 @@ overflow-y-clip`): an `auto` vertical axis would make the scroller the sticky
   14px figure over a 13px share left the count and its own share a pixel apart
   and read as fine print around a number. Two bare figures side by side read as
   one quantity, so the words stay.
+- **A count says what kind of measure it is.** The seat band's four fixed
+  labels are `Voting places reported` (the contributing set, which may include
+  advance hubs standing in another electorate), `Counted`, `Margin` and
+  `Estimated ordinary votes remaining tonight`. When every contributing place
+  has reported the fourth cell reads `Ordinary count complete`; the line under
+  the ordinary bar reads `Election-night count complete`. The ordinary bar keeps
+  that meaning through completion: specials get their own labelled row,
+  `Estimated specials to be counted later`, on a distinct bar and denominator.
+  The map's ledger says `booths in this electorate`, because 24 of 24 booths
+  inside a seat is not 90 of 102 contributing places. A missing forecast prints
+  `Estimate unavailable`, never zero and never `No votes counted yet` when votes
+  are known. No page derives its own version of these numbers.
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

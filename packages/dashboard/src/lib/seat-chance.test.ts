@@ -304,13 +304,16 @@ describe('countProgress', () => {
     expect(progress.fraction).toBeLessThan(0.2);
   });
 
-  it('reports no fraction when neither enrolment nor turnout is known', () => {
+  it('reports no fraction when neither enrolment nor turnout is known, but keeps the votes', () => {
     const progress = countProgress(
       [{ electorateName: 'Nowhere', votesCounted: 500 }],
       '2026'
     );
+    // The known vote is not hidden just because its denominator is unknown;
+    // the percentage is withheld rather than computed over a partial total.
     expect(progress.fraction).toBeNull();
-    expect(progress.votesCounted).toBe(0);
+    expect(progress.votesCounted).toBe(500);
+    expect(progress.unknownSeats).toBe(1);
   });
 });
 

@@ -60,6 +60,13 @@ const complete: SeatChance = {
 const renderBand = (chance: SeatChance | null, extra = {}) =>
   render(<ElectorateCountBand result={result()} chance={chance} {...extra} />);
 
+/** The zeroed ballot, before the first count. */
+const emptyBallot = {
+  votesCounted: 0,
+  candidateVotes: [],
+  partyVotes: [],
+};
+
 const closesAt = new Date('2026-11-07T06:00:00.000Z');
 
 /** A close instant `ms` in the future, as `usePollsClose` would report it. */
@@ -75,7 +82,10 @@ describe('ElectorateCountBand', () => {
   it('counts down to the close before the first votes, and says what follows', () => {
     renderBand(
       { state: 'waiting' },
-      { pollsClose: beforeClose(4 * 3_600_000) }
+      {
+        result: result(emptyBallot),
+        pollsClose: beforeClose(4 * 3_600_000),
+      }
     );
     expect(screen.getByText('No votes counted yet')).toBeInTheDocument();
     // A live countdown, not a fixed "7pm": before the close the reader needs to
@@ -95,7 +105,10 @@ describe('ElectorateCountBand', () => {
   it('says the count is under way once the polls have closed', () => {
     renderBand(
       { state: 'waiting' },
-      { pollsClose: { phase: 'counting', countdown: null, closesAt } }
+      {
+        result: result(emptyBallot),
+        pollsClose: { phase: 'counting', countdown: null, closesAt },
+      }
     );
     expect(screen.getByText('Polls closed · counting')).toBeInTheDocument();
     expect(
@@ -106,7 +119,10 @@ describe('ElectorateCountBand', () => {
   it('shows no countdown for a cycle with no known close instant', () => {
     const { container } = renderBand(
       { state: 'waiting' },
-      { pollsClose: { phase: 'stale', countdown: null, closesAt } }
+      {
+        result: result(emptyBallot),
+        pollsClose: { phase: 'stale', countdown: null, closesAt },
+      }
     );
     expect(container.querySelector('.chip-print')).toBeNull();
     expect(screen.getByText(/counting gets underway/)).toBeInTheDocument();
@@ -141,6 +157,22 @@ describe('ElectorateCountBand', () => {
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
+  it('names the contributing set and the in-seat booths separately', () => {
+    renderBand(counting, {
+      result: result({ votePercentageCounted: 0.5 }),
+      contributingPlaces: { counted: 90, total: 102 },
+      inSeatBooths: { counted: 24, total: 24 },
+    });
+
+    // Mt Albert in miniature: all the booths in the seat have reported, but
+    // the set that counts towards the seat (including advance hubs elsewhere)
+    // has not.
+    expect(screen.getByText('90 / 102')).toBeInTheDocument();
+    expect(
+      screen.getByText('24 / 24 booths in this electorate')
+    ).toBeInTheDocument();
+  });
+
   it('prints no probability at all — the chance lives in the table', () => {
     // The whole point of the move: one number means one thing on one surface.
     // A card at the top of the page and a column underneath could disagree, and
@@ -157,12 +189,15 @@ describe('ElectorateCountBand', () => {
     // A finished count is not a result: the specials are counted over the
     // fortnight after the night, so the slot is reused rather than closed.
     renderBand(complete, { result: result({ votesCounted: 35324 }) });
-    expect(screen.getByText('Specials to come')).toBeInTheDocument();
-    expect(screen.queryByText('Still out')).not.toBeInTheDocument();
-    expect(screen.getByText(/about 9,700 votes/)).toBeInTheDocument();
     expect(
-      screen.getByText('Count complete · 78% of the expected final vote')
+      screen.getByText('Estimated specials to be counted later')
     ).toBeInTheDocument();
+    // The ordinary bar's meaning does not change; the fourth cell closes it.
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(
+      screen.getByText('Election-night count complete')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/about 9,700 votes/)).toBeInTheDocument();
     // Nothing is said about the margin against the specials: the two figures
     // are in cells side by side, and a sentence pointing out that 396 is
     // smaller than 9,700 tells the reader what they can already see.
@@ -196,12 +231,15 @@ describe('ElectorateCountBand', () => {
     expect(screen.getByText(/about 1,200 votes/)).toBeInTheDocument();
   });
 
-  it('renders nothing about a seat that has not counted when no model is available', () => {
-    // No baseline means no probability and no estimate of the votes still out;
-    // the band falls back to the ballot's own header rather than printing a
-    // strip of zeros and a bar with nothing behind it.
+  it('shows known votes and says the estimate is unavailable without a model', () => {
+    // No baseline means no probability and no estimate, but the count itself is
+    // a fact. Hiding it behind "No votes counted yet" would be false.
     renderBand(null);
-    expect(screen.getByText('No votes counted yet')).toBeInTheDocument();
-    expect(screen.queryByText(/Still out/)).not.toBeInTheDocument();
+    expect(screen.getByText(/31,590 votes/)).toBeInTheDocument();
+    expect(screen.getByText('Estimate unavailable')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ordinary progress unavailable')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No votes counted yet')).not.toBeInTheDocument();
   });
 });

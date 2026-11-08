@@ -54,7 +54,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
 | [x]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
 | [x]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
-| [ ]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
+| [x]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
 | [ ]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
 | [ ]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
 | [ ]  | **09 — Isolate webhook delivery with a durable outbox**              | P0                           | R4       | 07                                           |
@@ -409,6 +409,33 @@ baseline; missing versus zero place progress; all places complete below forecast
 candidate/party totals differ. A raw count correction may reduce votes/progress:
 do not introduce an unconditional monotonicity clamp. Real-page mobile/desktop
 captures must show stable labels/denominators before and after completion.
+
+**Implementation record:** `packages/core/src/count-summary.ts` is the shared
+contract (`CountSummary`, `summarizeCount`, `summarizeNationalCount`, version 1).
+It keeps `facts` (feed total, candidate sum, party sum and their difference),
+contributing-place coverage and in-seat booth coverage as separate fields,
+ordinary progress with a nullable estimate and provenance, and a separately
+labelled specials estimate. A missing denominator is `null`, not zero; an
+estimate at a high percentage is not authoritative completion; a complete
+contributing set completes the ordinary count even when no roll is known. The
+feed's `final` flag is ignored unless a caller declares its semantics validated.
+`countProgress` now delegates to the same summary: unknown-denominator seats
+contribute their counted votes and set `fraction: null` rather than showing a
+confident national percentage. The seat band uses the summary for four fixed
+labels: `Voting places reported` (with `N / N booths in this electorate` under
+it), `Counted`, `Margin` and `Estimated ordinary votes remaining tonight`;
+completion reads `Ordinary count complete` and `Election-night count complete`,
+the ordinary bar keeps that meaning, and specials have their own labelled bar
+and denominator. A missing model now shows known votes and `Estimate
+unavailable`, never `No votes counted yet` when votes exist. `useVotingPlaces`
+exposes the contributing set alongside the in-seat summary. `design.md` records
+the labels. Tests cover the Mt Albert 90/102 vs 24/24 split, Nelson's 35,649
+place floor, missing enrolment, a zero seat, completion below forecast,
+candidate/party difference, missing vs zero places, a downward correction and
+unvalidated `final`. 841 tests pass. Deliberately deferred: the summary version
+is not yet stored on history rows (Task 07 adds the model/basis column), and
+real-browser 360/390px captures were not run in this worktree; the labels and
+denominators are pinned by component tests.
 
 ### 07 — Persist full latest state and a durable revision
 

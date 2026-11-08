@@ -1,9 +1,8 @@
+import type { SeatChance } from '@election-night/core/seat-probability';
 import {
-  cycleConstantsFor,
-  isCountComplete,
-  nightRemaining,
-  type SeatChance,
-} from '@election-night/core/seat-probability';
+  summarizeNationalCount,
+  type CountSummaryInput,
+} from '@election-night/core/count-summary';
 import {
   enrolmentForSeat,
   resolveEnrolment,
@@ -73,43 +72,40 @@ export function countProgress(
     votePercentageCounted?: number;
   }>,
   electionYear: string | number | null
-): { votesCounted: number; expected: number; fraction: number | null } {
-  const cycle = cycleConstantsFor(electionYear ? Number(electionYear) : null);
+): {
+  votesCounted: number;
+  expected: number;
+  fraction: number | null;
+  unknownSeats: number;
+} {
   const baseline = baselineFor(electionYear);
-  let votesCounted = 0;
-  let expected = 0;
+  const seats: CountSummaryInput[] = [];
   for (const result of results) {
     if (!(result.votesCounted > 0)) continue;
     // A complete seat needs no denominator: its counted votes are its total.
-    // This also keeps a complete seat whose roll is unknown in the sum.
-    if (isCountComplete(result.votePercentageCounted)) {
-      votesCounted += result.votesCounted;
-      expected += result.votesCounted;
-      continue;
-    }
-    const enrolment = resolveEnrolment({
-      recorded: enrolmentForSeat(baseline, result.electorateName),
-      votesCounted: result.votesCounted,
-      percentVotesCast: result.percentVotesCast,
+    // A seat with neither a recorded roll nor a turnout figure still
+    // contributes its counted votes; the summary reports the missing
+    // denominator rather than dropping the votes.
+    seats.push({
+      result,
+      electionYear: electionYear ? Number(electionYear) : null,
+      enrolment: resolveEnrolment({
+        recorded: enrolmentForSeat(baseline, result.electorateName),
+        votesCounted: result.votesCounted,
+        percentVotesCast: result.percentVotesCast,
+      }),
     });
-    if (!enrolment) continue;
-    const { remainingVotes } = nightRemaining({
-      votesCounted: result.votesCounted,
-      enrolment,
-      cycle,
-      placesCounted: result.votePercentageCounted,
-    });
-    votesCounted += result.votesCounted;
-    expected += result.votesCounted + remainingVotes;
   }
+
+  const national = summarizeNationalCount(seats);
   return {
-    votesCounted,
-    expected,
-    // Clamped at 1: the denominator is built from each cycle's turnout, so a
-    // seat that outruns the last cycle's turnout passes its expectation, and a
-    // page reading "101.5% counted" invites the reader to distrust every other
-    // number on it.
-    fraction: expected > 0 ? Math.min(1, votesCounted / expected) : null,
+    votesCounted: national.votesCounted,
+    expected: national.expected,
+    // A seat whose total cannot be estimated leaves the denominator
+    // incomplete; the known-only ratio would be a lower bound presented as a
+    // complete national percentage. Say unknown instead.
+    fraction: national.unknownSeats > 0 ? null : national.fraction,
+    unknownSeats: national.unknownSeats,
   };
 }
 

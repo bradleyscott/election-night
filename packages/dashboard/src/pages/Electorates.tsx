@@ -62,7 +62,7 @@ export default function Electorates() {
   // Every seat's chance, not just the open one: the map's shading is this
   // number, so a seat at even odds is painted pale and one that is gone is
   // solid. The swing behind it is measured across every seat at once.
-  const { chances } = useSeatChances(electorates);
+  const { electionYear, chances } = useSeatChances(electorates);
 
   const chance = selectedElectorate
     ? (chances.get(
@@ -81,6 +81,7 @@ export default function Electorates() {
   // owns the request rather than each of them asking separately.
   const {
     summary: places,
+    contributing: contributingPlaces,
     loading: placesLoading,
     error: placesError,
     refetch: refetchPlaces,
@@ -180,6 +181,8 @@ export default function Electorates() {
             historyError={historyError}
             onRetryHistory={refetchHistory}
             votingPlaces={votingPlaces}
+            contributingPlaces={contributingPlaces}
+            electionYear={electionYear}
             priorWinners={priorLoading ? undefined : priorWinners}
             priorUnavailable={priorUnavailable}
             chance={chance}
