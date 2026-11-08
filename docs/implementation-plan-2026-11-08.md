@@ -58,10 +58,10 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
 | [x]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
 | [x]  | **09 — Isolate webhook delivery with a durable outbox**              | P0                           | R4       | 07                                           |
-| [ ]  | **10 — Add explicit result phases and versioned model evaluation**   | P1; final-result safety gate | R7       | 04, 06a, 07                                  |
+| [x]  | **10 — Add explicit result phases and versioned model evaluation**   | P1; final-result safety gate | R7       | 04, 06a, 07                                  |
 | [ ]  | **11 — Replace generic UI interaction machinery**                    | P1                           | R8       | P0 reliability tasks complete                |
-| [ ]  | **12 — Consolidate backend protocol code only where justified**      | P2                           | R9       | Contracts stable after 01–10                 |
-| [ ]  | **13 — Run cross-layer release rehearsal and document rollback**     | P0 release gate              | All      | Applicable fixes above                       |
+| [x]  | **12 — Consolidate backend protocol code only where justified**      | P2                           | R9       | Contracts stable after 01–10                 |
+| [x]  | **13 — Run cross-layer release rehearsal and document rollback**     | P0 release gate              | All      | Applicable fixes above                       |
 
 Work serially by default. The independence of task 04 is not an instruction to
 spawn another agent. If a task is deliberately deferred, record the reason, owner
@@ -593,6 +593,21 @@ any proposed parameter change separately for approval. If calibrated final-seat
 claims cannot be supported, make that limitation explicit rather than tuning until
 the example looks reassuring.
 
+**Implementation record:** `summarizeCount` distinguishes `counting`,
+`preliminary-complete`, `official` and `unknown`. An official result
+(`finalSemantics: 'validated'` and `final: true`) reports zero ordinary
+remaining and **null** specials, so no forecast is presented as a counted fact;
+an unvalidated `final` flag stays preliminary-complete or unknown. The
+evaluation script now writes a versioned JSON report (`--json`/`--out`) with
+Brier, log loss, ten calibration bins, early/late splits, the naive baseline,
+the model inputs and an explicit limits list. `docs/model-evaluation-2026-11-08.md`
+states the report's method, the correlated-checkpoint and approximate-arrival
+limits, and that the Task 04 specials evidence is pending regeneration. No
+parameter change is proposed. Tests: the official/unknown phase cases and the
+existing probability/allocation invariants. 875 tests pass. The 2023 report
+itself is not regenerated here because the archive cache is not present in this
+worktree; the command and limits are recorded.
+
 ### 11 — Replace generic UI behaviour, not the editorial design
 
 **Start in:** `WinPercentDrawer.tsx`, `BottomSheet.tsx`, `ElectorateSearch.tsx`,
@@ -615,6 +630,16 @@ real-browser screenshots at 360/390px and desktop in both themes are reviewed.
 Record behaviour code deleted, wrapper code added and bundle/dependency delta.
 A browser test dependency is permitted; never add a browser to the collector.
 
+**Implementation record (deferred):** the spike is documented in
+`docs/ui-primitives-spike-2026-11-08.md`. No dependency was added and no
+component was migrated: adding React Aria without moving both the drawer and the
+combobox would create a second primitive family, and the acceptance matrix
+(Tab/inertness/nested Escape/scroll at 360/390px in both themes) needs a
+real-browser runner this worktree does not have. The document records the
+current behavior inventory, the missing evidence, and the exact next-step
+branch. Release limitation: the existing focus/keyboard/scroll wrappers remain
+unchanged; their tests still pass.
+
 ### 12 — Conditional backend consolidation
 
 - Use existing Zod for shared runtime boundary schemas, deriving TS types where
@@ -632,6 +657,18 @@ A browser test dependency is permitted; never add a browser to the collector.
 **Done when:** the migration/defer decision is recorded with before/after evidence,
 runtime boundary tests cover malformed input and methods, and production dependency
 audit passes. No framework change is required to close P0 reliability tasks.
+
+**Implementation record:** Zod now parses the socket frame at the
+dashboard boundary (`server/validation.ts`), preserving unknown fields and
+rejecting malformed envelopes; the collector rejects a non-four-digit `?year=`.
+`ALLOW_REMOTE_RESULTS=true` is no longer sufficient for a remote publisher: a
+matching `RESULTS_TOKEN` in the Socket.IO handshake is required, and without a
+configured token remote publishers are rejected. Tests cover the schema, the
+publisher policy and the year parameter. The Hono spike is a documented **do
+not adopt**: the routes are already split and tested, Hono would leave
+Socket.IO/the worker/SPA serving in place and would not delete a measured amount
+of protocol code. The existing bounded `fetchWithRetry` is kept. Full reasons
+and evidence in `docs/backend-consolidation-2026-11-08.md`.
 
 ## 5. Task 13: release rehearsal and global definition of done
 
@@ -692,3 +729,12 @@ Production actions taken: none (unless explicitly authorised)
 
 The implementing agent's first deliverable is task 01's regression and bounded
 stale-history fix, not a new architecture proposal or a large all-in-one rewrite.
+
+**Implementation record (Task 13):** the rehearsal and rollback plan is in
+`docs/release-rehearsal-2026-11-08.md`. It maps every scenario in the table to
+the test that covers it, states the machine and commands, gives the Fly image
+rollback and the additive-migration/volume rules, and lists what was not run
+(real-browser captures, live feed, an actual production rollback). Last
+offline run: 875 tests / 88 files, lint and typecheck clean, production Vite
+build succeeds. The full-suite result is the rehearsal evidence; the document
+does not claim a live deployment was exercised.

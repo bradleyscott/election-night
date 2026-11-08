@@ -283,7 +283,12 @@ async function serveReaderRoutes(
   windowHours: number,
   maxSnapshots: number
 ): Promise<boolean> {
-  const year = params.get('year') ?? configuredYear;
+  const requestedYear = params.get('year');
+  if (requestedYear !== null && !/^\d{4}$/.test(requestedYear)) {
+    sendJson(res, { error: 'year must be a four-digit cycle' }, 400);
+    return true;
+  }
+  const year = requestedYear ?? configuredYear;
   if (!year) {
     sendJson(res, { error: 'no election year configured' }, 503);
     return true;
@@ -465,6 +470,10 @@ export function createHistoryHandler(
     }
 
     const requestedYear = params.get('year');
+    if (requestedYear !== null && !/^\d{4}$/.test(requestedYear)) {
+      sendJson(res, { error: 'year must be a four-digit cycle' }, 400);
+      return true;
+    }
     const year = resolveElectionYear(handle, requestedYear, electionYear);
     if (pathname === '/history/latest') {
       if (!year) {

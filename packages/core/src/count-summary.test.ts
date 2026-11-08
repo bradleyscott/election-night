@@ -203,6 +203,27 @@ describe('summarizeCount', () => {
     expect(validated.phase).toBe('official');
   });
 
+  it('does not invent outstanding specials on an official result', () => {
+    const summary = summarizeCount({
+      result: {
+        votesCounted: 30_000,
+        votePercentageCounted: 1,
+        final: true,
+        candidateVotes: [{ votes: 30_000 }],
+        partyVotes: [{ votes: 30_000 }],
+      },
+      enrolment: 40_000,
+      electionYear: 2023,
+      finalSemantics: 'validated',
+      chance: countingChance,
+    });
+
+    expect(summary.phase).toBe('official');
+    expect(summary.ordinary.state).toBe('complete');
+    expect(summary.ordinary.remaining?.value).toBe(0);
+    expect(summary.specials.remaining).toBeNull();
+  });
+
   it('reports national coverage with unknown seats counted, not dropped', () => {
     const known = {
       result: { votesCounted: 1_000, votePercentageCounted: 0.5 },

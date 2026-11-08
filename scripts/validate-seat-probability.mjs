@@ -19,10 +19,10 @@
 // Requires `npm run build:core` first, and the archive cache that
 // `scripts/build-notional-baseline.mjs` writes to
 // `.cache/notional-<year>-files-v2.json` (override with `--cache=<path>`).
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arg } from './lib/args.mjs';
+import { arg, hasFlag } from './lib/args.mjs';
 
 import {
   computeSeatChance,
@@ -271,9 +271,85 @@ const meanPOnFlips = (pairs) => {
   const flipped = pairs.filter(([, y]) => y === 0);
   return flipped.reduce((s, [p]) => s + p, 0) / (flipped.length || 1);
 };
+const clampP = (p) => Math.min(1 - 1e-6, Math.max(1e-6, p));
+const logLoss = (pairs) =>
+  -pairs.reduce(
+    (s, [p, y]) => s + (y ? Math.log(clampP(p)) : Math.log(1 - clampP(p))),
+    0
+  ) / (pairs.length || 1);
+const calibration = (pairs) => {
+  const bins = Array.from({ length: 10 }, (_, i) => ({
+    lo: i / 10,
+    hi: (i + 1) / 10,
+    n: 0,
+    sumP: 0,
+    wins: 0,
+  }));
+  for (const [p, y] of pairs) {
+    const index = Math.min(9, Math.max(0, Math.floor(p * 10)));
+    const bin = bins[index];
+    bin.n += 1;
+    bin.sumP += p;
+    bin.wins += y;
+  }
+  return bins
+    .filter((bin) => bin.n > 0)
+    .map((bin) => ({
+      range: [bin.lo, bin.hi],
+      n: bin.n,
+      meanProbability: bin.sumP / bin.n,
+      observed: bin.wins / bin.n,
+    }));
+};
 
 const byBand = (pairs, early) =>
   pairs.filter(([, , progress]) => (early ? progress < 0.5 : progress >= 0.5));
+
+const metricsFor = (strength) => {
+  const pairs = scores.get(strength) ?? [];
+  return {
+    strength,
+    n: pairs.length,
+    brier: brier(pairs),
+    brierEarly: brier(byBand(pairs, true)),
+    brierLate: brier(byBand(pairs, false)),
+    logLoss: logLoss(pairs),
+    meanProbabilityOnFlips: meanPOnFlips(pairs),
+    confidentCalls: confident(pairs),
+    wrongConfidentCalls: falseConfidence(pairs),
+    calibration: calibration(pairs),
+  };
+};
+
+const report = {
+  version: 1,
+  script: 'validate-seat-probability.mjs',
+  generatedAt: new Date().toISOString(),
+  year: YEAR,
+  checkpoints: CHECKPOINTS,
+  strengths: STRENGTHS,
+  model: {
+    tau,
+    cycle,
+    specialsSwingSd: 'SPECIALS_SWING_SD (core, unchanged)',
+  },
+  metrics: STRENGTHS.map(metricsFor),
+  naive: {
+    n: naive.length,
+    brier: brier(naive),
+    brierEarly: brier(byBand(naive, true)),
+    brierLate: brier(byBand(naive, false)),
+    logLoss: logLoss(naive),
+  },
+  flips: flips(naive),
+  limits: [
+    'Arrival order is approximated: away-from-home votes are released first, then a deterministic pseudo-random order for a seat’s own places. Advance votes cast inside a seat cannot be separated.',
+    'Checkpoints within a seat are correlated; the effective sample is the seat count, not the checkpoint count.',
+    'The archive covers 2023 only here; this is not a final-result or special-vote calibration.',
+    'The Task 04 specials evidence is pending regeneration; SPECIALS_SWING_SD is not tuned from this report.',
+    'No parameter change is proposed by this report.',
+  ],
+};
 
 console.log(
   'strength   Brier    early     late   on flips   ≥95% calls   wrong   n'
@@ -309,4 +385,13 @@ if (flipped.length > 0) {
         `${(row.probs[0] ?? NaN).toFixed(3).padStart(6)}   ${(row.probs[1] ?? NaN).toFixed(3).padStart(6)}`
     );
   }
+}
+
+if (hasFlag('json')) {
+  console.log(JSON.stringify(report, null, 1));
+}
+const out = arg('out', '');
+if (out) {
+  await writeFile(out, JSON.stringify(report, null, 1));
+  console.error(`wrote ${out}`);
 }

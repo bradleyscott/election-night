@@ -370,6 +370,12 @@ describe('history-server paging and window', () => {
     }
   });
 
+  test('rejects a malformed year override', async () => {
+    await startWith();
+    const res = await fetch(`${baseUrl}/history/snapshots?year=abcd`);
+    expect(res.status).toBe(400);
+  });
+
   test('rejects a malformed offset', async () => {
     await startWith();
     const res = await fetch(`${baseUrl}/history/snapshots?offset=-1`);

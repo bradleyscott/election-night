@@ -288,6 +288,25 @@ export function summarizeCount(input: CountSummaryInput): CountSummary {
   };
 
   const validated = input.finalSemantics === 'validated';
+  const official = validated && result.final === true;
+  if (official) {
+    // An official result is not a forecast: nothing is outstanding, specials
+    // included, and the estimate slots must not invent them.
+    ordinary = {
+      state: 'complete',
+      counted,
+      remaining: {
+        value: 0,
+        low: 0,
+        high: 0,
+        provenance: 'official result',
+        version: COUNT_SUMMARY_VERSION,
+      },
+      progress: 1,
+    };
+    specials.remaining = null;
+  }
+
   const phase: CountPhase = validated
     ? result.final === true
       ? 'official'

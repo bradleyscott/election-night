@@ -40,8 +40,9 @@ import {
   resetFeedState,
 } from './feed.js';
 import { classifyResultsEnvelope } from './results-envelope.js';
+import { parseResultsEnvelope } from './validation.js';
 import { withMutex, Mutex } from './mutex.js';
-import { isLoopbackAddress } from './publisher.js';
+import { isAuthorizedPublisher, isLoopbackAddress } from './publisher.js';
 import { readTaggedCache } from '@election-night/core/tagged-cache';
 import { log } from './logger.js';
 
@@ -260,14 +261,12 @@ io.on('connection', (socket) => {
     ) => {
       socketMessagesTotal.inc({ direction: 'in', event: 'results_update' });
 
-      const envelope: ResultsEnvelope =
-        data && typeof data === 'object' && 'payload' in data
-          ? (data as ResultsEnvelope)
-          : {
-              payload: data as ResultsPayload,
-              electionYear: dashboardServerConfig.electionYear ?? null,
-              revision: null,
-            };
+      const envelope = parseResultsEnvelope(data);
+      if (!envelope) {
+        ack?.({ ok: false, error: 'invalid payload' });
+        log.warn('Rejected results_update: invalid payload');
+        return;
+      }
       const payload = envelope.payload;
 
       const reject = (error: string) => {
@@ -301,12 +300,25 @@ io.on('connection', (socket) => {
         }, cycle=${envelope.electionYear ?? 'unknown'}`
       );
 
+      const remote = !isLoopbackAddress(socket.handshake.address);
+      const token =
+        typeof socket.handshake.auth?.token === 'string'
+          ? socket.handshake.auth.token
+          : undefined;
       if (
-        !dashboardServerConfig.allowRemoteResults &&
-        !isLoopbackAddress(socket.handshake.address)
+        !isAuthorizedPublisher({
+          remote,
+          allowRemote: dashboardServerConfig.allowRemoteResults,
+          token,
+          expectedToken: dashboardServerConfig.resultsToken,
+        })
       ) {
         resultsUpdatesRejectedTotal.inc({ reason: 'remote-publisher' });
-        reject('remote publisher');
+        reject(
+          remote
+            ? 'remote publisher is not authenticated (RESULTS_TOKEN)'
+            : 'publisher rejected'
+        );
         return;
       }
 
