@@ -214,6 +214,26 @@ describe('history-server', () => {
     expect(res.status).toBe(404);
   });
 
+  test('serves the authoritative latest payload with its revision', async () => {
+    await start('2026');
+    const res = await fetch(`${baseUrl}/history/latest`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-election-revision')).toBe('2');
+    const body = (await res.json()) as {
+      revision: number;
+      payload: {
+        electorateResults: unknown[];
+        partyVote: unknown[];
+        partyLists: unknown[];
+      };
+    };
+    expect(body.revision).toBe(2);
+    expect(body.payload.electorateResults.length).toBeGreaterThan(0);
+    expect(Array.isArray(body.payload.partyVote)).toBe(true);
+    expect(Array.isArray(body.payload.partyLists)).toBe(true);
+  });
+
   describe('results service routes', () => {
     const priorWinners: PriorWinnersResponse = {
       currentYear: '2026',
@@ -279,5 +299,259 @@ describe('history-server', () => {
       const res = await fetch(`${baseUrl}/history/prior-winners`);
       expect(res.status).toBe(200);
     });
+  });
+});
+
+describe('history-server paging and window', () => {
+  let tmpDir: string;
+  let dbPath: string;
+  let server: http.Server;
+  let baseUrl: string;
+
+  beforeEach(async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'history-server-paging-'));
+    dbPath = join(tmpDir, 'test.db');
+    const { openDb, writeResults, closeDb } = await import('./db.js');
+    openDb(dbPath);
+    writeResults([makeResult(5000)], [], [], '2026');
+    writeResults([makeResult(6000)], [], [], '2026');
+    closeDb();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      });
+    }
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function startWith(
+    options: Partial<import('./history-server.js').HistoryHandlerOptions> = {}
+  ): Promise<void> {
+    const handler = createHistoryHandler({
+      dbPath,
+      electionYear: '2026',
+      ...options,
+    });
+    server = http.createServer((req, res) => {
+      if (!handler(req, res)) {
+        res.writeHead(404);
+        res.end('Not found');
+      }
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+  }
+
+  test('returns a page with explicit total/limit/offset headers', async () => {
+    await startWith();
+    const res = await fetch(`${baseUrl}/history/snapshots?limit=1&offset=1`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(1);
+    expect(res.headers.get('x-history-total')).toBe('2');
+    expect(res.headers.get('x-history-limit')).toBe('1');
+    expect(res.headers.get('x-history-offset')).toBe('1');
+    expect(res.headers.get('x-history-window-hours')).toBe('24');
+  });
+
+  test('rejects a non-positive or malformed limit', async () => {
+    await startWith();
+    for (const limit of ['0', 'abc', '-1']) {
+      const res = await fetch(`${baseUrl}/history/snapshots?limit=${limit}`);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  test('rejects a malformed year override', async () => {
+    await startWith();
+    const res = await fetch(`${baseUrl}/history/snapshots?year=abcd`);
+    expect(res.status).toBe(400);
+  });
+
+  test('rejects a malformed offset', async () => {
+    await startWith();
+    const res = await fetch(`${baseUrl}/history/snapshots?offset=-1`);
+    expect(res.status).toBe(400);
+  });
+
+  test('refuses an unpaged window that exceeds the cap instead of truncating', async () => {
+    await startWith({ maxSnapshots: 1 });
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+
+    expect(res.status).toBe(413);
+    await expect(res.json()).resolves.toMatchObject({
+      total: 2,
+      limit: 1,
+    });
+    expect(res.headers.get('x-history-total')).toBe('2');
+  });
+
+  test('an explicit page succeeds even when the window exceeds the cap', async () => {
+    await startWith({ maxSnapshots: 1 });
+    const res = await fetch(`${baseUrl}/history/snapshots?limit=1&offset=0`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(1);
+  });
+
+  test('excludes snapshots older than the configured window', async () => {
+    const Database = (await import('better-sqlite3')).default;
+    const raw = new Database(dbPath);
+    raw
+      .prepare(
+        "UPDATE scrape_snapshots SET started_at = datetime('now', '-25 hours') WHERE id = (SELECT MIN(id) FROM scrape_snapshots WHERE election_year = '2026')"
+      )
+      .run();
+    raw.close();
+
+    await startWith({ windowHours: 24 });
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    const body = (await res.json()) as unknown[];
+
+    expect(res.status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(res.headers.get('x-history-total')).toBe('1');
+  });
+});
+
+describe('history-server worker reader', () => {
+  let server: http.Server;
+  let baseUrl: string;
+
+  afterEach(async () => {
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      });
+    }
+  });
+
+  function reader(
+    overrides: Partial<import('./history-queries.js').HistoryReader> = {}
+  ): import('./history-queries.js').HistoryReader {
+    const empty = async () => ({ rows: [], total: 0 });
+    return {
+      snapshots: empty,
+      latest: async () => null,
+      electorate: empty,
+      partyVotes: empty,
+      ...overrides,
+    };
+  }
+
+  async function start(
+    source: import('./history-queries.js').HistoryReader,
+    electionYear: string | null = '2026'
+  ): Promise<void> {
+    // No DB path is used: the reader owns the connection.
+    const handler = createHistoryHandler({
+      dbPath: join(tmpdir(), 'never-used.db'),
+      electionYear: electionYear ?? undefined,
+      reader: source,
+    });
+    server = http.createServer(async (req, res) => {
+      if (!(await handler(req, res))) {
+        res.writeHead(404);
+        res.end('Not found');
+      }
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+  }
+
+  const snapshot = {
+    snapshotId: 7,
+    electionYear: '2026',
+    startedAt: '2026-11-07T07:00:00.000Z',
+    completedAt: null,
+    revision: 1,
+    modelVersion: 1,
+  };
+
+  test('serves a page from the worker with the same array body and headers', async () => {
+    await start(
+      reader({
+        snapshots: async () => ({ rows: [snapshot], total: 1 }),
+      })
+    );
+
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([snapshot]);
+    expect(res.headers.get('x-history-total')).toBe('1');
+  });
+
+  test('maps worker unavailability to a structured 503, never an empty list', async () => {
+    await start(
+      reader({
+        snapshots: async () => {
+          throw Object.assign(new Error('db worker queue is full'), {
+            code: 'unavailable',
+          });
+        },
+      })
+    );
+
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'database unavailable',
+    });
+  });
+
+  test('rejects bad paging before asking the worker', async () => {
+    let called = 0;
+    await start(
+      reader({
+        snapshots: async () => {
+          called += 1;
+          return { rows: [], total: 0 };
+        },
+      })
+    );
+
+    const res = await fetch(`${baseUrl}/history/snapshots?limit=0`);
+    expect(res.status).toBe(400);
+    expect(called).toBe(0);
+  });
+
+  test('serves the latest state from the worker reader', async () => {
+    const latest = {
+      electionYear: '2026',
+      revision: 4,
+      payload: { electorateResults: [], partyVote: [], partyLists: [] },
+      source: 'NZ Election XML Feed',
+      observedAt: '2026-11-07T07:00:00.000Z',
+      phase: 'counting',
+      coverage: null,
+      modelVersion: 1,
+      configVersion: '2026',
+      updatedAt: '2026-11-07T07:00:01.000Z',
+    };
+    await start(reader({ latest: async () => latest }));
+
+    const res = await fetch(`${baseUrl}/history/latest`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-election-revision')).toBe('4');
+    await expect(res.json()).resolves.toMatchObject({ revision: 4 });
+  });
+
+  test('503s when no year is configured and none is requested', async () => {
+    await start(reader(), null);
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    expect(res.status).toBe(503);
   });
 });

@@ -138,6 +138,30 @@ export const historyCacheEvents = new Counter({
   registers: [register],
 });
 
+/**
+ * History reads that could not be verified against the collector. `reason` is a
+ * small closed set from `HistoryFailureReason`, so cardinality stays bounded.
+ */
+export const historyVerificationFailuresTotal = new Counter({
+  name: 'election_history_verification_failures_total',
+  help: 'History reads that could not be verified against the collector',
+  labelNames: ['route', 'reason'],
+  registers: [register],
+});
+
+/**
+ * How old a stale history value was when it was served. Rising values mean the
+ * dashboard is showing an increasingly old answer without saying so; the
+ * response headers say it, and this is the series to alert on.
+ */
+export const historyStaleServeAge = new Histogram({
+  name: 'election_history_stale_serve_age_seconds',
+  help: 'Age since last verification of a stale history value that was served',
+  labelNames: ['route'],
+  buckets: [5, 10, 30, 60, 120, 300, 600, 1800, 3600],
+  registers: [register],
+});
+
 export const buildInfo = new Gauge({
   name: 'election_build_info',
   help: 'Build metadata; value is always 1',

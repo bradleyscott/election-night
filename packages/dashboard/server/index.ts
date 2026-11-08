@@ -3,7 +3,10 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Server } from 'socket.io';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import type { ResultsPayload } from '@election-night/core/types';
+import type {
+  ResultsEnvelope,
+  ResultsPayload,
+} from '@election-night/core/types';
 import { buildRuntimeConfig } from '@election-night/core/polls-close';
 import { chanceLookupFor } from '@election-night/core/notional-baseline';
 import { baselineFor } from '../src/lib/seat-chance.js';
@@ -36,8 +39,10 @@ import {
   loadFeedEvents,
   resetFeedState,
 } from './feed.js';
+import { classifyResultsEnvelope } from './results-envelope.js';
+import { parseResultsEnvelope } from './validation.js';
 import { withMutex, Mutex } from './mutex.js';
-import { isLoopbackAddress } from './publisher.js';
+import { isAuthorizedPublisher, isLoopbackAddress } from './publisher.js';
 import { readTaggedCache } from '@election-night/core/tagged-cache';
 import { log } from './logger.js';
 
@@ -54,6 +59,8 @@ setBuildInfo(
 );
 
 let latestResults: ResultsPayload | null = null;
+let latestEnvelope: ResultsEnvelope | null = null;
+let latestRevision: number | null = null;
 const feedMutex = new Mutex();
 
 function loadCachedResults() {
@@ -79,6 +86,11 @@ function loadCachedResults() {
         electorateResults: cached.items,
         partyVote: [],
         partyLists: [],
+      };
+      latestEnvelope = {
+        payload: latestResults,
+        electionYear: dashboardServerConfig.electionYear ?? null,
+        revision: null,
       };
       log.info(`Loaded cached results from ${CACHE_PATH}`);
       return;
@@ -161,6 +173,8 @@ const server = createServer(
       }
       await withMutex(feedMutex, async () => {
         latestResults = null;
+        latestEnvelope = null;
+        latestRevision = null;
         resetFeedState();
         historySource.clearCache();
         io.emit('clear');
@@ -184,13 +198,16 @@ const server = createServer(
       }
       if (url.pathname === '/health') return serveHealth(req, res);
       if (url.pathname === '/ready')
-        return serveReady(req, res, historySource, currentFeedEvents());
+        return serveReady(req, res, currentFeedEvents());
 
       try {
-        if (await serveApi(req, res, url, historySource)) return;
+        if (await serveApi(req, res, url, historySource, latestRevision))
+          return;
       } catch (err) {
-        // History upstream unreachable and nothing cached — degrade to 502
-        // rather than crashing the server on an unhandled rejection.
+        // An unexpected history failure (bug, malformed route, unexpected
+        // throw). Upstream unavailability is handled inside serveApi as a
+        // structured 503, so this is the last-resort degrade rather than the
+        // normal "collector is down" path.
         log.error('API route failed:', err);
         if (!res.headersSent) {
           res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -214,8 +231,15 @@ io.on('connection', (socket) => {
   log.debug(`Client connected: ${socket.id}`);
   websocketClients.set(io.engine.clientsCount);
 
-  if (latestResults) {
-    socket.emit('results_update', latestResults);
+  if (latestEnvelope) {
+    socket.emit('results_update', latestEnvelope);
+    socketMessagesTotal.inc({ direction: 'out', event: 'results_update' });
+  } else if (latestResults) {
+    socket.emit('results_update', {
+      payload: latestResults,
+      electionYear: dashboardServerConfig.electionYear ?? null,
+      revision: latestRevision,
+    } satisfies ResultsEnvelope);
     socketMessagesTotal.inc({ direction: 'out', event: 'results_update' });
   }
   const feedEvents = currentFeedEvents();
@@ -224,75 +248,141 @@ io.on('connection', (socket) => {
     socketMessagesTotal.inc({ direction: 'out', event: 'feed_history' });
   }
 
-  socket.on('results_update', (payload: ResultsPayload) => {
-    socketMessagesTotal.inc({ direction: 'in', event: 'results_update' });
+  socket.on(
+    'results_update',
+    (
+      data: ResultsEnvelope | ResultsPayload,
+      ack?: (response: {
+        ok: boolean;
+        duplicate?: boolean;
+        revision?: number | null;
+        error?: string;
+      }) => void
+    ) => {
+      socketMessagesTotal.inc({ direction: 'in', event: 'results_update' });
 
-    // Name the publisher in the log: a payload from anywhere but the
-    // co-located collector sets `latestResults` for every visitor and is
-    // re-emitted on connect, so it outlives the process that received it being
-    // restarted. Without this line the source of a wrong-cycle payload is
-    // invisible from the outside.
-    const electorates = payload?.electorateResults ?? [];
-    const clientIp =
-      socket.handshake.headers['fly-client-ip'] ??
-      socket.handshake.headers['x-forwarded-for'];
-    const userAgent = socket.handshake.headers['user-agent'] ?? 'none';
-    const origin =
-      socket.handshake.headers['origin'] ??
-      socket.handshake.headers['referer'] ??
-      'none';
-    log.info(
-      `results_update from ${socket.handshake.address}${
-        clientIp ? ` (client ${clientIp})` : ''
-      }: ua=${userAgent} origin=${origin} query=${JSON.stringify(
-        socket.handshake.query
-      )} electorates=${electorates.length}, first=${
-        electorates[0]?.electorateName ?? 'none'
-      }, partyLists=${payload?.partyLists?.length ?? 0}`
-    );
-
-    if (
-      !dashboardServerConfig.allowRemoteResults &&
-      !isLoopbackAddress(socket.handshake.address)
-    ) {
-      resultsUpdatesRejectedTotal.inc({ reason: 'remote-publisher' });
-      log.warn(
-        `Ignoring results_update from ${socket.handshake.address}: only the co-located collector may publish (set ALLOW_REMOTE_RESULTS=true for a split deployment)`
-      );
-      return;
-    }
-
-    withMutex(feedMutex, async () => {
-      const previousResults = latestResults?.electorateResults ?? [];
-      latestResults = payload;
-      lastScrapeTimestampSeconds.set(Date.now() / 1000);
-      log.info('Received results update, broadcasting...');
-      socket.broadcast.emit('results_update', payload);
-      socketMessagesTotal.inc({ direction: 'out', event: 'results_update' });
-
-      const rawEvents = buildFeedEvents(
-        previousResults,
-        payload.electorateResults,
-        // The feed says "likely to win" only because the page shows a chance;
-        // both read the same model, so the two cannot describe one count
-        // differently. Without a served cycle there is no prior, and the events
-        // fall back to count-only copy.
-        chanceLookupFor(
-          baselineFor(dashboardServerConfig.electionYear),
-          payload.electorateResults,
-          dashboardServerConfig.electionYear
-        )
-      );
-      if (rawEvents.length === 0) return;
-
-      const newEvents = addFeedEvents(rawEvents);
-      if (newEvents.length > 0) {
-        log.info(`Generated ${newEvents.length} feed events`);
-        io.emit('feed_update', newEvents);
-        socketMessagesTotal.inc({ direction: 'out', event: 'feed_update' });
+      const envelope = parseResultsEnvelope(data);
+      if (!envelope) {
+        ack?.({ ok: false, error: 'invalid payload' });
+        log.warn('Rejected results_update: invalid payload');
+        return;
       }
-    }).catch((err) => log.error('results_update handler failed:', err));
-  });
+      const payload = envelope.payload;
+
+      const reject = (error: string) => {
+        ack?.({ ok: false, error });
+        log.warn(`Rejected results_update: ${error}`);
+      };
+
+      // Name the publisher in the log: a payload from anywhere but the
+      // co-located collector sets `latestResults` for every visitor and is
+      // re-emitted on connect, so it outlives the process that received it
+      // being restarted. Without this line the source of a wrong-cycle payload
+      // is invisible from the outside.
+      const electorates = payload.electorateResults;
+      const clientIp =
+        socket.handshake.headers['fly-client-ip'] ??
+        socket.handshake.headers['x-forwarded-for'];
+      const userAgent = socket.handshake.headers['user-agent'] ?? 'none';
+      const origin =
+        socket.handshake.headers['origin'] ??
+        socket.handshake.headers['referer'] ??
+        'none';
+      log.info(
+        `results_update from ${socket.handshake.address}${
+          clientIp ? ` (client ${clientIp})` : ''
+        }: ua=${userAgent} origin=${origin} query=${JSON.stringify(
+          socket.handshake.query
+        )} electorates=${electorates.length}, first=${
+          electorates[0]?.electorateName ?? 'none'
+        }, partyLists=${payload.partyLists?.length ?? 0}, revision=${
+          envelope.revision ?? 'legacy'
+        }, cycle=${envelope.electionYear ?? 'unknown'}`
+      );
+
+      const remote = !isLoopbackAddress(socket.handshake.address);
+      const token =
+        typeof socket.handshake.auth?.token === 'string'
+          ? socket.handshake.auth.token
+          : undefined;
+      if (
+        !isAuthorizedPublisher({
+          remote,
+          allowRemote: dashboardServerConfig.allowRemoteResults,
+          token,
+          expectedToken: dashboardServerConfig.resultsToken,
+        })
+      ) {
+        resultsUpdatesRejectedTotal.inc({ reason: 'remote-publisher' });
+        reject(
+          remote
+            ? 'remote publisher is not authenticated (RESULTS_TOKEN)'
+            : 'publisher rejected'
+        );
+        return;
+      }
+
+      const decision = classifyResultsEnvelope(envelope, {
+        electionYear: dashboardServerConfig.electionYear ?? null,
+        latestRevision,
+      });
+      if (decision.kind === 'reject') {
+        if (decision.reason.startsWith('wrong cycle')) {
+          resultsUpdatesRejectedTotal.inc({ reason: 'wrong-cycle' });
+        } else if (decision.reason.startsWith('older revision')) {
+          resultsUpdatesRejectedTotal.inc({ reason: 'older-revision' });
+        }
+        reject(decision.reason);
+        return;
+      }
+      if (decision.kind === 'duplicate') {
+        // Accepted, but already applied: acknowledge without deriving a
+        // second set of feed events.
+        ack?.({ ok: true, duplicate: true, revision: envelope.revision });
+        return;
+      }
+
+      withMutex(feedMutex, async () => {
+        const previousResults = latestResults?.electorateResults ?? [];
+        latestResults = payload;
+        latestEnvelope = envelope;
+        if (envelope.revision !== null) latestRevision = envelope.revision;
+        lastScrapeTimestampSeconds.set(Date.now() / 1000);
+        log.info('Received results update, broadcasting...');
+        socket.broadcast.emit('results_update', envelope);
+        socketMessagesTotal.inc({ direction: 'out', event: 'results_update' });
+
+        const rawEvents = buildFeedEvents(
+          previousResults,
+          payload.electorateResults,
+          chanceLookupFor(
+            baselineFor(dashboardServerConfig.electionYear),
+            payload.electorateResults,
+            dashboardServerConfig.electionYear
+          )
+        );
+        if (rawEvents.length === 0) return;
+
+        const newEvents = addFeedEvents(rawEvents);
+        if (newEvents.length > 0) {
+          log.info(`Generated ${newEvents.length} feed events`);
+          io.emit('feed_update', newEvents);
+          socketMessagesTotal.inc({ direction: 'out', event: 'feed_update' });
+        }
+      })
+        .then(() =>
+          ack?.({
+            ok: true,
+            duplicate: false,
+            revision: envelope.revision,
+          })
+        )
+        .catch((err) => {
+          log.error('results_update handler failed:', err);
+          ack?.({ ok: false, error: 'handler failed' });
+        });
+    }
+  );
 
   socket.on('disconnect', () => {
     log.debug(`Client disconnected: ${socket.id}`);

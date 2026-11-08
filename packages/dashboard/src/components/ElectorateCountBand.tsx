@@ -7,6 +7,7 @@ import {
 } from '@election-night/core/polls-close';
 import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
+import { summarizeCount } from '@election-night/core/count-summary';
 import type { PollsCloseState } from '../hooks/usePollsClose.js';
 
 /**
@@ -106,17 +107,19 @@ export function ElectorateCountBand({
   chance,
   updatedAt,
   pollsClose,
+  contributingPlaces,
+  inSeatBooths,
+  electionYear,
 }: {
   result: ElectorateResult;
   /**
-   * The seat's chance, for the count's denominators. Absent or `waiting` shows
-   * the ballot list's own header instead of a strip of zeros.
+   * The seat's model result. Absent or `waiting` no longer means "no votes":
+   * the band shows the counted facts it has and labels the estimate unknown.
    */
   chance?: SeatChance | null;
   /**
    * When this browser's results last changed, printed at the top of the panel
-   * where the eye lands — the count is the thing being refreshed, so the time
-   * it last moved belongs above the figures rather than in a footnote.
+   * where the eye lands.
    */
   updatedAt?: Date | null;
   /**
@@ -124,8 +127,30 @@ export function ElectorateCountBand({
    * `stale`/`unknown`) when the server cannot say when this cycle closes.
    */
   pollsClose?: PollsCloseState | null;
+  /**
+   * The contributing place set, which counts towards this seat and may include
+   * advance hubs standing elsewhere. Not the same as the in-seat booths.
+   */
+  contributingPlaces?: { counted: number; total: number } | null;
+  /** Booths standing inside this electorate, as the map draws them. */
+  inSeatBooths?: { counted: number; total: number } | null;
+  /** Cycle, for the summary's turnout and special-vote constants. */
+  electionYear?: string | number | null;
 }) {
-  if (!chance || chance.state === 'waiting') {
+  const summary = summarizeCount({
+    result,
+    chance,
+    electionYear: electionYear == null ? null : Number(String(electionYear)),
+    enrolment: chance?.state === 'counting' ? chance.enrolment : null,
+    contributingPlaces,
+    inSeatBooths,
+  });
+
+  const counted = summary.ordinary.counted;
+  const complete = summary.ordinary.state === 'complete';
+  const hasVotes = counted > 0;
+
+  if (!hasVotes && (!chance || chance.state === 'waiting')) {
     const chip = closeChip(pollsClose);
     return (
       <div className="border-b px-3 py-3 sm:px-4">
@@ -143,42 +168,46 @@ export function ElectorateCountBand({
     );
   }
 
-  // A finished count is not a result: the specials are counted over the
-  // fortnight after the night, so the slot the outstanding votes just left is
-  // handed to them rather than closed. The reader does not have to learn a
-  // second vocabulary at the moment the band stops moving.
-  const complete = chance.state === 'complete';
-  const counted = result.votesCounted;
-  const outstanding = complete
-    ? chance.specialsOutstanding
-    : chance.remainingVotes;
-  const finalTotal = counted + outstanding;
-  // While counting, progress is votes counted over the night's estimated total
-  // (`nightRemaining`) — the same number the Trends tape plots. Once the count
-  // is complete the denominator is the whole vote, specials included, because
-  // that is now the only thing outstanding.
-  const share = complete
-    ? finalTotal > 0
-      ? counted / finalTotal
-      : 1
-    : chance.progress;
-  const percent = Math.round(share * 100);
-  const marginShare = counted > 0 ? chance.margin / counted : null;
+  const margin =
+    chance && 'margin' in chance
+      ? chance.margin
+      : (result.candidateVotes[0]?.votes ?? 0) -
+        (result.candidateVotes[1]?.votes ?? 0);
+  const marginShare = counted > 0 ? margin / counted : null;
   const updated = formatUpdatedAgo(updatedAt ?? null);
-  // Both figures are estimates built from national cycle constants, so both go
-  // through the same two-significant-figure rule — see `formatEstimate`.
-  const outstandingLabel = `about ${formatEstimate(outstanding)} votes`;
+
+  const places = summary.places;
+  const placesText =
+    places.contributingReported != null && places.contributingTotal != null
+      ? `${places.contributingReported} / ${places.contributingTotal}`
+      : places.contributingFraction != null
+        ? `${(places.contributingFraction * 100).toFixed(1)}%`
+        : 'not reported';
+  const boothsText =
+    places.inSeatBoothsReported != null && places.inSeatBoothsTotal != null
+      ? `${places.inSeatBoothsReported} / ${places.inSeatBoothsTotal} booths in this electorate`
+      : null;
+
+  const progress = summary.ordinary.progress;
+  const percent = progress == null ? null : Math.round(progress * 100);
+  const ordinaryEstimate = summary.ordinary.remaining;
+  const specialsEstimate = summary.specials.remaining;
+  const specialsShare =
+    specialsEstimate && counted + specialsEstimate.value > 0
+      ? specialsEstimate.value / (counted + specialsEstimate.value)
+      : 0;
 
   return (
     <div className="border-b">
-      <div className="grid grid-cols-2 sm:grid-cols-3">
-        {/* While the night is running the percentage is the progress — the
-            number that makes the chance legible. Once the count is complete it
-            is a share of the final vote, which the line under the bar states
-            once; printing it here as well would put the same 84% on the panel
-            twice. */}
-        <Stat label="Counted">
-          {!complete && (
+      <div className="grid grid-cols-2 sm:grid-cols-4">
+        <Stat label="Voting places reported">
+          <span className="text-sm font-bold text-foreground">
+            {placesText}
+          </span>
+          {boothsText && <div className="mt-0.5">{boothsText}</div>}
+        </Stat>
+        <Stat label="Counted" className="border-l">
+          {!complete && percent != null && (
             <>
               <span className="text-sm font-bold text-foreground">
                 {percent}%
@@ -188,38 +217,69 @@ export function ElectorateCountBand({
           )}
           {formatVotes(counted)} votes
         </Stat>
-        <Stat label="Margin" className="border-l">
+        <Stat label="Margin" className="border-t sm:border-l sm:border-t-0">
           <span className="text-sm font-bold text-foreground">
-            {formatVotes(chance.margin)}
+            {formatVotes(margin)}
           </span>
           {marginShare != null && ` (${(marginShare * 100).toFixed(1)}%)`}
         </Stat>
         <Stat
-          label={complete ? 'Specials to come' : 'Still out'}
-          className="col-span-2 border-t sm:col-span-1 sm:border-l sm:border-t-0"
+          label={
+            complete
+              ? 'Ordinary count'
+              : 'Estimated ordinary votes remaining tonight'
+          }
+          className="border-l border-t sm:border-t-0"
         >
-          {outstandingLabel}
+          {complete
+            ? 'Complete'
+            : ordinaryEstimate
+              ? `about ${formatEstimate(ordinaryEstimate.value)} votes`
+              : 'Estimate unavailable'}
         </Stat>
       </div>
 
       <div className="px-3 pb-2.5 sm:px-4">
-        <SplitBar share={share} />
-        {/* Directly under the bar and above the table: the count is the thing
-            being refreshed, so the time it last moved sits at the foot of the
-            figures rather than in a caption under the last row. */}
+        <SplitBar share={progress ?? 0} />
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3">
-          {complete ? (
-            <div className="font-label text-[11px] text-muted-foreground">
-              Count complete · {percent}% of the expected final vote
-            </div>
-          ) : (
-            <span />
-          )}
+          <div className="font-label text-[11px] text-muted-foreground">
+            {complete
+              ? 'Election-night count complete'
+              : progress != null
+                ? 'Estimated ordinary count'
+                : 'Ordinary progress unavailable'}
+          </div>
           {updated && (
             <span className="ml-auto font-label text-[11px] text-muted-foreground">
               Updated {updated}
             </span>
           )}
+        </div>
+
+        {/* The specials are a different measure with a different denominator:
+            they are added after the night and are not part of ordinary
+            progress. Keeping them on their own labelled bar means the ordinary
+            bar never changes meaning at completion. */}
+        <div className="mt-2 border-t pt-2">
+          <div className="kicker">Estimated specials to be counted later</div>
+          <div className="mt-1 flex items-center gap-2">
+            <div className="flex h-1.5 flex-1 border" aria-hidden="true">
+              <div
+                className="bg-foreground/30"
+                style={{
+                  width: `${Math.max(0, Math.min(1, specialsShare)) * 100}%`,
+                }}
+              />
+            </div>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {specialsEstimate
+                ? `about ${formatEstimate(specialsEstimate.value)} votes`
+                : 'Not reported'}
+            </span>
+          </div>
+          <p className="mt-1 font-label text-[10px] text-muted-foreground">
+            Counted after election night, separate from the ordinary count.
+          </p>
         </div>
       </div>
     </div>

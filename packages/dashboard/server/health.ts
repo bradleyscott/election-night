@@ -12,7 +12,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { register } from './metrics.js';
 import { collectMetricsBody } from './collector-metrics.js';
 import { dashboardServerConfig } from './config.js';
-import type { HistorySource } from './history-upstream.js';
+import { probeCollectorHealth } from './collector-watchdog.js';
 
 /**
  * Readiness, from the one dependency this process cannot synthesise: the
@@ -55,15 +55,6 @@ export function serveHealth(_req: IncomingMessage, res: ServerResponse) {
   res.end(JSON.stringify({ status: 'ok' }));
 }
 
-async function isHistoryReachable(source: HistorySource): Promise<boolean> {
-  try {
-    await source.snapshotMetas();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * What the collector actually loaded, as opposed to what this server was
  * configured with. The 2026 launch left production publishing 2023 data while
@@ -71,11 +62,13 @@ async function isHistoryReachable(source: HistorySource): Promise<boolean> {
  * Socket.io frame. Surfacing the source name and the diff-cache cycle here makes
  * "wrong feed", "stale cache" and "no feed yet" distinguishable at a glance.
  */
-async function collectorIdentity(): Promise<{
+export interface CollectorIdentity {
   source: string | null;
   cacheYear: string | null;
   electionYear: string | null;
-}> {
+}
+
+async function collectorIdentity(): Promise<CollectorIdentity> {
   const empty = { source: null, cacheYear: null, electionYear: null };
   try {
     const base = dashboardServerConfig.historyUpstream.replace(/\/+$/, '');
@@ -95,14 +88,26 @@ async function collectorIdentity(): Promise<{
   }
 }
 
+/** Injected by tests; production uses the real probe and identity fetch. */
+export interface ReadinessDeps {
+  probe?: () => Promise<boolean>;
+  identity?: () => Promise<CollectorIdentity>;
+}
+
 export async function serveReady(
   _req: IncomingMessage,
   res: ServerResponse,
-  historySource: HistorySource,
-  feedEvents: { timestamp: number }[]
+  feedEvents: { timestamp: number }[],
+  deps: ReadinessDeps = {}
 ) {
-  const historyReachable = await isHistoryReachable(historySource);
-  const collector = await collectorIdentity();
+  // Ask the collector's HTTP surface directly. A cached history value is not a
+  // dependency check: the exact failure this guards against is a wedged
+  // listener while old history is still being served from cache.
+  const probe =
+    deps.probe ??
+    (() => probeCollectorHealth(dashboardServerConfig.historyUpstream, 1500));
+  const historyReachable = await probe();
+  const collector = await (deps.identity ?? collectorIdentity)();
 
   const lastEvent = feedEvents[feedEvents.length - 1];
   const lastScrape = lastEvent ? lastEvent.timestamp : 'none';

@@ -13,3 +13,24 @@ const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 export function isLoopbackAddress(address: string | undefined): boolean {
   return address !== undefined && LOOPBACK_ADDRESSES.has(address);
 }
+
+/**
+ * Whether a publisher may set the retained results.
+ *
+ * Loopback is always allowed. A remote publisher is allowed only when the
+ * split-deployment flag is on *and* a shared token is configured and matches:
+ * `ALLOW_REMOTE_RESULTS=true` by itself is a permission, not an
+ * authentication method, and a stray remote collector must not be able to
+ * replace every visitor's payload.
+ */
+export function isAuthorizedPublisher(options: {
+  remote: boolean;
+  allowRemote: boolean;
+  token: string | undefined;
+  expectedToken: string | undefined;
+}): boolean {
+  if (!options.remote) return true;
+  if (!options.allowRemote) return false;
+  if (!options.expectedToken) return false;
+  return options.token === options.expectedToken;
+}

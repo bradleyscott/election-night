@@ -82,12 +82,20 @@ export function watchdogEnabledFromEnv(
   );
 }
 
-async function fetchHealth(
+/**
+ * One bounded question to the collector's HTTP surface: does `/health` answer?
+ *
+ * Shared by the watchdog and `/ready` so the readiness answer is produced by
+ * the same probe that would restart the machine, never by a cached history
+ * value. `/health` is synchronous and does not touch SQLite, so it tests the
+ * listener rather than the writer.
+ */
+export async function probeCollectorHealth(
   baseUrl: string,
-  timeoutMs: number
+  timeoutMs = 3_000
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${baseUrl}/health`, {
+    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/health`, {
       signal: AbortSignal.timeout(timeoutMs),
     });
     // Consume the tiny body so the keep-alive socket is released.
@@ -109,7 +117,8 @@ export function startCollectorWatchdog(
   const graceMs = options.graceMs ?? DEFAULT_GRACE_MS;
   const log = options.log ?? defaultLog;
 
-  const probe = options.probe ?? (() => fetchHealth(baseUrl, timeoutMs));
+  const probe =
+    options.probe ?? (() => probeCollectorHealth(baseUrl, timeoutMs));
   const onFatal =
     options.onFatal ??
     ((message: string) => {

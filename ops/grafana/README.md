@@ -27,16 +27,25 @@ dropping its series.
 
 ## Dashboards
 
-| File                                                                                   | Title                                 | Answers                              |
-| -------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------ |
-| [`dashboards/election-night-overview.json`](dashboards/election-night-overview.json)   | Election Night — Overview             | Is the pipeline alive and advancing? |
-| [`dashboards/election-night-collector.json`](dashboards/election-night-collector.json) | Election Night — Collector & Pipeline | Which stage is slow or failing?      |
-| [`dashboards/election-night-api.json`](dashboards/election-night-api.json)             | Election Night — Live Delivery & API  | Are browsers being served, how fast? |
+| File                                                                                   | Title                                 | Answers                                                               |
+| -------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------- |
+| [`dashboards/election-night-overview.json`](dashboards/election-night-overview.json)   | Election Night — Overview             | Is the pipeline alive and advancing?                                  |
+| [`dashboards/election-night-collector.json`](dashboards/election-night-collector.json) | Election Night — Collector & Pipeline | Which stage is slow or failing, including outbox delivery?            |
+| [`dashboards/election-night-api.json`](dashboards/election-night-api.json)             | Election Night — Live Delivery & API  | Are browsers served, is history current, and are publishers accepted? |
 
 They cross-link to each other, set 30s refresh, and use a single `ds` template
 variable so the same JSON works against Fly's Prometheus or a local one. The
 dashboards deliberately do **not** filter on `app`/`instance` so they also work
 against a local Prometheus that does not add Fly's labels.
+
+The API dashboard is the one to open when history looks stale: it breaks
+`election_history_verification_failures_total` down by reason and shows the age
+of a stale value next to the cache outcomes. It also shows
+`election_results_updates_rejected_total` by reason (remote publisher, wrong
+cycle, older revision) and the shared collector `/health` probe failures. The
+collector dashboard labels webhook panels as **outbox delivery**, because
+announcements are committed with the snapshot and delivered independently; a
+hung receiver appears there without stopping the count.
 
 ## Editing
 
@@ -47,6 +56,10 @@ do not hand-edit the JSON:
 ```bash
 node ops/grafana/build-dashboards.mjs
 ```
+
+CI runs the generator after the build and fails if the committed JSON differs,
+so a metric rename cannot leave a panel querying a series that no longer
+exists.
 
 ## Importing
 

@@ -264,6 +264,15 @@ const overview = dashboard({
       thresholds: [green(null), yellow(120), red(300)],
     }),
     stat({
+      title: 'Collector health probe age',
+      description:
+        'Seconds since the collector /health probe last succeeded. A growing age means the listener is not answering even if Socket.io still looks live; the watchdog restarts after six 10s failures.',
+      expr: `time() - election_collector_health_probe_last_success_timestamp_seconds`,
+      unit: 's',
+      decimals: 0,
+      thresholds: [green(null), yellow(30), red(120)],
+    }),
+    stat({
       title: 'Results last moved',
       description:
         'Age of the last published results change. This is freshness, not liveness: the collector publishes nothing while the feed is quiet, so a still value is normal before polls close and between counts. Only meaningful during the count.',
@@ -538,8 +547,9 @@ const collector = dashboard({
       thresholds: [green(0), red(1)],
     }),
     timeseries({
-      title: 'Webhook publishes',
-      description: 'Webhook publish attempts per second, by outcome.',
+      title: 'Webhook outbox deliveries',
+      description:
+        'Delivery attempts from the durable webhook outbox, by status. Announcements are committed with the snapshot; this is the independent delivery loop, so a hung receiver shows here without blocking the count.',
       targets: [
         target(
           `sum by (status) (rate(election_webhook_publishes_total[${RATE}]))`,
@@ -549,9 +559,9 @@ const collector = dashboard({
       unit: 'ops',
     }),
     timeseries({
-      title: 'Webhook failure ratio + p95 latency',
+      title: 'Webhook delivery failure ratio + p95 latency',
       description:
-        'Failed publishes as a share of attempts, alongside p95 publish duration (including retries).',
+        'Failed outbox delivery attempts as a share of attempts, alongside p95 delivery duration. A sustained ratio is a receiver problem; check dead-letter rows and receiver idempotency.',
       targets: [
         target(
           `sum(rate(election_webhook_publishes_total{status="error"}[${RATE}])) / sum(rate(election_webhook_publishes_total[${RATE}]))`,
@@ -679,6 +689,58 @@ const api = dashboard({
       thresholds: [green(null), red(0.0001)],
     }),
     timeseries({
+      title: 'History verification failures',
+      description:
+        'History reads that could not be verified, by bounded reason: collector unreachable/unavailable/error, an invalid body, or a cached value past the 120s stale limit.',
+      targets: [
+        target(
+          `sum by (reason) (rate(election_history_verification_failures_total[${RATE}]))`,
+          '{{reason}}'
+        ),
+      ],
+      unit: 'ops',
+      thresholds: [green(null), yellow(0.001), red(0.05)],
+    }),
+    timeseries({
+      title: 'Stale history age p95',
+      description:
+        'How old a stale history value was when served. Values above 60s are a warning; 120s is the hard stale limit, after which the API returns 503 instead.',
+      targets: [
+        target(
+          `histogram_quantile(0.95, sum by (le, route) (rate(election_history_stale_serve_age_seconds_bucket[${RATE}])))`,
+          '{{route}}'
+        ),
+      ],
+      unit: 's',
+      thresholds: [green(null), yellow(60), red(120)],
+    }),
+    timeseries({
+      title: 'Rejected result updates',
+      description:
+        'Published result envelopes the server rejected: an unauthenticated remote publisher, another cycle, or an older revision. A duplicate revision is acknowledged and is not counted here.',
+      targets: [
+        target(
+          `sum by (reason) (rate(election_results_updates_rejected_total[${RATE}]))`,
+          '{{reason}}'
+        ),
+      ],
+      unit: 'ops',
+      thresholds: [green(null), yellow(0.001), red(0.05)],
+    }),
+    timeseries({
+      title: 'Collector health probe failures',
+      description:
+        'Failures recorded by the watchdog’s bounded collector /health probe, the same probe /ready uses. A run of failures precedes a restart.',
+      targets: [
+        target(
+          `sum(rate(election_collector_health_probe_failures_total[${RATE}]))`,
+          'probe failures'
+        ),
+      ],
+      unit: 'ops',
+      thresholds: [green(null), red(0.0001)],
+    }),
+    timeseries({
       title: 'Socket messages by event',
       description:
         'Socket.io messages handled by the dashboard server, by direction and event.',
@@ -701,7 +763,7 @@ const api = dashboard({
     stat({
       title: 'Ready check failures',
       description:
-        '503 responses from /ready in the selected time range (collector history upstream unreachable).',
+        '503 responses from /ready in the selected time range. /ready probes the collector /health directly, so this means the dependency did not answer, not that a cached history value was stale.',
       expr: `increase(election_http_requests_total{route="/ready", status_code="503"}[$__range])`,
       unit: 'short',
       decimals: 0,

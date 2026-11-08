@@ -51,6 +51,12 @@ const dashboardServerConfigSchema = z.object({
    * re-emitted on connect. Set `true` only for a split deployment where a
    * remote collector publishes over the public socket.
    */
+  resultsToken: z
+    .string()
+    .optional()
+    .describe(
+      'Shared token a remote publisher must present when ALLOW_REMOTE_RESULTS=true. Without it, remote publishers are rejected even when the flag is set'
+    ),
   allowRemoteResults: z
     .string()
     .optional()
@@ -81,6 +87,7 @@ function loadDashboardServerConfig(): DashboardServerConfig {
     collectorMetricsUrl: process.env.COLLECTOR_METRICS_URL,
     clearToken: process.env.CLEAR_TOKEN,
     allowRemoteResults: process.env.ALLOW_REMOTE_RESULTS,
+    resultsToken: process.env.RESULTS_TOKEN,
     canonicalHost: process.env.CANONICAL_HOST,
   });
 

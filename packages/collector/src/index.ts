@@ -5,13 +5,7 @@ import type {
   PartyList,
 } from '@election-night/core/types';
 import { log } from './logger.js';
-import {
-  openDb,
-  closeDb,
-  writeResults,
-  pruneSnapshots,
-  compactDatabase,
-} from './db.js';
+import { DbWorkerClient } from './db-worker-client.js';
 import {
   connectWs,
   publishResults,
@@ -25,17 +19,19 @@ import {
 } from './metrics.js';
 import { describeSweep, effectiveKeepHours, shouldSweep } from './retention.js';
 import { nextPollDelay } from './poll-delay.js';
-import { cacheResults, cacheCycle, processResults } from './results.js';
+import { buildWebhookPayloads, cacheResults, cacheCycle } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
-import { scrapeCycle } from './scrape-cycle.js';
+import { scrapeCycle, type ScrapeCycleResult } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
 import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
 import { createHistoryHandler, closeHistoryDb } from './history-server.js';
 import { VotingPlaceStatusService } from './voting-place-status.js';
+import { createWebhookOutbox } from './webhook-outbox.js';
 import { loadNotionalBaseline } from './notional-baseline.js';
 import { chanceLookupFor } from '@election-night/core/notional-baseline';
+import { COUNT_SUMMARY_VERSION } from '@election-night/core/count-summary';
 
 if (process.argv[2] === 'clear') {
   const { runClear } = await import('./clear.js');
@@ -56,6 +52,31 @@ const {
 let lastSweepAt: number | null = null;
 
 /**
+ * The thread that owns SQLite. Failures are fatal on purpose: without the
+ * writer the collector can still scrape and publish over Socket.io, which is
+ * exactly the "looks alive, records nothing" state the watchdog exists to
+ * prevent. Exiting lets the entrypoint restart the machine.
+ */
+const dbWorker = new DbWorkerClient({
+  onFatal: (err) => {
+    health.lastError = `database worker failed: ${err.message}`;
+    log.error(
+      'Database worker failed; exiting so the supervisor restarts the collector',
+      err
+    );
+    process.exit(1);
+  },
+});
+
+/**
+ * Webhook delivery is independent of the count: rows are committed with the
+ * snapshot and this loop posts them. A hung receiver cannot hold up a publish.
+ */
+const webhookOutbox = collectorConfig.webhookUrl
+  ? createWebhookOutbox(dbWorker, { url: collectorConfig.webhookUrl })
+  : null;
+
+/**
  * `Last-Modified` per electorate, from the last cycle that observed it.
  *
  * Kept in memory rather than on the volume: a restart costs exactly one
@@ -74,6 +95,11 @@ let feedStamps = new Map<string, string>();
  * (even one where every seat 304s) still looks different and tries again.
  */
 let lastPublishedSignature: string | null = null;
+/**
+ * A counted outcome whose commit failed. Kept in memory so the next poll
+ * retries the same body instead of relying on the feed to republish it.
+ */
+let pendingOutcome: ScrapeCycleResult | null = null;
 
 let partyListRecords: PartyList[] = [];
 let source: ElectionSource | null = null;
@@ -177,6 +203,109 @@ async function ensureSource(): Promise<ElectionSource | null> {
   }
 }
 
+/**
+ * Write, diff, cache and publish one counted outcome.
+ *
+ * The feed's `Last-Modified` stamps are advanced only here, after every step
+ * has returned. Advancing them when the body arrived would pair a new validator
+ * with a body that was never committed: the next poll would ask
+ * `If-Modified-Since: <new>`, get 304, and reuse the old cached body, losing the
+ * new count until the feed happened to republish it. The caller also holds the
+ * outcome itself, so a source that answers 304-only after the failed attempt
+ * still gets the pending body committed.
+ */
+async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
+  const payload = outcome.payload;
+
+  // One lookup for the whole payload: the swing behind it depends on every
+  // seat at once, so the snapshot write and the webhook diff must share it or
+  // the two could describe the same seat differently.
+  const liveChanceLookup = chanceLookupFor(
+    notionalBaseline,
+    payload.electorateResults,
+    collectorConfig.electionYear
+  );
+
+  // Build the announcements from the same previous cache the diff uses, and
+  // store them in the snapshot transaction. Delivery happens after this
+  // function returns.
+  const webhooks = collectorConfig.webhookUrl
+    ? buildWebhookPayloads(payload.electorateResults, liveChanceLookup, {
+        electionYear: collectorConfig.electionYear,
+        publicationKey: outcome.publicationKey,
+      })
+    : [];
+
+  const writeStartedAt = performance.now();
+  try {
+    await dbWorker.write({
+      results: payload.electorateResults,
+      partyVote: payload.partyVote,
+      partyLists: payload.partyLists,
+      electionYear: collectorConfig.electionYear,
+      publicationKey: outcome.publicationKey,
+      source: health.source,
+      observedAt: new Date(
+        health.lastCycleStartedAt ?? Date.now()
+      ).toISOString(),
+      phase: 'counting',
+      coverage: {
+        seats: payload.electorateResults.length,
+        counts: outcome.counts,
+      },
+      modelVersion: COUNT_SUMMARY_VERSION,
+      configVersion: collectorConfig.electionYear,
+      webhooks,
+      // The worker cannot receive the lookup function; compute the same
+      // progress here and send plain numbers.
+      progressByElectorate: Object.fromEntries(
+        payload.electorateResults.map((r) => {
+          const chance = liveChanceLookup?.(r);
+          return [
+            r.electorateName,
+            chance?.state === 'counting'
+              ? Math.min(1, chance.progress)
+              : r.votePercentageCounted,
+          ];
+        })
+      ),
+    });
+    publishMetrics(
+      emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'success')
+    );
+  } catch (err) {
+    publishMetrics(
+      emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'error')
+    );
+    throw err;
+  }
+
+  cacheResults(payload.electorateResults);
+  health.cacheYear = cacheCycle();
+  resultsService.setLiveResults(payload);
+
+  // Publish with the revision the commit just produced. If the read fails, the
+  // payload is still published; the browser's bootstrap compares revisions and
+  // its 30s poll catches up.
+  const committed = await dbWorker
+    .latest(collectorConfig.electionYear)
+    .catch(() => null);
+  publishResults(payload, committed?.revision ?? null);
+  // Wake the delivery loop now; it is not awaited, so a slow receiver cannot
+  // delay the next scrape or the dashboard's current state.
+  void webhookOutbox?.tick();
+
+  feedStamps = outcome.stamps;
+  lastPublishedSignature = outcome.signature;
+  health.lastCycleFinishedAt = Date.now();
+  health.lastCycleOk = true;
+  health.lastError = null;
+  health.lastVotesCounted = payload.electorateResults.reduce(
+    (sum, r) => sum + (r.votesCounted || 0),
+    0
+  );
+}
+
 async function runOnce(current: ElectionSource): Promise<void> {
   health.cycleCount += 1;
   health.lastCycleStartedAt = Date.now();
@@ -188,6 +317,25 @@ async function runOnce(current: ElectionSource): Promise<void> {
   recordDiskUsage(dbPath);
 
   try {
+    // A failed counted cycle holds its outcome here. Retrying it before the
+    // next scrape means a source that has already moved past the new stamp
+    // (and would answer 304) cannot strand the body that never committed.
+    if (pendingOutcome) {
+      try {
+        await commitCounted(pendingOutcome);
+        pendingOutcome = null;
+        log.info('Committed the result held from the previous failed cycle');
+      } catch (err) {
+        health.lastCycleOk = false;
+        health.lastError = err instanceof Error ? err.message : String(err);
+        log.error(
+          'Retrying the held result failed; keeping it for the next poll',
+          err
+        );
+        return;
+      }
+    }
+
     const outcome = await scrapeCycle({
       source: current,
       configs: electorateConfigs,
@@ -195,7 +343,6 @@ async function runOnce(current: ElectionSource): Promise<void> {
       concurrency: CONCURRENCY,
       previousStamps: feedStamps,
     });
-    feedStamps = outcome.stamps;
 
     const payload = outcome.payload;
     const votesCounted = payload.electorateResults.reduce(
@@ -211,6 +358,9 @@ async function runOnce(current: ElectionSource): Promise<void> {
     // socket broadcast per poll — 1,440 a day at the one-minute cadence — for
     // no new information, which is what makes a fast poll loop affordable.
     if (outcome.signature === lastPublishedSignature) {
+      // Nothing new to write, but the feed did validate these stamps; they
+      // describe the body that is already committed.
+      feedStamps = outcome.stamps;
       health.lastCycleFinishedAt = Date.now();
       health.lastCycleOk = true;
       health.lastError = null;
@@ -230,10 +380,31 @@ async function runOnce(current: ElectionSource): Promise<void> {
     // preloads it, and a stale cache from an earlier shape must not outlive the
     // first good scrape) but keep the zero count out of history and the feed.
     if (votesCounted === 0) {
+      // The zero ballot is durable latest state, not count history: a restart
+      // with the feed down must still know the parties, lists and seats.
+      const zeroRevision = await dbWorker.writeLatest({
+        results: payload.electorateResults,
+        partyVote: payload.partyVote,
+        partyLists: payload.partyLists,
+        electionYear: collectorConfig.electionYear,
+        publicationKey: outcome.publicationKey,
+        source: health.source,
+        observedAt: new Date(
+          health.lastCycleStartedAt ?? Date.now()
+        ).toISOString(),
+        phase: 'unknown',
+        coverage: {
+          seats: payload.electorateResults.length,
+          counts: outcome.counts,
+        },
+        modelVersion: COUNT_SUMMARY_VERSION,
+        configVersion: collectorConfig.electionYear,
+      });
       cacheResults(payload.electorateResults);
       health.cacheYear = cacheCycle();
       resultsService.setLiveResults(payload);
-      publishResults(payload);
+      publishResults(payload, zeroRevision);
+      feedStamps = outcome.stamps;
       lastPublishedSignature = outcome.signature;
       health.lastCycleFinishedAt = Date.now();
       health.lastCycleOk = true;
@@ -245,52 +416,12 @@ async function runOnce(current: ElectionSource): Promise<void> {
       return;
     }
 
-    // One lookup for the whole payload: the swing behind it depends on every
-    // seat at once, so the snapshot write and the webhook diff must share it or
-    // the two could describe the same seat differently.
-    const liveChanceLookup = chanceLookupFor(
-      notionalBaseline,
-      payload.electorateResults,
-      collectorConfig.electionYear
-    );
-
-    const writeStartedAt = performance.now();
     try {
-      writeResults(
-        payload.electorateResults,
-        payload.partyVote,
-        payload.partyLists,
-        collectorConfig.electionYear,
-        liveChanceLookup
-      );
-      publishMetrics(
-        emitSnapshotWrite(
-          (performance.now() - writeStartedAt) / 1000,
-          'success'
-        )
-      );
+      await commitCounted(outcome);
     } catch (err) {
-      publishMetrics(
-        emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'error')
-      );
+      pendingOutcome = outcome;
       throw err;
     }
-    await processResults(payload.electorateResults, liveChanceLookup);
-    cacheResults(payload.electorateResults);
-    health.cacheYear = cacheCycle();
-    resultsService.setLiveResults(payload);
-    publishResults(payload);
-    // Recorded only now, after the write, the cache and the broadcast have all
-    // returned: everything before this line can throw, and a signature recorded
-    // before the work was done would make the next cycle skip the retry.
-    lastPublishedSignature = outcome.signature;
-    health.lastCycleFinishedAt = Date.now();
-    health.lastCycleOk = true;
-    health.lastError = null;
-    health.lastVotesCounted = payload.electorateResults.reduce(
-      (sum, r) => sum + (r.votesCounted || 0),
-      0
-    );
   } finally {
     log.info('Processing of results completed!');
   }
@@ -303,7 +434,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
  * database with a write) and is bounded work: the window only moves forward,
  * so a sweep deletes at most one sweep interval's worth of snapshots.
  */
-function retentionSweep(now = Date.now()): void {
+async function retentionSweep(now = Date.now()): Promise<void> {
   if (RETENTION_HOURS <= 0) return;
 
   const disk = sampleDiskUsage(dbPath);
@@ -318,7 +449,7 @@ function retentionSweep(now = Date.now()): void {
     return;
   }
   lastSweepAt = now;
-  pruneAndCompact(keepHours);
+  await pruneAndCompact(keepHours);
 }
 
 /**
@@ -328,10 +459,14 @@ function retentionSweep(now = Date.now()): void {
  * the collector to run and report why it cannot write, so a failure is logged
  * and the process continues.
  */
-function pruneAndCompact(keepHours: number): void {
+async function pruneAndCompact(keepHours: number): Promise<void> {
   try {
-    const { deletedSnapshots } = pruneSnapshots(keepHours);
-    const freedPages = compactDatabase();
+    const { deletedSnapshots } = await dbWorker.prune(keepHours);
+    const freedPages = await dbWorker.compact();
+    const prunedWebhooks = await dbWorker.pruneWebhooks();
+    if (prunedWebhooks > 0) {
+      log.info(`Webhook outbox: pruned ${prunedWebhooks} row(s)`);
+    }
     if (deletedSnapshots > 0 || freedPages > 0) {
       log.info(
         describeSweep({
@@ -370,7 +505,7 @@ async function loopRun(): Promise<void> {
   void resultsService.warmPriorYears().catch((err) => {
     log.warn('Prior-year warm-up failed', err);
   });
-  retentionSweep();
+  await retentionSweep();
   // ±20% on the tick (capped at five minutes each way), so a machine hitting the
   // feed at exactly POLL_INTERVAL_MS forever is not a metronome in front of the
   // feed's bot scoring — see `poll-delay.ts` for why the cap matters at a daily
@@ -387,16 +522,18 @@ async function main(): Promise<void> {
   await ensureSource();
 
   try {
-    openDb(dbPath);
+    await dbWorker.open(dbPath);
   } catch (err) {
     log.error('Failed to open database', err);
     process.exit(1);
   }
 
+  webhookOutbox?.start();
+
   // Retention: keep the volume bounded before the first write of this process.
   // A full sweep, not `retentionSweep()`: the schedule is irrelevant at boot,
   // and the configured window applies even if the volume is under pressure.
-  pruneAndCompact(RETENTION_HOURS);
+  await pruneAndCompact(RETENTION_HOURS);
   lastSweepAt = Date.now();
 
   connectWs(WS_URL);
@@ -409,6 +546,9 @@ async function main(): Promise<void> {
         electionYear: collectorConfig.electionYear,
         resultsService,
         votingPlaces,
+        reader: dbWorker.historyReader(),
+        windowHours: collectorConfig.historyWindowHours,
+        maxSnapshots: collectorConfig.historyMaxSnapshots,
       })
     );
   } catch (err) {
@@ -425,12 +565,14 @@ async function main(): Promise<void> {
 main();
 
 // One shutdown path for both signals: disconnect first so the dashboard stops
-// waiting on us, then close both SQLite handles.
+// waiting on us, then stop the SQLite worker and close any direct read handle.
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     disconnectWs();
-    closeDb();
-    closeHistoryDb();
-    process.exit(0);
+    webhookOutbox?.stop();
+    void dbWorker.close().finally(() => {
+      closeHistoryDb();
+      process.exit(0);
+    });
   });
 }

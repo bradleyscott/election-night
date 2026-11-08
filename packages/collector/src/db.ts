@@ -1,10 +1,11 @@
 import { mkdirSync } from 'fs';
+import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { sql, eq } from 'drizzle-orm';
+import { sql, and, asc, eq, lte, or } from 'drizzle-orm';
 import * as schema from './db/schema.js';
 import type {
   ElectorateResults,
@@ -12,6 +13,7 @@ import type {
   ElectorateResult,
   PartyVoteResult,
   PartyListResult,
+  WebhookPayload,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { log } from './logger.js';
@@ -48,33 +50,172 @@ export function closeDb() {
   if (sqliteDb) sqliteDb.close();
 }
 
-export function writeResults(
-  results: ElectorateResult[],
-  partyVote: PartyVoteResult[],
-  partyLists: PartyListResult[],
+/**
+ * The open handle, for the read side of the worker. Not exported for general
+ * use: callers outside the worker own connection are API clients.
+ */
+export function getDbHandle(): Database.Database {
+  if (!sqliteDb) throw new Error('database is not open');
+  return sqliteDb;
+}
+
+/** Per-seat model progress, computed on the caller and sent to the worker. */
+export type ProgressByElectorate = Record<string, number | null>;
+
+/** Metadata stored with a publication, shared by counted and zero ballots. */
+export type PublicationMeta = {
+  /** Stable idempotency key, chosen once per publication. */
+  publicationKey?: string;
+  source?: string | null;
+  observedAt?: string | null;
+  phase?: string | null;
+  /** Count/coverage summary, stored as JSON for diagnostics and the UI. */
+  coverage?: unknown;
+  /** `COUNT_SUMMARY_VERSION`/model basis, null when unknown. */
+  modelVersion?: number | null;
+  configVersion?: string | null;
+};
+
+/**
+ * One serialisable snapshot write: everything the worker needs to insert a
+ * scrape without carrying a function across the thread boundary.
+ */
+export interface SnapshotWrite extends PublicationMeta {
+  results: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
+  electionYear: string;
   /**
-   * Election cycle this scrape belongs to. Stored on the snapshot so
-   * `/history/*` can scope itself to one cycle instead of blending whatever
-   * cycles happen to share the DB (the Fly deployment keeps it on a volume).
+   * Electorate name → progress (0..1). A missing entry falls back to the
+   * electorate's own `votePercentageCounted`, matching the old callback path
+   * when no model result was computable.
    */
+  progressByElectorate: ProgressByElectorate;
+  /**
+   * Webhook announcements to persist in the same transaction. The delivery
+   * loop is separate, so a hung receiver cannot hold up the count.
+   */
+  webhooks?: WebhookPayload[];
+}
+
+/** A zero-vote ballot: durable latest state, but no count-history snapshot. */
+export interface LatestStateWrite extends PublicationMeta {
+  results: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
+  electionYear: string;
+}
+
+function payloadJson(write: {
+  results: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
+}): string {
+  return JSON.stringify({
+    electorateResults: write.results,
+    partyVote: write.partyVote,
+    partyLists: write.partyLists,
+  });
+}
+
+function publicationValues(
+  write: PublicationMeta,
   electionYear: string,
-  /**
-   * The model's chance for a seat, when one is computable. History stores the
-   * model's own progress (votes against the votes tonight is expected to
-   * produce) rather than the share of voting places reported: places are not
-   * votes, and the places figure runs hot early because advance votes land in
-   * blocks after 7pm.
-   */
-  chanceFor?: (result: ElectorateResults & WithLeaders) => SeatChance | null
+  revision: number,
+  payload: string
 ) {
+  return {
+    electionYear,
+    revision,
+    publicationKey: write.publicationKey,
+    payload,
+    source: write.source ?? null,
+    observedAt: write.observedAt ?? new Date().toISOString(),
+    phase: write.phase ?? null,
+    coverage:
+      write.coverage === undefined || write.coverage === null
+        ? null
+        : JSON.stringify(write.coverage),
+    modelVersion: write.modelVersion ?? null,
+    configVersion: write.configVersion ?? null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Insert a fully prepared snapshot and its latest state. Returns the scrape id. */
+export function writeSnapshot(write: SnapshotWrite): number {
+  const { results, partyVote, partyLists, electionYear, progressByElectorate } =
+    write;
+  const publicationKey = write.publicationKey ?? randomUUID();
+  const meta = { ...write, publicationKey };
+  const payload = payloadJson(write);
+
+  // Idempotent retry of the same publication: return the existing snapshot
+  // rather than writing a second one. The latest state is only re-upserted if
+  // this revision is not older than the one already stored.
+  const existing = drizzleDb
+    .select({
+      id: schema.scrapeSnapshots.id,
+      revision: schema.scrapeSnapshots.revision,
+    })
+    .from(schema.scrapeSnapshots)
+    .where(eq(schema.scrapeSnapshots.publicationKey, publicationKey))
+    .get();
+  if (existing) {
+    drizzleDb.transaction((tx) => {
+      const latest = tx
+        .select({ revision: schema.latestState.revision })
+        .from(schema.latestState)
+        .where(eq(schema.latestState.electionYear, electionYear))
+        .get();
+      if (!latest || (existing.revision ?? 0) >= latest.revision) {
+        tx.insert(schema.latestState)
+          .values(
+            publicationValues(
+              meta,
+              electionYear,
+              existing.revision ?? 0,
+              payload
+            )
+          )
+          .onConflictDoUpdate({
+            target: schema.latestState.electionYear,
+            set: publicationValues(
+              meta,
+              electionYear,
+              existing.revision ?? 0,
+              payload
+            ),
+          })
+          .run();
+      }
+    });
+    return existing.id;
+  }
+
   log.info('Writing results to DB...');
 
+  let scrapeId = 0;
+  let revision = 0;
   drizzleDb.transaction((tx) => {
-    const { id: scrapeId } = tx
+    const latest = tx
+      .select({ revision: schema.latestState.revision })
+      .from(schema.latestState)
+      .where(eq(schema.latestState.electionYear, electionYear))
+      .get();
+    revision = (latest?.revision ?? 0) + 1;
+
+    const inserted = tx
       .insert(schema.scrapeSnapshots)
-      .values({ electionYear })
+      .values({
+        electionYear,
+        revision,
+        publicationKey,
+        modelVersion: write.modelVersion ?? null,
+      })
       .returning({ id: schema.scrapeSnapshots.id })
       .get();
+    scrapeId = inserted.id;
 
     for (const r of results) {
       for (const cv of r.candidateVotes) {
@@ -89,11 +230,8 @@ export function writeResults(
           .run();
       }
 
-      const chance = chanceFor?.(r);
       const progress =
-        chance?.state === 'counting'
-          ? Math.min(1, chance.progress)
-          : r.votePercentageCounted;
+        progressByElectorate[r.electorateName] ?? r.votePercentageCounted;
       tx.insert(schema.electorateSummary)
         .values({
           scrapeId,
@@ -155,12 +293,127 @@ export function writeResults(
         .run();
     }
 
+    const queueTime = new Date().toISOString();
+    for (const hook of write.webhooks ?? []) {
+      tx.insert(schema.webhookOutbox)
+        .values({
+          eventId:
+            hook.eventId ??
+            `${publicationKey}:${hook.event}:${hook.electorateName}`,
+          electionYear,
+          revision,
+          event: hook.event,
+          payload: JSON.stringify(hook),
+          createdAt: queueTime,
+          attempts: 0,
+          nextAttemptAt: queueTime,
+          status: 'pending',
+        })
+        .onConflictDoNothing()
+        .run();
+    }
+
     tx.update(schema.scrapeSnapshots)
       .set({ completedAt: sql`(datetime('now'))` })
       .where(eq(schema.scrapeSnapshots.id, scrapeId))
       .run();
 
-    log.info(`DB write complete (scrape #${scrapeId})`);
+    // The same transaction owns the latest-state row: a committed snapshot
+    // without its authoritative full payload would leave a restart with no
+    // parties/lists, and a latest state ahead of the history would describe a
+    // revision the chart never received.
+    const values = publicationValues(meta, electionYear, revision, payload);
+    tx.insert(schema.latestState)
+      .values(values)
+      .onConflictDoUpdate({
+        target: schema.latestState.electionYear,
+        set: values,
+      })
+      .run();
+
+    log.info(`DB write complete (scrape #${scrapeId}, revision ${revision})`);
+  });
+
+  return scrapeId;
+}
+
+/**
+ * Persist a zero-vote ballot as durable latest state without adding a count
+ * snapshot. The ballot is what the dashboard needs on boot; it is not history.
+ */
+export function writeLatestState(write: LatestStateWrite): number {
+  const publicationKey = write.publicationKey ?? randomUUID();
+  const meta = { ...write, publicationKey };
+  const payload = payloadJson(write);
+  let revision = 0;
+  drizzleDb.transaction((tx) => {
+    const current = tx
+      .select({
+        revision: schema.latestState.revision,
+        publicationKey: schema.latestState.publicationKey,
+      })
+      .from(schema.latestState)
+      .where(eq(schema.latestState.electionYear, write.electionYear))
+      .get();
+
+    if (current?.publicationKey === publicationKey) {
+      revision = current.revision;
+      return;
+    }
+
+    revision = (current?.revision ?? 0) + 1;
+    const values = publicationValues(
+      meta,
+      write.electionYear,
+      revision,
+      payload
+    );
+    tx.insert(schema.latestState)
+      .values(values)
+      .onConflictDoUpdate({
+        target: schema.latestState.electionYear,
+        set: values,
+      })
+      .run();
+  });
+  return revision;
+}
+
+export function writeResults(
+  results: ElectorateResult[],
+  partyVote: PartyVoteResult[],
+  partyLists: PartyListResult[],
+  /**
+   * Election cycle this scrape belongs to. Stored on the snapshot so
+   * `/history/*` can scope itself to one cycle instead of blending whatever
+   * cycles happen to share the DB (the Fly deployment keeps it on a volume).
+   */
+  electionYear: string,
+  /**
+   * The model's chance for a seat, when one is computable. History stores the
+   * model's own progress (votes against the votes tonight is expected to
+   * produce) rather than the share of voting places reported: places are not
+   * votes, and the places figure runs hot early because advance votes land in
+   * blocks after 7pm.
+   */
+  chanceFor?: (result: ElectorateResults & WithLeaders) => SeatChance | null
+) {
+  return writeSnapshot({
+    results,
+    partyVote,
+    partyLists,
+    electionYear,
+    progressByElectorate: Object.fromEntries(
+      results.map((r) => {
+        const chance = chanceFor?.(r);
+        return [
+          r.electorateName,
+          chance?.state === 'counting'
+            ? Math.min(1, chance.progress)
+            : r.votePercentageCounted,
+        ];
+      })
+    ),
   });
 }
 
@@ -180,8 +433,9 @@ const SNAPSHOT_CHILD_TABLES = [
  * whole batch, and the interesting case is a volume that is nearly full, where
  * one large `DELETE` fails with `SQLITE_FULL` and frees nothing. Batching with
  * a checkpoint between keeps the WAL bounded so pruning can always make
- * progress. There is no auto-vacuum, so freed pages go to the freelist and are
- * reused by the next scrape rather than returned to the filesystem.
+ * progress. Incremental auto-vacuum lets `compactDatabase()` return pages at the
+ * end of the file later; until that runs, freed pages sit on the freelist and
+ * are reused by the next scrape.
  */
 const PRUNE_BATCH = 100;
 
@@ -327,4 +581,149 @@ export function compactDatabase(maxPages = 4096): number {
     }
   }
   return before - after;
+}
+
+// ---- Webhook outbox ------------------------------------------------------
+
+export type WebhookOutboxRow = {
+  id: number;
+  eventId: string;
+  electionYear: string;
+  revision: number | null;
+  event: string;
+  payload: string;
+  attempts: number;
+  nextAttemptAt: string;
+};
+
+export type WebhookOutcome = 'delivered' | 'retry' | 'dead';
+
+/**
+ * Claim due outbox rows for delivery. The claim is a transaction: each row is
+ * moved to `sending` with a lease so a second tick cannot send it twice while
+ * the first request is still open. A crashed sender's lease expires and the
+ * row becomes claimable again.
+ */
+export function claimWebhookBatch(
+  limit: number,
+  leaseMs = 60_000
+): WebhookOutboxRow[] {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const lease = new Date(now.getTime() + leaseMs).toISOString();
+  const rows: WebhookOutboxRow[] = [];
+
+  drizzleDb.transaction((tx) => {
+    const due = tx
+      .select()
+      .from(schema.webhookOutbox)
+      .where(
+        and(
+          or(
+            eq(schema.webhookOutbox.status, 'pending'),
+            eq(schema.webhookOutbox.status, 'sending')
+          ),
+          lte(schema.webhookOutbox.nextAttemptAt, nowIso)
+        )
+      )
+      .orderBy(asc(schema.webhookOutbox.nextAttemptAt))
+      .limit(limit)
+      .all();
+
+    for (const row of due) {
+      tx.update(schema.webhookOutbox)
+        .set({
+          status: 'sending',
+          attempts: row.attempts + 1,
+          nextAttemptAt: lease,
+        })
+        .where(eq(schema.webhookOutbox.id, row.id))
+        .run();
+      rows.push({
+        id: row.id,
+        eventId: row.eventId,
+        electionYear: row.electionYear,
+        revision: row.revision,
+        event: row.event,
+        payload: row.payload,
+        attempts: row.attempts + 1,
+        nextAttemptAt: row.nextAttemptAt,
+      });
+    }
+  });
+
+  return rows;
+}
+
+/** Record the outcome of one delivery attempt. */
+export function completeWebhook(
+  id: number,
+  outcome: WebhookOutcome,
+  options: { nextAttemptAt?: string; error?: string | null } = {}
+): void {
+  const now = new Date().toISOString();
+  const values =
+    outcome === 'delivered'
+      ? {
+          status: 'delivered' as const,
+          deliveredAt: now,
+          lastError: null,
+          nextAttemptAt: now,
+        }
+      : outcome === 'retry'
+        ? {
+            status: 'pending' as const,
+            deliveredAt: null,
+            lastError: options.error ?? 'retry',
+            nextAttemptAt: options.nextAttemptAt ?? now,
+          }
+        : {
+            status: 'dead' as const,
+            deliveredAt: null,
+            lastError: options.error ?? 'terminal failure',
+            nextAttemptAt: now,
+          };
+
+  drizzleDb
+    .update(schema.webhookOutbox)
+    .set(values)
+    .where(eq(schema.webhookOutbox.id, id))
+    .run();
+}
+
+/**
+ * Bound the outbox: delivered rows go after a day, dead letters after a week,
+ * and the retained set is capped so a broken receiver cannot fill the volume.
+ */
+export function pruneWebhooks(
+  maxRows = 5_000,
+  deliveredHours = 24,
+  deadHours = 24 * 7
+): number {
+  const handle = getDbHandle();
+  const delivered = handle
+    .prepare(
+      "delete from webhook_outbox where status = 'delivered' and delivered_at < datetime('now', ?)"
+    )
+    .run(`-${deliveredHours} hours`).changes;
+  const dead = handle
+    .prepare(
+      "delete from webhook_outbox where status = 'dead' and next_attempt_at < datetime('now', ?)"
+    )
+    .run(`-${deadHours} hours`).changes;
+
+  let overflow = 0;
+  const count = (
+    handle.prepare('select count(*) c from webhook_outbox').get() as {
+      c: number;
+    }
+  ).c;
+  if (count > maxRows) {
+    overflow = handle
+      .prepare(
+        "delete from webhook_outbox where id in (select id from webhook_outbox where status in ('delivered','dead') order by id limit ?)"
+      )
+      .run(count - maxRows).changes;
+  }
+  return delivered + dead + overflow;
 }

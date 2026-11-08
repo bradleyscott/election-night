@@ -10,8 +10,11 @@ import Flipped from './pages/Flipped.js';
 import Feed from './pages/Feed.js';
 import Trends from './pages/Trends.js';
 import { CLOSE_CALLS_PATH } from './lib/routes.js';
+import { useHistorySocketSync } from './lib/history-api.js';
 
 export default function App() {
+  useHistorySocketSync();
+
   return (
     <WinPercentProvider>
       <Layout>

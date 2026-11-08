@@ -22,6 +22,27 @@
       "when": 1792996472557,
       "tag": "0002_wide_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794101577817,
+      "tag": "0003_tricky_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794107883619,
+      "tag": "0004_closed_the_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794108659899,
+      "tag": "0005_cooing_jack_flag",
+      "breakpoints": true
     }
   ]
 }

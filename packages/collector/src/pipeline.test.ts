@@ -5,7 +5,7 @@ import { join } from 'path';
 import { createServer, type Server as NetServer } from 'net';
 import { once } from 'events';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
-import type { ResultsPayload } from '@election-night/core/types';
+import type { ResultsEnvelope } from '@election-night/core/types';
 
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -121,7 +121,7 @@ describe('pipeline integration', () => {
     const clientSocket = io(`ws://localhost:${dashboardPort}`, {
       transports: ['websocket', 'polling'],
     });
-    const updatePromise = waitForSocketEvent<ResultsPayload>(
+    const updatePromise = waitForSocketEvent<ResultsEnvelope>(
       clientSocket,
       'results_update'
     );
@@ -133,10 +133,10 @@ describe('pipeline integration', () => {
     collectorSocket.emit('results_update', payload);
 
     const update = await updatePromise;
-    expect(update.electorateResults.length).toBe(
+    expect(update.payload.electorateResults.length).toBe(
       payload.electorateResults.length
     );
-    expect(update.partyVote.length).toBe(payload.partyVote.length);
+    expect(update.payload.partyVote.length).toBe(payload.partyVote.length);
 
     writeResults(
       payload.electorateResults,

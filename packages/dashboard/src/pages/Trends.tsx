@@ -34,6 +34,7 @@ import { PartyLine } from '../components/PartyLine.js';
 import type { TapePoint } from '../components/CountedTape.js';
 import { PartyDot } from '../components/PartyDot.js';
 import { PageHead, PageWaiting } from '../components/Page.js';
+import { HistoryStatus } from '../components/HistoryStatus.js';
 import { Toggle } from '../components/Toggle.js';
 
 type Mode = 'votes' | 'percent' | 'seats' | 'counted';
@@ -137,7 +138,7 @@ function PartyTooltip({
 }
 
 export default function Trends() {
-  const { data } = usePartyVoteHistory();
+  const { data, state, error, refetch } = usePartyVoteHistory();
   const [selectedParties, setSelectedParties] = useState<Set<string>>(
     new Set()
   );
@@ -256,6 +257,15 @@ export default function Trends() {
     (data.some((point) => point.parties.length > 0) ||
       data.some((point) => point.votesCounted > 0));
 
+  if (state === 'unavailable' || (state === 'error' && !data)) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <PageHead title="Trends" />
+        <HistoryStatus state={state} error={error} onRetry={refetch} />
+      </div>
+    );
+  }
+
   if (!hasData) {
     return (
       <PageWaiting
@@ -269,6 +279,8 @@ export default function Trends() {
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHead title="Trends" />
+
+      <HistoryStatus state={state} error={error} onRetry={refetch} />
 
       <Toggle options={MODE_OPTIONS} value={mode} onChange={setMode} />
 

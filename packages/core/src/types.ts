@@ -98,6 +98,19 @@ export type ResultsPayload = {
 };
 
 /**
+ * What the collector publishes over Socket.io: the payload with the cycle and
+ * committed revision it belongs to. A dashboard accepts a newer revision in
+ * the same cycle, acknowledges an exact duplicate without deriving new events,
+ * and rejects an older one. `null` fields keep legacy/payload-only senders
+ * working during the transition.
+ */
+export type ResultsEnvelope = {
+  payload: ResultsPayload;
+  electionYear: string | null;
+  revision: number | null;
+};
+
+/**
  * One party's national status, exactly as the Commission publishes it in
  * `election.xml`. The seat split is theirs, not ours: `party_seats` is list
  * seats, `candidate_seats` electorate seats, `total_seats` their sum.
@@ -195,6 +208,11 @@ export type WebhookEventType =
 
 export type WebhookPayload = {
   event: WebhookEventType;
+  /** Stable idempotency key for this announcement. */
+  eventId?: string;
+  electionYear?: string;
+  /** Committed cycle revision the event belongs to, when known. */
+  revision?: number | null;
   timestamp: number;
   electorateName: string;
   result: ElectorateResults & WithLeaders;

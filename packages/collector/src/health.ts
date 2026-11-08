@@ -49,7 +49,10 @@ export const health: CollectorHealthState = {
  */
 export function startHealthServer(
   port: number,
-  handleRoute?: (req: IncomingMessage, res: ServerResponse) => boolean
+  handleRoute?: (
+    req: IncomingMessage,
+    res: ServerResponse
+  ) => boolean | Promise<boolean>
 ): http.Server {
   const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
@@ -64,7 +67,18 @@ export function startHealthServer(
       res.end(await collectorRegister.metrics());
       return;
     }
-    if (handleRoute?.(req, res)) return;
+    if (handleRoute) {
+      try {
+        if (await handleRoute(req, res)) return;
+      } catch (err) {
+        log.error('Route handler failed', err);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ error: 'internal error' }));
+        }
+        return;
+      }
+    }
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('Not found');
   });

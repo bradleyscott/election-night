@@ -130,7 +130,7 @@ export type VotingPlacesResponse = {
   year: string;
   available: boolean;
   /** Why the places could not be listed, when `available` is false. */
-  reason: 'not-live' | 'unreachable' | null;
+  reason: 'not-live' | 'unreachable' | 'busy' | null;
   /** Places whose count has landed. */
   counted: number;
   /** Places due to report for this electorate; always `places.length`. */

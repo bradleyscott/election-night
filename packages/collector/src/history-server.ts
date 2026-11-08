@@ -3,6 +3,16 @@ import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
 import type { ElectionResultsService } from '@election-night/core/election-results-service';
 import type { VotingPlaceStatusService } from './voting-place-status.js';
+import {
+  DEFAULT_HISTORY_MAX_SNAPSHOTS,
+  DEFAULT_HISTORY_WINDOW_HOURS,
+  queryElectorateHistory,
+  queryLatestState,
+  queryPartyVoteHistory,
+  querySnapshotMetas,
+  type HistoryPageRequest,
+  type HistoryReader,
+} from './history-queries.js';
 import { log } from './logger.js';
 
 /**
@@ -12,10 +22,11 @@ import { log } from './logger.js';
  * from here — co-located processes over loopback, split deployments over
  * TLS via a reverse proxy.
  *
- * Two routes are not DB queries: `/history/results/:year` and
- * `/history/prior-winners` are answered from the in-memory
+ * Most routes are DB queries through the SQLite worker. `/history/results/:year`
+ * and `/history/prior-winners` are answered from the in-memory
  * `ElectionResultsService` (the live cycle's latest scrape plus archived
- * cycles fetched lazily from the configured connector).
+ * cycles fetched lazily from the configured connector); `/history/voting-places`
+ * fetches the feed on demand, not the DB.
  *
  * The data is public election results, so the endpoints are unauthenticated.
  * Rate limiting is deliberately not implemented here — it belongs at the
@@ -43,6 +54,24 @@ export interface HistoryHandlerOptions {
    * its places.
    */
   votingPlaces?: VotingPlaceStatusService;
+  /**
+   * Async read side owned by the SQLite worker. When present the handler never
+   * opens a connection on the HTTP thread; the direct read path exists for
+   * tests and tools that already hold a handle.
+   */
+  reader?: HistoryReader;
+  /**
+   * Trailing window for DB-backed history. Defaults to 24h, matching the
+   * collector's retention default; a snapshot older than this is not part of
+   * the live charts even if a volume still holds it.
+   */
+  windowHours?: number;
+  /**
+   * Hard cap on snapshots returned in one response. A 60s poll yields 1,440
+   * in 24h. When the window holds more, the caller must page explicitly rather
+   * than receive a silently truncated array.
+   */
+  maxSnapshots?: number;
 }
 
 let db: Database.Database | null = null;
@@ -70,8 +99,13 @@ export function closeHistoryDb(): void {
   dbPath = undefined;
 }
 
-function sendJson(res: ServerResponse, body: unknown, status = 200): void {
-  res.writeHead(status, { 'content-type': 'application/json' });
+function sendJson(
+  res: ServerResponse,
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {}
+): void {
+  res.writeHead(status, { 'content-type': 'application/json', ...headers });
   res.end(JSON.stringify(body));
 }
 
@@ -104,109 +138,223 @@ function resolveElectionYear(
   return newest?.year ?? null;
 }
 
-function getSnapshotMetas(
-  handle: Database.Database,
-  electionYear: string
-): unknown[] {
-  return handle
-    .prepare(
-      `SELECT id AS snapshotId, election_year AS electionYear,
-              started_at AS startedAt, completed_at AS completedAt
-       FROM scrape_snapshots
-       WHERE election_year = ?
-       ORDER BY started_at ASC`
-    )
-    .all(electionYear);
+export interface HistoryPaging {
+  request: HistoryPageRequest;
+  /** True when the caller asked for a specific limit or offset. */
+  explicit: boolean;
+  maxSnapshots: number;
 }
 
-function getElectorateHistory(
-  handle: Database.Database,
-  name: string,
-  electionYear: string
-): unknown[] {
-  const summaries = handle
-    .prepare(
-      `SELECT
-         ss.id AS snapshotId,
-         ss.election_year AS electionYear,
-         ss.started_at AS startedAt,
-         ss.completed_at AS completedAt,
-         es.votes_counted AS votesCounted,
-         es.vote_pct_counted AS votePctCounted,
-         es.leading_candidate AS leadingCandidate,
-         es.leading_party AS leadingParty,
-         es.margin AS margin,
-         es.margin_pct AS marginPct
-       FROM scrape_snapshots ss
-       JOIN electorate_summary es ON es.scrape_id = ss.id
-       WHERE es.electorate = ? AND ss.election_year = ?
-       ORDER BY ss.started_at ASC`
-    )
-    .all(name, electionYear) as Record<string, unknown>[];
+export type PagingParse =
+  { ok: true; paging: HistoryPaging } | { ok: false; error: string };
 
-  return summaries.map((row) => ({
-    ...row,
-    candidates: handle
-      .prepare(
-        `SELECT candidate, party, votes
-         FROM electorate_results
-         WHERE scrape_id = ? AND electorate = ?
-         ORDER BY votes DESC`
-      )
-      .all(row.snapshotId, name),
-    partyVotes: handle
-      .prepare(
-        `SELECT party, votes
-         FROM party_vote_results
-         WHERE scrape_id = ? AND electorate = ?
-         ORDER BY votes DESC`
-      )
-      .all(row.snapshotId, name),
-  }));
+/**
+ * Parse `?limit=` / `?offset=` into a bounded page request.
+ *
+ * `limit` is capped by `maxSnapshots` so one request cannot ask for the whole
+ * table. Values that are not positive integers are rejected explicitly rather
+ * than coerced, because a typo that silently becomes the default is the class
+ * of bug this endpoint is trying to remove.
+ */
+export function parseHistoryPaging(
+  params: URLSearchParams,
+  options: { windowHours: number; maxSnapshots: number }
+): PagingParse {
+  const rawLimit = params.get('limit');
+  const rawOffset = params.get('offset');
+  const rawSince = params.get('sinceRevision');
+
+  let limit = options.maxSnapshots;
+  let offset = 0;
+  let sinceRevision: number | undefined;
+
+  if (rawLimit !== null) {
+    if (!/^\d+$/.test(rawLimit)) {
+      return { ok: false, error: 'limit must be a positive integer' };
+    }
+    limit = Number(rawLimit);
+    if (limit < 1 || limit > options.maxSnapshots) {
+      return {
+        ok: false,
+        error: `limit must be between 1 and ${options.maxSnapshots}`,
+      };
+    }
+  }
+
+  if (rawOffset !== null) {
+    if (!/^\d+$/.test(rawOffset)) {
+      return { ok: false, error: 'offset must be a non-negative integer' };
+    }
+    offset = Number(rawOffset);
+  }
+
+  if (rawSince !== null) {
+    if (!/^\d+$/.test(rawSince)) {
+      return {
+        ok: false,
+        error: 'sinceRevision must be a non-negative integer',
+      };
+    }
+    sinceRevision = Number(rawSince);
+  }
+
+  return {
+    ok: true,
+    paging: {
+      request: {
+        windowHours: options.windowHours,
+        limit,
+        offset,
+        sinceRevision,
+      },
+      explicit: rawLimit !== null || rawOffset !== null,
+      maxSnapshots: options.maxSnapshots,
+    },
+  };
 }
 
-function getPartyVoteHistory(
-  handle: Database.Database,
-  electionYear: string
-): unknown[] {
-  const snapshots = handle
-    .prepare(
-      `SELECT id AS snapshotId, election_year AS electionYear,
-              started_at AS startedAt, completed_at AS completedAt
-       FROM scrape_snapshots
-       WHERE election_year = ?
-       ORDER BY started_at ASC`
-    )
-    .all(electionYear) as Record<string, unknown>[];
+function pageHeaders(
+  total: number,
+  paging: HistoryPaging
+): Record<string, string> {
+  return {
+    'x-history-total': String(total),
+    'x-history-limit': String(paging.request.limit),
+    'x-history-offset': String(paging.request.offset),
+    'x-history-window-hours': String(paging.request.windowHours),
+  };
+}
 
-  return snapshots.map((snap) => {
-    const sid = snap.snapshotId as number;
-    const parties = handle
-      .prepare(
-        `SELECT party, votes, seats, electorate_seats AS electorateSeats, list_seats AS listSeats
-         FROM party_vote_summary
-         WHERE scrape_id = ?
-         ORDER BY votes DESC`
-      )
-      .all(sid);
-    const counted = handle
-      .prepare(
-        `SELECT COALESCE(SUM(votes_counted), 0) AS votesCounted,
-                COALESCE(SUM(estimated_total_votes), 0) AS estimatedTotalVotes
-         FROM electorate_summary
-         WHERE scrape_id = ?`
-      )
-      .get(sid) as Record<string, number>;
-    return {
-      ...snap,
-      votesCounted: counted.votesCounted,
-      votePctCounted:
-        counted.estimatedTotalVotes > 0
-          ? counted.votesCounted / counted.estimatedTotalVotes
-          : 0,
-      parties,
-    };
+/**
+ * Send a page, or refuse explicitly when it would truncate.
+ *
+ * An unpaged request whose window exceeds the cap gets a 413 that names the
+ * total and the cap. Returning the first N rows with a `200` would make the
+ * chart look complete while silently dropping the rest.
+ */
+function sendPage<T>(
+  res: ServerResponse,
+  page: { rows: T[]; total: number },
+  paging: HistoryPaging
+): void {
+  const headers = pageHeaders(page.total, paging);
+  const revisions = page.rows
+    .map((row) => (row as { revision?: number | null }).revision)
+    .filter((value): value is number => typeof value === 'number');
+  if (revisions.length > 0) {
+    headers['x-history-revision'] = String(Math.max(...revisions));
+  }
+  if (!paging.explicit && page.total > paging.maxSnapshots) {
+    sendJson(
+      res,
+      {
+        error: 'history window exceeds the maximum page size',
+        total: page.total,
+        limit: paging.maxSnapshots,
+        windowHours: paging.request.windowHours,
+      },
+      413,
+      headers
+    );
+    return;
+  }
+  sendJson(res, page.rows, 200, headers);
+}
+
+/** A worker client refuses requests while the database is unavailable. */
+function isUnavailableError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: unknown }).code === 'unavailable'
+  );
+}
+
+/**
+ * DB-backed routes when a worker owns the connection. The handler awaits the
+ * worker's bounded read, so a slow database delays this response but not the
+ * event loop or `/health`.
+ */
+async function serveReaderRoutes(
+  res: ServerResponse,
+  pathname: string,
+  params: URLSearchParams,
+  reader: HistoryReader,
+  configuredYear: string | undefined,
+  windowHours: number,
+  maxSnapshots: number
+): Promise<boolean> {
+  const requestedYear = params.get('year');
+  if (requestedYear !== null && !/^\d{4}$/.test(requestedYear)) {
+    sendJson(res, { error: 'year must be a four-digit cycle' }, 400);
+    return true;
+  }
+  const year = requestedYear ?? configuredYear;
+  if (!year) {
+    sendJson(res, { error: 'no election year configured' }, 503);
+    return true;
+  }
+
+  const parsedPaging = parseHistoryPaging(params, {
+    windowHours,
+    maxSnapshots,
   });
+  if (!parsedPaging.ok) {
+    sendJson(res, { error: parsedPaging.error }, 400);
+    return true;
+  }
+  const paging = parsedPaging.paging;
+
+  try {
+    if (pathname === '/history/latest') {
+      const latest = await reader.latest(year);
+      if (!latest) {
+        sendJson(res, { error: 'no latest state' }, 404);
+        return true;
+      }
+      sendJson(res, latest, 200, {
+        'x-election-revision': String(latest.revision),
+      });
+      return true;
+    }
+
+    if (pathname === '/history/snapshots') {
+      sendPage(res, await reader.snapshots(year, paging.request), paging);
+      return true;
+    }
+
+    const electorateMatch = pathname.match(/^\/history\/electorate\/(.+)$/);
+    if (electorateMatch) {
+      sendPage(
+        res,
+        await reader.electorate(
+          decodeURIComponent(electorateMatch[1]!),
+          year,
+          paging.request
+        ),
+        paging
+      );
+      return true;
+    }
+
+    if (pathname === '/history/party-votes') {
+      sendPage(res, await reader.partyVotes(year, paging.request), paging);
+      return true;
+    }
+  } catch (err) {
+    if (isUnavailableError(err)) {
+      // The worker is dead, its queue is full, or a read timed out. Say so;
+      // never answer an empty successful count.
+      sendJson(res, { error: 'database unavailable' }, 503);
+      return true;
+    }
+    log.error('History API query failed', err);
+    sendJson(res, { error: 'query failed' }, 500);
+    return true;
+  }
+
+  sendJson(res, { error: 'not found' }, 404);
+  return true;
 }
 
 /**
@@ -215,8 +363,16 @@ function getPartyVoteHistory(
  */
 export function createHistoryHandler(
   options: HistoryHandlerOptions
-): (req: IncomingMessage, res: ServerResponse) => boolean {
-  const { dbPath, electionYear, resultsService, votingPlaces } = options;
+): (req: IncomingMessage, res: ServerResponse) => boolean | Promise<boolean> {
+  const {
+    dbPath,
+    electionYear,
+    resultsService,
+    votingPlaces,
+    reader,
+    windowHours = DEFAULT_HISTORY_WINDOW_HOURS,
+    maxSnapshots = DEFAULT_HISTORY_MAX_SNAPSHOTS,
+  } = options;
 
   return (req, res) => {
     const url = req.url ?? '';
@@ -294,38 +450,90 @@ export function createHistoryHandler(
       }
     }
 
+    const params = new URLSearchParams(query ?? '');
+
+    if (reader) {
+      return serveReaderRoutes(
+        res,
+        pathname!,
+        params,
+        reader,
+        electionYear,
+        windowHours,
+        maxSnapshots
+      );
+    }
+
     const handle = getDb(dbPath);
     if (!handle) {
       sendJson(res, { error: 'database not available yet' }, 503);
       return true;
     }
 
-    const requestedYear = new URLSearchParams(query ?? '').get('year');
+    const requestedYear = params.get('year');
+    if (requestedYear !== null && !/^\d{4}$/.test(requestedYear)) {
+      sendJson(res, { error: 'year must be a four-digit cycle' }, 400);
+      return true;
+    }
     const year = resolveElectionYear(handle, requestedYear, electionYear);
+    if (pathname === '/history/latest') {
+      if (!year) {
+        sendJson(res, { error: 'no latest state' }, 404);
+        return true;
+      }
+      const latest = queryLatestState(handle, year);
+      if (!latest) {
+        sendJson(res, { error: 'no latest state' }, 404);
+        return true;
+      }
+      sendJson(res, latest, 200, {
+        'x-election-revision': String(latest.revision),
+      });
+      return true;
+    }
     if (!year) {
-      sendJson(res, []);
+      sendJson(res, [], 200, {
+        'x-history-total': '0',
+        'x-history-window-hours': String(windowHours),
+      });
       return true;
     }
 
+    const parsedPaging = parseHistoryPaging(params, {
+      windowHours,
+      maxSnapshots,
+    });
+    if (!parsedPaging.ok) {
+      sendJson(res, { error: parsedPaging.error }, 400);
+      return true;
+    }
+    const paging = parsedPaging.paging;
+
     try {
       if (pathname === '/history/snapshots') {
-        sendJson(res, getSnapshotMetas(handle, year));
+        sendPage(res, querySnapshotMetas(handle, year, paging.request), paging);
         return true;
       }
       const electorateMatch = pathname!.match(/^\/history\/electorate\/(.+)$/);
       if (electorateMatch) {
-        sendJson(
+        sendPage(
           res,
-          getElectorateHistory(
+          queryElectorateHistory(
             handle,
             decodeURIComponent(electorateMatch[1]!),
-            year
-          )
+            year,
+            paging.request
+          ),
+          paging
         );
         return true;
       }
       if (pathname === '/history/party-votes') {
-        sendJson(res, getPartyVoteHistory(handle, year));
+        sendPage(
+          res,
+          queryPartyVoteHistory(handle, year, paging.request),
+          paging
+        );
         return true;
       }
     } catch (err) {
