@@ -1,5 +1,9 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import {
+  DEFAULT_HISTORY_MAX_SNAPSHOTS,
+  DEFAULT_HISTORY_WINDOW_HOURS,
+} from './history-queries.js';
 
 const collectorConfigSchema = z.object({
   electionYear: z
@@ -56,6 +60,22 @@ const collectorConfigSchema = z.object({
     .describe(
       'How often the running collector prunes and compacts (ms). 0 prunes only at startup, which is not enough for a process that runs for weeks'
     ),
+  historyWindowHours: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(DEFAULT_HISTORY_WINDOW_HOURS)
+    .describe(
+      'Trailing window of snapshots the history API reads. Defaults to the 24h retention window, so a chart cannot mix a snapshot the collector would already have pruned into tonight.'
+    ),
+  historyMaxSnapshots: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(DEFAULT_HISTORY_MAX_SNAPSHOTS)
+    .describe(
+      'Hard cap on snapshots in one history response (a 60s poll yields 1,440 in 24h). A window that exceeds it is refused with an explicit 413 rather than silently truncated; callers page with ?limit=&offset=.'
+    ),
   resultsCachePath: z
     .string()
     .default('.data/electorate_results.json')
@@ -102,6 +122,8 @@ function loadCollectorConfig(): CollectorConfig {
     dbPath: process.env.DB_PATH,
     retentionHours: process.env.RETENTION_HOURS,
     retentionSweepMs: process.env.RETENTION_SWEEP_MS,
+    historyWindowHours: process.env.HISTORY_WINDOW_HOURS,
+    historyMaxSnapshots: process.env.HISTORY_MAX_SNAPSHOTS,
     resultsCachePath: process.env.RESULTS_CACHE_PATH,
     webhookUrl: process.env.WEBHOOK_URL,
     electionSourcePath: process.env.ELECTION_SOURCE_PATH,

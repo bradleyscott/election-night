@@ -22,6 +22,13 @@
       "when": 1792996472557,
       "tag": "0002_wide_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794101577817,
+      "tag": "0003_tricky_wild_child",
+      "breakpoints": true
     }
   ]
 }

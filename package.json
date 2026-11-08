@@ -15,6 +15,7 @@
     "clear": "tsx packages/collector/src/clear.ts",
     "start:mock": "npm run build:core && tsx packages/collector/src/serve-mock.ts",
     "log:webhooks": "tsx packages/collector/src/log-webhooks.ts",
+    "bench:history": "tsx packages/collector/scripts/benchmark-history.ts",
     "test": "vitest",
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",

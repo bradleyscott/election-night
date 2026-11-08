@@ -281,3 +281,117 @@ describe('history-server', () => {
     });
   });
 });
+
+describe('history-server paging and window', () => {
+  let tmpDir: string;
+  let dbPath: string;
+  let server: http.Server;
+  let baseUrl: string;
+
+  beforeEach(async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'history-server-paging-'));
+    dbPath = join(tmpDir, 'test.db');
+    const { openDb, writeResults, closeDb } = await import('./db.js');
+    openDb(dbPath);
+    writeResults([makeResult(5000)], [], [], '2026');
+    writeResults([makeResult(6000)], [], [], '2026');
+    closeDb();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      });
+    }
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function startWith(
+    options: Partial<import('./history-server.js').HistoryHandlerOptions> = {}
+  ): Promise<void> {
+    const handler = createHistoryHandler({
+      dbPath,
+      electionYear: '2026',
+      ...options,
+    });
+    server = http.createServer((req, res) => {
+      if (!handler(req, res)) {
+        res.writeHead(404);
+        res.end('Not found');
+      }
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+  }
+
+  test('returns a page with explicit total/limit/offset headers', async () => {
+    await startWith();
+    const res = await fetch(`${baseUrl}/history/snapshots?limit=1&offset=1`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(1);
+    expect(res.headers.get('x-history-total')).toBe('2');
+    expect(res.headers.get('x-history-limit')).toBe('1');
+    expect(res.headers.get('x-history-offset')).toBe('1');
+    expect(res.headers.get('x-history-window-hours')).toBe('24');
+  });
+
+  test('rejects a non-positive or malformed limit', async () => {
+    await startWith();
+    for (const limit of ['0', 'abc', '-1']) {
+      const res = await fetch(`${baseUrl}/history/snapshots?limit=${limit}`);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  test('rejects a malformed offset', async () => {
+    await startWith();
+    const res = await fetch(`${baseUrl}/history/snapshots?offset=-1`);
+    expect(res.status).toBe(400);
+  });
+
+  test('refuses an unpaged window that exceeds the cap instead of truncating', async () => {
+    await startWith({ maxSnapshots: 1 });
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+
+    expect(res.status).toBe(413);
+    await expect(res.json()).resolves.toMatchObject({
+      total: 2,
+      limit: 1,
+    });
+    expect(res.headers.get('x-history-total')).toBe('2');
+  });
+
+  test('an explicit page succeeds even when the window exceeds the cap', async () => {
+    await startWith({ maxSnapshots: 1 });
+    const res = await fetch(`${baseUrl}/history/snapshots?limit=1&offset=0`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(1);
+  });
+
+  test('excludes snapshots older than the configured window', async () => {
+    const Database = (await import('better-sqlite3')).default;
+    const raw = new Database(dbPath);
+    raw
+      .prepare(
+        "UPDATE scrape_snapshots SET started_at = datetime('now', '-25 hours') WHERE id = (SELECT MIN(id) FROM scrape_snapshots WHERE election_year = '2026')"
+      )
+      .run();
+    raw.close();
+
+    await startWith({ windowHours: 24 });
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    const body = (await res.json()) as unknown[];
+
+    expect(res.status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(res.headers.get('x-history-total')).toBe('1');
+  });
+});

@@ -45,8 +45,18 @@ export type VotingPlaceStatusOptions = {
   electionYear: string;
   /** Fetches a URL and returns its status and body; defaults to global fetch. */
   fetchText?: (url: string) => Promise<FetchTextResult>;
-  /** Place result files fetched in parallel (default 6). */
+  /** Place result files fetched in parallel per seat (default 6). */
   concurrency?: number;
+  /** Place result files fetched in parallel service-wide (default 12). */
+  maxActiveFetches?: number;
+  /**
+   * How many place-file fetches may wait for a slot service-wide (default 64).
+   * Overflow or a wait longer than `queueWaitMs` makes the seat explicitly
+   * unavailable rather than reporting every place as outstanding.
+   */
+  maxQueuedFetches?: number;
+  /** Longest a place-file fetch may wait for a slot (default 10s). */
+  queueWaitMs?: number;
   /** Per-seat cache lifetime (default 30s). */
   cacheTtlMs?: number;
   /** Register/electorate list cache lifetime (default 6h). */
@@ -67,9 +77,112 @@ type References = {
 };
 
 const DEFAULT_CONCURRENCY = 6;
+const DEFAULT_MAX_ACTIVE_FETCHES = 12;
+/**
+ * 64 waiting slots. Each seat holds at most `concurrency` (6) fetches at a
+ * time, so this admits roughly ten seats opening at once behind the 12 already
+ * running. A larger queue would not make the feed faster; it would only defer
+ * the same limit while holding more requests open on a machine that also has to
+ * scrape.
+ */
+const DEFAULT_MAX_QUEUED_FETCHES = 64;
+const DEFAULT_QUEUE_WAIT_MS = 10_000;
 const DEFAULT_CACHE_TTL_MS = 30_000;
 const DEFAULT_REFERENCE_TTL_MS = 6 * 60 * 60 * 1_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * Thrown when the service-wide place-fetch budget cannot admit a request.
+ * Distinct from a network failure: it says "this seat cannot be answered right
+ * now", so the caller must report unavailability, not an all-outstanding seat.
+ */
+export class FetchBudgetExceededError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FetchBudgetExceededError';
+  }
+}
+
+type QueuedWaiter = {
+  resolve: () => void;
+  reject: (err: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * A service-wide semaphore for place-file fetches.
+ *
+ * Per-seat single-flight stops ten visitors opening the same seat from fanning
+ * out, but not ten visitors opening ten different seats: each would still run
+ * its own pool of six. This caps the whole service, and bounds the waiting
+ * queue so a burst fails explicitly instead of holding hundreds of requests.
+ */
+class FetchBudget {
+  private active = 0;
+  private readonly waiting: QueuedWaiter[] = [];
+
+  constructor(
+    private readonly maxActive: number,
+    private readonly maxQueued: number,
+    private readonly waitMs: number
+  ) {}
+
+  async run<T>(work: () => Promise<T>): Promise<T> {
+    const release = await this.acquire();
+    try {
+      return await work();
+    } finally {
+      release();
+    }
+  }
+
+  private acquire(): Promise<() => void> {
+    if (this.active < this.maxActive) {
+      this.active += 1;
+      return Promise.resolve(this.releaseOnce);
+    }
+
+    if (this.waiting.length >= this.maxQueued) {
+      return Promise.reject(
+        new FetchBudgetExceededError(
+          `place fetch queue is full (${this.maxQueued} waiting)`
+        )
+      );
+    }
+
+    return new Promise<() => void>((resolve, reject) => {
+      const waiter: QueuedWaiter = {
+        resolve: () => {
+          clearTimeout(waiter.timer);
+          resolve(this.releaseOnce);
+        },
+        reject,
+        timer: setTimeout(() => {
+          const index = this.waiting.indexOf(waiter);
+          if (index !== -1) this.waiting.splice(index, 1);
+          reject(
+            new FetchBudgetExceededError(
+              `place fetch waited longer than ${this.waitMs}ms`
+            )
+          );
+        }, this.waitMs),
+      };
+      // Tests should not be kept alive by a pending queue timer.
+      waiter.timer.unref?.();
+      this.waiting.push(waiter);
+    });
+  }
+
+  private readonly releaseOnce = (): void => {
+    const next = this.waiting.shift();
+    if (next) {
+      // Hand the slot straight to the next waiter without dropping to zero.
+      next.resolve();
+      return;
+    }
+    this.active -= 1;
+  };
+}
 
 function padElectorateNo(no: number): string {
   return String(no).padStart(2, '0');
@@ -93,6 +206,7 @@ export class VotingPlaceStatusService {
   private readonly electionYear: string;
   private readonly fetchText: (url: string) => Promise<FetchTextResult>;
   private readonly concurrency: number;
+  private readonly budget: FetchBudget;
   private readonly cacheTtlMs: number;
   private readonly referenceTtlMs: number;
   private readonly now: () => number;
@@ -121,6 +235,11 @@ export class VotingPlaceStatusService {
       : `${options.baseUrl}/`;
     this.electionYear = options.electionYear;
     this.concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
+    this.budget = new FetchBudget(
+      options.maxActiveFetches ?? DEFAULT_MAX_ACTIVE_FETCHES,
+      options.maxQueuedFetches ?? DEFAULT_MAX_QUEUED_FETCHES,
+      options.queueWaitMs ?? DEFAULT_QUEUE_WAIT_MS
+    );
     this.cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
     this.referenceTtlMs = options.referenceTtlMs ?? DEFAULT_REFERENCE_TTL_MS;
     this.now = options.now ?? Date.now;
@@ -220,19 +339,10 @@ export class VotingPlaceStatusService {
       return { ...base, available: true, reason: null };
     }
 
-    const counts = await mapWithConcurrency(
-      entries,
-      this.concurrency,
-      async (entry) => {
-        try {
-          const res = await this.fetchText(`${dir}${entry.file}`);
-          if (res.status !== 200) return null;
-          return parseVotingPlaceResult(res.body);
-        } catch {
-          return null;
-        }
-      }
-    );
+    const counts = await this.fetchPlaceCounts(electorateName, dir, entries);
+    if (counts === null) {
+      return { ...base, available: false, reason: 'busy' };
+    }
 
     const places: VotingPlaceStatus[] = entries.map((entry, index) => {
       const count = counts[index];
@@ -278,6 +388,54 @@ export class VotingPlaceStatusService {
       total: places.length,
       places,
     };
+  }
+
+  /**
+   * Fetch every place file for one seat, through the service-wide budget.
+   * Returns null when the budget cannot admit the work, which is reported as
+   * `available: false, reason: 'busy'` — never as a seat where every place
+   * simply has not counted.
+   */
+  private async fetchPlaceCounts(
+    electorateName: string,
+    dir: string,
+    entries: Awaited<ReturnType<typeof parseVotingPlaceListing>>
+  ): Promise<(ReturnType<typeof parseVotingPlaceResult> | null)[] | null> {
+    let cancelled = false;
+    try {
+      return await mapWithConcurrency(
+        entries,
+        this.concurrency,
+        async (entry) => {
+          if (cancelled) return null;
+          try {
+            const res = await this.budget.run(() =>
+              this.fetchText(`${dir}${entry.file}`)
+            );
+            if (res.status !== 200) return null;
+            return parseVotingPlaceResult(res.body);
+          } catch (err) {
+            if (err instanceof FetchBudgetExceededError) {
+              // Stop admitting further work for a response we are about to
+              // abandon; in-flight fetches finish and release their slots.
+              cancelled = true;
+              throw err;
+            }
+            // A network/parse failure is one outstanding place, not a failed
+            // seat: it heals on the next request.
+            return null;
+          }
+        }
+      );
+    } catch (err) {
+      if (err instanceof FetchBudgetExceededError) {
+        this.onLog(
+          `Voting place fetch budget exhausted for ${electorateName}: ${err.message}`
+        );
+        return null;
+      }
+      throw err;
+    }
   }
 
   private ensureReferences(): Promise<References | null> {

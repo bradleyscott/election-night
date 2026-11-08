@@ -193,6 +193,26 @@ the full benchmark before/after on stated hardware. Start with history p95 <1s
 and no 5s upstream timeout at the agreed fixture load; document any unmet target.
 Do not claim this proves the precise 7 November stall cause.
 
+**Implementation record (02a):** grouped reads in
+`packages/collector/src/history-queries.ts`, wired through
+`history-server.ts`; evidence and the full before/after table in
+`docs/history-load-baseline.md`. At 1,440 snapshots an electorate read fell from
+2,881 statements / 51.4ms p95 to 3 statements / 26.1ms p95, and party history
+from 2,883 / 50.0ms to 3 / 23.0ms. The snapshot list is 1 statement / 2.9ms.
+Migration `0003_tricky_wild_child.sql` adds only the three indexes the
+`EXPLAIN QUERY PLAN` output uses; a fourth candidate was measured and removed.
+DB reads are bounded by `HISTORY_WINDOW_HOURS` (24) and paged with
+`?limit=`/`?offset=` under `HISTORY_MAX_SNAPSHOTS` (2,000); an over-cap unpaged
+window is an explicit 413 with `X-History-*` metadata, never a truncated array.
+Consumers still receive plain arrays; Task 03 migrates them to follow paging.
+The voting-place layer gained a service-wide 12-active / 64-queued fetch budget
+with a 10s slot deadline, returning `reason: "busy"` on overflow instead of an
+all-outstanding seat. Tests: `history-load.test.ts` (flat statement count, legacy
+equivalence, paging, window), `history-server.test.ts` (headers, 400, 413,
+window), and `voting-place-status.test.ts` (global cap, busy, recovery).
+`npm run lint`, `npm run typecheck` and `npx vitest run` (800 tests) pass.
+02b (worker ownership) remains open.
+
 ### 03 — Query-managed history refresh and recovery
 
 **Start in:** `packages/dashboard/src/main.tsx` / app providers,

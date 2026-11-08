@@ -355,3 +355,164 @@ describe('VotingPlaceStatusService', () => {
     });
   });
 });
+
+/** A listing with `count` place files under one electorate directory. */
+function listing(prefix: string, count: number): string {
+  const rows = Array.from(
+    { length: count },
+    (_, index) =>
+      `<tr><td><a href="${prefix}-${prefix}${String(index + 1).padStart(3, '0')}.xml">x</a></td></tr>`
+  ).join('');
+  return `<html><body><table>${rows}</table></body></html>`;
+}
+
+/**
+ * A feed whose place-file responses take `delayMs`, tracking how many are in
+ * flight at once. The register/electorate references are answered immediately;
+ * only the per-place files are delayed and counted.
+ */
+async function startDelayedFeed(delayMs: number): Promise<{
+  baseUrl: string;
+  maxActive: () => number;
+  close: () => Promise<void>;
+}> {
+  const files = (electorateNo: number, prefix: string, count: number) =>
+    Object.fromEntries(
+      Array.from({ length: count }, (_, index) => [
+        `/e${String(electorateNo).padStart(2, '0')}/votingplaces/${prefix}-${prefix}${String(index + 1).padStart(3, '0')}.xml`,
+        {
+          body: placeFile(
+            1000 * electorateNo + index,
+            electorateNo,
+            index + 1,
+            ''
+          ),
+        },
+      ])
+    );
+
+  const routes: Record<string, { body: string }> = {
+    '/electorates.xml': { body: ELECTORATES },
+    '/votingplaces.xml': { body: REGISTER },
+    '/e01/votingplaces/': { body: listing('01', 6) },
+    '/e02/votingplaces/': { body: listing('02', 6) },
+    ...files(1, '01', 6),
+    ...files(2, '02', 6),
+  };
+
+  let active = 0;
+  let peak = 0;
+  const server: Server = createServer(async (req, res) => {
+    const path = (req.url ?? '/').split('?')[0]!;
+    const route = routes[path];
+    if (!route) {
+      res.writeHead(404, { 'content-type': 'text/plain' });
+      res.end('not found');
+      return;
+    }
+    const isPlaceFile =
+      path.includes('/votingplaces/') && path.endsWith('.xml');
+    if (isPlaceFile) {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      active -= 1;
+    }
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.end(route.body);
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (typeof address === 'string' || address === null) {
+    throw new Error('no port');
+  }
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/`,
+    maxActive: () => peak,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.closeAllConnections();
+        server.close((err) => (err ? reject(err) : resolve()));
+      }),
+  };
+}
+
+describe('service-wide place-fetch budget', () => {
+  it('never exceeds the active limit across two seats opened at once', async () => {
+    const feed = await startDelayedFeed(20);
+    cleanup = feed.close;
+    const service = new VotingPlaceStatusService({
+      baseUrl: feed.baseUrl,
+      electionYear: '2026',
+      maxActiveFetches: 2,
+      maxQueuedFetches: 64,
+      concurrency: 6,
+      cacheTtlMs: 0,
+    });
+
+    const [first, second] = await Promise.all([
+      service.placesFor('Auckland Central'),
+      service.placesFor('Banks Peninsula'),
+    ]);
+
+    expect(first).toMatchObject({ available: true, total: 6 });
+    expect(second).toMatchObject({ available: true, total: 6 });
+    expect(feed.maxActive()).toBeLessThanOrEqual(2);
+  });
+
+  it('reports busy, not an all-outstanding seat, when the queue overflows', async () => {
+    const feed = await startDelayedFeed(30);
+    cleanup = feed.close;
+    const service = new VotingPlaceStatusService({
+      baseUrl: feed.baseUrl,
+      electionYear: '2026',
+      maxActiveFetches: 2,
+      maxQueuedFetches: 1,
+      concurrency: 6,
+      cacheTtlMs: 0,
+    });
+
+    const result = await service.placesFor('Auckland Central');
+
+    expect(result).toMatchObject({
+      available: false,
+      reason: 'busy',
+      counted: 0,
+      total: 0,
+      places: [],
+    });
+    expect(feed.maxActive()).toBeLessThanOrEqual(2);
+  });
+
+  it('does not cache a busy answer, so the next request can recover', async () => {
+    const feed = await startDelayedFeed(30);
+    cleanup = feed.close;
+    const service = new VotingPlaceStatusService({
+      baseUrl: feed.baseUrl,
+      electionYear: '2026',
+      // One slot and one waiting place: two seats opened at once cannot both
+      // proceed, so one is answered busy while the other fetches.
+      maxActiveFetches: 1,
+      maxQueuedFetches: 1,
+      concurrency: 2,
+      cacheTtlMs: 60_000,
+    });
+
+    await Promise.all([
+      service.placesFor('Auckland Central'),
+      service.placesFor('Banks Peninsula'),
+    ]);
+
+    // Let the admitted fetches finish and release the slot.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Whichever seat was refused must be retryable: a busy answer is not
+    // cached, so the next request does the work rather than repeating it.
+    for (const seat of ['Auckland Central', 'Banks Peninsula']) {
+      expect(await service.placesFor(seat)).toMatchObject({
+        available: true,
+        total: 6,
+      });
+    }
+  });
+});

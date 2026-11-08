@@ -409,6 +409,8 @@ async function main(): Promise<void> {
         electionYear: collectorConfig.electionYear,
         resultsService,
         votingPlaces,
+        windowHours: collectorConfig.historyWindowHours,
+        maxSnapshots: collectorConfig.historyMaxSnapshots,
       })
     );
   } catch (err) {
