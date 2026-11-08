@@ -44,6 +44,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { arg, hasFlag } from './lib/args.mjs';
+import {
+  CACHE_VERSION,
+  decodeParsedCache,
+  encodeParsedCache,
+  measure,
+  parsePage,
+  stats,
+} from './lib/specials-swing.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE_DIR = resolve(ROOT, '.cache/specials-swing');
@@ -55,34 +63,6 @@ const REFRESH = hasFlag('refresh');
 const RETRIES = 6;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const num = (v) => {
-  const digits = String(v ?? '').replace(/[^0-9]/g, '');
-  return digits ? Number(digits) : 0;
-};
-
-/** A page's `<tr>`s, each as an array of trimmed, tag-stripped cell strings. */
-function rows(html) {
-  const body = html
-    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '')
-    .replace(/&nbsp;/g, ' ');
-  const out = [];
-  for (const raw of body.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) ?? []) {
-    const cells = [];
-    for (const cell of raw.match(/<t[hd]\b[^>]*>[\s\S]*?<\/t[hd]>/gi) ?? []) {
-      cells.push(
-        cell
-          .replace(/<[^>]+>/g, '')
-          .replace(/&amp;/g, '&')
-          .replace(/&[a-z]+;/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-      );
-    }
-    out.push(cells);
-  }
-  return out;
-}
-
 async function fetchText(url) {
   let lastError;
   for (let attempt = 0; attempt < RETRIES; attempt++) {
@@ -145,125 +125,28 @@ async function pageList(year) {
   throw lastError;
 }
 
-/**
- * One electorate page → its candidates, its total, and its special votes.
- *
- * The header row lists candidates and then two pseudo-columns ("Total Valid
- * Candidate Votes", "Informal Candidate Votes"); they must be dropped or the
- * special rows, which carry those same two figures at their end, are counted as
- * a candidate and the specials come out at exactly double.
- */
-function parsePage(html) {
-  let candidates = null;
-  let electorate = null;
-  const special = {};
-  let total = null;
-
-  for (const cells of rows(html)) {
-    if (!cells.length) continue;
-    if (/Candidate Vote Details?$/.test(cells[0]) && cells.length > 3) {
-      candidates = cells
-        .slice(1)
-        .filter((c) => !/^(Total Valid|Informal)/i.test(c));
-      electorate = cells[0]
-        .replace(/\s+\d+$/, '')
-        .replace(/\s*Candidate Vote Details?$/, '')
-        .trim();
-      continue;
-    }
-    if (!candidates) continue;
-
-    const values = cells.slice(1, candidates.length + 1).map(num);
-    if (values.length < candidates.length) continue;
-
-    if (/Special Votes/i.test(cells[0]) && !/less than/i.test(cells[0])) {
-      candidates.forEach((name, i) => {
-        special[name] = (special[name] ?? 0) + values[i];
-      });
-    } else if (/\bTotal$/.test(cells[0])) {
-      total = {};
-      candidates.forEach((name, i) => {
-        total[name] = values[i];
-      });
-    }
-  }
-
-  return { electorate, candidates, special, total };
-}
-
-/** The two-candidate differential, as a fraction of the votes in that pool. */
-function differential(a, b, pool) {
-  const total = Object.values(pool).reduce((n, v) => n + v, 0);
-  return total > 0 ? (pool[a] - pool[b]) / total : null;
-}
-
-function measure(seats) {
-  const out = [];
-  for (const [electorate, s] of Object.entries(seats)) {
-    if (!s.special || !s.total) continue;
-    const top = Object.keys(s.total)
-      .sort((a, b) => s.total[b] - s.total[a])
-      .slice(0, 2);
-    if (top.length < 2) continue;
-    const [a, b] = top;
-
-    const ordinary = {};
-    for (const name of Object.keys(s.total)) {
-      ordinary[name] = s.total[name] - (s.special[name] ?? 0);
-    }
-    const dSpecial = differential(a, b, s.special);
-    const dOrdinary = differential(a, b, ordinary);
-    if (dSpecial === null || dOrdinary === null) continue;
-
-    const specialTotal = Object.values(s.special).reduce((n, v) => n + v, 0);
-    if (specialTotal <= 0) continue;
-
-    out.push({
-      electorate,
-      winner: a,
-      runnerUp: b,
-      specialVotes: specialTotal,
-      finalMargin: s.total[a] - s.total[b],
-      countMargin: ordinary[a] - ordinary[b],
-      swing: Number(((dSpecial - dOrdinary) * 100).toFixed(2)),
-    });
-  }
-  return out.sort((x, y) => x.electorate.localeCompare(y.electorate));
-}
-
-function stats(values) {
-  const n = values.length;
-  const mean = values.reduce((a, b) => a + b, 0) / n;
-  const sd = Math.sqrt(
-    values.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1)
-  );
-  const sorted = [...values].sort((a, b) => a - b);
-  const at = (p) =>
-    sorted[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))];
-  return {
-    n,
-    mean,
-    sd,
-    median: at(0.5),
-    p10: at(0.1),
-    p90: at(0.9),
-    over10: values.filter((v) => Math.abs(v) > 10).length,
-  };
-}
-
 const results = {};
 for (const year of YEARS) {
   const field = `${year}-seats.json`;
   let measured;
   try {
     if (REFRESH) throw new Error('refresh');
-    measured = JSON.parse(await readFile(resolve(CACHE_DIR, field), 'utf8'));
+    const raw = await readFile(resolve(CACHE_DIR, field), 'utf8');
+    const cached = decodeParsedCache(raw, year);
+    if (!cached) {
+      process.stderr.write(
+        `  ${year}: parsed cache is not version ${CACHE_VERSION}; regenerating\n`
+      );
+      throw new Error('stale cache');
+    }
+    measured = cached;
   } catch {
     const pages = await pageList(year);
     const sorted = Object.keys(pages).sort((a, b) => Number(a) - Number(b));
     const pageDir = resolve(CACHE_DIR, year);
     await mkdir(pageDir, { recursive: true });
     const seats = {};
+    const sources = [];
 
     for (const [i, page] of sorted.entries()) {
       const { timestamp, original } = pages[page];
@@ -280,6 +163,7 @@ for (const year of YEARS) {
         await sleep(1_000);
       }
 
+      sources.push({ page, url });
       const parsed = parsePage(html);
       if (parsed.electorate) {
         seats[parsed.electorate] = {
@@ -295,7 +179,7 @@ for (const year of YEARS) {
       // Persist as we go: an interrupted run resumes from the page cache.
       await writeFile(
         resolve(CACHE_DIR, field),
-        JSON.stringify(seats, null, 1)
+        encodeParsedCache({ year, seats, sources })
       );
     }
     measured = seats;

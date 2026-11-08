@@ -52,7 +52,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **02a — Bound history queries and global voting-place load**         | P0                           | R6       | 01; capture baseline first                   |
 | [x]  | **02b — Move database execution off the collector HTTP loop**        | P0                           | R6       | 02a                                          |
 | [x]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
-| [ ]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
+| [x]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
 | [ ]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
 | [ ]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
 | [ ]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
@@ -307,6 +307,25 @@ not 3,800/380. Add representative 2017, 2020 and 2023 header shapes.
 **Done when:** the reproduced pseudo-candidate bug fails before/passes after,
 legacy caches cannot silently reintroduce it, and every published calibration
 figure is regenerated with provenance or explicitly flagged unverified.
+
+**Implementation record:** parsing and measurement moved to the side-effect-free
+`scripts/lib/specials-swing.mjs`; `scripts/measure-specials-swing.mjs` now only
+fetches, caches and prints. Header cells are classified with their original
+index, so a summary column (any spacing/case of `Total Valid Candidate Votes` /
+`Informal Candidate Votes`, or the shorter `Total Valid Votes` / `Informal
+Votes`) can never enter the candidate map or shift a candidate's value; only
+`special` and `total` maps are built from real candidate indexes. Parsed caches
+are wrapped as `{ version: 2, year, generatedAt, sources, seats }`; a legacy
+bare-seats cache or another version/cycle is refused and regenerated, and the
+raw page HTML stays under `.cache/specials-swing/<year>/`. `scripts/lib/
+specials-swing.test.mjs` runs in `npm test` (the Vitest include gained
+`scripts/**/*.test.mjs`) and pins the required A=1,000/B=900, specials 100/90
+fixture (totals 1,900/190, never 3,800/380), a summary column in the middle,
+the 2017/2020/2023 header shapes, category-row summation, a non-zero swing, and
+cache version rejection. The published §4 statistics are marked **unverified,
+pending regeneration** because the raw archives were not re-fetched; the model
+constant was not changed. `npm run lint`, `npm run typecheck` and
+`npx vitest run` (828 tests) pass.
 
 ### 05 — Pair HTTP validators with exact reusable bodies
 
