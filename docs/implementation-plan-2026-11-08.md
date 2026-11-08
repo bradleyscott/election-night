@@ -53,7 +53,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **02b — Move database execution off the collector HTTP loop**        | P0                           | R6       | 02a                                          |
 | [x]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
 | [x]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
-| [ ]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
+| [x]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
 | [ ]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
 | [ ]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
 | [ ]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
@@ -348,6 +348,19 @@ restart. Also test mixed seats, cache-write failure and all-304 healthy silence.
 
 **Done when:** no path pairs body A with validator B or clears a persistence error
 merely because that mismatched body hashes like the previous publication.
+
+**Implementation record:** `runOnce` no longer advances `feedStamps` when a body
+arrives. `commitCounted()` writes, diffs, caches and publishes first, and only
+then commits the cycle's stamps and signature. A failed counted cycle keeps the
+whole `ScrapeCycleResult` in `pendingOutcome`; the next poll retries that body
+_without fetching_, so a source that has moved on and would answer 304 cannot
+strand it. Unchanged and zero-vote branches commit stamps separately, after
+their own work. A file-triggered fault hook (`COLLECTOR_FAULT_WRITE_FILE`)
+lets the rehearsal harness fail exactly one write without a restart.
+`validator-retry.test.ts` commits A, fetches B with a newer stamp, injects a
+write failure, then forces the source to answer 304-only; B must still commit
+and publish, with exactly two snapshots and no duplicate. The existing
+`unchanged-cycle` retry and quiet-cycle tests still pass. 829 tests pass.
 
 ### 06a/06b — Separate count facts, estimates and presentation
 

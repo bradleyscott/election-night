@@ -20,6 +20,7 @@
  */
 
 import { Worker } from 'node:worker_threads';
+import { existsSync, unlinkSync } from 'node:fs';
 import type { DbRequest, DbResponse, DbResultByType } from './db-protocol.js';
 import type {
   ElectorateHistoryRow,
@@ -137,6 +138,14 @@ export class DbWorkerClient {
   }
 
   write(snapshot: SnapshotWrite): Promise<number> {
+    // Fault-injection harness for the release rehearsal: creating the file
+    // makes exactly the next write fail, without a restart. Off unless the
+    // variable is set, and it never exists in a normal deployment.
+    const faultFile = process.env.COLLECTOR_FAULT_WRITE_FILE;
+    if (faultFile && existsSync(faultFile)) {
+      unlinkSync(faultFile);
+      return Promise.reject(new Error('injected database write failure'));
+    }
     return this.enqueue<'write'>({ type: 'write', snapshot });
   }
 

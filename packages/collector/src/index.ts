@@ -22,7 +22,7 @@ import { nextPollDelay } from './poll-delay.js';
 import { cacheResults, cacheCycle, processResults } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
-import { scrapeCycle } from './scrape-cycle.js';
+import { scrapeCycle, type ScrapeCycleResult } from './scrape-cycle.js';
 import { collectorConfig } from './config.js';
 import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
@@ -85,6 +85,11 @@ let feedStamps = new Map<string, string>();
  * (even one where every seat 304s) still looks different and tries again.
  */
 let lastPublishedSignature: string | null = null;
+/**
+ * A counted outcome whose commit failed. Kept in memory so the next poll
+ * retries the same body instead of relying on the feed to republish it.
+ */
+let pendingOutcome: ScrapeCycleResult | null = null;
 
 let partyListRecords: PartyList[] = [];
 let source: ElectionSource | null = null;
@@ -188,6 +193,77 @@ async function ensureSource(): Promise<ElectionSource | null> {
   }
 }
 
+/**
+ * Write, diff, cache and publish one counted outcome.
+ *
+ * The feed's `Last-Modified` stamps are advanced only here, after every step
+ * has returned. Advancing them when the body arrived would pair a new validator
+ * with a body that was never committed: the next poll would ask
+ * `If-Modified-Since: <new>`, get 304, and reuse the old cached body, losing the
+ * new count until the feed happened to republish it. The caller also holds the
+ * outcome itself, so a source that answers 304-only after the failed attempt
+ * still gets the pending body committed.
+ */
+async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
+  const payload = outcome.payload;
+
+  // One lookup for the whole payload: the swing behind it depends on every
+  // seat at once, so the snapshot write and the webhook diff must share it or
+  // the two could describe the same seat differently.
+  const liveChanceLookup = chanceLookupFor(
+    notionalBaseline,
+    payload.electorateResults,
+    collectorConfig.electionYear
+  );
+
+  const writeStartedAt = performance.now();
+  try {
+    await dbWorker.write({
+      results: payload.electorateResults,
+      partyVote: payload.partyVote,
+      partyLists: payload.partyLists,
+      electionYear: collectorConfig.electionYear,
+      // The worker cannot receive the lookup function; compute the same
+      // progress here and send plain numbers.
+      progressByElectorate: Object.fromEntries(
+        payload.electorateResults.map((r) => {
+          const chance = liveChanceLookup?.(r);
+          return [
+            r.electorateName,
+            chance?.state === 'counting'
+              ? Math.min(1, chance.progress)
+              : r.votePercentageCounted,
+          ];
+        })
+      ),
+    });
+    publishMetrics(
+      emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'success')
+    );
+  } catch (err) {
+    publishMetrics(
+      emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'error')
+    );
+    throw err;
+  }
+
+  await processResults(payload.electorateResults, liveChanceLookup);
+  cacheResults(payload.electorateResults);
+  health.cacheYear = cacheCycle();
+  resultsService.setLiveResults(payload);
+  publishResults(payload);
+
+  feedStamps = outcome.stamps;
+  lastPublishedSignature = outcome.signature;
+  health.lastCycleFinishedAt = Date.now();
+  health.lastCycleOk = true;
+  health.lastError = null;
+  health.lastVotesCounted = payload.electorateResults.reduce(
+    (sum, r) => sum + (r.votesCounted || 0),
+    0
+  );
+}
+
 async function runOnce(current: ElectionSource): Promise<void> {
   health.cycleCount += 1;
   health.lastCycleStartedAt = Date.now();
@@ -199,6 +275,25 @@ async function runOnce(current: ElectionSource): Promise<void> {
   recordDiskUsage(dbPath);
 
   try {
+    // A failed counted cycle holds its outcome here. Retrying it before the
+    // next scrape means a source that has already moved past the new stamp
+    // (and would answer 304) cannot strand the body that never committed.
+    if (pendingOutcome) {
+      try {
+        await commitCounted(pendingOutcome);
+        pendingOutcome = null;
+        log.info('Committed the result held from the previous failed cycle');
+      } catch (err) {
+        health.lastCycleOk = false;
+        health.lastError = err instanceof Error ? err.message : String(err);
+        log.error(
+          'Retrying the held result failed; keeping it for the next poll',
+          err
+        );
+        return;
+      }
+    }
+
     const outcome = await scrapeCycle({
       source: current,
       configs: electorateConfigs,
@@ -206,7 +301,6 @@ async function runOnce(current: ElectionSource): Promise<void> {
       concurrency: CONCURRENCY,
       previousStamps: feedStamps,
     });
-    feedStamps = outcome.stamps;
 
     const payload = outcome.payload;
     const votesCounted = payload.electorateResults.reduce(
@@ -222,6 +316,9 @@ async function runOnce(current: ElectionSource): Promise<void> {
     // socket broadcast per poll — 1,440 a day at the one-minute cadence — for
     // no new information, which is what makes a fast poll loop affordable.
     if (outcome.signature === lastPublishedSignature) {
+      // Nothing new to write, but the feed did validate these stamps; they
+      // describe the body that is already committed.
+      feedStamps = outcome.stamps;
       health.lastCycleFinishedAt = Date.now();
       health.lastCycleOk = true;
       health.lastError = null;
@@ -245,6 +342,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
       health.cacheYear = cacheCycle();
       resultsService.setLiveResults(payload);
       publishResults(payload);
+      feedStamps = outcome.stamps;
       lastPublishedSignature = outcome.signature;
       health.lastCycleFinishedAt = Date.now();
       health.lastCycleOk = true;
@@ -256,64 +354,12 @@ async function runOnce(current: ElectionSource): Promise<void> {
       return;
     }
 
-    // One lookup for the whole payload: the swing behind it depends on every
-    // seat at once, so the snapshot write and the webhook diff must share it or
-    // the two could describe the same seat differently.
-    const liveChanceLookup = chanceLookupFor(
-      notionalBaseline,
-      payload.electorateResults,
-      collectorConfig.electionYear
-    );
-
-    const writeStartedAt = performance.now();
     try {
-      await dbWorker.write({
-        results: payload.electorateResults,
-        partyVote: payload.partyVote,
-        partyLists: payload.partyLists,
-        electionYear: collectorConfig.electionYear,
-        // The worker cannot receive the lookup function; compute the same
-        // progress here and send plain numbers.
-        progressByElectorate: Object.fromEntries(
-          payload.electorateResults.map((r) => {
-            const chance = liveChanceLookup?.(r);
-            return [
-              r.electorateName,
-              chance?.state === 'counting'
-                ? Math.min(1, chance.progress)
-                : r.votePercentageCounted,
-            ];
-          })
-        ),
-      });
-      publishMetrics(
-        emitSnapshotWrite(
-          (performance.now() - writeStartedAt) / 1000,
-          'success'
-        )
-      );
+      await commitCounted(outcome);
     } catch (err) {
-      publishMetrics(
-        emitSnapshotWrite((performance.now() - writeStartedAt) / 1000, 'error')
-      );
+      pendingOutcome = outcome;
       throw err;
     }
-    await processResults(payload.electorateResults, liveChanceLookup);
-    cacheResults(payload.electorateResults);
-    health.cacheYear = cacheCycle();
-    resultsService.setLiveResults(payload);
-    publishResults(payload);
-    // Recorded only now, after the write, the cache and the broadcast have all
-    // returned: everything before this line can throw, and a signature recorded
-    // before the work was done would make the next cycle skip the retry.
-    lastPublishedSignature = outcome.signature;
-    health.lastCycleFinishedAt = Date.now();
-    health.lastCycleOk = true;
-    health.lastError = null;
-    health.lastVotesCounted = payload.electorateResults.reduce(
-      (sum, r) => sum + (r.votesCounted || 0),
-      0
-    );
   } finally {
     log.info('Processing of results completed!');
   }
