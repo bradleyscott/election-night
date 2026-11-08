@@ -25,7 +25,7 @@ This started as a project for a 2023 election night party — the goal was to av
 - **Prior election results** — The collector derives any earlier cycle from the same XML archive on demand (`/history/results/:year`, `/history/prior-winners`), matched to today's electorates through a checked-in rename table so a merged or split seat is never given someone else's member. Historical cycles are cached in memory and never persisted; see [`docs/prior-election-results.md`](docs/prior-election-results.md).
 - **Webhook notifications from a durable outbox** — Configurable webhooks for new predictions, updated results, and leader changes (e.g., smart home integrations). Announcements are stored in the snapshot transaction with a stable `eventId` and delivered by an independent loop with deadlines, bounded concurrency and retries, so a hung receiver cannot hold up the count. Delivery is at-least-once; receivers should deduplicate on `eventId`. A built-in webhook logger is available for local testing.
 - **Persistence** — SQLite via Drizzle ORM, owned by a dedicated worker thread, stores count history, a cycle-scoped monotonic revision, the authoritative latest payload (electorates, parties and lists), and the webhook outbox. Additive migrations keep the existing night's history. JSON caches and feed events remain replaceable files.
-- **Mock server** — A built-in mock XML feed server that serves evolving results for development and testing.
+- **Mock server** — A built-in mock XML feed that replays the real published results for 2020, 2023 or 2026, staged into an evolving count for development and testing.
 - **Custom source adapters** — Pluggable `ElectionSource` interface to adapt the collector for non-NZ elections or other feeds.
 
 ## Architecture
@@ -99,6 +99,7 @@ npm run dev
 | `npm run clear`                                | Truncate the SQLite database and delete the JSON results cache |
 | `npm run log:webhooks`                         | Start a local webhook receiver on port 3458                    |
 | `node scripts/fetch-electorate-boundaries.mjs` | Re-fetch official electorate boundaries (see below)            |
+| `npm run build:mock-data`                      | Regenerate the mock feed's real candidate/result fixture       |
 | `node scripts/generate-icons.mjs`              | Regenerate the app icons from one square master                |
 | `npm test`                                     | Run Vitest test suite                                          |
 | `npm run lint`                                 | ESLint all packages                                            |
@@ -151,7 +152,7 @@ asserts each shipped icon is square and the size `site.webmanifest` declares.
 
 ### Mock server
 
-The mock server serves a mock version of the Electoral Commission XML feed (`candidates.xml`, `parties.xml`, `electorates.xml`, and per-electorate `e{NN}/e{NN}.xml`) that simulates an evolving election night. Point the collector at it with `XML_FEED_BASE_URL=http://localhost:3457/`. Advance stages manually, auto-step, or query the current stage:
+The mock server serves a mock version of the Electoral Commission XML feed (`candidates.xml`, `parties.xml`, `electorates.xml`, and per-electorate `e{NN}/e{NN}.xml`) that simulates an evolving election night. It replays the **real published results** for 2020, 2023 or 2026 — real candidate names, real party and candidate votes, and the real winner in each seat — scaled into four partial counts. Point the collector at it with `XML_FEED_BASE_URL=http://localhost:3457/`. Advance stages manually, auto-step, or query the current stage:
 
 ```bash
 # Auto-step every 15 seconds starting from 'early' stage
@@ -167,11 +168,15 @@ curl -X POST http://localhost:3457/reset
 curl http://localhost:3457/stage
 ```
 
-Other flags: `--port 3457` (or `MOCK_PORT`), `--year 2023|2026` (or `MOCK_ELECTION_YEAR`), `--help`.
+Other flags: `--port 3457` (or `MOCK_PORT`), `--year 2020|2023|2026` (or `MOCK_ELECTION_YEAR`), `--help`.
 
-#### Replaying 2026
+#### Replaying a real cycle
 
-`--year 2026` replays the 2026 electorate list: 64 general + 7 Māori electorates instead of 65 + 7, with the 2026 names (`Kapiti`, `Kenepuru`, `Glendene`, `Henderson`, `Waitākere`, `Ōtāhuhu`, `Mt Maunganui`, `East Cape`, `Wellington North`, `Wellington Bays`) and the 2023 ones gone. Māori electorates are won by Te Pāti Māori, which produces the overhang the seat maths has to absorb (the mock's 2026 cycle totals 125 seats, against 122 in 2023).
+`--year 2026` replays the 2026 electorate list: 64 general + 7 Māori electorates instead of 65 + 7, with the 2026 names (`Kapiti`, `Kenepuru`, `Glendene`, `Henderson`, `Waitākere`, `Ōtāhuhu`, `Mt Maunganui`, `East Cape`, `Wellington North`, `Wellington Bays`) and the 2023 ones gone. It also replays the published 2026 result, including its overhang: the Commission's table totals 131 seats because National won 42 electorates and Te Pāti Māori 5 on a small party vote.
+
+`--year 2020` and `--year 2023` use the same 65 + 7 electorate list, because those cycles were fought on the same boundaries; the dashboard draws both with the 2023 polygons. The per-seat tendencies are the real ones — Epsom and Tāmaki go to ACT, Māngere to Labour, and the Māori seats split the way they did in that cycle.
+
+The fixture behind this is `packages/collector/src/mock-election-data.json`, generated by `npm run build:mock-data` from the 2020 and 2023 archives and the 2026 live media feed. Nothing is invented at runtime, and a replay is deterministic.
 
 The mock's electorate list is asserted against the boundary manifest the dashboard map draws from, so a replay can never serve an electorate the map has no polygon for.
 

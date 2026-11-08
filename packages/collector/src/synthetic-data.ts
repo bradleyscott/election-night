@@ -11,54 +11,52 @@ export type SyntheticElectorate = {
   candidates: SyntheticCandidate[];
   parties: string[];
   partyVoteFinal: number[];
-  totalValidVotes: number;
+  /** The real count's `total_votes_cast`, including informal papers. */
+  totalVotesCast: number;
+  /** Enrolled electors, so turnout is votes ÷ roll rather than a flat guess. */
+  enrolment: number | null;
 };
 
-function adjustRounding(votes: number[], targetTotal: number): number[] {
-  const sum = votes.reduce((a, b) => a + b, 0);
-  const diff = targetTotal - sum;
-  if (diff === 0) return votes;
-  const maxIndex = votes.indexOf(Math.max(...votes));
-  const adjusted = [...votes];
-  adjusted[maxIndex] += diff;
-  return adjusted;
-}
-
 /**
- * A partial count of a synthetic electorate.
+ * A partial count of a real electorate.
  *
- * Rounding each candidate and party vote independently would break the feed's
- * own invariant that the parts sum to `votes_counted`, so the remainder is put
- * on the largest line rather than dropped.
+ * The full stage is the published result unchanged. Earlier stages scale both
+ * the candidate vote and the party vote by the same share, so a seat's leaning
+ * does not change as the night goes on — only how much of it has reported.
+ *
+ * Candidate votes and party votes are scaled independently. Their totals need
+ * not equal `votesCounted`: the feed's `total_votes_cast` includes informal
+ * papers, exactly as it does in production, and the mock used to hide that by
+ * forcing the parts to add up.
  */
 export function generatePartialResults(
   electorate: SyntheticElectorate,
   percentCounted: number
 ): ElectorateResults {
-  const votesCounted = Math.round(electorate.totalValidVotes * percentCounted);
+  const votesCounted = Math.round(electorate.totalVotesCast * percentCounted);
 
-  const rawCandidateVotes = electorate.candidates.map((c) =>
-    Math.round(c.finalVotes * percentCounted)
-  );
-  const rawPartyVotes = electorate.partyVoteFinal.map((v) =>
-    Math.round(v * percentCounted)
-  );
+  const candidateVotes = electorate.candidates.map((candidate) => ({
+    candidate: candidate.name,
+    votes: Math.round(candidate.finalVotes * percentCounted),
+    party: candidate.party,
+  }));
 
-  const adjCandidateVotes = adjustRounding(rawCandidateVotes, votesCounted);
-  const adjPartyVotes = adjustRounding(rawPartyVotes, votesCounted);
+  const partyVotes = electorate.parties.map((party, index) => ({
+    candidate: party,
+    votes: Math.round(electorate.partyVoteFinal[index]! * percentCounted),
+  }));
+
+  const percentVotesCast =
+    electorate.enrolment && electorate.enrolment > 0
+      ? votesCounted / electorate.enrolment
+      : undefined;
 
   return {
     electorateName: electorate.name,
-    candidateVotes: electorate.candidates.map((c, i) => ({
-      candidate: c.name,
-      votes: adjCandidateVotes[i],
-      party: c.party,
-    })),
-    partyVotes: electorate.parties.map((p, i) => ({
-      candidate: p,
-      votes: adjPartyVotes[i],
-    })),
+    candidateVotes,
+    partyVotes,
     votesCounted,
     votePercentageCounted: percentCounted,
+    percentVotesCast,
   };
 }

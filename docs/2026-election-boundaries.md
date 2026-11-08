@@ -62,9 +62,9 @@ uncoloured electorates and clickable-but-empty polygons.
   list in the production path.
 - Seat maths is not ours: `election.xml` publishes list, electorate and total
   seats per party — threshold rule and overhang included — and those numbers are
-  rendered as published. Nothing in the product derives seats; the mock feed
-  (`packages/collector/src/serve-mock.ts`) invents them in the fixture it
-  serves, and that is the only allocation arithmetic in the repo.
+  rendered as published. Nothing in the product derives seats; at the final
+  stage the mock feed (`packages/collector/src/serve-mock.ts`) replays the same
+  published table from its `mock-election-data.json` fixture.
 
 **Changed for 2026:**
 
@@ -117,7 +117,8 @@ uncoloured electorates and clickable-but-empty polygons.
 
 6. **The mock server can replay 2026.** `npm run start:mock -- --year 2026`
    serves 64 general + 7 Māori electorates with the new names and the 2023 ones
-   gone, for an end-to-end dry run with no live feed:
+   gone, and replays the published 2026 candidates and results, for an
+   end-to-end dry run with no live feed:
 
    ```bash
    npm run start:mock -- --year 2026
@@ -125,12 +126,12 @@ uncoloured electorates and clickable-but-empty polygons.
    npm run dev
    ```
 
-   Te Pāti Māori wins the seven Māori electorates, so the replay exercises the
-   overhang path — the 2026 cycle totals 125 seats against 122 in 2023.
-   Electorates are served in the feed's general-then-Māori order so `e_no`
-   numbering matches the real feed (general `1..64`, Māori `65..71`), and the
-   mock's electorate list is asserted against the boundary manifest the map
-   draws from.
+   The real 2026 result carries overhang — National wins 42 electorates on a
+   29% party vote and Te Pāti Māori wins 5 — so the replay exercises the seat
+   maths and totals 131 seats. Electorates are served in the feed's
+   general-then-Māori order so `e_no` numbering matches the real feed (general
+   `1..64`, Māori `65..71`), and the mock's electorate list is asserted against
+   the boundary manifest the map draws from.
 
 ## Status
 

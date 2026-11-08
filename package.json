@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build:core": "npm run build -w packages/core",
+    "build:mock-data": "npm run build:core && node scripts/build-mock-election-data.mjs",
     "dev": "npm run build:core && npm run dev -w packages/dashboard",
     "build": "npm run build:core && npm run build -w packages/dashboard",
     "start:collector": "npm run build:core && npm run start -w packages/collector",

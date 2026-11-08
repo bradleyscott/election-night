@@ -116,7 +116,7 @@ describe('pipeline integration', () => {
       0
     );
     expect(parliament).toBeGreaterThanOrEqual(120);
-    expect(parliament).toBeLessThanOrEqual(128);
+    expect(parliament).toBeLessThanOrEqual(135);
 
     const clientSocket = io(`ws://localhost:${dashboardPort}`, {
       transports: ['websocket', 'polling'],

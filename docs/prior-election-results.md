@@ -113,7 +113,7 @@ disappears from the comparison.
 
 ## Caveats
 
-- **The mock feed serves one cycle.** `npm run start:mock` replays either 2023 or
+- **The mock feed serves one cycle.** `npm run start:mock` replays 2020, 2023 or
   2026, so `XML_FEED_BASE_URL` is used only for the cycle being counted; prior
   years still come from the real archive, which keeps `/flipped` and the
   past-winners table populated on a mocked run. Set `PRIOR_RESULTS=off` to

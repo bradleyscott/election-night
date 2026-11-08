@@ -7,7 +7,6 @@ import {
   isMockElectionYear,
   MOCK_ELECTION_YEARS,
   MOCK_ELECTORATE_SETS,
-  MOCK_PARTIES,
   type MockElectionYear,
 } from './synthetic-electorates.js';
 import type { ElectorateResults } from '@election-night/core/types';
@@ -69,8 +68,15 @@ const PORT = parsed['--port'] || Number(process.env.MOCK_PORT) || 3457;
 
 // ---- Feed data for the selected cycle ----
 
-const { electorates: MOCK_ELECTORATES, stages } =
-  buildMockElectionSet(ELECTION_YEAR);
+const {
+  electorates: MOCK_ELECTORATES,
+  stages,
+  parties: MOCK_PARTIES,
+  candidates: MOCK_CANDIDATES,
+  election: MOCK_ELECTION,
+  pollingDate: POLLING_DATE,
+  enrolmentByElectorate: ENROLMENT_BY_ELECTORATE,
+} = buildMockElectionSet(ELECTION_YEAR);
 
 const STAGES: ElectorateResults[][] = [
   stages.early,
@@ -113,7 +119,7 @@ function stageLastModifiedMs(): number {
 
 // ---- Reference data (mock parties, electorates, candidates) ----
 
-const PARTY_INDEX = new Map(MOCK_PARTIES.map((p, i) => [p.name, i + 1]));
+const PARTY_INDEX = new Map(MOCK_PARTIES.map((p) => [p.name, p.pNo]));
 
 type CandidateRef = {
   cNo: number;
@@ -123,28 +129,17 @@ type CandidateRef = {
   listNo: number;
 };
 
-const candidates: CandidateRef[] = [];
-const listCounters = new Map<string, number>();
-let cNo = 0;
-for (const [i, electorate] of MOCK_ELECTORATES.entries()) {
-  for (const cand of electorate.candidates) {
-    cNo += 1;
-    let listNo = 0;
-    if (cand.party) {
-      const next = (listCounters.get(cand.party) ?? 0) + 1;
-      listCounters.set(cand.party, next);
-      listNo = next;
-    }
-    candidates.push({
-      cNo,
-      name: cand.name,
-      eNo: i + 1,
-      pNo: cand.party ? (PARTY_INDEX.get(cand.party) ?? 0) : 0,
-      listNo,
-    });
-  }
-}
-const candidateByName = new Map(candidates.map((c) => [c.name, c]));
+/**
+ * The fixture keeps the Commission's own `c_no`, `e_no` and list ranks.
+ *
+ * Keyed by electorate as well as name: the 2020 archive has two candidates
+ * called "BENNETT, David" in different seats, so a name-only lookup would give
+ * one of them the other's `c_no` when the results are serialized.
+ */
+const candidates: CandidateRef[] = MOCK_CANDIDATES;
+const candidateBySeatAndName = new Map(
+  candidates.map((c) => [`${c.eNo}:${c.name}`, c])
+);
 
 function buildNameToResults(): Map<string, ElectorateResults[]> {
   const map = new Map<string, ElectorateResults[]>();
@@ -179,11 +174,11 @@ function xmlDeclaration(): string {
 
 function renderPartiesXml(): string {
   const parties = MOCK_PARTIES.map(
-    (p, i) => `    <party p_no="${i + 1}">
+    (p) => `    <party p_no="${p.pNo}">
         <abbrev>${escapeXml(p.abbrev)}</abbrev>
         <short_name>${escapeXml(p.name)}</short_name>
         <party_name>${escapeXml(p.name)}</party_name>
-        <registered>yes</registered>
+        <registered>${p.registered ? 'yes' : 'no'}</registered>
     </party>`
   ).join('\n');
   return `${xmlDeclaration()}\n<parties>\n${parties}\n</parties>\n`;
@@ -201,9 +196,11 @@ function renderElectoratesXml(): string {
 /**
  * `election.xml`, the national count and seat table the real feed publishes.
  *
- * The mock has to invent seats — it is synthetic data — but it does so here,
- * in the fixture, and not in the collector: the product reads seat numbers off
- * the feed and never derives them.
+ * At the final stage the Commission's own table is replayed verbatim, so the
+ * mock cannot disagree with the result it is replaying. Earlier stages are
+ * derived from the partial count with the same 120-seat quota and the same
+ * overhang rule; that is fixture logic, not collector logic — the product
+ * reads seat numbers off the feed and never derives them.
  *
  * Parliament is 120 seats, not 120 list seats. Allocating the quota over 120
  * and adding the electorate winners on top made the mock publish a 191-seat
@@ -211,14 +208,19 @@ function renderElectoratesXml(): string {
  */
 function renderElectionXml(): string {
   const stage = STAGES[currentStage];
+  const finalStage = currentStage === STAGES.length - 1;
+  const official = finalStage ? MOCK_ELECTION : null;
+
   const votes = new Map<string, number>();
   const electorateSeats = new Map<string, number>();
   let totalVotesCast = 0;
+  let totalEnrolment = 0;
   let electoratesFinal = 0;
 
   for (const result of stage) {
     totalVotesCast += result.votesCounted;
-    if (result.votesCounted > 0) electoratesFinal += 1;
+    totalEnrolment += ENROLMENT_BY_ELECTORATE.get(result.electorateName) ?? 0;
+    if (result.votePercentageCounted >= 1) electoratesFinal += 1;
     for (const party of result.partyVotes) {
       votes.set(
         party.candidate,
@@ -269,75 +271,83 @@ function renderElectionXml(): string {
       i++, allocated++
     ) {
       const { party } = remainders[i % remainders.length]!;
-      totalSeatsByParty.set(
-        party,
-        (totalSeatsByParty.get(party) ?? 0) + 1
-      );
+      totalSeatsByParty.set(party, (totalSeatsByParty.get(party) ?? 0) + 1);
     }
   }
 
-  const rows = MOCK_PARTIES.map((party, i) => {
-    const electorates = electorateSeats.get(party.name) ?? 0;
-    // A party keeps every electorate it wins, even beyond its allocation.
-    const total = Math.max(totalSeatsByParty.get(party.name) ?? 0, electorates);
-    const list = total - electorates;
-    return `    <party p_no="${i + 1}">
+  const officialByPNo = new Map(
+    (official?.parties ?? []).map((party) => [party.pNo, party])
+  );
+
+  // `election.xml` reports the parties with a national status, not every party
+  // in `parties.xml` (2026: 17 rows against 36 registrations). Mirroring that
+  // is not cosmetic: some unregistered parties share a `short_name`, and a row
+  // per registration would give the collector two summary rows with the same
+  // name.
+  const reportedPNos = new Set(MOCK_ELECTION.parties.map((party) => party.pNo));
+  const reportedParties = MOCK_PARTIES.filter((party) =>
+    reportedPNos.has(party.pNo)
+  );
+
+  const rows = reportedParties
+    .map((party) => {
+      const officialRow = officialByPNo.get(party.pNo);
+      if (officialRow) {
+        return `    <party p_no="${party.pNo}">
+        <votes>${officialRow.votes}</votes>
+        <percent_votes>${officialRow.percentVotes.toFixed(2)}</percent_votes>
+        <party_seats>${officialRow.listSeats}</party_seats>
+        <candidate_seats>${officialRow.electorateSeats}</candidate_seats>
+        <total_seats>${officialRow.totalSeats}</total_seats>
+    </party>`;
+      }
+
+      const electorates = electorateSeats.get(party.name) ?? 0;
+      // A party keeps every electorate it wins, even beyond its allocation.
+      const total = Math.max(
+        totalSeatsByParty.get(party.name) ?? 0,
+        electorates
+      );
+      const list = total - electorates;
+      return `    <party p_no="${party.pNo}">
         <votes>${votes.get(party.name) ?? 0}</votes>
         <percent_votes>${totalPartyVotes > 0 ? (((votes.get(party.name) ?? 0) / totalPartyVotes) * 100).toFixed(2) : '0'}</percent_votes>
         <party_seats>${list}</party_seats>
         <candidate_seats>${electorates}</candidate_seats>
         <total_seats>${total}</total_seats>
     </party>`;
-  }).join('\n');
+    })
+    .join('\n');
 
   const percentFinal =
     MOCK_ELECTORATES.length > 0
-      ? ((electoratesFinally(stage) / MOCK_ELECTORATES.length) * 100).toFixed(2)
+      ? ((electoratesFinal / MOCK_ELECTORATES.length) * 100).toFixed(2)
       : '0.00';
+  const percentVotesCast =
+    official !== null
+      ? official.percentVotesCast.toFixed(1)
+      : totalEnrolment > 0
+        ? ((totalVotesCast / totalEnrolment) * 100).toFixed(1)
+        : '0.0';
 
   return `${xmlDeclaration()}
 <election updated="${new Date().toISOString()}">
     <statistics>
         <total_voting_places_counted>${stage.length}</total_voting_places_counted>
         <percent_voting_places_counted>${percentFinal}</percent_voting_places_counted>
-        <total_votes_cast>${totalVotesCast}</total_votes_cast>
-        <percent_votes_cast>${turnout(totalVotesCast, MOCK_ELECTORATES.length)}</percent_votes_cast>
+        <total_votes_cast>${official?.totalVotesCast ?? totalVotesCast}</total_votes_cast>
+        <percent_votes_cast>${percentVotesCast}</percent_votes_cast>
         <total_electorates_final>${electoratesFinal}</total_electorates_final>
         <percent_electorates_final>${percentFinal}</percent_electorates_final>
-        <total_minimal_votes>0</total_minimal_votes>
-        <total_special_votes>0</total_special_votes>
-        <total_registered_parties>${MOCK_PARTIES.length}</total_registered_parties>
+        <total_minimal_votes>${official?.totalMinimalVotes ?? 0}</total_minimal_votes>
+        <total_special_votes>${official?.totalSpecialVotes ?? 0}</total_special_votes>
+        <total_registered_parties>${MOCK_PARTIES.filter((p) => p.registered).length}</total_registered_parties>
     </statistics>
     <partystatus>
 ${rows}
     </partystatus>
 </election>
 `;
-}
-
-/**
- * Enrolled electors the mock models per seat. Flat on purpose: the point is
- * that `percent_votes_cast` is turnout — papers counted over the roll — and a
- * flat roll makes the arithmetic checkable by hand. The real feed varies
- * between roughly 30,000 and 70,000.
- */
-const MOCK_ENROLMENT = 45_000;
-
-/**
- * Turnout for a vote count, as a percentage.
- *
- * The feed's `percent_votes_cast` is votes ÷ enrolled. The mock used to write
- * counting progress here, which is the one field the app cannot afford to be
- * wrong about: progress overstates itself as turnout approaches 100%, so the
- * votes still to count look like they vanish.
- */
-function turnout(votesCounted: number, seats = 1): string {
-  const roll = MOCK_ENROLMENT * seats;
-  return ((votesCounted / roll) * 100).toFixed(1);
-}
-
-function electoratesFinally(stage: ElectorateResults[]): number {
-  return stage.filter((r) => (r.votePercentageCounted ?? 0) >= 1).length;
 }
 
 function renderCandidatesXml(): string {
@@ -371,7 +381,7 @@ function renderElectorateXml(results: ElectorateResults, eNo: number): string {
 
   const candidateVotes = results.candidateVotes
     .map((cv) => {
-      const ref = candidateByName.get(cv.candidate);
+      const ref = candidateBySeatAndName.get(`${eNo}:${cv.candidate}`);
       if (!ref) return null;
       return `        <candidate c_no="${ref.cNo}">
             <votes>${cv.votes}</votes>
@@ -380,16 +390,22 @@ function renderElectorateXml(results: ElectorateResults, eNo: number): string {
     .filter((line): line is string => line !== null)
     .join('\n');
 
+  const turnout =
+    results.percentVotesCast !== undefined
+      ? (results.percentVotesCast * 100).toFixed(1)
+      : '0.0';
+  const final = results.votePercentageCounted >= 1 ? 'true' : 'false';
+
   return `${xmlDeclaration()}
-<electorate e_no="${eNo}" final="false" updated="${new Date().toISOString()}">
+<electorate e_no="${eNo}" final="${final}" updated="${new Date().toISOString()}">
     <statistics>
         <total_voting_places_counted>${Math.round(pctNumber)}</total_voting_places_counted>
         <percent_voting_places_counted>${pct}</percent_voting_places_counted>
         <total_votes_cast>${results.votesCounted}</total_votes_cast>
-        <percent_votes_cast>${turnout(results.votesCounted)}</percent_votes_cast>
+        <percent_votes_cast>${turnout}</percent_votes_cast>
         <total_party_informals>0</total_party_informals>
         <total_candidate_informals>0</total_candidate_informals>
-        <total_registered_parties>${MOCK_PARTIES.length}</total_registered_parties>
+        <total_registered_parties>${MOCK_PARTIES.filter((p) => p.registered).length}</total_registered_parties>
         <total_candidates>${results.candidateVotes.length}</total_candidates>
     </statistics>
     <partyvotes>
@@ -560,10 +576,13 @@ function ringArea(ring: [number, number][]): number {
  */
 function loadElectorateCentres(): Map<string, { lat: number; lon: number }> {
   const centres = new Map<string, { lat: number; lon: number }>();
+  // 2020 and 2023 were fought on the same boundaries, so the map only ships
+  // one set of polygons for the pair.
+  const boundaryYear = ELECTION_YEAR === '2020' ? '2023' : ELECTION_YEAR;
   const dir = path.resolve(
     import.meta.dirname,
     '../../dashboard/public/boundaries',
-    ELECTION_YEAR
+    boundaryYear
   );
   for (const file of [
     'general-electorates.geojson',
@@ -717,7 +736,7 @@ function placeCounted(place: MockVotingPlace, seatNo: number): boolean {
 function placeReceivedAt(place: MockVotingPlace): string {
   const minute = 5 + Math.floor(jitter(place.id + 17) * 48);
   const hour = currentStage >= 2 ? 20 : 19;
-  return `${ELECTION_YEAR}-10-24T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+  return `${POLLING_DATE}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
 }
 
 function placeFileName(place: MockVotingPlace, seatNo: number): string {
@@ -758,7 +777,7 @@ function renderVotingPlaceResult(
   const counted = placeCounted(place, seatNo);
   const issued = counted ? 120 + Math.round(jitter(place.id) * 900) : 0;
   return `${xmlDeclaration()}
-<votingplace vp_id="${place.id}" vp_e_no="${place.vpENo}" e_no="${seatNo}" vp_no="${place.placeNo}" updated="${ELECTION_YEAR}-10-24T21:00:00">
+<votingplace vp_id="${place.id}" vp_e_no="${place.vpENo}" e_no="${seatNo}" vp_no="${place.placeNo}" updated="${POLLING_DATE}T21:00:00">
   <time_received>${counted ? placeReceivedAt(place) : ''}</time_received>
   <statistics>
     <total_issued_ballot_papers>${issued}</total_issued_ballot_papers>

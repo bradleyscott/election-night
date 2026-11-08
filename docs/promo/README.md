@@ -21,15 +21,17 @@ Recharts re-measures, dropping its lines from the image.
 
 ## Data
 
-The cycle is **2026, synthetic mock** (`serve-mock.ts`): invented candidates and
-outcomes, staged 15% → 40% → 80% counted so the chance-of-winning model, the
-count band, the count tape and the feed all have something to say. Prior
-results are the **real 2023 archive**, which is why Flipped and Past winners
-carry real names and margins — they are the only real data in these images.
+The cycle is **2026, mock replay** (`serve-mock.ts`): the published 2026
+candidates and results, staged from partial counts so the chance-of-winning
+model, the count band, the count tape and the feed all have something to say.
+Every name, party vote and seat winner is real; only the counting pace and the
+mid-count snapshots are staged. Prior results are the **real 2023 archive**,
+which is why Flipped and Past winners carry real names and margins.
 
-The mock's `election.xml` allocates 120 _total_ seats (electorates + list), not
-120 list seats on top of the electorates. This set shows 123 seats, because the
-mock pins all seven Māori electorates to Te Pāti Māori and that overhang is real.
+The mock's `election.xml` replays the Commission's 120 _total_ seats
+(electorates + list), not 120 list seats on top of the electorates. This set
+shows 131 seats, because the published result has overhang: National won 42
+electorates on 29% of the party vote and Te Pāti Māori won 5.
 
 ## Shots
 
