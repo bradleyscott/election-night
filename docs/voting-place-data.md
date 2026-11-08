@@ -127,9 +127,9 @@ probes `1..260` per seat, about 18,700 requests, and caches the responses in
 ## Constraints on anything built from this
 
 - **It must not enter the collector's poll loop.** The collector polls seat files
-  every 30–120 seconds. The per-place detail is roughly 130× that volume. Any use
-  of it must be a separate, slower path — a background job, an on-demand fetch, or
-  an offline build.
+  every `POLL_INTERVAL_MS` (60 seconds by default). The per-place detail is
+  roughly 130× that volume. Any use of it must be a separate, slower path — a
+  background job, an on-demand fetch, or an offline build.
 - **A batch could not be summed to a seat total after the official count.** The
   official count adds special votes, so the seat total exceeds the sum of its
   voting place results. Reconcile against the night's count, not the final one.
@@ -200,7 +200,7 @@ Two different sets are easy to conflate:
 
 - **Contributing places** are every result filed under the seat, including
   advance hubs standing in another electorate. This is the set the count's
-  `Voting places reported` cell describes, and the one the collectorship uses
+  `Voting places reported` cell describes, and the one the collector uses
   for the ordinary count's place floor.
 - **In-seat booths** are the places whose `group` is `seat` — the ones drawn on
   the map and counted by `VotingPlaceLedger`, labelled `booths in this

@@ -182,23 +182,6 @@
     align-items: center;
   }
 
-  /* A section that is big enough to want its own masthead inside a page — the
-     Close Calls section on Seats. Same rule and same display size as the page
-     head, one level down in the outline (an `h2`), so the section reads as its
-     own front page rather than as a subheading of the one above it. The top
-     padding is dropped because the page's own spacing already separates it from
-     the section above. */
-  .pagehead--section {
-    padding: 0 0 0.5rem;
-    /* a section head pairs a heading with a control (the Close Calls toggle),
-       not two lines of type, so the two centre on each other */
-    align-items: center;
-  }
-  .pagehead--section h2 {
-    font-size: clamp(1.75rem, 3.5vw, 2.25rem);
-    letter-spacing: -0.015em;
-  }
-
   /* red masthead accents — the one print accent */
   .text-brand {
     color: hsl(var(--primary));

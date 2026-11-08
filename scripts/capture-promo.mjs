@@ -5,8 +5,7 @@
  * These are captures of the real application — the built Vite bundle, the
  * shipped stylesheet, real mock results — driven over the Chrome DevTools
  * Protocol. Nothing is drawn by hand, so what is in the promo set is what
- * ships. `docs/mockups/README.md` describes the same technique for the design
- * captures; this script is the reproducible version of it, with the two things
+ * ships. `docs/promo/README.md` documents the technique and the two things
  * promotional material needs:
  *
  *   1. `/api/config` is answered in the page so the masthead reads

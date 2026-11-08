@@ -7,12 +7,15 @@ import type { VotingResults } from './types.js';
  * The model this replaces compared the current margin to a sampling error and
  * reported safe/unsafe: a threshold wearing a percentage's clothes, which
  * barely moves as the night goes on. This one answers the question a reader
- * actually has — *given what has been counted and what is still out there, how
- * likely is the current leader to still be ahead when tonight's count ends?*
+ * actually has — *given what has been counted, what is still out there, and the
+ * special votes that follow, how likely is the current leader to be ahead when
+ * everything is counted?*
  *
- * It is deliberately not "chance of winning the seat". Special votes are
- * counted after election night and have changed seats that looked settled, so
- * every claim here is about the preliminary count.
+ * That makes it the chance of winning the **seat**, not merely the count:
+ * special votes are counted after election night and have changed seats that
+ * looked settled, so they enter the same distribution as one more variance
+ * term. `countProbability` keeps the count-only number for claims about
+ * tonight.
  *
  * The shape of the maths, in the order it is applied:
  *
@@ -163,10 +166,10 @@ export const PROVISIONAL_CEILING = 0.95;
  *
  * This is a lower bar than the published race-call standard (AP calls only when
  * the trailing candidate has no path to victory) because the claim is graded and
- * reversible: it is a statement about tonight's count, it carries the number it
- * was derived from, and a seat that falls back below the threshold produces a
- * withdrawal event rather than a silent edit. The disciplined gate — no
- * plausible path on the outstanding vote — is what turns this number into an
+ * reversible: it is the seat's chance including the specials, it carries the
+ * number it was derived from, and a seat that falls back below the threshold
+ * produces a withdrawal event rather than a silent edit. The disciplined gate —
+ * no plausible path on the outstanding vote — is what turns this number into an
  * "has won".
  */
 export const CALL_THRESHOLD = 0.9;
@@ -183,20 +186,21 @@ export const CALL_THRESHOLD = 0.9;
  * seat (see `specialsRequiredSwing` in `computeSeatChance`) and this number
  * turns it into a probability.
  *
- * Where 0.10 comes from, stated as a prior rather than a measurement: in 2023
- * the specials were 21% of the vote and plainly leaned left — enough to move
- * Nelson by 29 votes, Te Atatū by 131 and Tāmaki Makaurau by 4 — which needs a
- * two-candidate differential of roughly 5–15 points between the specials and
- * the ordinary count. A standard deviation of 10 points puts a 95% interval at
- * ±20 points: wide enough to contain a seat where the specials run hard against
- * the leader, tight enough that a 5,000-vote margin in a small seat is not
- * called a coin toss.
+ * Where 0.10 comes from: the differential is measurable by subtraction. The
+ * per-voting-place pages list each seat's special votes by candidate (overseas,
+ * before polling day, on polling day) above the seat total, so subtracting them
+ * from the archive's final result leaves the ordinary count. Across 2017, 2020
+ * and 2023 that gives a within-cycle sd of 4.75 points across 213 seats, and a
+ * median absolute swing of 3.13 points. `0.10` is about twice the measured
+ * spread: deliberately cautious, because the cycle means are not zero
+ * (+2.32, +1.51, −3.26) and are not modelled. A 95% interval of ±20 points is
+ * wide enough for a seat where the specials run hard against the leader, tight
+ * enough that a 5,000-vote margin in a small seat is not called a coin toss.
  *
- * It is a prior because the differential itself cannot be measured from the
- * archives: the Commission publishes the special vote's volume per electorate
- * but never its party split. Calibrating this against the seats that moved in
- * 2023 is the obvious next step, and it is a single number in one place so the
- * validation harness can do it — the same arrangement `tau` already has.
+ * The zero mean is still an assumption: the specials' lean is a political fact
+ * of each cycle, so the number is "chance the lead survives", never a
+ * directional claim. `scripts/measure-specials-swing.mjs` reproduces the
+ * measurement.
  */
 export const SPECIALS_SWING_SD = 0.1;
 
@@ -679,11 +683,12 @@ export function nightRemaining(input: {
 }
 
 /**
- * Chance the current leader is still ahead when the preliminary count ends.
+ * Chance the current leader wins the seat, including the special vote.
  *
  * Returns `waiting` before any votes are counted and `complete` once nothing
- * is estimated to be outstanding — a finished count has a margin, not a
- * probability.
+ * is estimated to be outstanding. A complete seat still carries a probability:
+ * the ordinary count is settled, but the specials can still change the seat, so
+ * `probability` equals `specialsProbability`.
  */
 export function computeSeatChance(input: SeatChanceInput): SeatChance {
   const candidates = [...input.candidates].sort((a, b) => b.votes - a.votes);

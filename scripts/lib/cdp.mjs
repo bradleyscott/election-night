@@ -3,7 +3,7 @@
  * attach to a page target, evaluate expressions, intercept one request and
  * take screenshots. No Playwright/Puppeteer dependency, and no browser in the
  * collector — this is a dev script that drives the built dashboard the same
- * way the design captures in `docs/mockups/` were produced.
+ * way the captures in `docs/promo/` are produced.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';

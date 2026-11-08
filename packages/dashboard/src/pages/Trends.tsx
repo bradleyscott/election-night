@@ -9,6 +9,7 @@ import {
   Legend,
 } from 'recharts';
 import { usePartyVoteHistory } from '../hooks/useVoteHistory.js';
+import { trimAtCountComplete } from '../lib/count-window.js';
 import {
   canonicalPartyName,
   orderParties,
@@ -144,6 +145,14 @@ export default function Trends() {
   const [mode, setMode] = useState<Mode>('seats');
   const initializedRef = useRef(false);
 
+  // The response runs from the first stored scrape to the newest one, and the
+  // collector keeps writing snapshots after the count finishes because the
+  // payload can still move (a late special vote, a list adjustment). Drawn
+  // whole, that flat tail from 100% to the present squeezes the night into the
+  // left edge of the axis, so the series stops at the snapshot that completed
+  // the count. Every mode on the page reads this one series.
+  const history = useMemo(() => trimAtCountComplete(data ?? []), [data]);
+
   // Chips follow the parties present in the history, under their current
   // names, ordered by the fixed editorial order. A static colour map would
   // show a dead chip for a party this cycle does not have, and no chip for one
@@ -151,16 +160,16 @@ export default function Trends() {
   // canonical name too, so a renamed party keeps one chip and one line.
   const partyOptions = useMemo(() => {
     const seen = new Set<string>();
-    for (const point of data ?? []) {
+    for (const point of history) {
       for (const p of point.parties) seen.add(canonicalPartyName(p.party));
     }
     return orderParties([...seen]);
-  }, [data]);
+  }, [history]);
 
   useEffect(() => {
-    if (data && data.length > 0 && !initializedRef.current) {
+    if (history.length > 0 && !initializedRef.current) {
       initializedRef.current = true;
-      const latest = data[data.length - 1];
+      const latest = history[history.length - 1];
       const parliamentParties = new Set(
         latest.parties
           .filter((p) => p.seats > 0)
@@ -174,13 +183,12 @@ export default function Trends() {
             )
       );
     }
-  }, [data]);
+  }, [history]);
 
   const visibleParties = partyOptions.filter((p) => selectedParties.has(p));
 
   const chartData = useMemo(() => {
-    if (!data) return [];
-    return data.map((point) => {
+    return history.map((point) => {
       const total = point.parties.reduce((s, p) => s + p.votes, 0);
       const row: Record<string, number | string> = {
         timestamp: parseDbTimestamp(point.startedAt),
@@ -197,13 +205,13 @@ export default function Trends() {
       }
       return row;
     });
-  }, [data]);
+  }, [history]);
 
   // The national Counted series: share of the vote counted, per scrape, on the
   // same denominator the seat panel uses. The country reports totals rather
   // than places, so this tape has no rug.
   const countedPoints = useMemo<TapePoint[]>(() => {
-    return (data ?? []).map((point) => ({
+    return history.map((point) => ({
       t: parseDbTimestamp(point.startedAt),
       value: point.votePctCounted * 100,
       sub:
@@ -211,7 +219,7 @@ export default function Trends() {
           ? `${point.votesCounted.toLocaleString()} votes`
           : undefined,
     }));
-  }, [data]);
+  }, [history]);
 
   const { ticks, domain } = useMemo(() => {
     if (chartData.length === 0)
@@ -240,6 +248,9 @@ export default function Trends() {
     });
   }, []);
 
+  // The waiting screen is about the response, not the drawn window: once the
+  // count has completed the trimmed series can be shorter than the response,
+  // and the page must not call a finished count "Waiting for more results".
   const hasData =
     data &&
     data.length >= 2 &&
