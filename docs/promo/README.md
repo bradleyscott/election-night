@@ -2,8 +2,8 @@
 
 Captures of the **running application** — the built Vite bundle, the shipped
 stylesheet, real components — produced by `scripts/capture-promo.mjs` driving
-headless Chrome over the DevTools Protocol. Nothing here is a mockup; this is
-the same technique as `../mockups/`, with two things promotional material needs:
+headless Chrome over the DevTools Protocol. Nothing here is drawn by hand, and
+the set is regenerable. It has two things promotional material needs:
 
 1. **No waiting states.** Every shot waits for a readiness expression naming
    the finished content (seat marks, chart lines, booth pips, prior winners)
@@ -23,30 +23,29 @@ Recharts re-measures, dropping its lines from the image.
 
 The cycle is **2026, synthetic mock** (`serve-mock.ts`): invented candidates and
 outcomes, staged 15% → 40% → 80% counted so the chance-of-winning model, the
-"still out" strip, the count tape and the feed all have something to say. Prior
+count band, the count tape and the feed all have something to say. Prior
 results are the **real 2023 archive**, which is why Flipped and Past winners
 carry real names and margins — they are the only real data in these images.
 
-The mock's `election.xml` now allocates 120 *total* seats (electorates + list)
-instead of 120 list seats on top of the electorates. Before that fix parliament
-read 191 seats and National 90; this set shows 123 seats, because the mock pins
-all seven Māori electorates to Te Pāti Māori and that overhang is real.
+The mock's `election.xml` allocates 120 _total_ seats (electorates + list), not
+120 list seats on top of the electorates. This set shows 123 seats, because the
+mock pins all seven Māori electorates to Te Pāti Māori and that overhang is real.
 
 ## Shots
 
-| File | Shows |
-| --- | --- |
-| `seats-desktop` / `seats-mobile` | Parliament hemicycle, party totals, Close Calls |
-| `electorates-map-desktop` / `-mobile` | National map, search, General/Māori switch |
-| `electorates-seat-desktop` / `-mobile` | A seat open: zoomed polygon, booth pips, verdict, candidate table |
-| `electorates-seat-*-full` | The same page full length, including Past winners and the vote-share trend |
-| `parties-desktop` | Party list rankings, list cut line |
-| `close-calls-desktop` | The tightest races, chance of winning (the Close Calls section of the Seats page) |
-| `flipped-desktop` / `-mobile` | Seats changing hands since 2023, prior margin beside tonight's lead |
-| `feed-desktop` / `-mobile` | The night's event stream |
-| `trends-desktop` | Party seat totals over time |
-| `trends-counted-desktop` | The count tape (vote count progress) |
-| `trends-percent-desktop` | Party vote share over time |
+| File                                   | Shows                                                                      |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| `seats-desktop` / `seats-mobile`       | Parliament hemicycle and party totals                                      |
+| `electorates-map-desktop` / `-mobile`  | National map, search, General/Māori switch                                 |
+| `electorates-seat-desktop` / `-mobile` | A seat open: zoomed polygon, booth pips, count band, candidate table       |
+| `electorates-seat-*-full`              | The same page full length, including Past winners and the vote-share trend |
+| `parties-desktop`                      | Party list rankings, list cut line                                         |
+| `close-calls-desktop`                  | The tightest races on `/close-calls`                                       |
+| `flipped-desktop` / `-mobile`          | Seats changing hands since 2023, prior margin beside tonight's lead        |
+| `feed-desktop` / `-mobile`             | The night's event stream                                                   |
+| `trends-desktop`                       | Party seat totals over time                                                |
+| `trends-counted-desktop`               | The count tape (vote count progress)                                       |
+| `trends-percent-desktop`               | Party vote share over time                                                 |
 
 `manifest.json` lists the same set with titles.
 

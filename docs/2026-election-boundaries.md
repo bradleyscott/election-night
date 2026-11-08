@@ -1,9 +1,9 @@
 # 2026 general election: what changed, and what it means for this app
 
-The app was built against the 2023 cycle. It is intended to run on election
-night for the **2026 general election, Saturday 7 November 2026**, and the
-electoral geography has changed since 2023. This note records what changed, how
-the repo absorbs it, and what to check before the night.
+The app was built against the 2023 cycle and served the **2026 general
+election, Saturday 7 November 2026**, for which the electoral geography changed.
+This note records what changed, how the repo absorbed it, and what to check for
+the next cycle.
 
 ## What changed
 
@@ -132,22 +132,21 @@ uncoloured electorates and clickable-but-empty polygons.
    mock's electorate list is asserted against the boundary manifest the map
    draws from.
 
-## Not yet done / to verify before the night
+## Status
 
-- **Flip the year.** `ELECTION_YEAR` still defaults to `2023` in
-  `packages/collector/src/config.ts`, `.env.example` and `fly.toml`. Set it to
-  `2026` when the feed goes live. The boundary year follows automatically, but
-  setting `VITE_ELECTION_YEAR=2026` at build time removes the guesswork.
-- **The 2026 XML feed does not exist yet.**
-  `https://electionresults.govt.nz/electionresults_2026/xml/` returns 404 as of
-  September 2026 (the 2023 archive under `electionresults_2023/xml/` is still
-  served and is what the app reads today). The Commission's media kit says the
-  live results XML feed is provided to media after polls close and that access
-  and testing are arranged through its media team, so confirm the election-night
-  URL and schema before relying on the archive path.
+- **Production serves 2026.** `fly.toml` sets `ELECTION_YEAR=2026`. A bare local
+  run still defaults to `2023` in `packages/collector/src/config.ts`, so set
+  `ELECTION_YEAR=2026` explicitly. The boundary year follows the results
+  automatically; `VITE_ELECTION_YEAR=2026` pins it at build time.
+- **The live feed is the media feed.** 2026 and later cycles are read from
+  `https://media.election.net.nz/xml/` (no year in the path), which serves the
+  full ballot with zeroed counts until the count starts. The old
+  `https://electionresults.govt.nz/electionresults_2026/xml/` path 404s;
+  earlier cycles come from
+  `https://archive.electionresults.govt.nz/electionresults_<year>/xml/`.
 - **Pre-existing data on the Fly volume.** The year filter hides older rows
-  rather than deleting them. Run `npm run clear` before the night if you want
-  the volume clean as well.
+  rather than deleting them. Run `npm run clear` before a cycle if you want the
+  volume clean as well.
 
 ## Sources
 

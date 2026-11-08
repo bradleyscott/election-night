@@ -33,9 +33,9 @@ Design notes, and why:
   none of the cycle-tagging discipline the SQLite history tables need for a
   volume that outlives an election.
 - **Unavailable is reported, never substituted.** A connector that returns
-  `null` for a year (the mock feed replays a single cycle) or an archive that
-  404s yields `null`, which the UI renders as "prior results unavailable". A
-  year is never answered with another cycle's data under the wrong label.
+  `null` for a year (as `PRIOR_RESULTS=off` does) or an archive that 404s yields
+  `null`, which the UI renders as "prior results unavailable". A year is never
+  answered with another cycle's data under the wrong label.
 - **The walk stops at the first gap.** Prior years are probed newest-first and
   the first one that cannot be fetched ends the walk, so a gap cannot be skipped
   over into an older, unrelated cycle.
@@ -108,15 +108,16 @@ disappears from the comparison.
 ## Caveats
 
 - **The mock feed serves one cycle.** `npm run start:mock` replays either 2023 or
-  2026, so pointing the collector at it reports prior results unavailable by
-  design. Use the real archive for a dev run that exercises these pages:
-  `ELECTION_YEAR=2023 npm run start:collector` (prior cycles 2020 and 2017).
+  2026, so `XML_FEED_BASE_URL` is used only for the cycle being counted; prior
+  years still come from the real archive, which keeps `/flipped` and the
+  past-winners table populated on a mocked run. Set `PRIOR_RESULTS=off` to
+  return `null` for every non-current year instead.
 - **Only 2020, 2017 and 2023 archives exist.** `electionresults_2014` and
   earlier 404, which is what bounds "as far back as there is XML".
 - **A final count has no live number.** Against an archive every seat is 100%
-  counted, so the chance model reports a state of `complete` and the panel shows
-  the winning margin rather than a probability. On election night the same
-  components show a live chance.
+  counted, so the chance model reports a state of `complete` and the count band
+  states the winning margin as a fact rather than a live probability. On
+  election night the same components show a chance that is still moving.
 - **2017's electorates come from the feed, not the boundary files.** The
   dashboard ships boundaries for 2023 and 2026 only; prior-winner matching uses
   names, not geometry, so this needs nothing further.

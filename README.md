@@ -11,7 +11,7 @@ This started as a project for a 2023 election night party — the goal was to av
 - **Seat allocation** — Reads the Commission's own list, electorate and total seats per party from `election.xml`, including the threshold rule and any overhang. The app does not derive an allocation of its own.
 - **Interactive web dashboard** — Built with React, Vite, Leaflet, Recharts, and Tailwind, dressed as a printed-edition newsroom broadsheet (see `design.md`). Includes:
   - A masthead countdown to polls close (7:00pm on election day), which becomes `Polls closed · counting` on the night
-  - Parliament seat grid and party vote breakdown
+  - Parliament chamber and party vote breakdown
   - Electorate list with map, search, and per-electorate detail pages
   - Close Calls page — the electorate races and party list cut lines, with its own menu entry
   - Candidates page — every candidate in the election, every seat's whole field plus every name on every party list, searchable by name, party or electorate
@@ -20,7 +20,7 @@ This started as a project for a 2023 election night party — the goal was to av
   - Live feed / commentary timeline
   - Trends page with historical charts
 - **Real-time** — Socket.io broadcasts results from the collector to all connected web clients instantly.
-- **Metrics** — both processes expose application-tier Prometheus metrics (`GET /metrics`): the dashboard server covers scrape freshness, socket delivery, feed state and the history API; the collector covers per-cycle timing, per-electorate fetch outcomes, webhooks and count progress. Fly.io scrapes both and adds machine metrics. Grafana dashboards are version-controlled in `ops/grafana/`; see [`docs/observability.md`](docs/observability.md) for the inventory, the best-practice assessment, and the dashboard and alert specs.
+- **Metrics** — both processes expose application-tier Prometheus metrics (`GET /metrics`): the dashboard server covers scrape freshness, socket delivery, feed state and the history API; the collector covers per-cycle timing, per-electorate fetch outcomes, webhooks and count progress. Fly.io scrapes the server's `/metrics`, which merges the collector's, and adds machine metrics. Grafana dashboards are version-controlled in `ops/grafana/`; see [`docs/observability.md`](docs/observability.md) for the inventory, the best-practice assessment, and the dashboard and alert specs.
 - **History API** — Electorate and party-vote history endpoints, served by the dashboard server from the collector's history REST API over HTTP (the server itself never opens a database).
 - **Prior election results** — The collector derives any earlier cycle from the same XML archive on demand (`/history/results/:year`, `/history/prior-winners`), matched to today's electorates through a checked-in rename table so a merged or split seat is never given someone else's member. Historical cycles are cached in memory and never persisted; see [`docs/prior-election-results.md`](docs/prior-election-results.md).
 - **Webhook notifications** — Configurable webhooks for new predictions, updated results, and leader changes (e.g., smart home integrations). A built-in webhook logger is available for local testing.
@@ -171,7 +171,7 @@ Other flags: `--port 3457` (or `MOCK_PORT`), `--year 2023|2026` (or `MOCK_ELECTI
 
 #### Replaying 2026
 
-`--year 2026` replays the next cycle's electorate list: 64 general + 7 Māori electorates instead of 65 + 7, with the 2026 names (`Kapiti`, `Kenepuru`, `Glendene`, `Henderson`, `Waitākere`, `Ōtāhuhu`, `Mt Maunganui`, `East Cape`, `Wellington North`, `Wellington Bays`) and the 2023 ones gone. Māori electorates are won by Te Pāti Māori, which produces the overhang the seat maths has to absorb (the mock's 2026 cycle totals 125 seats, against 122 in 2023).
+`--year 2026` replays the 2026 electorate list: 64 general + 7 Māori electorates instead of 65 + 7, with the 2026 names (`Kapiti`, `Kenepuru`, `Glendene`, `Henderson`, `Waitākere`, `Ōtāhuhu`, `Mt Maunganui`, `East Cape`, `Wellington North`, `Wellington Bays`) and the 2023 ones gone. Māori electorates are won by Te Pāti Māori, which produces the overhang the seat maths has to absorb (the mock's 2026 cycle totals 125 seats, against 122 in 2023).
 
 The mock's electorate list is asserted against the boundary manifest the dashboard map draws from, so a replay can never serve an electorate the map has no polygon for.
 
@@ -200,15 +200,16 @@ Set `PRIOR_RESULTS=off` to serve no prior cycle at all. That is what the tests t
 PRIOR_RESULTS=off ELECTION_YEAR=2026 XML_FEED_BASE_URL=http://localhost:3457/ npm run start:collector
 ```
 
-See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the contract, the comparability rule and its sources, and the design captures in [`docs/mockups/`](docs/mockups/).
+See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the contract, the comparability rule and its sources.
 
 ## Environment Variables
 
 | Variable                | Default                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ELECTION_YEAR`         | `2023`                          | Election year for the XML feed. 2026 and later read the live media feed at `https://media.election.net.nz/xml/`; earlier cycles read the archive at `https://archive.electionresults.govt.nz/electionresults_<year>/xml/`. Also tags stored snapshots and the results and feed caches with the cycle, so history, diffs and feed events never mix two elections. Also selects the masthead's polls-close instant ([`packages/core/src/polls-close.ts`](packages/core/src/polls-close.ts), published on `GET /api/config`); a cycle with no listed instant shows the plain clock. |
-| `XML_FEED_BASE_URL`     | —                               | Full override for the XML feed base URL (must end with `/`); takes precedence over `ELECTION_YEAR`. Point this at the mock server. Because the mock serves one cycle, prior-election results are reported unavailable when it is set.                                                                                                                                                                                                                                                                                                                                            |
+| `XML_FEED_BASE_URL`     | —                               | Full override for the XML feed base URL (must end with `/`); takes precedence over `ELECTION_YEAR`. Point this at the mock server. It applies only to the cycle being counted; prior years still read the real archive.                                                                                                                                                                                                                                                                                                                                                          |
 | `PRIOR_ELECTION_YEAR`   | previous cycle                  | Cycle the Flipped page compares against. Unset uses the newest prior cycle the archive resolves (the preceding election). Older cycles are still fetched for the per-electorate past-winners table.                                                                                                                                                                                                                                                                                                                                                                              |
+| `PRIOR_RESULTS`         | `on`                            | Collector: set `off` to serve no prior cycle at all. Tests that spawn the collector set it so they never touch the network; `XML_FEED_BASE_URL` does **not** disable prior results, because a mocked run should still fill Flipped and Past winners from the real archive.                                                                                                                                                                                                                                                                                                       |
 | `POLL_INTERVAL_MS`      | `60000`                         | How often the collector asks the feed whether anything changed. Each check is an `If-Modified-Since` request: a 304 costs headers and no body, and a cycle where every seat 304s writes no snapshot and publishes nothing. Jittered ±20%, capped at ±5 minutes so a daily interval still means a day. `fly.toml` deploys `86400000` until the count — see [Machine size and poll cadence](#machine-size-and-poll-cadence).                                                                                                                                                       |
 | `CONCURRENCY`           | `10`                            | Parallel electorate fetches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `FETCH_TIMEOUT_MS`      | `30000`                         | Per-request HTTP timeout for XML feed fetches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -228,6 +229,7 @@ See [`docs/prior-election-results.md`](docs/prior-election-results.md) for the c
 | `MOCK_PORT`             | `3457`                          | Port for the mock XML feed server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `MOCK_ELECTION_YEAR`    | `2023`                          | Mock server: which cycle's electorate list to replay (`2023` or `2026`). Overridden by `--year`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `COLLECTOR_ENABLED`     | `true`                          | Combined image only: set `false` to run the dashboard server without the collector (PR previews do this)                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `COLLECTOR_WATCHDOG`    | `on`                            | Dashboard server: probes the collector's `/health` every 10s and exits after six consecutive failures so the entrypoint restarts the machine. Set `off` to disable; it runs only when `NODE_ENV=production` and `COLLECTOR_ENABLED=true`.                                                                                                                                                                                                                                                                                                                                        |
 | `CACHE_PATH`            | `.data/electorate_results.json` | Dashboard server JSON cache path                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `FEED_CACHE_PATH`       | `.data/feed_events.json`        | Dashboard server feed-events cache path. Tagged with `ELECTION_YEAR` — a cache from another cycle is ignored (with a warning) rather than preloaded as the current cycle's feed                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `MAX_FEED_EVENTS`       | `200`                           | Maximum feed events retained by the dashboard server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -354,14 +356,15 @@ and which polls-close instant the masthead counts down to. Editing it in a commi
 is what switches production — an ad-hoc `fly machine update --env` is reverted by
 the next CI deploy.
 
-The next cycle's feed 404s until results start flowing, and a conditional poll
-cannot help there — every reference-data load fails, so every cycle fails. The
-collector does not need a staged cadence for that: a failed cycle writes nothing
-and inserts no snapshot row, and the loop retries on the next tick. Keep
+A cycle the Commission has not published yet 404s, and a conditional poll cannot
+help there — every reference-data load fails, so every cycle fails. The collector
+does not need a staged cadence for that: a failed cycle writes nothing and
+inserts no snapshot row, and the loop retries on the next tick. Keep
 `POLL_INTERVAL_MS` at its normal value and let the failures ride; the
-fetch-failure metric goes red until the feed appears, which is exactly what it
-is for. Once the feed is live, conditional requests do the staging for you — a
-quiet cycle costs headers, not downloads.
+fetch-failure metric goes red until the feed appears, which is exactly what it is
+for. Once the ballot is published — 2026's went live before election night with
+every count zeroed — conditional requests do the staging for you, and a quiet
+cycle costs headers, not downloads.
 
 If you do want a quiet interval while a cycle is unpublished (a long gap between
 elections on a public deployment), raise `POLL_INTERVAL_MS`: nothing else changes
@@ -403,8 +406,9 @@ feed.[^pre-tag]
 ### Keeping the volume from filling
 
 Every cycle writes a full snapshot, so an unbounded database grows with the poll
-rate — about 140 MB/day at the 2-minute default, which fills a 1 GB volume in a
-week. Two things keep it bounded, because production runs for weeks at a time:
+rate — about 280 MB/day at the 60-second default, which fills a 1 GB volume in
+under four days. Two things keep it bounded, because production runs for weeks at
+a time:
 
 - **Continuous retention.** `RETENTION_HOURS` (default 24) is enforced on
   startup and then swept every `RETENTION_SWEEP_MS` (default 15 minutes) for the
@@ -422,7 +426,8 @@ collector keeps fetching results successfully and every SQLite write fails with
 results" rather than an error. Recovery needs free space — a `DELETE` needs WAL
 space too, so pruning in place on a 100% full volume cannot work (`fly volumes
 extend` is the way out, after which the retention window brings the steady state
-back to roughly 150 MB). Watch `election_disk_available_bytes /
+back to the window's own size, about 280 MB at the default cadence). Watch
+`election_disk_available_bytes /
 election_disk_size_bytes` and `election_snapshot_writes_total{status="error"}`;
 both have alert rules in `docs/observability.md` §6.
 

@@ -1,7 +1,7 @@
 # Design — Election Night (NZ general election tracker)
 
-Locked design system. Pages defer
-to it. Amend intentionally — the file is the rule.
+Locked design system: pages defer to it. Amend intentionally; the file is the
+rule.
 
 ## System
 
@@ -9,12 +9,6 @@ to it. Amend intentionally — the file is the rule.
 - Macrostructure · Workbench (app shell): masthead + data views + live rail
 - Theme · catalog: Newsprint (printed edition — grey-white stock, press ink,
   masthead red; not warm book-paper browns)
-- Section mastheads · a section big enough to want one inside a page — Close
-  Calls inside Seats — uses `.pagehead.pagehead--section`: the page head's rule
-  and display size (Playfair, `clamp(1.75rem, 3.5vw, 2.25rem)`, −0.015em) set as
-  an `h2`, one level down in the document outline. It reads as its own front
-  page without competing with the `h1`, and it is the only place a heading below
-  the page head takes that size: everything else under a page head is a subhead.
 - Page-head spacing · the shell's top padding (`pt-3 sm:pt-4 lg:pt-5`) plus
   `.pagehead`'s `0.5rem` top padding is the whole distance from the nav rule to
   the title, about 20–28px. The head is the first thing in every page, so a
@@ -42,37 +36,25 @@ to it. Amend intentionally — the file is the rule.
   `dark` class on `<html>`; an inline `<head>` script applies a saved choice
   before first paint so there is no flash.
 
-## Tokens (canonical · `packages/dashboard/src/styles/index.css` is the source of truth)
+## Tokens
 
-```css
-:root {
-  /* light edition — printed newspaper */
-  --color-paper: oklch(94% 0.006 80); /* hsl(60 9% 94%)  */
-  --color-paper-2: oklch(91.5% 0.006 80); /* hsl(60 8% 90%)  */
-  --color-paper-3: oklch(87% 0.007 80); /* hsl(50 7% 86%)  */
-  --color-ink: oklch(12% 0.012 80); /* hsl(40 6% 13%)  */
-  --color-ink-2: oklch(24% 0.01 80);
-  --color-rule: oklch(80% 0.006 80); /* hairline        */
-  --color-rule-2: oklch(45% 0.008 80); /* heavier rule    */
-  --color-muted: oklch(40% 0.012 80); /* reads at 4.5:1 on paper */
-  --color-accent: oklch(48% 0.16 30); /* masthead red    */
-  --color-accent-ink: oklch(97% 0.005 70);
-  --color-focus: oklch(50% 0.18 30);
+`packages/dashboard/src/styles/index.css` is the source of truth:
+shadcn-compatible HSL variables, plus the `pagehead`, `chip-print` and
+`stat-grid` utilities. Tailwind config mirrors the fonts, radius and keyframes.
 
-  --font-display: 'Playfair Display', Georgia, serif;
-  --font-body: 'Crimson Pro', Georgia, serif;
-  --font-label: 'Inter', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+| Token                | Light (Newsprint) | Dark (night edition) |
+| -------------------- | ----------------- | -------------------- |
+| `--background`       | `60 9% 94%`       | `40 8% 9%`           |
+| `--foreground`       | `40 6% 13%`       | `55 8% 90%`          |
+| `--primary`          | `14 55% 38%`      | `14 72% 58%`         |
+| `--muted`            | `60 8% 90%`       | `40 8% 17%`          |
+| `--muted-foreground` | `45 6% 37%`       | `50 5% 60%`          |
+| `--border`           | `50 5% 80%`       | `40 8% 24%`          |
+| `--ring`             | `14 55% 38%`      | `14 72% 58%`         |
+| `--radius`           | `0px`             | `0px`                |
 
-  /* night edition (dark mode) — warm ink paper, red lifts */
-  /* .dark: background hsl(40 8% 9%), foreground hsl(55 8% 90%),
-     primary hsl(14 72% 58%), muted-foreground hsl(50 5% 60%) */
-
-  --radius-card: 0px;
-  --radius-pill: 0px;
-  --radius-input: 0px;
-}
-```
+Fonts: Playfair Display (display), Crimson Pro (body), Inter (labels), IBM Plex
+Mono (data).
 
 ## Voice
 
@@ -189,9 +171,3 @@ state, and the dateline strip beneath them.
   it is. The measurement comes from an invisible copy laid out outside the flow,
   because measuring the wordmark itself would be self-defeating: hiding it frees
   exactly the space whose absence said it did not fit.
-
-## Exports
-
-`packages/dashboard/src/styles/index.css` is the source of truth (HSL
-shadcn-compatible variables + utility layer). Tailwind config mirrors fonts,
-radius, and keyframes in `packages/dashboard/tailwind.config.ts`.
