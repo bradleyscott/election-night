@@ -1,6 +1,7 @@
 import { ElectorateCountBand } from './ElectorateCountBand.js';
 import { ElectorateResultsTable } from './ElectorateResultsTable.js';
 import { PastWinners } from './PastWinners.js';
+import { HistoryStatus } from './HistoryStatus.js';
 import VoteHistoryChart from './VoteHistoryChart.js';
 import type { PollsCloseState } from '../hooks/usePollsClose.js';
 import type { ElectorateResult } from '@election-night/core/types';
@@ -8,12 +9,16 @@ import type {
   ElectorateHistoryPoint,
   PriorWinner,
 } from '../lib/history-types.js';
+import type { HistoryLoadState } from '../lib/history-api.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 
 export function ElectorateDetail({
   result,
   showPartyVote,
   historyData,
+  historyState,
+  historyError,
+  onRetryHistory,
   votingPlaces,
   priorWinners,
   priorUnavailable,
@@ -24,6 +29,10 @@ export function ElectorateDetail({
   result: ElectorateResult;
   showPartyVote: boolean;
   historyData: ElectorateHistoryPoint[] | null;
+  /** How the history rows were obtained: ready, stale, unavailable, error. */
+  historyState?: HistoryLoadState;
+  historyError?: string | null;
+  onRetryHistory?: () => void;
   /** The seat's voting places, for the receipt rug on the count chart. */
   votingPlaces?: { counted: number; total: number; receipts: number[] };
   /** This seat's prior-cycle winners, newest first; empty when none apply. */
@@ -78,6 +87,12 @@ export function ElectorateDetail({
           unavailable={priorUnavailable ?? false}
         />
       )}
+
+      <HistoryStatus
+        state={historyState ?? 'ready'}
+        error={historyError}
+        onRetry={onRetryHistory}
+      />
 
       {historyData && historyData.length > 1 && (
         <VoteHistoryChart

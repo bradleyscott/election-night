@@ -51,7 +51,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **01 — Expose stale history and fix dependency verification**        | P0                           | R3       | None                                         |
 | [x]  | **02a — Bound history queries and global voting-place load**         | P0                           | R6       | 01; capture baseline first                   |
 | [x]  | **02b — Move database execution off the collector HTTP loop**        | P0                           | R6       | 02a                                          |
-| [ ]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
+| [x]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
 | [ ]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
 | [ ]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
 | [ ]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
@@ -258,6 +258,28 @@ worker-reader HTTP cases in `history-server.test.ts`. `npm run lint`,
 drop notifications; refocus/reconnect; fail the last notification's fetch; return
 a stale proxy answer; switch electorates during a request; mount two consumers.
 Verify eventual catch-up, request sharing, no wrong-seat flash, and honest states.
+
+**Implementation record:** `@tanstack/react-query` is mounted once in
+`main.tsx` via `lib/query-client.ts` (10s stale time, two retries inside a 30s
+budget with an 8s per-attempt deadline, focus/reconnect refetch). The browser
+transport moved to `lib/history-api.ts`: the body is read inside the deadline,
+Task 01's `X-Election-History-*` headers become `stale`/`unavailable` states,
+and `X-History-*` paging (or a 413) is followed and merged by `snapshotId`.
+Keys are `['history', <resource>, <seat>, <cycle>]`, and there is deliberately
+no cross-key `placeholderData`, so a seat switch shows loading rather than the
+previous seat's rows. `useHistorySocketSync` invalidates `['history']` on a
+results update and on a socket reconnect; a 30s `refetchInterval` is the
+backstop when a notification lands inside the proxy's 10s cache. A failed
+refresh keeps the same key's rows and reports `stale`; a missing first answer
+reports `unavailable`/`error`; `HistoryStatus` renders both with a Retry.
+`useVotingPlaces` is a query whose `votingPlacesRefetchMs` polls every 60s while
+counting and every 5 minutes after completion (never off for a live cycle), so
+an initial failure cannot freeze it. Tests: `useVoteHistory.test.tsx` (shared
+request, notification and no-op rerender, preserved data on failed refresh,
+stale header, seat switch during a request, multi-page merge, reconnect) and
+`useVotingPlaces.test.tsx` (retry after failure, polling policy). `App.test` and
+`Flipped.test` now mount a query client. `npm run lint`, `npm run typecheck`,
+`npx vitest run` (818 tests) and the production Vite build pass.
 
 ### 04 — Repair historical specials parsing and evidence
 

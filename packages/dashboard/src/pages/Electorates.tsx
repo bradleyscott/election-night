@@ -20,6 +20,7 @@ import { cn } from '../lib/utils.js';
 import { Toggle } from '../components/Toggle.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import { PageHead, PageWaiting } from '../components/Page.js';
+import { HistoryStatus } from '../components/HistoryStatus.js';
 
 /** The two contests the table can show; the seat is won on the first. */
 const VIEW_OPTIONS: { value: 'candidate' | 'party'; label: string }[] = [
@@ -69,12 +70,21 @@ export default function Electorates() {
       ) ?? null)
     : null;
 
-  const { data: historyData } = useElectorateHistory(selectedName);
+  const {
+    data: historyData,
+    state: historyState,
+    error: historyError,
+    refetch: refetchHistory,
+  } = useElectorateHistory(selectedName);
   // Which places count towards the seat and which have reported: the map draws
   // them, and the count chart draws their receipt times as a rug, so the page
   // owns the request rather than each of them asking separately.
-  const { summary: places, loading: placesLoading } =
-    useVotingPlaces(selectedName);
+  const {
+    summary: places,
+    loading: placesLoading,
+    error: placesError,
+    refetch: refetchPlaces,
+  } = useVotingPlaces(selectedName);
   const votingPlaces = useMemo(() => {
     if (!places) return undefined;
     return {
@@ -151,6 +161,14 @@ export default function Electorates() {
             places={places}
             placesLoading={placesLoading}
           />
+          {placesError && !places && (
+            <HistoryStatus
+              state="error"
+              error={placesError}
+              onRetry={refetchPlaces}
+              className="border-x-0 border-b-0 border-t"
+            />
+          )}
         </div>
 
         {selectedElectorate && (
@@ -158,6 +176,9 @@ export default function Electorates() {
             result={selectedElectorate}
             showPartyVote={showPartyVote}
             historyData={historyData}
+            historyState={historyState}
+            historyError={historyError}
+            onRetryHistory={refetchHistory}
             votingPlaces={votingPlaces}
             priorWinners={priorLoading ? undefined : priorWinners}
             priorUnavailable={priorUnavailable}

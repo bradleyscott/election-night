@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { VotingPlacesResponse } from '@election-night/core/voting-places';
-import { useApi } from './useApi.js';
+import { fetchJsonWithMeta } from '../lib/history-api.js';
+import { HISTORY_STALE_TIME_MS } from '../lib/query-client.js';
+import { useRuntimeConfig } from './useRuntimeConfig.js';
 
 /** What the map and the card need: the places standing in the electorate. */
 export type VotingPlaceSummary = {
@@ -15,6 +18,24 @@ export type VotingPlaceSummary = {
 
 /** How often a seat that is still counting refreshes its places. */
 const REFRESH_MS = 60_000;
+/** After every place has reported, corrections still arrive; keep asking. */
+const COMPLETE_REFRESH_MS = 5 * 60_000;
+
+/**
+ * The polling policy, exposed so it can be tested without waiting a minute.
+ *
+ * A missing or failed answer still polls: an initial outage must not freeze
+ * the layer. A completed seat slows down but does not stop, because
+ * corrections and specials can land after the night's first count.
+ */
+export function votingPlacesRefetchMs(
+  data: VotingPlacesResponse | undefined
+): number | false {
+  if (data && !data.available) return false;
+  const summary = data ? summarizePlaces(data) : null;
+  if (summary && summary.counted >= summary.total) return COMPLETE_REFRESH_MS;
+  return REFRESH_MS;
+}
 
 /**
  * Reduce a seat's place answer to the places standing inside it.
@@ -50,49 +71,48 @@ export function summarizePlaces(
 /**
  * Which places inside a seat have reported.
  *
- * The collector answers this on demand (the feed publishes no per-place data
- * for an archived cycle, and the register is too large to poll), so this is a
- * plain request rather than something the results socket pushes. While a seat
- * is still counting it re-reads once a minute; a seat whose places have all
- * reported stops asking, which is most seats by mid-evening.
+ * The collector answers this on demand, so this is a query, not socket state.
+ * A failed first request leaves the query active: React Query's retry policy
+ * and the interval both keep trying, so an initial outage cannot freeze the
+ * layer. A seat whose places have all reported slows to five minutes rather
+ * than stopping, because corrections and specials still land after the night.
  */
 export function useVotingPlaces(electorateName: string | null): {
   summary: VotingPlaceSummary | null;
   loading: boolean;
+  error: string | null;
+  refetch: () => void;
 } {
-  const url = useMemo(
-    () =>
-      electorateName
-        ? `/api/history/voting-places/${encodeURIComponent(electorateName)}`
-        : null,
-    [electorateName]
+  const config = useRuntimeConfig();
+  const cycle = config?.electionYear ?? null;
+  const url = electorateName
+    ? `/api/history/voting-places/${encodeURIComponent(electorateName)}`
+    : null;
+
+  const query = useQuery({
+    queryKey: ['voting-places', cycle, electorateName],
+    queryFn: ({ signal }) =>
+      fetchJsonWithMeta<VotingPlacesResponse>(url!, signal).then(
+        (result) => result.data
+      ),
+    enabled: !!url && !!cycle,
+    staleTime: HISTORY_STALE_TIME_MS,
+    refetchInterval: (query) => votingPlacesRefetchMs(query.state.data),
+  });
+
+  const summary = useMemo(
+    () => (query.data ? summarizePlaces(query.data) : null),
+    [query.data]
   );
 
-  const { data, loading, refetch } = useApi<VotingPlacesResponse>(url);
-  const [complete, setComplete] = useState(false);
-
-  // Reset the "finished" latch when the visitor picks another seat.
-  useEffect(() => {
-    setComplete(false);
-  }, [url]);
-
-  const summary = useMemo<VotingPlaceSummary | null>(
-    () => (data ? summarizePlaces(data) : null),
-    [data]
-  );
-
-  useEffect(() => {
-    if (!summary) return;
-    if (summary.counted >= summary.total) {
-      setComplete(true);
-      return;
-    }
-    if (complete) return;
-    const timer = setInterval(refetch, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [summary, complete, refetch]);
-
-  return { summary, loading: loading && summary === null };
+  return {
+    summary,
+    loading: query.isPending && summary === null,
+    error: query.error instanceof Error ? query.error.message : null,
+    refetch: () => {
+      void query.refetch();
+    },
+  };
 }
 
 /**

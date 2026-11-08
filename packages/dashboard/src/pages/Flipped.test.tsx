@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import Flipped from './Flipped.js';
 import { WinPercentProvider } from '../components/WinPercentDrawer.js';
@@ -129,8 +131,41 @@ const priorWinners: PriorWinnersResponse = {
   ],
 };
 
-function renderFlipped() {
+const CONFIG = {
+  electionYear: '2026',
+  pollsCloseAt: null,
+  serverTime: '2026-11-07T07:00:00.000Z',
+};
+
+/**
+ * Answer /api/config with a real config and every other URL with `body`.
+ * Each call gets a fresh Response: a shared one has its body consumed by the
+ * first request and the second fails with "Body is unusable".
+ */
+function mockPriorWinners(body: unknown, status = 200) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/config') {
+        return new Response(JSON.stringify(CONFIG), { status: 200 });
+      }
+      return new Response(JSON.stringify(body), { status });
+    })
+  );
+}
+
+function renderWithQuery(ui: ReactNode) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
   return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+  );
+}
+
+function renderFlipped() {
+  return renderWithQuery(
     <BrowserRouter>
       <WinPercentProvider>
         <MockSocketProvider results={liveResults} connected>
@@ -143,14 +178,7 @@ function renderFlipped() {
 
 describe('Flipped page', () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify(priorWinners), { status: 200 })
-        )
-    );
+    mockPriorWinners(priorWinners);
   });
 
   afterEach(() => {
@@ -273,7 +301,7 @@ describe('Flipped page', () => {
       },
     };
 
-    render(
+    renderWithQuery(
       <BrowserRouter>
         <WinPercentProvider>
           <MockSocketProvider
@@ -312,19 +340,17 @@ describe('Flipped page', () => {
   });
 
   test('states the comparison year from the data, not a fixed year', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          currentYear: '2026',
-          primaryYear: '2017',
-          years: priorWinners.years.map((year) => ({
-            ...year,
-            year: '2017',
-            winners: year.winners.map((w) => ({ ...w, year: '2017' })),
-          })),
-        }),
-        { status: 200 }
-      )
+    mockPriorWinners(
+      {
+        currentYear: '2026',
+        primaryYear: '2017',
+        years: priorWinners.years.map((year) => ({
+          ...year,
+          year: '2017',
+          winners: year.winners.map((w) => ({ ...w, year: '2017' })),
+        })),
+      },
+      200
     );
 
     renderFlipped();
@@ -349,33 +375,31 @@ describe('Flipped page', () => {
   });
 
   test('a finished count keeps its chance, because the specials are still out', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          currentYear: '2026',
-          primaryYear: '2023',
-          years: [
-            {
-              year: '2023',
-              winners: [
-                {
-                  electorateName: 'Testville',
-                  year: '2023',
-                  candidate: 'BROWN, Ana',
-                  party: 'Labour Party',
-                  votes: 18_000,
-                  majority: 900,
-                  majorityPercent: 0.04,
-                },
-              ],
-            },
-          ],
-        }),
-        { status: 200 }
-      )
+    mockPriorWinners(
+      {
+        currentYear: '2026',
+        primaryYear: '2023',
+        years: [
+          {
+            year: '2023',
+            winners: [
+              {
+                electorateName: 'Testville',
+                year: '2023',
+                candidate: 'BROWN, Ana',
+                party: 'Labour Party',
+                votes: 18_000,
+                majority: 900,
+                majorityPercent: 0.04,
+              },
+            ],
+          },
+        ],
+      },
+      200
     );
 
-    render(
+    renderWithQuery(
       <BrowserRouter>
         <WinPercentProvider>
           <MockSocketProvider
@@ -535,32 +559,30 @@ describe('Flipped page', () => {
       { length: 12 },
       (_, i) => `Seat ${String(i + 1).padStart(2, '0')}`
     );
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          currentYear: '2026',
-          primaryYear: '2023',
-          years: [
-            {
+    mockPriorWinners(
+      {
+        currentYear: '2026',
+        primaryYear: '2023',
+        years: [
+          {
+            year: '2023',
+            winners: names.map((name) => ({
+              electorateName: name,
+              priorElectorateName: null,
               year: '2023',
-              winners: names.map((name) => ({
-                electorateName: name,
-                priorElectorateName: null,
-                year: '2023',
-                candidate: 'INCUMBENT, Ana',
-                party: 'Labour Party',
-                votes: 15_000,
-                majority: 1_234,
-                majorityPercent: 0.1,
-              })),
-            },
-          ],
-        }),
-        { status: 200 }
-      )
+              candidate: 'INCUMBENT, Ana',
+              party: 'Labour Party',
+              votes: 15_000,
+              majority: 1_234,
+              majorityPercent: 0.1,
+            })),
+          },
+        ],
+      },
+      200
     );
 
-    render(
+    renderWithQuery(
       <BrowserRouter>
         <WinPercentProvider>
           <MockSocketProvider
@@ -604,11 +626,7 @@ describe('Flipped page', () => {
   });
 
   test('explains itself when no prior cycle could be fetched', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'prior results unavailable' }), {
-        status: 503,
-      })
-    );
+    mockPriorWinners({ error: 'prior results unavailable' }, 503);
 
     renderFlipped();
 
@@ -618,11 +636,9 @@ describe('Flipped page', () => {
   });
 
   test('does not claim the live cycle when the service returns no prior year', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({ currentYear: '2026', primaryYear: null, years: [] }),
-        { status: 200 }
-      )
+    mockPriorWinners(
+      { currentYear: '2026', primaryYear: null, years: [] },
+      200
     );
 
     renderFlipped();
@@ -635,33 +651,31 @@ describe('Flipped page', () => {
   test('labels an independent candidate as Independent, not Unknown', async () => {
     // A candidate with no party affiliation has a null party; the table must
     // say what they are, matching every other surface that shows a candidate.
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          ...priorWinners,
-          years: [
-            {
-              year: '2023',
-              winners: [
-                {
-                  electorateName: 'Remutaka',
-                  priorElectorateName: null,
-                  year: '2023',
-                  candidate: 'PRYCE, Mathew',
-                  party: null,
-                  votes: 18_000,
-                  majority: 800,
-                  majorityPercent: 0.03,
-                },
-              ],
-            },
-          ],
-        }),
-        { status: 200 }
-      )
+    mockPriorWinners(
+      {
+        ...priorWinners,
+        years: [
+          {
+            year: '2023',
+            winners: [
+              {
+                electorateName: 'Remutaka',
+                priorElectorateName: null,
+                year: '2023',
+                candidate: 'PRYCE, Mathew',
+                party: null,
+                votes: 18_000,
+                majority: 800,
+                majorityPercent: 0.03,
+              },
+            ],
+          },
+        ],
+      },
+      200
     );
 
-    render(
+    renderWithQuery(
       <BrowserRouter>
         <WinPercentProvider>
           <MockSocketProvider
@@ -686,21 +700,19 @@ describe('Flipped page', () => {
   });
 
   test('says so when every comparable seat is holding', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          ...priorWinners,
-          years: [
-            {
-              year: '2023',
-              winners: priorWinners.years[0]!.winners.filter(
-                (w) => w.electorateName === 'Remutaka'
-              ),
-            },
-          ],
-        }),
-        { status: 200 }
-      )
+    mockPriorWinners(
+      {
+        ...priorWinners,
+        years: [
+          {
+            year: '2023',
+            winners: priorWinners.years[0]!.winners.filter(
+              (w) => w.electorateName === 'Remutaka'
+            ),
+          },
+        ],
+      },
+      200
     );
 
     renderFlipped();
@@ -726,7 +738,7 @@ describe('Flipped page without live results', () => {
   });
 
   test('waits for the first results', async () => {
-    render(
+    renderWithQuery(
       <BrowserRouter>
         <WinPercentProvider>
           <MockSocketProvider results={null} connected={false}>
