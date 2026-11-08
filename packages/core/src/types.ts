@@ -208,6 +208,11 @@ export type WebhookEventType =
 
 export type WebhookPayload = {
   event: WebhookEventType;
+  /** Stable idempotency key for this announcement. */
+  eventId?: string;
+  electionYear?: string;
+  /** Committed cycle revision the event belongs to, when known. */
+  revision?: number | null;
   timestamp: number;
   electorateName: string;
   result: ElectorateResults & WithLeaders;

@@ -7,7 +7,13 @@
  * is computed on the caller and sent as plain numbers.
  */
 
-import type { LatestStateWrite, SnapshotWrite, PruneResult } from './db.js';
+import type {
+  LatestStateWrite,
+  SnapshotWrite,
+  PruneResult,
+  WebhookOutboxRow,
+  WebhookOutcome,
+} from './db.js';
 import type {
   ElectorateHistoryRow,
   HistoryPage,
@@ -24,6 +30,16 @@ export type DbRequest =
   | { id: number; type: 'writeLatest'; write: LatestStateWrite }
   | { id: number; type: 'prune'; keepHours: number }
   | { id: number; type: 'compact'; maxPages?: number }
+  | { id: number; type: 'webhooksClaim'; limit: number }
+  | {
+      id: number;
+      type: 'webhookComplete';
+      webhookId: number;
+      outcome: WebhookOutcome;
+      nextAttemptAt?: string;
+      error?: string | null;
+    }
+  | { id: number; type: 'webhooksPrune'; maxRows?: number }
   | { id: number; type: 'latest'; electionYear: string }
   | {
       id: number;
@@ -62,6 +78,9 @@ export interface DbResultByType {
   latest: LatestStateRow | null;
   prune: PruneResult;
   compact: number;
+  webhooksClaim: WebhookOutboxRow[];
+  webhookComplete: null;
+  webhooksPrune: number;
   snapshots: HistoryPage<SnapshotMetaRow>;
   electorate: HistoryPage<ElectorateHistoryRow>;
   partyVotes: HistoryPage<PartyVoteHistoryRow>;

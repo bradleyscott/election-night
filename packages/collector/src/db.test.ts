@@ -621,6 +621,54 @@ describe('compaction', () => {
     expect(latest.c).toBe(0);
   });
 
+  test('stores webhook announcements with the snapshot and claims them once', async () => {
+    const { writeSnapshot, claimWebhookBatch, completeWebhook } =
+      await import('./db.js');
+    const hook = {
+      event: 'leader_change',
+      eventId: 'pub:leader_change:Test Electorate',
+      electionYear: '2026',
+      timestamp: Date.now(),
+      electorateName: 'Test Electorate',
+      result: makeResult(),
+      diff: {},
+    } as never;
+
+    const write = {
+      results: [makeResult()],
+      partyVote: [makePartyVote()],
+      partyLists: [],
+      electionYear: '2026',
+      progressByElectorate: {},
+      publicationKey: 'pub',
+      webhooks: [hook],
+    };
+    writeSnapshot(write);
+    // An idempotent retry must not enqueue a second copy.
+    writeSnapshot(write);
+
+    const first = claimWebhookBatch(10);
+    expect(first).toHaveLength(1);
+    expect(first[0]!.eventId).toBe('pub:leader_change:Test Electorate');
+    expect(first[0]!.attempts).toBe(1);
+
+    // A second claim while the first is leased returns nothing.
+    expect(claimWebhookBatch(10)).toHaveLength(0);
+
+    completeWebhook(first[0]!.id, 'delivered');
+
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const row = conn
+      .prepare(
+        "select status, delivered_at from webhook_outbox where event_id = 'pub:leader_change:Test Electorate'"
+      )
+      .get() as { status: string; delivered_at: string | null };
+    conn.close();
+    expect(row.status).toBe('delivered');
+    expect(row.delivered_at).toBeTruthy();
+  });
+
   test('keeps revisions separate per cycle', async () => {
     const { writeResults } = await import('./db.js');
     writeResults([makeResult()], [], [], '2023');

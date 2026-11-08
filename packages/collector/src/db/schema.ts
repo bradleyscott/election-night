@@ -177,3 +177,26 @@ export const partyLists = sqliteTable(
     pk: primaryKey({ columns: [table.scrapeId, table.party, table.candidate] }),
   })
 );
+
+export const webhookOutbox = sqliteTable(
+  'webhook_outbox',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** Stable event identity; a duplicate insert is ignored. */
+    eventId: text('event_id').notNull().unique(),
+    electionYear: text('election_year').notNull(),
+    revision: integer('revision'),
+    event: text('event').notNull(),
+    /** The exact payload announced, so a retry cannot be recomputed. */
+    payload: text('payload').notNull(),
+    createdAt: text('created_at').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: text('next_attempt_at').notNull(),
+    status: text('status').notNull().default('pending'),
+    lastError: text('last_error'),
+    deliveredAt: text('delivered_at'),
+  },
+  (table) => ({
+    due: index('idx_webhook_outbox_due').on(table.status, table.nextAttemptAt),
+  })
+);

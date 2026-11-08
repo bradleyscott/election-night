@@ -19,7 +19,7 @@ import {
 } from './metrics.js';
 import { describeSweep, effectiveKeepHours, shouldSweep } from './retention.js';
 import { nextPollDelay } from './poll-delay.js';
-import { cacheResults, cacheCycle, processResults } from './results.js';
+import { buildWebhookPayloads, cacheResults, cacheCycle } from './results.js';
 import { loadSource } from './source-loader.js';
 import { resolveFeedBaseUrl } from '@election-night/core/sources';
 import { scrapeCycle, type ScrapeCycleResult } from './scrape-cycle.js';
@@ -28,6 +28,7 @@ import { createResultsService } from './historical-results.js';
 import { startHealthServer, health } from './health.js';
 import { createHistoryHandler, closeHistoryDb } from './history-server.js';
 import { VotingPlaceStatusService } from './voting-place-status.js';
+import { createWebhookOutbox } from './webhook-outbox.js';
 import { loadNotionalBaseline } from './notional-baseline.js';
 import { chanceLookupFor } from '@election-night/core/notional-baseline';
 import { COUNT_SUMMARY_VERSION } from '@election-night/core/count-summary';
@@ -66,6 +67,14 @@ const dbWorker = new DbWorkerClient({
     process.exit(1);
   },
 });
+
+/**
+ * Webhook delivery is independent of the count: rows are committed with the
+ * snapshot and this loop posts them. A hung receiver cannot hold up a publish.
+ */
+const webhookOutbox = collectorConfig.webhookUrl
+  ? createWebhookOutbox(dbWorker, { url: collectorConfig.webhookUrl })
+  : null;
 
 /**
  * `Last-Modified` per electorate, from the last cycle that observed it.
@@ -217,6 +226,16 @@ async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
     collectorConfig.electionYear
   );
 
+  // Build the announcements from the same previous cache the diff uses, and
+  // store them in the snapshot transaction. Delivery happens after this
+  // function returns.
+  const webhooks = collectorConfig.webhookUrl
+    ? buildWebhookPayloads(payload.electorateResults, liveChanceLookup, {
+        electionYear: collectorConfig.electionYear,
+        publicationKey: outcome.publicationKey,
+      })
+    : [];
+
   const writeStartedAt = performance.now();
   try {
     await dbWorker.write({
@@ -236,6 +255,7 @@ async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
       },
       modelVersion: COUNT_SUMMARY_VERSION,
       configVersion: collectorConfig.electionYear,
+      webhooks,
       // The worker cannot receive the lookup function; compute the same
       // progress here and send plain numbers.
       progressByElectorate: Object.fromEntries(
@@ -260,7 +280,6 @@ async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
     throw err;
   }
 
-  await processResults(payload.electorateResults, liveChanceLookup);
   cacheResults(payload.electorateResults);
   health.cacheYear = cacheCycle();
   resultsService.setLiveResults(payload);
@@ -272,6 +291,9 @@ async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
     .latest(collectorConfig.electionYear)
     .catch(() => null);
   publishResults(payload, committed?.revision ?? null);
+  // Wake the delivery loop now; it is not awaited, so a slow receiver cannot
+  // delay the next scrape or the dashboard's current state.
+  void webhookOutbox?.tick();
 
   feedStamps = outcome.stamps;
   lastPublishedSignature = outcome.signature;
@@ -441,6 +463,10 @@ async function pruneAndCompact(keepHours: number): Promise<void> {
   try {
     const { deletedSnapshots } = await dbWorker.prune(keepHours);
     const freedPages = await dbWorker.compact();
+    const prunedWebhooks = await dbWorker.pruneWebhooks();
+    if (prunedWebhooks > 0) {
+      log.info(`Webhook outbox: pruned ${prunedWebhooks} row(s)`);
+    }
     if (deletedSnapshots > 0 || freedPages > 0) {
       log.info(
         describeSweep({
@@ -502,6 +528,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  webhookOutbox?.start();
+
   // Retention: keep the volume bounded before the first write of this process.
   // A full sweep, not `retentionSweep()`: the schedule is irrelevant at boot,
   // and the configured window applies even if the volume is under pressure.
@@ -541,6 +569,7 @@ main();
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     disconnectWs();
+    webhookOutbox?.stop();
     void dbWorker.close().finally(() => {
       closeHistoryDb();
       process.exit(0);

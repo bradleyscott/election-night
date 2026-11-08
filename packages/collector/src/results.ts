@@ -146,6 +146,59 @@ export async function sendWebhook(
 }
 
 /**
+ * Build the webhook announcements for this result, without sending them.
+ *
+ * The caller persists these in the same transaction as the snapshot. The
+ * `eventId` is stable for a given publication, event and electorate, so a
+ * retry of the same pending result cannot enqueue a second copy; a correction
+ * gets a new publication key and therefore a distinct event.
+ */
+export function buildWebhookPayloads(
+  currentResults: ComparableResult[],
+  chanceFor?: (result: ComparableResult) => SeatChance | null,
+  meta: { electionYear: string; publicationKey: string } = {
+    electionYear: collectorConfig.electionYear,
+    publicationKey: '',
+  }
+): WebhookPayload[] {
+  const cachedResults = readResults();
+  const cacheMap = new Map(cachedResults.map((r) => [r.electorateName, r]));
+  const called = (result: ComparableResult | null): boolean => {
+    if (!result || !chanceFor) return false;
+    const chance = chanceFor(result);
+    return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;
+  };
+
+  const payloads: WebhookPayload[] = [];
+  for (const result of currentResults) {
+    const previous = cacheMap.get(result.electorateName) ?? null;
+    const diff = computeDiff(previous, result);
+    const events = determineWebhookEvents(
+      diff,
+      chanceFor
+        ? { called: called(result), wasCalled: called(previous) }
+        : undefined
+    );
+    for (const event of events) {
+      const chance = chanceFor?.(result) ?? null;
+      payloads.push({
+        event,
+        eventId: `${meta.publicationKey}:${event}:${result.electorateName}`,
+        electionYear: meta.electionYear,
+        revision: null,
+        timestamp: Date.now(),
+        electorateName: result.electorateName,
+        result,
+        diff,
+        probability: chance?.state === 'counting' ? chance.probability : null,
+        progress: chance?.state === 'counting' ? chance.progress : null,
+      });
+    }
+  }
+  return payloads;
+}
+
+/**
  * Compare current results against the cached previous results and fire a
  * webhook for each event type that triggered per electorate.
  *

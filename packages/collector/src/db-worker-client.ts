@@ -31,7 +31,13 @@ import type {
   PartyVoteHistoryRow,
   SnapshotMetaRow,
 } from './history-queries.js';
-import type { LatestStateWrite, PruneResult, SnapshotWrite } from './db.js';
+import type {
+  LatestStateWrite,
+  PruneResult,
+  SnapshotWrite,
+  WebhookOutboxRow,
+  WebhookOutcome,
+} from './db.js';
 
 export class DbUnavailableError extends Error {
   readonly code = 'unavailable';
@@ -73,6 +79,9 @@ const TIMEOUTS: Record<DbRequest['type'], number> = {
   latest: 5_000,
   prune: 60_000,
   compact: 60_000,
+  webhooksClaim: 5_000,
+  webhookComplete: 5_000,
+  webhooksPrune: 30_000,
   snapshots: 5_000,
   electorate: 5_000,
   partyVotes: 5_000,
@@ -162,6 +171,27 @@ export class DbWorkerClient {
 
   compact(maxPages?: number): Promise<number> {
     return this.enqueue<'compact'>({ type: 'compact', maxPages });
+  }
+
+  claimWebhooks(limit: number): Promise<WebhookOutboxRow[]> {
+    return this.enqueue<'webhooksClaim'>({ type: 'webhooksClaim', limit });
+  }
+
+  completeWebhook(
+    webhookId: number,
+    outcome: WebhookOutcome,
+    options: { nextAttemptAt?: string; error?: string | null } = {}
+  ): Promise<null> {
+    return this.enqueue<'webhookComplete'>({
+      type: 'webhookComplete',
+      webhookId,
+      outcome,
+      ...options,
+    });
+  }
+
+  pruneWebhooks(maxRows?: number): Promise<number> {
+    return this.enqueue<'webhooksPrune'>({ type: 'webhooksPrune', maxRows });
   }
 
   latest(electionYear: string): Promise<LatestStateRow | null> {

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { sql, eq } from 'drizzle-orm';
+import { sql, and, asc, eq, lte, or } from 'drizzle-orm';
 import * as schema from './db/schema.js';
 import type {
   ElectorateResults,
@@ -13,6 +13,7 @@ import type {
   ElectorateResult,
   PartyVoteResult,
   PartyListResult,
+  WebhookPayload,
 } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { log } from './logger.js';
@@ -90,6 +91,11 @@ export interface SnapshotWrite extends PublicationMeta {
    * when no model result was computable.
    */
   progressByElectorate: ProgressByElectorate;
+  /**
+   * Webhook announcements to persist in the same transaction. The delivery
+   * loop is separate, so a hung receiver cannot hold up the count.
+   */
+  webhooks?: WebhookPayload[];
 }
 
 /** A zero-vote ballot: durable latest state, but no count-history snapshot. */
@@ -284,6 +290,26 @@ export function writeSnapshot(write: SnapshotWrite): number {
           adjustedRank: pl.adjustedRank,
           distanceFromCut: pl.distanceFromCut,
         })
+        .run();
+    }
+
+    const queueTime = new Date().toISOString();
+    for (const hook of write.webhooks ?? []) {
+      tx.insert(schema.webhookOutbox)
+        .values({
+          eventId:
+            hook.eventId ??
+            `${publicationKey}:${hook.event}:${hook.electorateName}`,
+          electionYear,
+          revision,
+          event: hook.event,
+          payload: JSON.stringify(hook),
+          createdAt: queueTime,
+          attempts: 0,
+          nextAttemptAt: queueTime,
+          status: 'pending',
+        })
+        .onConflictDoNothing()
         .run();
     }
 
@@ -554,4 +580,149 @@ export function compactDatabase(maxPages = 4096): number {
     }
   }
   return before - after;
+}
+
+// ---- Webhook outbox ------------------------------------------------------
+
+export type WebhookOutboxRow = {
+  id: number;
+  eventId: string;
+  electionYear: string;
+  revision: number | null;
+  event: string;
+  payload: string;
+  attempts: number;
+  nextAttemptAt: string;
+};
+
+export type WebhookOutcome = 'delivered' | 'retry' | 'dead';
+
+/**
+ * Claim due outbox rows for delivery. The claim is a transaction: each row is
+ * moved to `sending` with a lease so a second tick cannot send it twice while
+ * the first request is still open. A crashed sender's lease expires and the
+ * row becomes claimable again.
+ */
+export function claimWebhookBatch(
+  limit: number,
+  leaseMs = 60_000
+): WebhookOutboxRow[] {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const lease = new Date(now.getTime() + leaseMs).toISOString();
+  const rows: WebhookOutboxRow[] = [];
+
+  drizzleDb.transaction((tx) => {
+    const due = tx
+      .select()
+      .from(schema.webhookOutbox)
+      .where(
+        and(
+          or(
+            eq(schema.webhookOutbox.status, 'pending'),
+            eq(schema.webhookOutbox.status, 'sending')
+          ),
+          lte(schema.webhookOutbox.nextAttemptAt, nowIso)
+        )
+      )
+      .orderBy(asc(schema.webhookOutbox.nextAttemptAt))
+      .limit(limit)
+      .all();
+
+    for (const row of due) {
+      tx.update(schema.webhookOutbox)
+        .set({
+          status: 'sending',
+          attempts: row.attempts + 1,
+          nextAttemptAt: lease,
+        })
+        .where(eq(schema.webhookOutbox.id, row.id))
+        .run();
+      rows.push({
+        id: row.id,
+        eventId: row.eventId,
+        electionYear: row.electionYear,
+        revision: row.revision,
+        event: row.event,
+        payload: row.payload,
+        attempts: row.attempts + 1,
+        nextAttemptAt: row.nextAttemptAt,
+      });
+    }
+  });
+
+  return rows;
+}
+
+/** Record the outcome of one delivery attempt. */
+export function completeWebhook(
+  id: number,
+  outcome: WebhookOutcome,
+  options: { nextAttemptAt?: string; error?: string | null } = {}
+): void {
+  const now = new Date().toISOString();
+  const values =
+    outcome === 'delivered'
+      ? {
+          status: 'delivered' as const,
+          deliveredAt: now,
+          lastError: null,
+          nextAttemptAt: now,
+        }
+      : outcome === 'retry'
+        ? {
+            status: 'pending' as const,
+            deliveredAt: null,
+            lastError: options.error ?? 'retry',
+            nextAttemptAt: options.nextAttemptAt ?? now,
+          }
+        : {
+            status: 'dead' as const,
+            deliveredAt: null,
+            lastError: options.error ?? 'terminal failure',
+            nextAttemptAt: now,
+          };
+
+  drizzleDb
+    .update(schema.webhookOutbox)
+    .set(values)
+    .where(eq(schema.webhookOutbox.id, id))
+    .run();
+}
+
+/**
+ * Bound the outbox: delivered rows go after a day, dead letters after a week,
+ * and the retained set is capped so a broken receiver cannot fill the volume.
+ */
+export function pruneWebhooks(
+  maxRows = 5_000,
+  deliveredHours = 24,
+  deadHours = 24 * 7
+): number {
+  const handle = getDbHandle();
+  const delivered = handle
+    .prepare(
+      "delete from webhook_outbox where status = 'delivered' and delivered_at < datetime('now', ?)"
+    )
+    .run(`-${deliveredHours} hours`).changes;
+  const dead = handle
+    .prepare(
+      "delete from webhook_outbox where status = 'dead' and next_attempt_at < datetime('now', ?)"
+    )
+    .run(`-${deadHours} hours`).changes;
+
+  let overflow = 0;
+  const count = (
+    handle.prepare('select count(*) c from webhook_outbox').get() as {
+      c: number;
+    }
+  ).c;
+  if (count > maxRows) {
+    overflow = handle
+      .prepare(
+        "delete from webhook_outbox where id in (select id from webhook_outbox where status in ('delivered','dead') order by id limit ?)"
+      )
+      .run(count - maxRows).changes;
+  }
+  return delivered + dead + overflow;
 }

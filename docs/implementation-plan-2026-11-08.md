@@ -57,7 +57,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
 | [x]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
 | [x]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
-| [ ]  | **09 — Isolate webhook delivery with a durable outbox**              | P0                           | R4       | 07                                           |
+| [x]  | **09 — Isolate webhook delivery with a durable outbox**              | P0                           | R4       | 07                                           |
 | [ ]  | **10 — Add explicit result phases and versioned model evaluation**   | P1; final-result safety gate | R7       | 04, 06a, 07                                  |
 | [ ]  | **11 — Replace generic UI interaction machinery**                    | P1                           | R8       | P0 reliability tasks complete                |
 | [ ]  | **12 — Consolidate backend protocol code only where justified**      | P2                           | R9       | Contracts stable after 01–10                 |
@@ -550,6 +550,25 @@ separate from current-state acceptance.
 **Tests / done:** hanging receiver; temporary 429/5xx; permanent 4xx; lost response
 after receiver acceptance; restart with pending outbox; dead-letter/retention
 limit; call crossing/withdrawal dedup. Count publication continues throughout.
+
+**Implementation record:** Migration `0005_cooing_jack_flag.sql` adds
+`webhook_outbox` (event id, cycle, revision, exact payload, attempts, due time,
+status, last error, delivered time). `buildWebhookPayloads` derives the
+announcements from the previous cache before the write and gives each a stable
+`eventId` from the publication key, event and electorate. `writeSnapshot`
+inserts them in the snapshot transaction with `ON CONFLICT DO NOTHING`, so a
+retry of the same publication cannot enqueue a second copy. Delivery is a
+separate loop (`webhook-outbox.ts`): claim due rows in a transaction with a
+60s lease, post with a 10s body deadline, four concurrent requests, three
+retries for 429/5xx/network failures with exponential backoff, dead-letter on a
+permanent 4xx or after six attempts, and prune delivered rows after a day, dead
+letters after a week, with a 5,000-row cap. `commitCounted` no longer awaits
+webhook delivery; it wakes the loop after publishing. The retention sweep also
+prunes the outbox. Tests cover insertion and idempotent retry, the lease, a
+successful delivery, 5xx retry, 4xx dead-letter, a hanging receiver timing out,
+an exhausted budget, and `start()` not waiting for a receiver. 871 tests pass.
+Deferred: the loop is unit-tested with a fake receiver; no end-to-end test
+starts the collector against a hanging HTTP server in this worktree.
 
 ### 10 — Result lifecycle and model evaluation
 

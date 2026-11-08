@@ -15,8 +15,11 @@
 
 import { parentPort } from 'node:worker_threads';
 import {
+  claimWebhookBatch,
   closeDb,
   compactDatabase,
+  completeWebhook,
+  pruneWebhooks,
   getDbHandle,
   openDb,
   pruneSnapshots,
@@ -55,6 +58,16 @@ function handle(request: DbRequest): unknown {
       return pruneSnapshots(request.keepHours);
     case 'compact':
       return compactDatabase(request.maxPages);
+    case 'webhooksClaim':
+      return claimWebhookBatch(request.limit);
+    case 'webhookComplete':
+      completeWebhook(request.webhookId, request.outcome, {
+        nextAttemptAt: request.nextAttemptAt,
+        error: request.error,
+      });
+      return null;
+    case 'webhooksPrune':
+      return pruneWebhooks(request.maxRows);
     case 'snapshots':
       return querySnapshotMetas(
         getDbHandle(),
