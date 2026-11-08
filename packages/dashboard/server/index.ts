@@ -209,7 +209,9 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-  log.info(`Client connected: ${socket.id}`);
+  // Debug, not info: a busy night's connect/disconnect chatter otherwise
+  // floods the log stream. `websocketClients` below is the count that matters.
+  log.debug(`Client connected: ${socket.id}`);
   websocketClients.set(io.engine.clientsCount);
 
   if (latestResults) {
@@ -293,7 +295,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    log.info(`Client disconnected: ${socket.id}`);
+    log.debug(`Client disconnected: ${socket.id}`);
     websocketClients.set(io.engine.clientsCount);
   });
 
