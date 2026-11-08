@@ -16,7 +16,7 @@ import { mapWithConcurrency } from '@election-night/core/concurrency';
 import type { DbWorkerClient } from './db-worker-client.js';
 import type { WebhookOutboxRow } from './db.js';
 import { log } from './logger.js';
-import { emitWebhookPublish } from './metrics.js';
+import { emitWebhookPublish, emitWebhookPublishDuration } from './metrics.js';
 import { publishMetrics } from './ws-client.js';
 
 export type WebhookOutboxOptions = {
@@ -73,7 +73,10 @@ export function createWebhookOutbox(
 
       if (res.ok) {
         await client.completeWebhook(row.id, 'delivered');
-        publishMetrics(emitWebhookPublish('success'));
+        publishMetrics([
+          emitWebhookPublish('success'),
+          emitWebhookPublishDuration(seconds, 'success'),
+        ]);
         log.info(
           `Webhook ${row.event} for revision ${row.revision ?? 'legacy'} delivered after ${row.attempts} attempt(s) (${seconds.toFixed(1)}s)`
         );
@@ -85,7 +88,10 @@ export function createWebhookOutbox(
         await client.completeWebhook(row.id, 'dead', {
           error: `HTTP ${res.status}`,
         });
-        publishMetrics(emitWebhookPublish('error'));
+        publishMetrics([
+          emitWebhookPublish('error'),
+          emitWebhookPublishDuration(seconds, 'error'),
+        ]);
         log.error(
           `Webhook ${row.event} for revision ${row.revision ?? 'legacy'} dead-lettered after HTTP ${res.status} (attempt ${row.attempts})`
         );
@@ -97,16 +103,23 @@ export function createWebhookOutbox(
         nextAttemptAt: new Date(Date.now() + delay).toISOString(),
         error: `HTTP ${res.status}`,
       });
-      publishMetrics(emitWebhookPublish('error'));
+      publishMetrics([
+        emitWebhookPublish('error'),
+        emitWebhookPublishDuration(seconds, 'error'),
+      ]);
       log.warn(
         `Webhook ${row.event} got HTTP ${res.status}; retrying in ${Math.round(delay / 1000)}s (attempt ${row.attempts}/${maxAttempts})`
       );
     } catch (err) {
       if (stopped) return;
+      const seconds = (performance.now() - startedAt) / 1000;
       const message = err instanceof Error ? err.message : String(err);
       if (row.attempts >= maxAttempts) {
         await client.completeWebhook(row.id, 'dead', { error: message });
-        publishMetrics(emitWebhookPublish('error'));
+        publishMetrics([
+          emitWebhookPublish('error'),
+          emitWebhookPublishDuration(seconds, 'error'),
+        ]);
         log.error(
           `Webhook ${row.event} dead-lettered after ${row.attempts} attempts: ${message}`
         );
@@ -117,7 +130,10 @@ export function createWebhookOutbox(
         nextAttemptAt: new Date(Date.now() + delay).toISOString(),
         error: message,
       });
-      publishMetrics(emitWebhookPublish('error'));
+      publishMetrics([
+        emitWebhookPublish('error'),
+        emitWebhookPublishDuration(seconds, 'error'),
+      ]);
       log.warn(
         `Webhook ${row.event} failed (${message}); retrying in ${Math.round(delay / 1000)}s (attempt ${row.attempts}/${maxAttempts})`
       );

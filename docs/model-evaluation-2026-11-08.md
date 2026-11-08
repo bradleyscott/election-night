@@ -1,8 +1,8 @@
 # Seat-probability evaluation, 2026-11-08
 
-Task 10's offline report. It is deterministic: the replay order, checkpoints and
-strengths are fixed, and the report is written with a version and the model
-inputs it used.
+The offline report for the versioned probability model. It is deterministic:
+the replay order, checkpoints and strengths are fixed, and the report is written
+with a version and the model inputs it used.
 
 ## Produce it
 
@@ -43,7 +43,7 @@ The report includes `version`, `generatedAt`, `year`, `checkpoints`,
 - 2023 is the archive used here. This is not a final-result or special-vote
   calibration.
 - The specials evidence in `docs/seat-probability-model.md` §4 is marked
-  **unverified, pending regeneration** after the Task 04 parser repair.
+  **unverified, pending regeneration** after the specials parser repair.
   `SPECIALS_SWING_SD` is **not** tuned from this report.
 - No parameter change is proposed. Any change must be recorded separately for
   approval, with the evaluation that supports it.

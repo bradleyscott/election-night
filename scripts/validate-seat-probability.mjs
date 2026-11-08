@@ -346,7 +346,7 @@ const report = {
     'Arrival order is approximated: away-from-home votes are released first, then a deterministic pseudo-random order for a seat’s own places. Advance votes cast inside a seat cannot be separated.',
     'Checkpoints within a seat are correlated; the effective sample is the seat count, not the checkpoint count.',
     'The archive covers 2023 only here; this is not a final-result or special-vote calibration.',
-    'The Task 04 specials evidence is pending regeneration; SPECIALS_SWING_SD is not tuned from this report.',
+    'The specials evidence is pending regeneration; SPECIALS_SWING_SD is not tuned from this report.',
     'No parameter change is proposed by this report.',
   ],
 };

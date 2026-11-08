@@ -12,7 +12,7 @@ import type { RuntimeConfig } from '@election-night/core/polls-close';
  * request, so a test that restubs `fetch` and a visitor who reloads both see a
  * fresh answer.
  *
- * A failure is silent, as it was with `useApi` here: the dateline falls back to
+ * A failure is silent: the dateline falls back to
  * the plain clock and the seat model reports no baseline, which is what the
  * dashboard shows before the first scrape anyway.
  */

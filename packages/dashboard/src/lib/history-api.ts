@@ -1,7 +1,7 @@
 /**
  * The browser's history transport and query hooks.
  *
- * One place owns four policies that used to be spread across `useApi`:
+ * One place owns the four transport policies:
  *
  * - **Deadline.** The body, not just the headers, must arrive within 8s. A
  *   proxy that accepts the connection and then stalls cannot hold a chart open.

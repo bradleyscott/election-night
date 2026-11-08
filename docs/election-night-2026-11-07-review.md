@@ -1,22 +1,23 @@
 # Election-night operational review: 7–8 November 2026
 
 > **Status (2026-11-08): incident findings addressed.** This review records the
-> election-night evidence as observed. The fixes and their regression tests are
-> in `docs/implementation-plan-2026-11-08.md`; read the current architecture
+> election-night evidence as observed. The decisions that came out of it are in
+> `docs/reliability-decisions-2026-11-08.md`; read the current architecture
 > from `AGENTS.md`/`README.md`. The timeline below is historical and is not
 > rewritten.
 
 **Prepared:** 8 November 2026. All narrative times below are **NZDT (UTC+13)**.
 7pm on 7 November is **06:00 UTC on 7 November**, not 07:00 UTC.
 
-This supplements the [architecture review](architecture-review-2026-11-08.md)
+This supplements the [reliability decisions](reliability-decisions-2026-11-08.md)
 with production observations recovered from prior OpenCode sessions, preserved
 tool output, current retained history and Fly release records. No production
 configuration, processes or data were changed during this investigation.
 
-**Implementing agent:** follow the [implementation plan](implementation-plan-2026-11-08.md),
-which is the authoritative ordered task list. This document is the incident/evidence
-record; its R1–R9 references identify findings, not a separate backlog.
+**Implementing agent:** read the
+[reliability decisions](reliability-decisions-2026-11-08.md), which record what
+now binds the code. This document is the incident/evidence record; its R1–R9
+references identify findings, not a separate backlog.
 
 ## Executive summary
 
@@ -308,10 +309,10 @@ version; fixing fresh parsing alone is insufficient. Do not silently narrow the
 model's spread based on the existing “4.75 points” evidence claim. The corrected
 Nelson arithmetic does not validate the cross-seat calibration dataset.
 
-## What changes in the architecture recommendations
+## What the evidence changed
 
-The [implementation plan](implementation-plan-2026-11-08.md) now consolidates
-execution order. The evidence-driven changes behind that order are:
+The [reliability decisions](reliability-decisions-2026-11-08.md) record what was
+kept. At the time, this was the priority order the evidence produced:
 
 - **R3/R6/R2 are the first serving-reliability tranche.** Make degradation visible,
   bound/isolate work and complete refresh recovery. Keep watchdog containment;

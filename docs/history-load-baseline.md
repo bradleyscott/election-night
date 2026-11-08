@@ -1,6 +1,7 @@
 # History read load: baseline, window and budgets
 
-Task 02a of `docs/implementation-plan-2026-11-08.md`. The collector's `/history/*`
+The history read work is part of the reliability decisions recorded in
+`docs/reliability-decisions-2026-11-08.md`. The collector's `/history/*`
 endpoints are read on the same Node event loop that writes SQLite, so a read
 that grows with the retained snapshot count both slows the chart and blocks the
 writer. This records the measured baseline, the grouped replacement, and the
@@ -154,18 +155,18 @@ stopped, not part of the serving path.
 
 ## What this document does not cover
 
-- The worker ownership described above is Task 02b; this document records the
-  read-shape benchmark that justified the grouped queries before it.
-- Durable revisions/latest state (Task 07) and the browser query client/paging
-  consumer (Task 03) landed after these measurements. The numbers here are read
-  latency and statement counts, not end-to-end socket or browser timings.
+- The worker ownership described above is the follow-on change; this document
+  records the read-shape benchmark that justified the grouped queries before it.
+- Durable revisions/latest state and the browser query client/paging consumer
+  landed after these measurements. The numbers here are read latency and
+  statement counts, not end-to-end socket or browser timings.
 - No frontend change was required for the benchmark; the dashboard client now
   follows `X-History-*` paging and treats revision-behind responses as stale.
 
 ## Related storage changes
 
-Task 07 adds a single `latest_state` row per cycle (full payload plus its
-revision) and a nullable revision/model version on snapshots; Task 09 adds
+Migration `0004` adds a single `latest_state` row per cycle (full payload plus
+its revision) and a nullable revision/model version on snapshots; `0005` adds
 `webhook_outbox` with a `(status, next_attempt_at)` due index. None of these
 change the read benchmarks above: latest state is one row, and the outbox is
 written in the same transaction but read only by the delivery loop. History rows

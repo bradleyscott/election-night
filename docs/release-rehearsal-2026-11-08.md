@@ -11,7 +11,7 @@ are required.
 - `npm run bench:history -- --quick` (the full 1,440-snapshot run is reported in
   `docs/history-load-baseline.md`).
 
-Last run: **875 tests / 88 files pass**, lint and typecheck clean, production
+Last run: **767 tests / 88 files pass**, lint and typecheck clean, production
 Vite build succeeds.
 
 ## Scenario matrix
@@ -55,8 +55,8 @@ Vite build succeeds.
 
 ## Not run in this worktree
 
-- Real-browser 360/390px and desktop screenshots (Task 11 is deferred; see
-  `docs/ui-primitives-spike-2026-11-08.md`).
+- Real-browser 360/390px and desktop screenshots (the UI primitive migration is
+  deferred; see `docs/reliability-decisions-2026-11-08.md`).
 - A live Commission feed run. The mock and archive fixtures cover the pipeline.
 - A production deployment/rollback. The instructions above are the rehearsal
   document, not a claim that a Fly rollback was executed here.

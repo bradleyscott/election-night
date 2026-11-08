@@ -31,16 +31,6 @@ export function MockSocketProvider({
   );
 }
 
-export function renderWithProviders(children: ReactNode) {
-  return (
-    <BrowserRouter>
-      <MockSocketProvider>
-        <WinPercentProvider>{children}</WinPercentProvider>
-      </MockSocketProvider>
-    </BrowserRouter>
-  );
-}
-
 export function renderWithProvidersAndData(
   children: ReactNode,
   data: {

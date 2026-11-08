@@ -1,10 +1,6 @@
 import { mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { dirname } from 'path';
-import {
-  WebhookEventType,
-  WebhookPayload,
-  type ElectorateDiff,
-} from '@election-night/core/types';
+import { WebhookPayload } from '@election-night/core/types';
 import {
   computeDiff,
   determineWebhookEvents,
@@ -18,13 +14,8 @@ import {
   readTaggedCache,
   serializeTaggedCache,
 } from '@election-night/core/tagged-cache';
-import { fetchWithRetry } from './retry.js';
-import { publishMetrics } from './ws-client.js';
-import { emitWebhookPublish, emitWebhookPublishDuration } from './metrics.js';
 import { collectorConfig } from './config.js';
 import { log } from './logger.js';
-
-export { computeDiff, determineWebhookEvents };
 
 /**
  * On-disk shape of the diff baseline.
@@ -92,59 +83,6 @@ export function readResults(): ComparableResult[] {
   return cached.items;
 }
 
-export async function sendWebhook(
-  event: WebhookEventType,
-  result: ComparableResult,
-  diff: ElectorateDiff,
-  chanceFor?: (result: ComparableResult) => SeatChance | null
-): Promise<void> {
-  const url = collectorConfig.webhookUrl;
-  if (!url) return;
-
-  const chance = chanceFor?.(result) ?? null;
-  const payload: WebhookPayload = {
-    event,
-    timestamp: Date.now(),
-    electorateName: result.electorateName,
-    result,
-    diff,
-    probability: chance?.state === 'counting' ? chance.probability : null,
-    // Same gate as `probability`: without a modelled seat there is no expected
-    // total, so there is no honest progress to report.
-    progress: chance?.state === 'counting' ? chance.progress : null,
-  };
-
-  const startedAt = performance.now();
-  try {
-    await fetchWithRetry(
-      url,
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      },
-      { maxAttempts: 3, baseDelayMs: 500 }
-    );
-    const seconds = (performance.now() - startedAt) / 1000;
-    publishMetrics([
-      emitWebhookPublish('success'),
-      emitWebhookPublishDuration(seconds, 'success'),
-    ]);
-  } catch (e) {
-    const seconds = (performance.now() - startedAt) / 1000;
-    publishMetrics([
-      emitWebhookPublish('error'),
-      emitWebhookPublishDuration(seconds, 'error'),
-    ]);
-    log.error(
-      `Webhook POST failed for ${event} on ${result.electorateName} after retries`,
-      e
-    );
-  }
-}
-
 /**
  * Build the webhook announcements for this result, without sending them.
  *
@@ -196,46 +134,4 @@ export function buildWebhookPayloads(
     }
   }
   return payloads;
-}
-
-/**
- * Compare current results against the cached previous results and fire a
- * webhook for each event type that triggered per electorate.
- *
- * Call this *before* calling `cacheResults()` so the cached snapshot still
- * represents the previous cycle for comparison.
- */
-export async function processResults(
-  currentResults: ComparableResult[],
-  chanceFor?: (result: ComparableResult) => SeatChance | null
-): Promise<void> {
-  const cachedResults = readResults();
-  const cacheMap = new Map(cachedResults.map((r) => [r.electorateName, r]));
-
-  // A seat is "called" on the same rule the feed uses, so a subscriber that
-  // reads both is told about the same event twice, not two different ones.
-  const called = (result: ComparableResult | null): boolean => {
-    if (!result || !chanceFor) return false;
-    const chance = chanceFor(result);
-    return chance?.state === 'counting' && chance.probability >= CALL_THRESHOLD;
-  };
-
-  const promises: Promise<void>[] = [];
-
-  for (const result of currentResults) {
-    const previous = cacheMap.get(result.electorateName) ?? null;
-    const diff = computeDiff(previous, result);
-    const events = determineWebhookEvents(
-      diff,
-      chanceFor
-        ? { called: called(result), wasCalled: called(previous) }
-        : undefined
-    );
-
-    for (const event of events) {
-      promises.push(sendWebhook(event, result, diff, chanceFor));
-    }
-  }
-
-  await Promise.all(promises);
 }

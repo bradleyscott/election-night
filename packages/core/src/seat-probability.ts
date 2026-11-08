@@ -31,21 +31,9 @@ import type { VotingResults } from './types.js';
  *     outstanding vote and from how far seats typically stray from a uniform
  *     swing (`tau`). The probability is that distribution's mass above zero.
  *
- * Two constants are measured from the archive rather than assumed, and they
- * are the part most worth re-checking before a cycle.
+ * The turnout and night-share figures this rests on are measured from the
+ * archive, which is why they are kept per cycle rather than as one constant.
  */
-
-/**
- * Ordinary votes counted on election night, as a share of every vote
- * eventually counted. 2023: 2,244,380 preliminary ordinary votes against
- * 2,867,478 final — 0.783. 2020 gives ≈0.821, 2017 ≈0.838: specials have grown
- * every cycle (17.2% → 17.4% → 21.0%), so the night delivers less of the result
- * each time and this cannot be one number for all cycles.
- */
-export const NIGHT_SHARE_OF_FINAL = 0.783;
-
-/** Final turnout as a share of enrolled electors, 2023: 77.7%. */
-export const FINAL_TURNOUT = 0.777;
 
 /**
  * What a night looked like, per cycle.
@@ -55,6 +43,9 @@ export const FINAL_TURNOUT = 0.777;
  * `total_votes_cast` reconciles with it. The three cycles differ enough to
  * matter: using 2023's `nightShare` on a 2017 night would understate the vote
  * still to come by roughly 7%, and the error goes straight into `progress`.
+ * Specials grew from 17.2% to 21.0% between 2017 and 2023 (the preliminary
+ * 2026 estimate is 14.1%), so the night delivers less of the result each time
+ * and this cannot be one number for all cycles.
  */
 export type CycleConstants = {
   year: number;

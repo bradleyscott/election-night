@@ -342,6 +342,8 @@ Two consequences worth knowing:
 
 - A call that is later withdrawn and re-called lights the lamp and says the seat
   twice, because both crossings are `prediction_changed`.
-- Nothing is durable on the collector side. If Home Assistant is unreachable the
-  webhook is retried three times (`sendWebhook`, 500ms base delay) and then
-  dropped; the lamp and the announcement simply miss that seat.
+- Nothing is dropped quietly. Announcements are committed with the snapshot and
+  delivered by the collector's outbox, which retries `429`/`5xx`/network
+  failures with backoff and dead-letters a permanent `4xx` or an exhausted
+  budget; the lamp and the announcement therefore miss a seat only after a
+  recorded failure.

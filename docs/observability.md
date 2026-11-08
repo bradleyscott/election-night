@@ -273,9 +273,9 @@ collector (:3459)         ─┘
   server handle (so it can be closed in tests).
 - `packages/collector/src/scrape-cycle.ts` — per-fetch duration/error
   classification (`classifyFetchError`), retry count, and votes/reporting gauges.
-- `packages/collector/src/results.ts`, `index.ts` — webhook duration and
-  snapshot-write/db-write timing, plus a disk sample (`recordDiskUsage`) at the
-  start of each cycle.
+- `packages/collector/src/webhook-outbox.ts`, `index.ts` — webhook delivery
+  count and duration, snapshot-write/db-write timing, plus a disk sample
+  (`recordDiskUsage`) at the start of each cycle.
 - `packages/collector/src/db.ts` — `pruneSnapshots()`: `RETENTION_HOURS` of
   snapshots are kept (24 by default, `0` disables), pruned in batches of 100
   with a WAL checkpoint between them so a nearly-full volume can still make
