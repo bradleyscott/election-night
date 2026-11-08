@@ -1,11 +1,9 @@
 # History read load: baseline, window and budgets
 
-The history read work is part of the reliability decisions recorded in
-`docs/reliability-decisions-2026-11-08.md`. The collector's `/history/*`
-endpoints are read on the same Node event loop that writes SQLite, so a read
-that grows with the retained snapshot count both slows the chart and blocks the
-writer. This records the measured baseline, the grouped replacement, and the
-bounds that stop one request scanning an unbounded table.
+The collector's `/history/*` endpoints are read on the same Node event loop that
+writes SQLite, so a read that grows with the retained snapshot count both slows
+the chart and blocks the writer. This records the measured baseline, the grouped
+replacement, and the bounds that stop one request scanning an unbounded table.
 
 ## Workload
 

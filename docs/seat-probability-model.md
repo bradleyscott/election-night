@@ -430,8 +430,7 @@ seat band, `countProgress` and the official/unknown phase use:
 The UI labels follow that contract: `Voting places reported`, `Counted`,
 `Margin`, `Estimated ordinary votes remaining tonight`, `Estimated specials to
 be counted later`, `Ordinary count complete` and `Election-night count
-complete`. See `docs/model-evaluation-2026-11-08.md` for the evaluation report
-and its limits.
+complete`.
 
 ## Constants
 
