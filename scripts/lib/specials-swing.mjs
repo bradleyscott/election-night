@@ -12,18 +12,58 @@
  * data rows are read at those indexes.
  */
 
+/**
+ * Strip every tag from a cell, then remove any angle bracket left behind.
+ *
+ * The loop is deliberate: one pass over `<[^>]*>` can reassemble a tag from a
+ * partial construct. Removing `<` and `>` after the loop means no tag can be
+ * rebuilt from the result at all. The source is the Commission's archived
+ * HTML, not user input, but the parser should not depend on that.
+ */
+export function stripTags(text) {
+  let out = text;
+  let previous;
+  do {
+    previous = out;
+    out = out.replace(/<[^>]*>/g, '');
+  } while (out !== previous);
+  return out.replace(/[<>]/g, '');
+}
+
+/**
+ * Remove one element type and its contents by scanning, not by a regex. The
+ * archived pages can contain script/style blocks whose text is not a cell; a
+ * regex over nested markup is exactly the kind of incomplete sanitisation that
+ * leaves a fragment behind.
+ */
+function removeTagBlocks(html, tag) {
+  const open = `<${tag.toLowerCase()}`;
+  const close = `</${tag.toLowerCase()}`;
+  let out = html;
+  for (;;) {
+    const lower = out.toLowerCase();
+    const start = lower.indexOf(open);
+    if (start === -1) return out;
+    const closeStart = lower.indexOf(close, start);
+    if (closeStart === -1) return out.slice(0, start);
+    const closeEnd = lower.indexOf('>', closeStart);
+    out =
+      out.slice(0, start) + (closeEnd === -1 ? '' : out.slice(closeEnd + 1));
+  }
+}
+
 /** A page's `<tr>`s, each as an array of trimmed, tag-stripped cell strings. */
 export function rows(html) {
-  const body = html
-    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '')
-    .replace(/&nbsp;/g, ' ');
+  const body = removeTagBlocks(
+    removeTagBlocks(html, 'script'),
+    'style'
+  ).replace(/&nbsp;/g, ' ');
   const out = [];
   for (const raw of body.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) ?? []) {
     const cells = [];
     for (const cell of raw.match(/<t[hd]\b[^>]*>[\s\S]*?<\/t[hd]>/gi) ?? []) {
       cells.push(
-        cell
-          .replace(/<[^>]+>/g, '')
+        stripTags(cell)
           .replace(/&amp;/g, '&')
           .replace(/&[a-z]+;/g, ' ')
           .replace(/\s+/g, ' ')
