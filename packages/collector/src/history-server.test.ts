@@ -214,6 +214,26 @@ describe('history-server', () => {
     expect(res.status).toBe(404);
   });
 
+  test('serves the authoritative latest payload with its revision', async () => {
+    await start('2026');
+    const res = await fetch(`${baseUrl}/history/latest`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-election-revision')).toBe('2');
+    const body = (await res.json()) as {
+      revision: number;
+      payload: {
+        electorateResults: unknown[];
+        partyVote: unknown[];
+        partyLists: unknown[];
+      };
+    };
+    expect(body.revision).toBe(2);
+    expect(body.payload.electorateResults.length).toBeGreaterThan(0);
+    expect(Array.isArray(body.payload.partyVote)).toBe(true);
+    expect(Array.isArray(body.payload.partyLists)).toBe(true);
+  });
+
   describe('results service routes', () => {
     const priorWinners: PriorWinnersResponse = {
       currentYear: '2026',
@@ -415,6 +435,7 @@ describe('history-server worker reader', () => {
     const empty = async () => ({ rows: [], total: 0 });
     return {
       snapshots: empty,
+      latest: async () => null,
       electorate: empty,
       partyVotes: empty,
       ...overrides,
@@ -450,6 +471,8 @@ describe('history-server worker reader', () => {
     electionYear: '2026',
     startedAt: '2026-11-07T07:00:00.000Z',
     completedAt: null,
+    revision: 1,
+    modelVersion: 1,
   };
 
   test('serves a page from the worker with the same array body and headers', async () => {
@@ -497,6 +520,27 @@ describe('history-server worker reader', () => {
     const res = await fetch(`${baseUrl}/history/snapshots?limit=0`);
     expect(res.status).toBe(400);
     expect(called).toBe(0);
+  });
+
+  test('serves the latest state from the worker reader', async () => {
+    const latest = {
+      electionYear: '2026',
+      revision: 4,
+      payload: { electorateResults: [], partyVote: [], partyLists: [] },
+      source: 'NZ Election XML Feed',
+      observedAt: '2026-11-07T07:00:00.000Z',
+      phase: 'counting',
+      coverage: null,
+      modelVersion: 1,
+      configVersion: '2026',
+      updatedAt: '2026-11-07T07:00:01.000Z',
+    };
+    await start(reader({ latest: async () => latest }));
+
+    const res = await fetch(`${baseUrl}/history/latest`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-election-revision')).toBe('4');
+    await expect(res.json()).resolves.toMatchObject({ revision: 4 });
   });
 
   test('503s when no year is configured and none is requested', async () => {

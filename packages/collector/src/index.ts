@@ -30,6 +30,7 @@ import { createHistoryHandler, closeHistoryDb } from './history-server.js';
 import { VotingPlaceStatusService } from './voting-place-status.js';
 import { loadNotionalBaseline } from './notional-baseline.js';
 import { chanceLookupFor } from '@election-night/core/notional-baseline';
+import { COUNT_SUMMARY_VERSION } from '@election-night/core/count-summary';
 
 if (process.argv[2] === 'clear') {
   const { runClear } = await import('./clear.js');
@@ -223,6 +224,18 @@ async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
       partyVote: payload.partyVote,
       partyLists: payload.partyLists,
       electionYear: collectorConfig.electionYear,
+      publicationKey: outcome.publicationKey,
+      source: health.source,
+      observedAt: new Date(
+        health.lastCycleStartedAt ?? Date.now()
+      ).toISOString(),
+      phase: 'counting',
+      coverage: {
+        seats: payload.electorateResults.length,
+        counts: outcome.counts,
+      },
+      modelVersion: COUNT_SUMMARY_VERSION,
+      configVersion: collectorConfig.electionYear,
       // The worker cannot receive the lookup function; compute the same
       // progress here and send plain numbers.
       progressByElectorate: Object.fromEntries(
@@ -338,6 +351,26 @@ async function runOnce(current: ElectionSource): Promise<void> {
     // preloads it, and a stale cache from an earlier shape must not outlive the
     // first good scrape) but keep the zero count out of history and the feed.
     if (votesCounted === 0) {
+      // The zero ballot is durable latest state, not count history: a restart
+      // with the feed down must still know the parties, lists and seats.
+      await dbWorker.writeLatest({
+        results: payload.electorateResults,
+        partyVote: payload.partyVote,
+        partyLists: payload.partyLists,
+        electionYear: collectorConfig.electionYear,
+        publicationKey: outcome.publicationKey,
+        source: health.source,
+        observedAt: new Date(
+          health.lastCycleStartedAt ?? Date.now()
+        ).toISOString(),
+        phase: 'unknown',
+        coverage: {
+          seats: payload.electorateResults.length,
+          counts: outcome.counts,
+        },
+        modelVersion: COUNT_SUMMARY_VERSION,
+        configVersion: collectorConfig.electionYear,
+      });
       cacheResults(payload.electorateResults);
       health.cacheYear = cacheCycle();
       resultsService.setLiveResults(payload);

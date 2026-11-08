@@ -7,6 +7,7 @@ import {
   DEFAULT_HISTORY_MAX_SNAPSHOTS,
   DEFAULT_HISTORY_WINDOW_HOURS,
   queryElectorateHistory,
+  queryLatestState,
   queryPartyVoteHistory,
   querySnapshotMetas,
   type HistoryPageRequest,
@@ -160,9 +161,11 @@ export function parseHistoryPaging(
 ): PagingParse {
   const rawLimit = params.get('limit');
   const rawOffset = params.get('offset');
+  const rawSince = params.get('sinceRevision');
 
   let limit = options.maxSnapshots;
   let offset = 0;
+  let sinceRevision: number | undefined;
 
   if (rawLimit !== null) {
     if (!/^\d+$/.test(rawLimit)) {
@@ -184,10 +187,25 @@ export function parseHistoryPaging(
     offset = Number(rawOffset);
   }
 
+  if (rawSince !== null) {
+    if (!/^\d+$/.test(rawSince)) {
+      return {
+        ok: false,
+        error: 'sinceRevision must be a non-negative integer',
+      };
+    }
+    sinceRevision = Number(rawSince);
+  }
+
   return {
     ok: true,
     paging: {
-      request: { windowHours: options.windowHours, limit, offset },
+      request: {
+        windowHours: options.windowHours,
+        limit,
+        offset,
+        sinceRevision,
+      },
       explicit: rawLimit !== null || rawOffset !== null,
       maxSnapshots: options.maxSnapshots,
     },
@@ -219,6 +237,12 @@ function sendPage<T>(
   paging: HistoryPaging
 ): void {
   const headers = pageHeaders(page.total, paging);
+  const revisions = page.rows
+    .map((row) => (row as { revision?: number | null }).revision)
+    .filter((value): value is number => typeof value === 'number');
+  if (revisions.length > 0) {
+    headers['x-history-revision'] = String(Math.max(...revisions));
+  }
   if (!paging.explicit && page.total > paging.maxSnapshots) {
     sendJson(
       res,
@@ -276,6 +300,18 @@ async function serveReaderRoutes(
   const paging = parsedPaging.paging;
 
   try {
+    if (pathname === '/history/latest') {
+      const latest = await reader.latest(year);
+      if (!latest) {
+        sendJson(res, { error: 'no latest state' }, 404);
+        return true;
+      }
+      sendJson(res, latest, 200, {
+        'x-election-revision': String(latest.revision),
+      });
+      return true;
+    }
+
     if (pathname === '/history/snapshots') {
       sendPage(res, await reader.snapshots(year, paging.request), paging);
       return true;
@@ -430,6 +466,21 @@ export function createHistoryHandler(
 
     const requestedYear = params.get('year');
     const year = resolveElectionYear(handle, requestedYear, electionYear);
+    if (pathname === '/history/latest') {
+      if (!year) {
+        sendJson(res, { error: 'no latest state' }, 404);
+        return true;
+      }
+      const latest = queryLatestState(handle, year);
+      if (!latest) {
+        sendJson(res, { error: 'no latest state' }, 404);
+        return true;
+      }
+      sendJson(res, latest, 200, {
+        'x-election-revision': String(latest.revision),
+      });
+      return true;
+    }
     if (!year) {
       sendJson(res, [], 200, {
         'x-history-total': '0',

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'http';
 import type {
   ElectorateHistoryPoint,
+  LatestStateRow,
   PartyVoteHistoryPoint,
   PriorWinnersResponse,
   ResultsForYear,
@@ -72,6 +73,7 @@ function fakeSource(overrides: Partial<HistorySource> = {}): HistorySource {
     });
   return {
     snapshotMetas: async () => read([]),
+    latest: async () => read<LatestStateRow>(null),
     electorateHistory: async () => read<ElectorateHistoryPoint[]>([]),
     partyVoteHistory: async () => read<PartyVoteHistoryPoint[]>([]),
     priorWinners: async () => unavailable<PriorWinnersResponse>(),
@@ -128,6 +130,34 @@ async function call(
 const ISO_VERIFIED = new Date(1_700_000_000_000).toISOString();
 
 describe('history API responses', () => {
+  it('returns the latest authoritative payload', async () => {
+    const latest = {
+      electionYear: '2026',
+      revision: 3,
+      payload: { electorateResults: [], partyVote: [], partyLists: [] },
+      source: null,
+      observedAt: null,
+      phase: 'counting',
+      coverage: null,
+      modelVersion: 1,
+      configVersion: '2026',
+      updatedAt: '2026-11-07T07:00:01.000Z',
+    };
+    const { captured } = await call(
+      '/api/history/latest',
+      fakeSource({ latest: async () => read(latest) })
+    );
+
+    expect(captured.status).toBe(200);
+    expect(JSON.parse(captured.body)).toMatchObject({ revision: 3 });
+    expect(captured.headers['cache-control']).toBe('no-store');
+  });
+
+  it('returns 404 before the first commit', async () => {
+    const { captured } = await call('/api/history/latest', fakeSource());
+    expect(captured.status).toBe(404);
+  });
+
   it('returns a verified array body and headers for party history', async () => {
     const { handled, captured } = await call(
       '/api/history/party-votes',

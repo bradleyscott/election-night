@@ -26,6 +26,7 @@
 
 import type {
   ElectorateHistoryPoint,
+  LatestStateRow,
   PartyVoteHistoryPoint,
   PriorWinnersResponse,
   ResultsForYear,
@@ -42,6 +43,7 @@ import {
 
 export type {
   ElectorateHistoryPoint,
+  LatestStateRow,
   PartyVoteHistoryPoint,
   PriorWinnersResponse,
   ResultsForYear,
@@ -81,6 +83,8 @@ export interface HistoryRead<T> {
 
 export interface HistorySource {
   snapshotMetas(): Promise<HistoryRead<SnapshotMeta[]>>;
+  /** The authoritative latest payload and revision, or a verified absence. */
+  latest(): Promise<HistoryRead<LatestStateRow>>;
   electorateHistory(
     name: string
   ): Promise<HistoryRead<ElectorateHistoryPoint[]>>;
@@ -289,6 +293,10 @@ export function createHistorySource(options: {
   return {
     snapshotMetas: () =>
       read<SnapshotMeta[]>('/history/snapshots', '/history/snapshots'),
+    latest: () =>
+      read<LatestStateRow>('/history/latest', '/history/latest', {
+        allowMissing: true,
+      }),
     electorateHistory: (name) =>
       read<ElectorateHistoryPoint[]>(
         `/history/electorate/${encodeURIComponent(name)}`,

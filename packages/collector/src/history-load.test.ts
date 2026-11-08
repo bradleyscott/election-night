@@ -153,6 +153,7 @@ function legacyElectorateHistory(
     .prepare(
       `SELECT ss.id AS snapshotId, ss.election_year AS electionYear,
               ss.started_at AS startedAt, ss.completed_at AS completedAt,
+              ss.revision AS revision, ss.model_version AS modelVersion,
               es.votes_counted AS votesCounted, es.vote_pct_counted AS votePctCounted,
               es.leading_candidate AS leadingCandidate, es.leading_party AS leadingParty,
               es.margin AS margin, es.margin_pct AS marginPct

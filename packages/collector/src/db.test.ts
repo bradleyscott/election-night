@@ -450,6 +450,197 @@ describe('compaction', () => {
     conn.close();
   });
 
+  test('assigns a cycle revision and stores the full latest payload', async () => {
+    const { writeResults } = await import('./db.js');
+    writeResults([makeResult()], [makePartyVote()], [makePartyList()], '2026');
+    writeResults([makeResult()], [makePartyVote()], [makePartyList()], '2026');
+
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const snapshots = conn
+      .prepare('select revision from scrape_snapshots order by id')
+      .all() as { revision: number }[];
+    const latest = conn
+      .prepare(
+        "select revision, payload from latest_state where election_year = '2026'"
+      )
+      .get() as { revision: number; payload: string };
+    conn.close();
+
+    expect(snapshots.map((row) => row.revision)).toEqual([1, 2]);
+    expect(latest.revision).toBe(2);
+    const payload = JSON.parse(latest.payload);
+    // The latest state carries all three collections, not just electorates.
+    expect(payload.electorateResults).toHaveLength(1);
+    expect(payload.partyVote).toHaveLength(1);
+    expect(payload.partyLists).toHaveLength(1);
+  });
+
+  test('a retry with the same publication key writes no second snapshot', async () => {
+    const { writeSnapshot } = await import('./db.js');
+    const write = {
+      results: [makeResult()],
+      partyVote: [makePartyVote()],
+      partyLists: [makePartyList()],
+      electionYear: '2026',
+      progressByElectorate: { 'Test Electorate': 0.8 },
+      publicationKey: 'retry-1',
+    };
+
+    const first = writeSnapshot(write);
+    const second = writeSnapshot(write);
+
+    expect(second).toBe(first);
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const count = (
+      conn.prepare('select count(*) c from scrape_snapshots').get() as {
+        c: number;
+      }
+    ).c;
+    const latest = conn
+      .prepare("select revision from latest_state where election_year = '2026'")
+      .get() as { revision: number };
+    conn.close();
+
+    expect(count).toBe(1);
+    expect(latest.revision).toBe(1);
+  });
+
+  test('a correction A to B to A gets three distinct revisions', async () => {
+    const { writeSnapshot } = await import('./db.js');
+    const base = {
+      partyVote: [makePartyVote()],
+      partyLists: [],
+      electionYear: '2026',
+      progressByElectorate: {},
+    };
+    const a1 = writeSnapshot({
+      ...base,
+      results: [makeResult({ votesCounted: 1_000 })],
+      publicationKey: 'a-1',
+    });
+    const b = writeSnapshot({
+      ...base,
+      results: [makeResult({ votesCounted: 2_000 })],
+      publicationKey: 'b-1',
+    });
+    const a2 = writeSnapshot({
+      ...base,
+      results: [makeResult({ votesCounted: 1_000 })],
+      publicationKey: 'a-2',
+    });
+
+    expect(new Set([a1, b, a2]).size).toBe(3);
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const revisions = (
+      conn
+        .prepare('select revision from scrape_snapshots order by id')
+        .all() as { revision: number }[]
+    ).map((row) => row.revision);
+    const latest = conn
+      .prepare(
+        "select revision, payload from latest_state where election_year = '2026'"
+      )
+      .get() as { revision: number; payload: string };
+    conn.close();
+
+    expect(revisions).toEqual([1, 2, 3]);
+    expect(latest.revision).toBe(3);
+    expect(JSON.parse(latest.payload).electorateResults[0].votesCounted).toBe(
+      1_000
+    );
+  });
+
+  test('a zero ballot persists latest state but adds no count snapshot', async () => {
+    const { writeLatestState } = await import('./db.js');
+    const zero = {
+      results: [
+        makeResult({ votesCounted: 0, candidateVotes: [], partyVotes: [] }),
+      ],
+      partyVote: [makePartyVote()],
+      partyLists: [makePartyList()],
+      electionYear: '2026',
+      publicationKey: 'zero-1',
+    };
+
+    expect(writeLatestState(zero)).toBe(1);
+    // The same key is idempotent: no second revision.
+    expect(writeLatestState(zero)).toBe(1);
+
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const snapshots = (
+      conn.prepare('select count(*) c from scrape_snapshots').get() as {
+        c: number;
+      }
+    ).c;
+    const latest = conn
+      .prepare(
+        "select revision, payload from latest_state where election_year = '2026'"
+      )
+      .get() as { revision: number; payload: string };
+    conn.close();
+
+    expect(snapshots).toBe(0);
+    expect(latest.revision).toBe(1);
+    expect(JSON.parse(latest.payload).partyLists).toHaveLength(1);
+  });
+
+  test('a failed write rolls the snapshot and latest state back together', async () => {
+    const { writeSnapshot } = await import('./db.js');
+    const before = 0;
+    expect(() =>
+      writeSnapshot({
+        results: [makeResult()],
+        partyVote: [makePartyVote()],
+        // Duplicate primary key inside the transaction.
+        partyLists: [makePartyList(), makePartyList()],
+        electionYear: '2026',
+        progressByElectorate: {},
+        publicationKey: 'rollback-1',
+      })
+    ).toThrow();
+
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const snapshots = (
+      conn.prepare('select count(*) c from scrape_snapshots').get() as {
+        c: number;
+      }
+    ).c;
+    const latest = conn
+      .prepare(
+        "select count(*) c from latest_state where election_year = '2026'"
+      )
+      .get() as { c: number };
+    conn.close();
+
+    expect(snapshots).toBe(before);
+    expect(latest.c).toBe(0);
+  });
+
+  test('keeps revisions separate per cycle', async () => {
+    const { writeResults } = await import('./db.js');
+    writeResults([makeResult()], [], [], '2023');
+    writeResults([makeResult()], [], [], '2026');
+
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    const rows = conn
+      .prepare(
+        'select election_year, revision from latest_state order by election_year'
+      )
+      .all() as { election_year: string; revision: number }[];
+    conn.close();
+
+    expect(rows).toEqual([
+      { election_year: '2023', revision: 1 },
+      { election_year: '2026', revision: 1 },
+    ]);
+  });
+
   test('returns freed pages to the filesystem after a prune', async () => {
     const { writeResults, pruneSnapshots, compactDatabase } =
       await import('./db.js');

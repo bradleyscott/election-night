@@ -6,6 +6,24 @@
 
 import type { ResultsPayload } from './types.js';
 
+/**
+ * `GET /history/latest` — the authoritative full payload for a cycle, at a
+ * cycle-scoped revision. Persisted with the snapshot write, so a dashboard
+ * restart with the feed down can recover electorates, parties and lists.
+ */
+export type LatestStateRow = {
+  electionYear: string;
+  revision: number;
+  payload: ResultsPayload;
+  source: string | null;
+  observedAt: string | null;
+  phase: string | null;
+  coverage: unknown;
+  modelVersion: number | null;
+  configVersion: string | null;
+  updatedAt: string;
+};
+
 /** A single candidate's vote data within a history snapshot */
 export type CandidateSnapshot = {
   candidate: string;
@@ -34,6 +52,10 @@ export type ElectorateHistoryPoint = {
 
   candidates: CandidateSnapshot[];
   partyVotes: PartyVoteSnapshot[];
+  /** Committed cycle revision; null for legacy rows. */
+  revision?: number | null;
+  /** Count-summary/model basis; null when the point predates versioning. */
+  modelVersion?: number | null;
 };
 
 /** One party's data within a history snapshot */
@@ -53,6 +75,10 @@ export type PartyVoteHistoryPoint = {
   votesCounted: number;
   votePctCounted: number;
   parties: PartyVoteEntry[];
+  /** Committed cycle revision; null for legacy rows. */
+  revision?: number | null;
+  /** Count-summary/model basis; null when the point predates versioning. */
+  modelVersion?: number | null;
 };
 
 /** Snapshot metadata */
@@ -60,6 +86,10 @@ export type SnapshotMeta = {
   snapshotId: number;
   startedAt: string;
   completedAt: string | null;
+  /** Committed cycle revision; null for legacy rows. */
+  revision?: number | null;
+  /** Count-summary/model basis; null when the point predates versioning. */
+  modelVersion?: number | null;
 };
 
 /**

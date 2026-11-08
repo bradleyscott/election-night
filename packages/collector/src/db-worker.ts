@@ -20,10 +20,12 @@ import {
   getDbHandle,
   openDb,
   pruneSnapshots,
+  writeLatestState,
   writeSnapshot,
 } from './db.js';
 import {
   queryElectorateHistory,
+  queryLatestState,
   queryPartyVoteHistory,
   querySnapshotMetas,
 } from './history-queries.js';
@@ -45,6 +47,10 @@ function handle(request: DbRequest): unknown {
       return null;
     case 'write':
       return writeSnapshot(request.snapshot);
+    case 'writeLatest':
+      return writeLatestState(request.write);
+    case 'latest':
+      return queryLatestState(getDbHandle(), request.electionYear);
     case 'prune':
       return pruneSnapshots(request.keepHours);
     case 'compact':

@@ -261,7 +261,11 @@ describe('a quiet feed', () => {
 
       const health = await waitForCycles(healthPort, 3);
       expect(String(health.lastError), stderr()).toContain('cache-parent');
-      expect(await snapshotCount(healthPort)).toBeGreaterThan(1);
+      // The retry is attempted, but the publication key makes it idempotent:
+      // the snapshot that did commit is not written a second time. The error
+      // staying set is what proves it is still retrying rather than treating
+      // the feed as unchanged.
+      expect(await snapshotCount(healthPort)).toBe(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

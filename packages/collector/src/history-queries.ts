@@ -15,9 +15,11 @@
  */
 
 import type Database from 'better-sqlite3';
+import type { ResultsPayload } from '@election-night/core/types';
 import type {
   CandidateSnapshot,
   ElectorateHistoryPoint,
+  LatestStateRow,
   PartyVoteEntry,
   PartyVoteHistoryPoint,
   PartyVoteSnapshot,
@@ -38,6 +40,8 @@ export interface HistoryPageRequest {
   windowHours: number;
   limit: number;
   offset: number;
+  /** Return only rows whose committed revision is greater than this. */
+  sinceRevision?: number;
 }
 
 export interface HistoryPage<T> {
@@ -46,12 +50,23 @@ export interface HistoryPage<T> {
   total: number;
 }
 
-export type SnapshotMetaRow = SnapshotMeta & { electionYear: string };
+export type { LatestStateRow };
+
+export type SnapshotMetaRow = SnapshotMeta & {
+  electionYear: string;
+  /** Null for legacy rows written before revisions existed. */
+  revision: number | null;
+  modelVersion: number | null;
+};
 export type ElectorateHistoryRow = ElectorateHistoryPoint & {
   electionYear: string;
+  revision: number | null;
+  modelVersion: number | null;
 };
 export type PartyVoteHistoryRow = PartyVoteHistoryPoint & {
   electionYear: string;
+  revision: number | null;
+  modelVersion: number | null;
 };
 
 /**
@@ -64,6 +79,7 @@ export interface HistoryReader {
     electionYear: string,
     page: HistoryPageRequest
   ): Promise<HistoryPage<SnapshotMetaRow>>;
+  latest(electionYear: string): Promise<LatestStateRow | null>;
   electorate(
     name: string,
     electionYear: string,
@@ -102,15 +118,18 @@ export function querySnapshotMetas(
     .prepare(
       `SELECT id AS snapshotId, election_year AS electionYear,
               started_at AS startedAt, completed_at AS completedAt,
+              revision, model_version AS modelVersion,
               COUNT(*) OVER () AS total
        FROM scrape_snapshots
        WHERE election_year = ? AND started_at >= datetime('now', ?)
+         ${page.sinceRevision != null ? 'AND revision > ?' : ''}
        ORDER BY started_at ASC
        LIMIT ? OFFSET ?`
     )
     .all(
       electionYear,
       windowModifier(page.windowHours),
+      ...(page.sinceRevision != null ? [page.sinceRevision] : []),
       page.limit,
       page.offset
     ) as (SnapshotMetaRow & { total: number })[];
@@ -137,6 +156,8 @@ export function queryElectorateHistory(
               ss.election_year AS electionYear,
               ss.started_at AS startedAt,
               ss.completed_at AS completedAt,
+              ss.revision AS revision,
+              ss.model_version AS modelVersion,
               es.votes_counted AS votesCounted,
               es.vote_pct_counted AS votePctCounted,
               es.leading_candidate AS leadingCandidate,
@@ -148,6 +169,7 @@ export function queryElectorateHistory(
        JOIN electorate_summary es ON es.scrape_id = ss.id
        WHERE es.electorate = ? AND ss.election_year = ?
          AND ss.started_at >= datetime('now', ?)
+         ${page.sinceRevision != null ? 'AND ss.revision > ?' : ''}
        ORDER BY ss.started_at ASC
        LIMIT ? OFFSET ?`
     )
@@ -155,6 +177,7 @@ export function queryElectorateHistory(
       name,
       electionYear,
       windowModifier(page.windowHours),
+      ...(page.sinceRevision != null ? [page.sinceRevision] : []),
       page.limit,
       page.offset
     ) as (Omit<ElectorateHistoryRow, 'candidates' | 'partyVotes'> & {
@@ -220,15 +243,18 @@ export function queryPartyVoteHistory(
     .prepare(
       `SELECT id AS snapshotId, election_year AS electionYear,
               started_at AS startedAt, completed_at AS completedAt,
+              revision, model_version AS modelVersion,
               COUNT(*) OVER () AS total
        FROM scrape_snapshots
        WHERE election_year = ? AND started_at >= datetime('now', ?)
+         ${page.sinceRevision != null ? 'AND revision > ?' : ''}
        ORDER BY started_at ASC
        LIMIT ? OFFSET ?`
     )
     .all(
       electionYear,
       windowModifier(page.windowHours),
+      ...(page.sinceRevision != null ? [page.sinceRevision] : []),
       page.limit,
       page.offset
     ) as (SnapshotMetaRow & { total: number })[];
@@ -288,5 +314,32 @@ export function queryPartyVoteHistory(
       };
     }),
     total: snapshots[0]?.total ?? 0,
+  };
+}
+
+/** The authoritative latest payload for a cycle, or null before the first commit. */
+export function queryLatestState(
+  db: Database.Database,
+  electionYear: string
+): LatestStateRow | null {
+  const row = db
+    .prepare(
+      `SELECT election_year AS electionYear, revision, payload, source,
+              observed_at AS observedAt, phase, coverage,
+              model_version AS modelVersion, config_version AS configVersion,
+              updated_at AS updatedAt
+       FROM latest_state WHERE election_year = ?`
+    )
+    .get(electionYear) as
+    | (Omit<LatestStateRow, 'payload' | 'coverage'> & {
+        payload: string;
+        coverage: string | null;
+      })
+    | undefined;
+  if (!row) return null;
+  return {
+    ...row,
+    payload: JSON.parse(row.payload) as ResultsPayload,
+    coverage: row.coverage ? JSON.parse(row.coverage) : null,
   };
 }

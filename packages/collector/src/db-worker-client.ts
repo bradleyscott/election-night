@@ -27,10 +27,11 @@ import type {
   HistoryPage,
   HistoryPageRequest,
   HistoryReader,
+  LatestStateRow,
   PartyVoteHistoryRow,
   SnapshotMetaRow,
 } from './history-queries.js';
-import type { PruneResult, SnapshotWrite } from './db.js';
+import type { LatestStateWrite, PruneResult, SnapshotWrite } from './db.js';
 
 export class DbUnavailableError extends Error {
   readonly code = 'unavailable';
@@ -68,6 +69,8 @@ const TIMEOUTS: Record<DbRequest['type'], number> = {
   open: 60_000,
   close: 10_000,
   write: 30_000,
+  writeLatest: 30_000,
+  latest: 5_000,
   prune: 60_000,
   compact: 60_000,
   snapshots: 5_000,
@@ -137,6 +140,10 @@ export class DbWorkerClient {
     }
   }
 
+  writeLatest(write: LatestStateWrite): Promise<number> {
+    return this.enqueue<'writeLatest'>({ type: 'writeLatest', write });
+  }
+
   write(snapshot: SnapshotWrite): Promise<number> {
     // Fault-injection harness for the release rehearsal: creating the file
     // makes exactly the next write fail, without a restart. Off unless the
@@ -155,6 +162,10 @@ export class DbWorkerClient {
 
   compact(maxPages?: number): Promise<number> {
     return this.enqueue<'compact'>({ type: 'compact', maxPages });
+  }
+
+  latest(electionYear: string): Promise<LatestStateRow | null> {
+    return this.enqueue<'latest'>({ type: 'latest', electionYear });
   }
 
   snapshots(
@@ -191,6 +202,7 @@ export class DbWorkerClient {
   historyReader(): HistoryReader {
     return {
       snapshots: (year, page) => this.snapshots(year, page),
+      latest: (year) => this.latest(year),
       electorate: (name, year, page) => this.electorate(name, year, page),
       partyVotes: (year, page) => this.partyVotes(year, page),
     };

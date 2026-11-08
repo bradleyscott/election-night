@@ -25,6 +25,20 @@ export const scrapeSnapshots = sqliteTable(
       .notNull()
       .default(sql`(datetime('now'))`),
     completedAt: text('completed_at'),
+    /**
+     * Cycle-scoped publication revision. Nullable for rows written before the
+     * revision existed; those are legacy points and must not be presented as
+     * if their denominator/model basis were known.
+     */
+    revision: integer('revision'),
+    /**
+     * Stable idempotency key chosen once for a result. A retry of the same
+     * pending publication reuses it and cannot insert a second snapshot; a
+     * correction A -> B -> A gets a new key and therefore a new revision.
+     */
+    publicationKey: text('publication_key').unique(),
+    /** Count-summary/model basis stored with the point, null for legacy rows. */
+    modelVersion: integer('model_version'),
   },
   (table) => ({
     /**
@@ -39,6 +53,25 @@ export const scrapeSnapshots = sqliteTable(
     ),
   })
 );
+
+export const latestState = sqliteTable('latest_state', {
+  /** One authoritative latest payload per cycle. */
+  electionYear: text('election_year').primaryKey(),
+  /** Cycle-scoped monotonic revision of the committed payload. */
+  revision: integer('revision').notNull(),
+  /** Idempotency key of the publication that produced this revision. */
+  publicationKey: text('publication_key'),
+  /** The full `ResultsPayload` JSON: electorates, parties and lists. */
+  payload: text('payload').notNull(),
+  source: text('source'),
+  observedAt: text('observed_at'),
+  phase: text('phase'),
+  /** JSON summary of coverage/count facts for diagnostics and the UI. */
+  coverage: text('coverage'),
+  modelVersion: integer('model_version'),
+  configVersion: text('config_version'),
+  updatedAt: text('updated_at').notNull(),
+});
 
 export const electorateResults = sqliteTable(
   'electorate_results',

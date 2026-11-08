@@ -7,11 +7,12 @@
  * is computed on the caller and sent as plain numbers.
  */
 
-import type { SnapshotWrite, PruneResult } from './db.js';
+import type { LatestStateWrite, SnapshotWrite, PruneResult } from './db.js';
 import type {
   ElectorateHistoryRow,
   HistoryPage,
   HistoryPageRequest,
+  LatestStateRow,
   PartyVoteHistoryRow,
   SnapshotMetaRow,
 } from './history-queries.js';
@@ -20,8 +21,10 @@ export type DbRequest =
   | { id: number; type: 'open'; dbPath: string }
   | { id: number; type: 'close' }
   | { id: number; type: 'write'; snapshot: SnapshotWrite }
+  | { id: number; type: 'writeLatest'; write: LatestStateWrite }
   | { id: number; type: 'prune'; keepHours: number }
   | { id: number; type: 'compact'; maxPages?: number }
+  | { id: number; type: 'latest'; electionYear: string }
   | {
       id: number;
       type: 'snapshots';
@@ -55,6 +58,8 @@ export interface DbResultByType {
   open: null;
   close: null;
   write: number;
+  writeLatest: number;
+  latest: LatestStateRow | null;
   prune: PruneResult;
   compact: number;
   snapshots: HistoryPage<SnapshotMetaRow>;

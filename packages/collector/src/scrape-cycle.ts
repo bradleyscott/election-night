@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type {
   ElectorateConfig,
   ElectorateFetchErrorReason,
@@ -70,6 +70,12 @@ export type ScrapeCycleResult = {
   stamps: Map<string, string>;
   /** Digest of the counted facts in `payload`; see `payloadSignature`. */
   signature: string;
+  /**
+   * Stable idempotency key for this result. A commit retry reuses it so the
+   * same publication cannot insert a second snapshot; a new cycle (including
+   * a correction back to an earlier value) gets a new key and revision.
+   */
+  publicationKey: string;
   counts: ScrapeCycleCounts;
 };
 
@@ -453,6 +459,7 @@ export async function scrapeCycle(
     payload,
     stamps,
     signature: payloadSignature(payload),
+    publicationKey: randomUUID(),
     counts,
   };
 }

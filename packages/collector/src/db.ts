@@ -1,4 +1,5 @@
 import { mkdirSync } from 'fs';
+import { randomUUID } from 'node:crypto';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
@@ -60,11 +61,25 @@ export function getDbHandle(): Database.Database {
 /** Per-seat model progress, computed on the caller and sent to the worker. */
 export type ProgressByElectorate = Record<string, number | null>;
 
+/** Metadata stored with a publication, shared by counted and zero ballots. */
+export type PublicationMeta = {
+  /** Stable idempotency key, chosen once per publication. */
+  publicationKey?: string;
+  source?: string | null;
+  observedAt?: string | null;
+  phase?: string | null;
+  /** Count/coverage summary, stored as JSON for diagnostics and the UI. */
+  coverage?: unknown;
+  /** `COUNT_SUMMARY_VERSION`/model basis, null when unknown. */
+  modelVersion?: number | null;
+  configVersion?: string | null;
+};
+
 /**
  * One serialisable snapshot write: everything the worker needs to insert a
  * scrape without carrying a function across the thread boundary.
  */
-export interface SnapshotWrite {
+export interface SnapshotWrite extends PublicationMeta {
   results: ElectorateResult[];
   partyVote: PartyVoteResult[];
   partyLists: PartyListResult[];
@@ -77,17 +92,121 @@ export interface SnapshotWrite {
   progressByElectorate: ProgressByElectorate;
 }
 
-/** Insert a fully prepared snapshot. Returns the new scrape id. */
+/** A zero-vote ballot: durable latest state, but no count-history snapshot. */
+export interface LatestStateWrite extends PublicationMeta {
+  results: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
+  electionYear: string;
+}
+
+function payloadJson(write: {
+  results: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
+}): string {
+  return JSON.stringify({
+    electorateResults: write.results,
+    partyVote: write.partyVote,
+    partyLists: write.partyLists,
+  });
+}
+
+function publicationValues(
+  write: PublicationMeta,
+  electionYear: string,
+  revision: number,
+  payload: string
+) {
+  return {
+    electionYear,
+    revision,
+    publicationKey: write.publicationKey,
+    payload,
+    source: write.source ?? null,
+    observedAt: write.observedAt ?? new Date().toISOString(),
+    phase: write.phase ?? null,
+    coverage:
+      write.coverage === undefined || write.coverage === null
+        ? null
+        : JSON.stringify(write.coverage),
+    modelVersion: write.modelVersion ?? null,
+    configVersion: write.configVersion ?? null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Insert a fully prepared snapshot and its latest state. Returns the scrape id. */
 export function writeSnapshot(write: SnapshotWrite): number {
   const { results, partyVote, partyLists, electionYear, progressByElectorate } =
     write;
+  const publicationKey = write.publicationKey ?? randomUUID();
+  const meta = { ...write, publicationKey };
+  const payload = payloadJson(write);
+
+  // Idempotent retry of the same publication: return the existing snapshot
+  // rather than writing a second one. The latest state is only re-upserted if
+  // this revision is not older than the one already stored.
+  const existing = drizzleDb
+    .select({
+      id: schema.scrapeSnapshots.id,
+      revision: schema.scrapeSnapshots.revision,
+    })
+    .from(schema.scrapeSnapshots)
+    .where(eq(schema.scrapeSnapshots.publicationKey, publicationKey))
+    .get();
+  if (existing) {
+    drizzleDb.transaction((tx) => {
+      const latest = tx
+        .select({ revision: schema.latestState.revision })
+        .from(schema.latestState)
+        .where(eq(schema.latestState.electionYear, electionYear))
+        .get();
+      if (!latest || (existing.revision ?? 0) >= latest.revision) {
+        tx.insert(schema.latestState)
+          .values(
+            publicationValues(
+              meta,
+              electionYear,
+              existing.revision ?? 0,
+              payload
+            )
+          )
+          .onConflictDoUpdate({
+            target: schema.latestState.electionYear,
+            set: publicationValues(
+              meta,
+              electionYear,
+              existing.revision ?? 0,
+              payload
+            ),
+          })
+          .run();
+      }
+    });
+    return existing.id;
+  }
+
   log.info('Writing results to DB...');
 
   let scrapeId = 0;
+  let revision = 0;
   drizzleDb.transaction((tx) => {
+    const latest = tx
+      .select({ revision: schema.latestState.revision })
+      .from(schema.latestState)
+      .where(eq(schema.latestState.electionYear, electionYear))
+      .get();
+    revision = (latest?.revision ?? 0) + 1;
+
     const inserted = tx
       .insert(schema.scrapeSnapshots)
-      .values({ electionYear })
+      .values({
+        electionYear,
+        revision,
+        publicationKey,
+        modelVersion: write.modelVersion ?? null,
+      })
       .returning({ id: schema.scrapeSnapshots.id })
       .get();
     scrapeId = inserted.id;
@@ -173,10 +292,65 @@ export function writeSnapshot(write: SnapshotWrite): number {
       .where(eq(schema.scrapeSnapshots.id, scrapeId))
       .run();
 
-    log.info(`DB write complete (scrape #${scrapeId})`);
+    // The same transaction owns the latest-state row: a committed snapshot
+    // without its authoritative full payload would leave a restart with no
+    // parties/lists, and a latest state ahead of the history would describe a
+    // revision the chart never received.
+    const values = publicationValues(meta, electionYear, revision, payload);
+    tx.insert(schema.latestState)
+      .values(values)
+      .onConflictDoUpdate({
+        target: schema.latestState.electionYear,
+        set: values,
+      })
+      .run();
+
+    log.info(`DB write complete (scrape #${scrapeId}, revision ${revision})`);
   });
 
   return scrapeId;
+}
+
+/**
+ * Persist a zero-vote ballot as durable latest state without adding a count
+ * snapshot. The ballot is what the dashboard needs on boot; it is not history.
+ */
+export function writeLatestState(write: LatestStateWrite): number {
+  const publicationKey = write.publicationKey ?? randomUUID();
+  const meta = { ...write, publicationKey };
+  const payload = payloadJson(write);
+  let revision = 0;
+  drizzleDb.transaction((tx) => {
+    const current = tx
+      .select({
+        revision: schema.latestState.revision,
+        publicationKey: schema.latestState.publicationKey,
+      })
+      .from(schema.latestState)
+      .where(eq(schema.latestState.electionYear, write.electionYear))
+      .get();
+
+    if (current?.publicationKey === publicationKey) {
+      revision = current.revision;
+      return;
+    }
+
+    revision = (current?.revision ?? 0) + 1;
+    const values = publicationValues(
+      meta,
+      write.electionYear,
+      revision,
+      payload
+    );
+    tx.insert(schema.latestState)
+      .values(values)
+      .onConflictDoUpdate({
+        target: schema.latestState.electionYear,
+        set: values,
+      })
+      .run();
+  });
+  return revision;
 }
 
 export function writeResults(

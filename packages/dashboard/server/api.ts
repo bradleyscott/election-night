@@ -108,6 +108,16 @@ export async function serveApi(
     return true;
   }
 
+  // GET /api/history/latest — the authoritative full payload (electorates,
+  // parties and lists) for the cycle. 404 before the first commit.
+  if (pathname === '/api/history/latest') {
+    sendHistory(res, await historySource.latest(), {
+      error: 'latest state unavailable',
+      allowMissing: true,
+    });
+    return true;
+  }
+
   // GET /api/history/party-votes — return party vote totals over time
   if (pathname === '/api/history/party-votes') {
     sendHistory(res, await historySource.partyVoteHistory(), {

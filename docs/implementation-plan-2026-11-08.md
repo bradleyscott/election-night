@@ -55,7 +55,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
 | [x]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
 | [x]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
-| [ ]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
+| [x]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
 | [ ]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
 | [ ]  | **09 — Isolate webhook delivery with a durable outbox**              | P0                           | R4       | 07                                           |
 | [ ]  | **10 — Add explicit result phases and versioned model evaluation**   | P1; final-result safety gate | R7       | 04, 06a, 07                                  |
@@ -463,6 +463,28 @@ denominators are pinned by component tests.
 crash after commit/before notification; restart with the feed down; zero ballot;
 wrong cycle; correction A -> B -> A; old schema migration. Fresh dashboard boot
 must recover all three result collections without waiting for a new feed change.
+
+**Implementation record:** Migration `0004_closed_the_phantom.sql` adds
+`latest_state` (one row per cycle: revision, publication key, full payload,
+source/observed time, phase, coverage, model/config version) and nullable
+`revision`, `publication_key` and `model_version` on `scrape_snapshots`. A
+counted write inserts the snapshot and upserts the latest state in the same
+transaction; the revision is cycle-scoped and monotonic. `ScrapeCycleResult`
+carries a `publicationKey` chosen once, so a retry of the same pending result
+returns the existing snapshot instead of writing a second one, while a
+correction A -> B -> A gets a new key and a third revision. `writeLatestState`
+persists a zero-vote ballot without a count snapshot. `/history/latest` and the
+dashboard proxy `/api/history/latest` expose the authoritative payload;
+`SocketProvider` fetches it on mount and on every socket reconnect and ignores
+a response older than the payload it already holds. History rows now expose
+optional `revision`/`modelVersion` and accept `?sinceRevision=` (bounded by the
+same window/page); legacy rows are null and are not reinterpreted. Tests cover
+two revisions, an idempotent retry, A -> B -> A, zero ballots, transaction
+rollback, per-cycle revisions, the latest endpoints and the browser bootstrap.
+854 tests pass. Deferred: socket payloads do not yet carry a revision, so the
+bootstrap compares commit timestamps rather than revisions (Task 08 adds the
+envelope and revision comparison); the migration is additive and leaves old
+rows untouched.
 
 ### 08 — Acknowledge delivery and coordinate history by revision
 
