@@ -54,6 +54,27 @@ export type PartyVoteHistoryRow = PartyVoteHistoryPoint & {
   electionYear: string;
 };
 
+/**
+ * Async read side of history, implemented by the SQLite worker client in
+ * production and by a direct connection in tests. The handler only needs this
+ * shape, so it does not know which thread owns the database.
+ */
+export interface HistoryReader {
+  snapshots(
+    electionYear: string,
+    page: HistoryPageRequest
+  ): Promise<HistoryPage<SnapshotMetaRow>>;
+  electorate(
+    name: string,
+    electionYear: string,
+    page: HistoryPageRequest
+  ): Promise<HistoryPage<ElectorateHistoryRow>>;
+  partyVotes(
+    electionYear: string,
+    page: HistoryPageRequest
+  ): Promise<HistoryPage<PartyVoteHistoryRow>>;
+}
+
 function windowModifier(windowHours: number): string {
   return `-${Math.max(1, Math.floor(windowHours))} hours`;
 }

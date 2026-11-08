@@ -5,13 +5,7 @@ import type {
   PartyList,
 } from '@election-night/core/types';
 import { log } from './logger.js';
-import {
-  openDb,
-  closeDb,
-  writeResults,
-  pruneSnapshots,
-  compactDatabase,
-} from './db.js';
+import { DbWorkerClient } from './db-worker-client.js';
 import {
   connectWs,
   publishResults,
@@ -54,6 +48,23 @@ const {
 
 /** When the last retention sweep ran; null until the first one. */
 let lastSweepAt: number | null = null;
+
+/**
+ * The thread that owns SQLite. Failures are fatal on purpose: without the
+ * writer the collector can still scrape and publish over Socket.io, which is
+ * exactly the "looks alive, records nothing" state the watchdog exists to
+ * prevent. Exiting lets the entrypoint restart the machine.
+ */
+const dbWorker = new DbWorkerClient({
+  onFatal: (err) => {
+    health.lastError = `database worker failed: ${err.message}`;
+    log.error(
+      'Database worker failed; exiting so the supervisor restarts the collector',
+      err
+    );
+    process.exit(1);
+  },
+});
 
 /**
  * `Last-Modified` per electorate, from the last cycle that observed it.
@@ -256,13 +267,25 @@ async function runOnce(current: ElectionSource): Promise<void> {
 
     const writeStartedAt = performance.now();
     try {
-      writeResults(
-        payload.electorateResults,
-        payload.partyVote,
-        payload.partyLists,
-        collectorConfig.electionYear,
-        liveChanceLookup
-      );
+      await dbWorker.write({
+        results: payload.electorateResults,
+        partyVote: payload.partyVote,
+        partyLists: payload.partyLists,
+        electionYear: collectorConfig.electionYear,
+        // The worker cannot receive the lookup function; compute the same
+        // progress here and send plain numbers.
+        progressByElectorate: Object.fromEntries(
+          payload.electorateResults.map((r) => {
+            const chance = liveChanceLookup?.(r);
+            return [
+              r.electorateName,
+              chance?.state === 'counting'
+                ? Math.min(1, chance.progress)
+                : r.votePercentageCounted,
+            ];
+          })
+        ),
+      });
       publishMetrics(
         emitSnapshotWrite(
           (performance.now() - writeStartedAt) / 1000,
@@ -303,7 +326,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
  * database with a write) and is bounded work: the window only moves forward,
  * so a sweep deletes at most one sweep interval's worth of snapshots.
  */
-function retentionSweep(now = Date.now()): void {
+async function retentionSweep(now = Date.now()): Promise<void> {
   if (RETENTION_HOURS <= 0) return;
 
   const disk = sampleDiskUsage(dbPath);
@@ -318,7 +341,7 @@ function retentionSweep(now = Date.now()): void {
     return;
   }
   lastSweepAt = now;
-  pruneAndCompact(keepHours);
+  await pruneAndCompact(keepHours);
 }
 
 /**
@@ -328,10 +351,10 @@ function retentionSweep(now = Date.now()): void {
  * the collector to run and report why it cannot write, so a failure is logged
  * and the process continues.
  */
-function pruneAndCompact(keepHours: number): void {
+async function pruneAndCompact(keepHours: number): Promise<void> {
   try {
-    const { deletedSnapshots } = pruneSnapshots(keepHours);
-    const freedPages = compactDatabase();
+    const { deletedSnapshots } = await dbWorker.prune(keepHours);
+    const freedPages = await dbWorker.compact();
     if (deletedSnapshots > 0 || freedPages > 0) {
       log.info(
         describeSweep({
@@ -370,7 +393,7 @@ async function loopRun(): Promise<void> {
   void resultsService.warmPriorYears().catch((err) => {
     log.warn('Prior-year warm-up failed', err);
   });
-  retentionSweep();
+  await retentionSweep();
   // ±20% on the tick (capped at five minutes each way), so a machine hitting the
   // feed at exactly POLL_INTERVAL_MS forever is not a metronome in front of the
   // feed's bot scoring — see `poll-delay.ts` for why the cap matters at a daily
@@ -387,7 +410,7 @@ async function main(): Promise<void> {
   await ensureSource();
 
   try {
-    openDb(dbPath);
+    await dbWorker.open(dbPath);
   } catch (err) {
     log.error('Failed to open database', err);
     process.exit(1);
@@ -396,7 +419,7 @@ async function main(): Promise<void> {
   // Retention: keep the volume bounded before the first write of this process.
   // A full sweep, not `retentionSweep()`: the schedule is irrelevant at boot,
   // and the configured window applies even if the volume is under pressure.
-  pruneAndCompact(RETENTION_HOURS);
+  await pruneAndCompact(RETENTION_HOURS);
   lastSweepAt = Date.now();
 
   connectWs(WS_URL);
@@ -409,6 +432,7 @@ async function main(): Promise<void> {
         electionYear: collectorConfig.electionYear,
         resultsService,
         votingPlaces,
+        reader: dbWorker.historyReader(),
         windowHours: collectorConfig.historyWindowHours,
         maxSnapshots: collectorConfig.historyMaxSnapshots,
       })
@@ -427,12 +451,13 @@ async function main(): Promise<void> {
 main();
 
 // One shutdown path for both signals: disconnect first so the dashboard stops
-// waiting on us, then close both SQLite handles.
+// waiting on us, then stop the SQLite worker and close any direct read handle.
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     disconnectWs();
-    closeDb();
-    closeHistoryDb();
-    process.exit(0);
+    void dbWorker.close().finally(() => {
+      closeHistoryDb();
+      process.exit(0);
+    });
   });
 }

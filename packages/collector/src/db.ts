@@ -48,33 +48,49 @@ export function closeDb() {
   if (sqliteDb) sqliteDb.close();
 }
 
-export function writeResults(
-  results: ElectorateResult[],
-  partyVote: PartyVoteResult[],
-  partyLists: PartyListResult[],
+/**
+ * The open handle, for the read side of the worker. Not exported for general
+ * use: callers outside the worker own connection are API clients.
+ */
+export function getDbHandle(): Database.Database {
+  if (!sqliteDb) throw new Error('database is not open');
+  return sqliteDb;
+}
+
+/** Per-seat model progress, computed on the caller and sent to the worker. */
+export type ProgressByElectorate = Record<string, number | null>;
+
+/**
+ * One serialisable snapshot write: everything the worker needs to insert a
+ * scrape without carrying a function across the thread boundary.
+ */
+export interface SnapshotWrite {
+  results: ElectorateResult[];
+  partyVote: PartyVoteResult[];
+  partyLists: PartyListResult[];
+  electionYear: string;
   /**
-   * Election cycle this scrape belongs to. Stored on the snapshot so
-   * `/history/*` can scope itself to one cycle instead of blending whatever
-   * cycles happen to share the DB (the Fly deployment keeps it on a volume).
+   * Electorate name → progress (0..1). A missing entry falls back to the
+   * electorate's own `votePercentageCounted`, matching the old callback path
+   * when no model result was computable.
    */
-  electionYear: string,
-  /**
-   * The model's chance for a seat, when one is computable. History stores the
-   * model's own progress (votes against the votes tonight is expected to
-   * produce) rather than the share of voting places reported: places are not
-   * votes, and the places figure runs hot early because advance votes land in
-   * blocks after 7pm.
-   */
-  chanceFor?: (result: ElectorateResults & WithLeaders) => SeatChance | null
-) {
+  progressByElectorate: ProgressByElectorate;
+}
+
+/** Insert a fully prepared snapshot. Returns the new scrape id. */
+export function writeSnapshot(write: SnapshotWrite): number {
+  const { results, partyVote, partyLists, electionYear, progressByElectorate } =
+    write;
   log.info('Writing results to DB...');
 
+  let scrapeId = 0;
   drizzleDb.transaction((tx) => {
-    const { id: scrapeId } = tx
+    const inserted = tx
       .insert(schema.scrapeSnapshots)
       .values({ electionYear })
       .returning({ id: schema.scrapeSnapshots.id })
       .get();
+    scrapeId = inserted.id;
 
     for (const r of results) {
       for (const cv of r.candidateVotes) {
@@ -89,11 +105,8 @@ export function writeResults(
           .run();
       }
 
-      const chance = chanceFor?.(r);
       const progress =
-        chance?.state === 'counting'
-          ? Math.min(1, chance.progress)
-          : r.votePercentageCounted;
+        progressByElectorate[r.electorateName] ?? r.votePercentageCounted;
       tx.insert(schema.electorateSummary)
         .values({
           scrapeId,
@@ -161,6 +174,46 @@ export function writeResults(
       .run();
 
     log.info(`DB write complete (scrape #${scrapeId})`);
+  });
+
+  return scrapeId;
+}
+
+export function writeResults(
+  results: ElectorateResult[],
+  partyVote: PartyVoteResult[],
+  partyLists: PartyListResult[],
+  /**
+   * Election cycle this scrape belongs to. Stored on the snapshot so
+   * `/history/*` can scope itself to one cycle instead of blending whatever
+   * cycles happen to share the DB (the Fly deployment keeps it on a volume).
+   */
+  electionYear: string,
+  /**
+   * The model's chance for a seat, when one is computable. History stores the
+   * model's own progress (votes against the votes tonight is expected to
+   * produce) rather than the share of voting places reported: places are not
+   * votes, and the places figure runs hot early because advance votes land in
+   * blocks after 7pm.
+   */
+  chanceFor?: (result: ElectorateResults & WithLeaders) => SeatChance | null
+) {
+  return writeSnapshot({
+    results,
+    partyVote,
+    partyLists,
+    electionYear,
+    progressByElectorate: Object.fromEntries(
+      results.map((r) => {
+        const chance = chanceFor?.(r);
+        return [
+          r.electorateName,
+          chance?.state === 'counting'
+            ? Math.min(1, chance.progress)
+            : r.votePercentageCounted,
+        ];
+      })
+    ),
   });
 }
 

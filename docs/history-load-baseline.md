@@ -124,6 +124,34 @@ counted"). The busy answer is not cached, and the smoke tests in
 `src/voting-place-status.test.ts` pin the global cap across two seats, the busy
 result on overflow, and recovery on the next request.
 
+## Worker ownership (02b)
+
+SQLite no longer runs on the collector's main thread. `src/db-worker.ts` owns the
+connection, migrations, writes, reads and retention; `src/db-worker-client.ts`
+is the only caller and exposes async methods.
+
+- **Serialisation.** The worker handles one request at a time, so a read cannot
+  observe a half-written snapshot and transactions keep their order.
+- **Bounded queue.** The client allows one request in flight and 64 waiting.
+  Overflow, a request deadline (5s reads, 30s writes, 60s migrations/prune), or
+  a dead worker rejects with `DbUnavailableError`. History maps that to an
+  explicit 503; it never answers an empty successful count.
+- **Serialisable writes.** `writeSnapshot` takes plain data. The old
+  `writeResults` callback is evaluated on the caller, which sends
+  `progressByElectorate` as numbers — no function crosses the thread boundary.
+- **Failure is fatal.** If the worker exits, `onFatal` logs and exits the
+  collector so the entrypoint restarts the machine. A collector that keeps
+  publishing while recording nothing is the failure the watchdog exists to
+  catch.
+- **Health stays synchronous.** `/health` is answered on the main thread and
+  does not touch the worker. A blocked database job can delay a history response
+  (bounded by its deadline) but cannot stop the listener. The test
+  `src/db-worker.test.ts` holds a worker request open and fetches `/health`.
+
+`src/clear.ts` and `scripts/benchmark-history.ts` still open the database
+directly on purpose: they are standalone tools that run while the collector is
+stopped, not part of the serving path.
+
 ## What is deliberately not here
 
 - No durable revision cursor; that is Task 07.

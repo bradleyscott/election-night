@@ -395,3 +395,113 @@ describe('history-server paging and window', () => {
     expect(res.headers.get('x-history-total')).toBe('1');
   });
 });
+
+describe('history-server worker reader', () => {
+  let server: http.Server;
+  let baseUrl: string;
+
+  afterEach(async () => {
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      });
+    }
+  });
+
+  function reader(
+    overrides: Partial<import('./history-queries.js').HistoryReader> = {}
+  ): import('./history-queries.js').HistoryReader {
+    const empty = async () => ({ rows: [], total: 0 });
+    return {
+      snapshots: empty,
+      electorate: empty,
+      partyVotes: empty,
+      ...overrides,
+    };
+  }
+
+  async function start(
+    source: import('./history-queries.js').HistoryReader,
+    electionYear: string | null = '2026'
+  ): Promise<void> {
+    // No DB path is used: the reader owns the connection.
+    const handler = createHistoryHandler({
+      dbPath: join(tmpdir(), 'never-used.db'),
+      electionYear: electionYear ?? undefined,
+      reader: source,
+    });
+    server = http.createServer(async (req, res) => {
+      if (!(await handler(req, res))) {
+        res.writeHead(404);
+        res.end('Not found');
+      }
+    });
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => {
+        baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+  }
+
+  const snapshot = {
+    snapshotId: 7,
+    electionYear: '2026',
+    startedAt: '2026-11-07T07:00:00.000Z',
+    completedAt: null,
+  };
+
+  test('serves a page from the worker with the same array body and headers', async () => {
+    await start(
+      reader({
+        snapshots: async () => ({ rows: [snapshot], total: 1 }),
+      })
+    );
+
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([snapshot]);
+    expect(res.headers.get('x-history-total')).toBe('1');
+  });
+
+  test('maps worker unavailability to a structured 503, never an empty list', async () => {
+    await start(
+      reader({
+        snapshots: async () => {
+          throw Object.assign(new Error('db worker queue is full'), {
+            code: 'unavailable',
+          });
+        },
+      })
+    );
+
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'database unavailable',
+    });
+  });
+
+  test('rejects bad paging before asking the worker', async () => {
+    let called = 0;
+    await start(
+      reader({
+        snapshots: async () => {
+          called += 1;
+          return { rows: [], total: 0 };
+        },
+      })
+    );
+
+    const res = await fetch(`${baseUrl}/history/snapshots?limit=0`);
+    expect(res.status).toBe(400);
+    expect(called).toBe(0);
+  });
+
+  test('503s when no year is configured and none is requested', async () => {
+    await start(reader(), null);
+    const res = await fetch(`${baseUrl}/history/snapshots`);
+    expect(res.status).toBe(503);
+  });
+});

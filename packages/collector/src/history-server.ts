@@ -10,6 +10,7 @@ import {
   queryPartyVoteHistory,
   querySnapshotMetas,
   type HistoryPageRequest,
+  type HistoryReader,
 } from './history-queries.js';
 import { log } from './logger.js';
 
@@ -51,6 +52,12 @@ export interface HistoryHandlerOptions {
    * its places.
    */
   votingPlaces?: VotingPlaceStatusService;
+  /**
+   * Async read side owned by the SQLite worker. When present the handler never
+   * opens a connection on the HTTP thread; the direct read path exists for
+   * tests and tools that already hold a handle.
+   */
+  reader?: HistoryReader;
   /**
    * Trailing window for DB-backed history. Defaults to 24h, matching the
    * collector's retention default; a snapshot older than this is not part of
@@ -229,18 +236,98 @@ function sendPage<T>(
   sendJson(res, page.rows, 200, headers);
 }
 
+/** A worker client refuses requests while the database is unavailable. */
+function isUnavailableError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: unknown }).code === 'unavailable'
+  );
+}
+
+/**
+ * DB-backed routes when a worker owns the connection. The handler awaits the
+ * worker's bounded read, so a slow database delays this response but not the
+ * event loop or `/health`.
+ */
+async function serveReaderRoutes(
+  res: ServerResponse,
+  pathname: string,
+  params: URLSearchParams,
+  reader: HistoryReader,
+  configuredYear: string | undefined,
+  windowHours: number,
+  maxSnapshots: number
+): Promise<boolean> {
+  const year = params.get('year') ?? configuredYear;
+  if (!year) {
+    sendJson(res, { error: 'no election year configured' }, 503);
+    return true;
+  }
+
+  const parsedPaging = parseHistoryPaging(params, {
+    windowHours,
+    maxSnapshots,
+  });
+  if (!parsedPaging.ok) {
+    sendJson(res, { error: parsedPaging.error }, 400);
+    return true;
+  }
+  const paging = parsedPaging.paging;
+
+  try {
+    if (pathname === '/history/snapshots') {
+      sendPage(res, await reader.snapshots(year, paging.request), paging);
+      return true;
+    }
+
+    const electorateMatch = pathname.match(/^\/history\/electorate\/(.+)$/);
+    if (electorateMatch) {
+      sendPage(
+        res,
+        await reader.electorate(
+          decodeURIComponent(electorateMatch[1]!),
+          year,
+          paging.request
+        ),
+        paging
+      );
+      return true;
+    }
+
+    if (pathname === '/history/party-votes') {
+      sendPage(res, await reader.partyVotes(year, paging.request), paging);
+      return true;
+    }
+  } catch (err) {
+    if (isUnavailableError(err)) {
+      // The worker is dead, its queue is full, or a read timed out. Say so;
+      // never answer an empty successful count.
+      sendJson(res, { error: 'database unavailable' }, 503);
+      return true;
+    }
+    log.error('History API query failed', err);
+    sendJson(res, { error: 'query failed' }, 500);
+    return true;
+  }
+
+  sendJson(res, { error: 'not found' }, 404);
+  return true;
+}
+
 /**
  * Route handler mounted into the health server. Returns true when the request
  * was handled (including auth failures); false to fall through to 404.
  */
 export function createHistoryHandler(
   options: HistoryHandlerOptions
-): (req: IncomingMessage, res: ServerResponse) => boolean {
+): (req: IncomingMessage, res: ServerResponse) => boolean | Promise<boolean> {
   const {
     dbPath,
     electionYear,
     resultsService,
     votingPlaces,
+    reader,
     windowHours = DEFAULT_HISTORY_WINDOW_HOURS,
     maxSnapshots = DEFAULT_HISTORY_MAX_SNAPSHOTS,
   } = options;
@@ -321,13 +408,26 @@ export function createHistoryHandler(
       }
     }
 
+    const params = new URLSearchParams(query ?? '');
+
+    if (reader) {
+      return serveReaderRoutes(
+        res,
+        pathname!,
+        params,
+        reader,
+        electionYear,
+        windowHours,
+        maxSnapshots
+      );
+    }
+
     const handle = getDb(dbPath);
     if (!handle) {
       sendJson(res, { error: 'database not available yet' }, 503);
       return true;
     }
 
-    const params = new URLSearchParams(query ?? '');
     const requestedYear = params.get('year');
     const year = resolveElectionYear(handle, requestedYear, electionYear);
     if (!year) {

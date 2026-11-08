@@ -49,8 +49,8 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | Done | Task / suggested PR title                                            | Priority                     | Findings | Prerequisites                                |
 | ---- | -------------------------------------------------------------------- | ---------------------------- | -------- | -------------------------------------------- |
 | [x]  | **01 — Expose stale history and fix dependency verification**        | P0                           | R3       | None                                         |
-| [ ]  | **02a — Bound history queries and global voting-place load**         | P0                           | R6       | 01; capture baseline first                   |
-| [ ]  | **02b — Move database execution off the collector HTTP loop**        | P0                           | R6       | 02a                                          |
+| [x]  | **02a — Bound history queries and global voting-place load**         | P0                           | R6       | 01; capture baseline first                   |
+| [x]  | **02b — Move database execution off the collector HTTP loop**        | P0                           | R6       | 02a                                          |
 | [ ]  | **03 — Adopt query-managed history refresh and recovery**            | P0                           | R2       | 01, 02a; rebase after 02b                    |
 | [ ]  | **04 — Repair/version specials parsing and its evidence**            | P0 calibration gate          | R7       | None; do before any model retuning           |
 | [ ]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
@@ -212,6 +212,24 @@ equivalence, paging, window), `history-server.test.ts` (headers, 400, 413,
 window), and `voting-place-status.test.ts` (global cap, busy, recovery).
 `npm run lint`, `npm run typecheck` and `npx vitest run` (800 tests) pass.
 02b (worker ownership) remains open.
+
+**Implementation record (02b):** SQLite now runs in a dedicated worker.
+`db-worker.ts` owns open/migrate/write/read/prune/compact; `db-worker-client.ts`
+is the only caller. The old `writeResults` callback could not cross the thread
+boundary, so `writeSnapshot` takes serialisable data and the collector computes
+`progressByElectorate` on the caller. The client allows one request in flight
+(transaction order) and 64 waiting, with per-request deadlines; overflow, timeout
+or worker death rejects with `DbUnavailableError`, which history maps to an
+explicit 503. Worker death is fatal (`onFatal` exits so the entrypoint restarts
+the machine), matching the watchdog's rule that a collector which publishes but
+cannot record must not look healthy. `/health` stays on the main thread.
+`history-server.ts` gained an async `HistoryReader` path for production while
+keeping the direct connection for tests/tools; `health.ts` now awaits the route
+handler. Tests: `db-worker.test.ts` (real worker write/read/prune, bounded queue,
+worker death, query error, `/health` answering with a blocked request) and the
+worker-reader HTTP cases in `history-server.test.ts`. `npm run lint`,
+`npm run typecheck` and `npx vitest run` (810 tests) pass. See
+`docs/history-load-baseline.md` § Worker ownership.
 
 ### 03 — Query-managed history refresh and recovery
 
