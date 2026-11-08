@@ -610,7 +610,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -981,7 +983,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -1009,8 +1013,8 @@
       "id": 10
     },
     {
-      "title": "Webhook publishes",
-      "description": "Webhook publish attempts per second, by outcome.",
+      "title": "Webhook outbox deliveries",
+      "description": "Delivery attempts from the durable webhook outbox, by status. Announcements are committed with the snapshot; this is the independent delivery loop, so a hung receiver shows here without blocking the count.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1101,8 +1105,8 @@
       "id": 11
     },
     {
-      "title": "Webhook failure ratio + p95 latency",
-      "description": "Failed publishes as a share of attempts, alongside p95 publish duration (including retries).",
+      "title": "Webhook delivery failure ratio + p95 latency",
+      "description": "Failed outbox delivery attempts as a share of attempts, alongside p95 delivery duration. A sustained ratio is a receiver problem; check dead-letter rows and receiver idempotency.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1210,7 +1214,10 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["election-night", "collector"],
+  "tags": [
+    "election-night",
+    "collector"
+  ],
   "templating": {
     "list": [
       {

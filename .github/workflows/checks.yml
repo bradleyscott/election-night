@@ -33,3 +33,8 @@ jobs:
       # could no longer produce a deployable image (tailwindcss 3 -> 4 in #85).
       - run: npm run build
       - run: npx esbuild packages/dashboard/server/index.ts --bundle --platform=node --format=cjs --outfile=/tmp/server.cjs --external:bufferutil --external:utf-8-validate
+      # The dashboards are generated, not hand-edited. Regenerate and fail if
+      # the committed JSON is stale, so a metric rename cannot leave a panel
+      # querying a series that no longer exists.
+      - run: node ops/grafana/build-dashboards.mjs
+      - run: git diff --exit-code -- ops/grafana/dashboards

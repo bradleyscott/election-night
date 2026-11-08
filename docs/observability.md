@@ -324,19 +324,23 @@ saturation context. See `ops/grafana/README.md` for import instructions.
 
 Panel-level mapping to metrics (all series from §1):
 
-- **Overview** — collector liveness (`collector_metrics_last_received`), age of
-  the last published result (`last_scrape_timestamp_seconds`), collector socket
-  state, reporting share, votes counted, cycles/min, outcome ratios, fetch
-  outcomes, error ratio, feed events by type, clients, memory headroom.
+- **Overview** — collector liveness (`collector_metrics_last_received`), the
+  collector `/health` probe age, age of the last published result
+  (`last_scrape_timestamp_seconds`), collector socket state, reporting share,
+  votes counted, cycles/min, outcome ratios, fetch outcomes, error ratio, feed
+  events by type, clients, memory headroom.
 - **Collector & Pipeline** — cycle p50/p95/p99 for reading cycles, cycle p95
   by cycle kind (reading / quiet / degraded), cycles completed, per-fetch p50/p95
   split into downloads and revalidations, failures by reason, retried
   electorates, seat outcomes per second (fresh / unchanged / cached / failed),
-  snapshot writes + p95 write duration, volume used, webhook rate, webhook
-  failure ratio + p95 latency.
+  snapshot writes + p95 write duration, volume used, webhook outbox delivery
+  rate, delivery failure ratio + p95 latency.
 - **Live Delivery & API** — edge request rate/status and p95, request rate and
   p95 by route, app 5xx ratio, history upstream p95, cache outcomes, stale
-  serves, socket messages by event, feed events stored, ready failures, clients.
+  serves, history verification failures by reason, stale-serve age p95,
+  rejected result updates by reason (remote publisher / wrong cycle / older
+  revision), collector health-probe failures, socket messages by event, feed
+  events stored, ready failures, clients.
 
 ## 6. Alerting
 
@@ -380,6 +384,7 @@ count is supposed to move.
 | History cannot be verified        | `sum(rate(election_history_verification_failures_total[10m])) > 0`                                                             | 10m | warning  |
 | Stale history served too long     | `histogram_quantile(0.95, sum(rate(election_history_stale_serve_age_seconds_bucket[10m])) by (le)) > 60`                       | 10m | critical |
 | History upstream failing          | `sum(rate(election_history_upstream_requests_total{outcome!="ok"}[10m])) > 0`                                                  | 5m  | warning  |
+| Published results rejected        | `sum(rate(election_results_updates_rejected_total[10m])) > 0`                                                                  | 10m | warning  |
 | API 5xx ratio                     | `sum(rate(election_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(election_http_requests_total[5m])) > 0.01`         | 5m  | critical |
 | Ready failing                     | `increase(election_http_requests_total{route="/ready", status_code="503"}[5m]) > 0`                                            | 5m  | critical |
 | No clients during a live window   | `election_websocket_clients_connected == 0` (time-boxed, election night only)                                                  | 10m | info     |
