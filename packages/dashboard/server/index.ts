@@ -184,13 +184,15 @@ const server = createServer(
       }
       if (url.pathname === '/health') return serveHealth(req, res);
       if (url.pathname === '/ready')
-        return serveReady(req, res, historySource, currentFeedEvents());
+        return serveReady(req, res, currentFeedEvents());
 
       try {
         if (await serveApi(req, res, url, historySource)) return;
       } catch (err) {
-        // History upstream unreachable and nothing cached — degrade to 502
-        // rather than crashing the server on an unhandled rejection.
+        // An unexpected history failure (bug, malformed route, unexpected
+        // throw). Upstream unavailability is handled inside serveApi as a
+        // structured 503, so this is the last-resort degrade rather than the
+        // normal "collector is down" path.
         log.error('API route failed:', err);
         if (!res.headersSent) {
           res.writeHead(502, { 'Content-Type': 'application/json' });

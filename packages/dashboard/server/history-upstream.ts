@@ -11,8 +11,16 @@
  * Responses are cached briefly (default 10s) so dashboard traffic bursts
  * (Trends page, /ready) don't hammer the collector on every request.
  *
- * Upstream calls, their latency, and cache behaviour are instrumented in
- * `./metrics.js` — a `stale_served` outcome means the collector was
+ * `read()` returns a `HistoryRead`: the parsed value *and* how it was obtained.
+ * A cache hit is `cached`; a fresh upstream response is `verified`; a value
+ * served after a failed refresh is `stale`. Only a successfully decoded
+ * upstream response advances `verifiedAt`, so a stale fallback can never look
+ * current merely because someone asked for it again. When the last verified
+ * answer is older than `maxStaleMs` (default 120s) the read is `unavailable`
+ * and the caller must answer 503 rather than present old data as live.
+ *
+ * Upstream calls, their latency and cache behaviour are instrumented in
+ * `./metrics.ts` — a `stale_served` outcome means the collector was
  * unreachable and a cached value was served instead.
  */
 
@@ -26,8 +34,10 @@ import type {
 import type { VotingPlacesResponse } from '@election-night/core/voting-places';
 import {
   historyCacheEvents,
+  historyStaleServeAge,
   historyUpstreamDuration,
   historyUpstreamTotal,
+  historyVerificationFailuresTotal,
 } from './metrics.js';
 
 export type {
@@ -38,50 +48,154 @@ export type {
   SnapshotMeta,
 };
 
+/** How a history value was obtained. */
+export type HistoryState = 'verified' | 'cached' | 'stale';
+
+/**
+ * Why a read could not be verified. A closed set, used as a metric label and
+ * as the `X-Election-History-Reason` response header.
+ */
+export type HistoryFailureReason =
+  | 'upstream-unreachable'
+  | 'upstream-unavailable'
+  | 'upstream-error'
+  | 'invalid-response'
+  | 'stale-too-old';
+
+export interface HistoryRead<T> {
+  /** Parsed upstream value, or null when the resource is legitimately absent. */
+  data: T | null;
+  state: HistoryState;
+  /** Epoch ms of the last successful upstream verification, null if never. */
+  verifiedAt: number | null;
+  /** Bounded reason when the read is degraded. */
+  reason?: HistoryFailureReason;
+  /**
+   * True when no usable answer may be served: the upstream failed and there is
+   * either no cached value or the last verification is past `maxStaleMs`.
+   * A legitimately absent resource is *not* unavailable — it is a verified
+   * "not found".
+   */
+  unavailable: boolean;
+}
+
 export interface HistorySource {
-  snapshotMetas(): Promise<SnapshotMeta[]>;
-  electorateHistory(name: string): Promise<ElectorateHistoryPoint[]>;
-  partyVoteHistory(): Promise<PartyVoteHistoryPoint[]>;
+  snapshotMetas(): Promise<HistoryRead<SnapshotMeta[]>>;
+  electorateHistory(
+    name: string
+  ): Promise<HistoryRead<ElectorateHistoryPoint[]>>;
+  partyVoteHistory(): Promise<HistoryRead<PartyVoteHistoryPoint[]>>;
   /** Winners of every prior cycle the collector could derive, matched to the current cycle. */
-  priorWinners(): Promise<PriorWinnersResponse | null>;
+  priorWinners(): Promise<HistoryRead<PriorWinnersResponse>>;
   /** Results for a nominated year, or null when that year cannot be served. */
-  resultsForYear(year: string): Promise<ResultsForYear | null>;
+  resultsForYear(year: string): Promise<HistoryRead<ResultsForYear>>;
   /**
    * Which voting places count towards a seat and which have reported, or null
    * when the collector cannot answer for this cycle (an archived cycle, whose
    * feed forbids directory listing).
    */
-  votingPlaces(name: string): Promise<VotingPlacesResponse | null>;
+  votingPlaces(name: string): Promise<HistoryRead<VotingPlacesResponse>>;
   clearCache(): void;
 }
 
 interface CacheEntry {
-  expiresAt: number;
   value: unknown;
+  /** Epoch ms of the successful upstream response that produced `value`. */
+  verifiedAt: number;
+  expiresAt: number;
 }
+
+export const DEFAULT_MAX_STALE_MS = 120_000;
 
 export function createHistorySource(options: {
   baseUrl: string;
   fetchTimeoutMs?: number;
   cacheTtlMs?: number;
+  /** How old a cached value may be and still be served after a failed refresh. */
+  maxStaleMs?: number;
+  /** Injected clock for tests. */
+  now?: () => number;
 }): HistorySource {
   const { baseUrl } = options;
   const timeoutMs = options.fetchTimeoutMs ?? 5_000;
   const ttlMs = options.cacheTtlMs ?? 10_000;
+  const maxStaleMs = options.maxStaleMs ?? DEFAULT_MAX_STALE_MS;
+  const now = options.now ?? Date.now;
   const cache = new Map<string, CacheEntry>();
+  const inFlight = new Map<string, Promise<HistoryRead<unknown>>>();
 
-  async function fetchJson<T>(
+  function verified<T>(value: T, at: number): HistoryRead<T> {
+    return {
+      data: value,
+      state: 'verified',
+      verifiedAt: at,
+      unavailable: false,
+    };
+  }
+
+  /**
+   * A verified "this resource does not exist" answer. It is deliberately not
+   * cached: the collector retries an unavailable archive year in its loop, so a
+   * cached miss would pin the UI to an empty state.
+   */
+  function missing<T>(): HistoryRead<T> {
+    return {
+      data: null,
+      state: 'verified',
+      verifiedAt: now(),
+      unavailable: false,
+    };
+  }
+
+  /**
+   * The fallback after a failed refresh: serve the last verified value while it
+   * is young enough, otherwise report that nothing usable is available.
+   */
+  function degraded<T>(
     path: string,
     route: string,
-    options: { allowMissing?: boolean } = {}
-  ): Promise<T | null> {
+    reason: HistoryFailureReason
+  ): HistoryRead<T> {
     const cached = cache.get(path);
-    if (cached && cached.expiresAt > Date.now()) {
-      historyCacheEvents.inc({ result: 'hit' });
-      return cached.value as T;
-    }
-    historyCacheEvents.inc({ result: 'miss' });
+    historyVerificationFailuresTotal.inc({ route, reason });
 
+    if (!cached) {
+      return {
+        data: null,
+        state: 'stale',
+        verifiedAt: null,
+        reason,
+        unavailable: true,
+      };
+    }
+
+    const ageMs = Math.max(0, now() - cached.verifiedAt);
+    if (ageMs > maxStaleMs) {
+      return {
+        data: null,
+        state: 'stale',
+        verifiedAt: cached.verifiedAt,
+        reason: 'stale-too-old',
+        unavailable: true,
+      };
+    }
+
+    historyCacheEvents.inc({ result: 'stale' });
+    historyStaleServeAge.observe({ route }, ageMs / 1000);
+    return {
+      data: cached.value as T,
+      state: 'stale',
+      verifiedAt: cached.verifiedAt,
+      reason,
+      unavailable: false,
+    };
+  }
+
+  async function refresh<T>(
+    path: string,
+    route: string,
+    allowMissing: boolean
+  ): Promise<HistoryRead<T>> {
     const startedAt = performance.now();
     const observeDuration = () =>
       historyUpstreamDuration.observe(
@@ -98,85 +212,108 @@ export function createHistorySource(options: {
       observeDuration();
       historyUpstreamTotal.inc({
         route,
-        outcome: cached ? 'stale_served' : 'error',
+        outcome: cache.has(path) ? 'stale_served' : 'error',
       });
-      // Collector unreachable: fall back to the stale cached value if we
-      // have one — better than a 500 on the Trends page.
-      if (cached) {
-        historyCacheEvents.inc({ result: 'stale' });
-        return cached.value as T;
-      }
-      throw new Error(`history upstream ${path} unreachable`);
+      return degraded<T>(path, route, 'upstream-unreachable');
     }
     observeDuration();
 
-    if (res.status === 503) {
-      // Collector hasn't created the DB yet — treat as empty, not an error.
+    if (res.status === 404 && allowMissing) {
+      // Consume the body so the keep-alive socket is released.
+      await res.text().catch(() => undefined);
       historyUpstreamTotal.inc({ route, outcome: 'ok' });
-      return null;
+      return missing<T>();
     }
-    if (res.status === 404 && options.allowMissing) {
-      // A year the collector cannot serve (no archive that far back). Not an
-      // error and deliberately not cached: the collector retries these years
-      // in its loop, so caching a miss would pin the UI to an empty state.
-      historyUpstreamTotal.inc({ route, outcome: 'ok' });
-      return null;
-    }
+
     if (!res.ok) {
-      // Proxy-level errors (rate limiting, bad gateway): serve stale if we
-      // have it, else surface the failure.
+      await res.text().catch(() => undefined);
+      // A collector 503 means "not available yet", never "empty and successful".
+      const reason: HistoryFailureReason =
+        res.status === 503 ? 'upstream-unavailable' : 'upstream-error';
       historyUpstreamTotal.inc({
         route,
-        outcome: cached ? 'stale_served' : 'error',
+        outcome: cache.has(path) ? 'stale_served' : 'error',
       });
-      if (cached) {
-        historyCacheEvents.inc({ result: 'stale' });
-        return cached.value as T;
-      }
-      throw new Error(`history upstream ${path} responded ${res.status}`);
+      return degraded<T>(path, route, reason);
     }
-    const value = (await res.json()) as T;
+
+    let value: T;
+    try {
+      value = (await res.json()) as T;
+    } catch {
+      historyUpstreamTotal.inc({ route, outcome: 'error' });
+      return degraded<T>(path, route, 'invalid-response');
+    }
+
+    const at = now();
     historyUpstreamTotal.inc({ route, outcome: 'ok' });
-    cache.set(path, { expiresAt: Date.now() + ttlMs, value });
-    return value;
+    cache.set(path, { value, verifiedAt: at, expiresAt: at + ttlMs });
+    return verified(value, at);
   }
 
-  const emptyOnMissing = async <T>(
-    work: () => Promise<T[] | null>
-  ): Promise<T[]> => (await work()) ?? [];
+  async function read<T>(
+    path: string,
+    route: string,
+    options: { allowMissing?: boolean } = {}
+  ): Promise<HistoryRead<T>> {
+    const at = now();
+    const cached = cache.get(path);
+    if (cached && cached.expiresAt > at) {
+      historyCacheEvents.inc({ result: 'hit' });
+      return {
+        data: cached.value as T,
+        state: 'cached',
+        verifiedAt: cached.verifiedAt,
+        unavailable: false,
+      };
+    }
+    historyCacheEvents.inc({ result: 'miss' });
+
+    // Share one refresh between concurrent callers. The entry is removed in
+    // `finally`, so a failed refresh is retried by the next caller rather than
+    // being remembered as a failure.
+    const existing = inFlight.get(path);
+    if (existing) return existing as Promise<HistoryRead<T>>;
+
+    const promise = refresh<T>(
+      path,
+      route,
+      options.allowMissing ?? false
+    ).finally(() => {
+      if (inFlight.get(path) === promise) inFlight.delete(path);
+    });
+    inFlight.set(path, promise);
+    return promise;
+  }
 
   return {
     snapshotMetas: () =>
-      emptyOnMissing(() =>
-        fetchJson<SnapshotMeta[]>('/history/snapshots', '/history/snapshots')
-      ),
+      read<SnapshotMeta[]>('/history/snapshots', '/history/snapshots'),
     electorateHistory: (name) =>
-      emptyOnMissing(() =>
-        fetchJson<ElectorateHistoryPoint[]>(
-          `/history/electorate/${encodeURIComponent(name)}`,
-          '/history/electorate/:name'
-        )
+      read<ElectorateHistoryPoint[]>(
+        `/history/electorate/${encodeURIComponent(name)}`,
+        '/history/electorate/:name'
       ),
     partyVoteHistory: () =>
-      emptyOnMissing(() =>
-        fetchJson<PartyVoteHistoryPoint[]>(
-          '/history/party-votes',
-          '/history/party-votes'
-        )
+      read<PartyVoteHistoryPoint[]>(
+        '/history/party-votes',
+        '/history/party-votes'
       ),
     priorWinners: () =>
-      fetchJson<PriorWinnersResponse>(
+      read<PriorWinnersResponse>(
         '/history/prior-winners',
         '/history/prior-winners'
       ),
     resultsForYear: (year) =>
-      fetchJson<ResultsForYear>(
+      read<ResultsForYear>(
         `/history/results/${year}`,
         '/history/results/:year',
-        { allowMissing: true }
+        {
+          allowMissing: true,
+        }
       ),
     votingPlaces: (name) =>
-      fetchJson<VotingPlacesResponse>(
+      read<VotingPlacesResponse>(
         `/history/voting-places/${encodeURIComponent(name)}`,
         '/history/voting-places/:name',
         { allowMissing: true }
