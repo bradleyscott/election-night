@@ -83,7 +83,8 @@ function ui(
   client: QueryClient,
   children: ReactNode,
   updatedAt: Date | null = null,
-  connected = true
+  connected = true,
+  revision: number | null = null
 ) {
   return (
     <QueryClientProvider client={client}>
@@ -93,6 +94,7 @@ function ui(
           connected,
           results: null,
           resultsUpdatedAt: updatedAt,
+          resultsRevision: revision,
           feedEvents: [],
         }}
       >
@@ -235,6 +237,27 @@ describe('history queries', () => {
     );
     // The rows stay: a failed refresh is not an empty night.
     expect(screen.getByTestId('count')).toHaveTextContent('2');
+  });
+
+  test('does not mark a response older than the last notification caught up', async () => {
+    stubFetch(() =>
+      json([row(1)], {
+        headers: {
+          'x-election-history-state': 'verified',
+          'x-election-revision': '1',
+        },
+      })
+    );
+    const client = makeClient();
+
+    // The socket has already accepted revision 5; this body is revision 1.
+    render(ui(client, <Probe electorate="Mt Roskill" />, null, true, 5));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('state')).toHaveTextContent('stale')
+    );
+    // The rows remain; the next poll is the recovery path.
+    expect(screen.getByTestId('count')).toHaveTextContent('1');
   });
 
   test('surfaces a stale proxy answer even on a 200', async () => {

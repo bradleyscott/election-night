@@ -38,6 +38,8 @@ export type HistoryMeta = {
   state: 'verified' | 'cached' | 'stale';
   verifiedAt: string | null;
   reason: string | null;
+  /** Committed revision the body belongs to, when the proxy named one. */
+  revision: number | null;
 } | null;
 
 /** A non-2xx history response. `status` drives the honest UI state. */
@@ -60,10 +62,16 @@ function readMeta(headers: Headers): HistoryMeta {
   if (state !== 'verified' && state !== 'cached' && state !== 'stale') {
     return null;
   }
+  const rawRevision = headers.get('x-election-revision');
+  const revision =
+    rawRevision !== null && Number.isFinite(Number(rawRevision))
+      ? Number(rawRevision)
+      : null;
   return {
     state,
     verifiedAt: headers.get('x-election-history-verified-at'),
     reason: headers.get('x-election-history-reason'),
+    revision,
   };
 }
 
@@ -209,7 +217,10 @@ function errorState(error: unknown): HistoryLoadState {
   return 'error';
 }
 
-function derive<T>(query: UseQueryResult<{ rows: T[]; meta: HistoryMeta }>): {
+function derive<T>(
+  query: UseQueryResult<{ rows: T[]; meta: HistoryMeta }>,
+  targetRevision: number | null = null
+): {
   data: T[] | null;
   state: HistoryLoadState;
   meta: HistoryMeta;
@@ -219,10 +230,17 @@ function derive<T>(query: UseQueryResult<{ rows: T[]; meta: HistoryMeta }>): {
   refetch: () => void;
 } {
   const data = query.data?.rows ?? null;
+  const servedRevision = query.data?.meta?.revision ?? null;
+  // A response that predates the notification this page has already seen is
+  // not caught up, even if the proxy called it verified. The next poll retries.
+  const behind =
+    targetRevision !== null &&
+    servedRevision !== null &&
+    servedRevision < targetRevision;
   let state: HistoryLoadState;
   if (data === null) {
     state = query.isError ? errorState(query.error) : 'loading';
-  } else if (query.isError || query.data?.meta?.state === 'stale') {
+  } else if (query.isError || query.data?.meta?.state === 'stale' || behind) {
     // Keep the rows on screen; the reader is told they are not current.
     state = 'stale';
   } else if (data.length === 0) {
@@ -255,6 +273,7 @@ export function useHistoryCollection<T extends HistoryRow>(
   enabled = true
 ) {
   const config = useRuntimeConfig();
+  const { resultsRevision } = useSocket();
   const cycle = config?.electionYear ?? null;
 
   const query = useQuery({
@@ -265,7 +284,7 @@ export function useHistoryCollection<T extends HistoryRow>(
     refetchInterval: HISTORY_POLL_MS,
   });
 
-  return derive(query);
+  return derive(query, resultsRevision);
 }
 
 /** A single (non-paged) history object, e.g. prior winners. */

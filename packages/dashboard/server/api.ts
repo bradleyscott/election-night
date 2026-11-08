@@ -14,10 +14,15 @@ function sendJson(res: ServerResponse, body: unknown, status = 200): void {
  */
 function writeHistoryHeaders<T>(
   res: ServerResponse,
-  read: HistoryRead<T>
+  read: HistoryRead<T>,
+  fallbackRevision: number | null
 ): void {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Election-History-State', read.state);
+  const revision = read.revision ?? fallbackRevision;
+  if (revision !== null) {
+    res.setHeader('X-Election-Revision', String(revision));
+  }
   if (read.verifiedAt !== null) {
     res.setHeader(
       'X-Election-History-Verified-At',
@@ -41,9 +46,10 @@ function writeHistoryHeaders<T>(
 function sendHistory<T>(
   res: ServerResponse,
   read: HistoryRead<T>,
-  options: { error: string; allowMissing?: boolean } = { error: 'unavailable' }
+  options: { error: string; allowMissing?: boolean } = { error: 'unavailable' },
+  fallbackRevision: number | null = null
 ): void {
-  writeHistoryHeaders(res, read);
+  writeHistoryHeaders(res, read, fallbackRevision);
 
   if (read.unavailable) {
     sendJson(
@@ -93,7 +99,9 @@ export async function serveApi(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  historySource: HistorySource
+  historySource: HistorySource,
+  /** Last accepted socket revision, used when the upstream does not name one. */
+  revision: number | null = null
 ): Promise<boolean> {
   void req;
   const pathname = url.pathname;
@@ -102,27 +110,38 @@ export async function serveApi(
   const electorateMatch = pathname.match(/^\/api\/history\/electorate\/(.+)$/);
   if (electorateMatch) {
     const name = decodeParam(electorateMatch[1]);
-    sendHistory(res, await historySource.electorateHistory(name), {
-      error: `history unavailable for ${name}`,
-    });
+    sendHistory(
+      res,
+      await historySource.electorateHistory(name),
+      { error: `history unavailable for ${name}` },
+      revision
+    );
     return true;
   }
 
   // GET /api/history/latest — the authoritative full payload (electorates,
   // parties and lists) for the cycle. 404 before the first commit.
   if (pathname === '/api/history/latest') {
-    sendHistory(res, await historySource.latest(), {
-      error: 'latest state unavailable',
-      allowMissing: true,
-    });
+    sendHistory(
+      res,
+      await historySource.latest(),
+      {
+        error: 'latest state unavailable',
+        allowMissing: true,
+      },
+      revision
+    );
     return true;
   }
 
   // GET /api/history/party-votes — return party vote totals over time
   if (pathname === '/api/history/party-votes') {
-    sendHistory(res, await historySource.partyVoteHistory(), {
-      error: 'party vote history unavailable',
-    });
+    sendHistory(
+      res,
+      await historySource.partyVoteHistory(),
+      { error: 'party vote history unavailable' },
+      revision
+    );
     return true;
   }
 
@@ -130,9 +149,12 @@ export async function serveApi(
   // current cycle's electorates. 503 when the collector could not derive any
   // (no archive reachable, or a connector that only serves the live cycle).
   if (pathname === '/api/history/prior-winners') {
-    sendHistory(res, await historySource.priorWinners(), {
-      error: 'prior results unavailable',
-    });
+    sendHistory(
+      res,
+      await historySource.priorWinners(),
+      { error: 'prior results unavailable' },
+      revision
+    );
     return true;
   }
 
@@ -145,10 +167,15 @@ export async function serveApi(
   );
   if (votingPlacesMatch) {
     const name = decodeParam(votingPlacesMatch[1]);
-    sendHistory(res, await historySource.votingPlaces(name), {
-      error: `no voting places for ${name}`,
-      allowMissing: true,
-    });
+    sendHistory(
+      res,
+      await historySource.votingPlaces(name),
+      {
+        error: `no voting places for ${name}`,
+        allowMissing: true,
+      },
+      revision
+    );
     return true;
   }
 
@@ -158,10 +185,15 @@ export async function serveApi(
   const resultsMatch = pathname.match(/^\/api\/history\/results\/(\d{4})$/);
   if (resultsMatch) {
     const year = resultsMatch[1];
-    sendHistory(res, await historySource.resultsForYear(year), {
-      error: `no results available for ${year}`,
-      allowMissing: true,
-    });
+    sendHistory(
+      res,
+      await historySource.resultsForYear(year),
+      {
+        error: `no results available for ${year}`,
+        allowMissing: true,
+      },
+      revision
+    );
     return true;
   }
 

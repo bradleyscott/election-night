@@ -7,7 +7,11 @@ import {
   type ReactNode,
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { ResultsPayload, FeedEvent } from '@election-night/core/types';
+import type {
+  ResultsEnvelope,
+  ResultsPayload,
+  FeedEvent,
+} from '@election-night/core/types';
 import type { LatestStateRow } from '@election-night/core/history';
 import { dashboardClientConfig } from '../config.js';
 
@@ -17,6 +21,8 @@ type SocketContextValue = {
   results: ResultsPayload | null;
   /** When this browser's `results` last changed; null before any update. */
   resultsUpdatedAt: Date | null;
+  /** Committed revision of `results`, when the publisher named one. */
+  resultsRevision: number | null;
   feedEvents: FeedEvent[];
 };
 
@@ -25,6 +31,7 @@ export const SocketContext = createContext<SocketContextValue>({
   connected: false,
   results: null,
   resultsUpdatedAt: null,
+  resultsRevision: null,
   feedEvents: [],
 });
 
@@ -36,6 +43,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   // overwrite a newer socket delivery (or the reverse).
   const resultsRef = useRef<ResultsPayload | null>(null);
   const stampRef = useRef<number | null>(null);
+  const revisionRef = useRef<number | null>(null);
+  const [resultsRevision, setResultsRevision] = useState<number | null>(null);
   // When this browser last received a results payload. The server sends the
   // payload without a timestamp, and "updated 4 min ago" has to mean something
   // honest: it is when *this* visitor's copy changed.
@@ -50,9 +59,24 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
     socketRef.current = socket;
 
-    const applyResults = (payload: ResultsPayload, at: Date | null) => {
+    const applyResults = (
+      payload: ResultsPayload,
+      at: Date | null,
+      revision: number | null
+    ) => {
+      // A revision is the stronger comparison when both sides have one: an
+      // older revision cannot be newer merely because its HTTP response
+      // arrived later than a socket frame.
+      if (
+        revision !== null &&
+        revisionRef.current !== null &&
+        revision <= revisionRef.current
+      ) {
+        return;
+      }
       const stamp = at?.getTime() ?? Date.now();
       if (
+        revision === null &&
         resultsRef.current &&
         stampRef.current !== null &&
         stamp <= stampRef.current
@@ -61,8 +85,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       }
       resultsRef.current = payload;
       stampRef.current = stamp;
+      revisionRef.current = revision ?? revisionRef.current;
       setResults(payload);
       setResultsUpdatedAt(at ?? new Date(stamp));
+      setResultsRevision(revision ?? revisionRef.current);
     };
 
     // On start and on every reconnect, ask the collector for its durable
@@ -77,7 +103,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         const latest = (await res.json()) as LatestStateRow;
         if (!latest?.payload || !live) return;
         const at = latest.updatedAt ? new Date(latest.updatedAt) : null;
-        applyResults(latest.payload, at);
+        applyResults(latest.payload, at, latest.revision ?? null);
       } catch {
         // No durable state yet, or the collector is unreachable: the socket
         // payload (when it arrives) is still authoritative for this session.
@@ -90,8 +116,16 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       void bootstrap();
     };
     const onDisconnect = () => setConnected(false);
-    const onResultsUpdate = (payload: ResultsPayload) => {
-      applyResults(payload, new Date());
+    const onResultsUpdate = (data: ResultsEnvelope | ResultsPayload) => {
+      const envelope: ResultsEnvelope =
+        data && typeof data === 'object' && 'payload' in data
+          ? (data as ResultsEnvelope)
+          : {
+              payload: data as ResultsPayload,
+              electionYear: null,
+              revision: null,
+            };
+      applyResults(envelope.payload, new Date(), envelope.revision ?? null);
     };
     const onFeedHistory = (events: FeedEvent[]) => setFeedEvents(events);
     const onFeedUpdate = (newEvents: FeedEvent[]) =>
@@ -99,8 +133,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     const onClear = () => {
       resultsRef.current = null;
       stampRef.current = null;
+      revisionRef.current = null;
       setResults(null);
       setResultsUpdatedAt(null);
+      setResultsRevision(null);
       setFeedEvents([]);
     };
 
@@ -131,6 +167,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         connected,
         results,
         resultsUpdatedAt,
+        resultsRevision,
         feedEvents,
       }}
     >

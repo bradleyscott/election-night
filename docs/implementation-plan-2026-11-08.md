@@ -56,7 +56,7 @@ trusted live run; the parser repair is also a gate on further calibration claims
 | [x]  | **05 — Pair HTTP validators with the exact reusable result**         | P0                           | R1       | Rebase after 02b                             |
 | [x]  | **06a/06b — Separate count facts, estimates and UI denominators**    | P0                           | R5       | 04 before calibration claims; 06a before 06b |
 | [x]  | **07 — Persist full latest state and a durable revision**            | P0                           | R4       | 02b, 05, 06a                                 |
-| [ ]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
+| [x]  | **08 — Acknowledge/reconcile socket delivery and history revisions** | P0                           | R4/R2/R3 | 03, 07                                       |
 | [ ]  | **09 — Isolate webhook delivery with a durable outbox**              | P0                           | R4       | 07                                           |
 | [ ]  | **10 — Add explicit result phases and versioned model evaluation**   | P1; final-result safety gate | R7       | 04, 06a, 07                                  |
 | [ ]  | **11 — Replace generic UI interaction machinery**                    | P1                           | R8       | P0 reliability tasks complete                |
@@ -509,6 +509,29 @@ rows untouched.
 dashboard-only restart during all-304 polling, collector reconnect with no new
 facts, last-notification request racing the proxy TTL. Tables/history converge
 without manual navigation and without duplicate feed events.
+
+**Implementation record:** Results now travel as a `ResultsEnvelope`
+(`{ payload, electionYear, revision }`) in core. The collector's socket client
+emits it with a 5s acknowledgement timeout and at most three attempts, keeps
+only the latest envelope (not a queue of obsolete payloads), and resends it on
+every reconnect even when no new facts arrived. An acknowledgement of a
+duplicate counts as success; an unacknowledged revision is kept for the next
+reconnect. The dashboard server classifies every envelope in
+`server/results-envelope.ts`: malformed payloads, another cycle and an older
+revision are rejected, an equal revision is acknowledged as a duplicate without
+broadcasting or deriving feed events, and an accepted envelope is acknowledged
+after the state/feed mutation. The server stores the latest envelope and emits
+it on connect. History responses carry `X-Election-Revision` (from the
+collector's page/row revision, falling back to the server's accepted revision);
+the browser compares the served revision with the socket revision and marks a
+response that predates it `stale`, leaving polling to recover. Tests cover the
+ack/retry/latest-only/reconnect behaviour, the classifier's duplicate, older,
+wrong-cycle and malformed cases, the socket pipeline, the durable bootstrap and
+the revision-behind history state. 863 tests pass. Deferred: feed-event IDs are
+still deduplicated by event identity in `addFeedEvents` rather than being
+re-issued under a revision namespace; equal revisions are not reprocessed, so a
+duplicate delivery cannot produce duplicate events. Commentary replay remains
+separate from current-state acceptance.
 
 ### 09 — Deliver webhooks independently through a durable outbox
 

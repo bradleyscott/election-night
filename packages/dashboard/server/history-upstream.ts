@@ -53,6 +53,14 @@ export type {
 /** How a history value was obtained. */
 export type HistoryState = 'verified' | 'cached' | 'stale';
 
+function readRevision(headers: Headers): number | null {
+  const raw =
+    headers.get('x-election-revision') ?? headers.get('x-history-revision');
+  if (raw === null) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
 /**
  * Why a read could not be verified. A closed set, used as a metric label and
  * as the `X-Election-History-Reason` response header.
@@ -72,6 +80,8 @@ export interface HistoryRead<T> {
   verifiedAt: number | null;
   /** Bounded reason when the read is degraded. */
   reason?: HistoryFailureReason;
+  /** Committed revision the body belongs to, when the collector named one. */
+  revision?: number | null;
   /**
    * True when no usable answer may be served: the upstream failed and there is
    * either no cached value or the last verification is past `maxStaleMs`.
@@ -107,6 +117,8 @@ interface CacheEntry {
   /** Epoch ms of the successful upstream response that produced `value`. */
   verifiedAt: number;
   expiresAt: number;
+  /** Committed revision the cached body belongs to, when known. */
+  revision: number | null;
 }
 
 export const DEFAULT_MAX_STALE_MS = 120_000;
@@ -128,11 +140,16 @@ export function createHistorySource(options: {
   const cache = new Map<string, CacheEntry>();
   const inFlight = new Map<string, Promise<HistoryRead<unknown>>>();
 
-  function verified<T>(value: T, at: number): HistoryRead<T> {
+  function verified<T>(
+    value: T,
+    at: number,
+    revision: number | null
+  ): HistoryRead<T> {
     return {
       data: value,
       state: 'verified',
       verifiedAt: at,
+      revision,
       unavailable: false,
     };
   }
@@ -142,11 +159,12 @@ export function createHistorySource(options: {
    * cached: the collector retries an unavailable archive year in its loop, so a
    * cached miss would pin the UI to an empty state.
    */
-  function missing<T>(): HistoryRead<T> {
+  function missing<T>(revision: number | null = null): HistoryRead<T> {
     return {
       data: null,
       state: 'verified',
       verifiedAt: now(),
+      revision,
       unavailable: false,
     };
   }
@@ -168,6 +186,7 @@ export function createHistorySource(options: {
         data: null,
         state: 'stale',
         verifiedAt: null,
+        revision: null,
         reason,
         unavailable: true,
       };
@@ -179,6 +198,7 @@ export function createHistorySource(options: {
         data: null,
         state: 'stale',
         verifiedAt: cached.verifiedAt,
+        revision: cached.revision,
         reason: 'stale-too-old',
         unavailable: true,
       };
@@ -190,6 +210,7 @@ export function createHistorySource(options: {
       data: cached.value as T,
       state: 'stale',
       verifiedAt: cached.verifiedAt,
+      revision: cached.revision,
       reason,
       unavailable: false,
     };
@@ -222,11 +243,12 @@ export function createHistorySource(options: {
     }
     observeDuration();
 
+    const revision = readRevision(res.headers);
     if (res.status === 404 && allowMissing) {
       // Consume the body so the keep-alive socket is released.
       await res.text().catch(() => undefined);
       historyUpstreamTotal.inc({ route, outcome: 'ok' });
-      return missing<T>();
+      return missing<T>(revision);
     }
 
     if (!res.ok) {
@@ -251,8 +273,8 @@ export function createHistorySource(options: {
 
     const at = now();
     historyUpstreamTotal.inc({ route, outcome: 'ok' });
-    cache.set(path, { value, verifiedAt: at, expiresAt: at + ttlMs });
-    return verified(value, at);
+    cache.set(path, { value, verifiedAt: at, expiresAt: at + ttlMs, revision });
+    return verified(value, at, revision);
   }
 
   async function read<T>(
@@ -268,6 +290,7 @@ export function createHistorySource(options: {
         data: cached.value as T,
         state: 'cached',
         verifiedAt: cached.verifiedAt,
+        revision: cached.revision,
         unavailable: false,
       };
     }

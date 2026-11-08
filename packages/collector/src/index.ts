@@ -264,7 +264,14 @@ async function commitCounted(outcome: ScrapeCycleResult): Promise<void> {
   cacheResults(payload.electorateResults);
   health.cacheYear = cacheCycle();
   resultsService.setLiveResults(payload);
-  publishResults(payload);
+
+  // Publish with the revision the commit just produced. If the read fails, the
+  // payload is still published; the browser's bootstrap compares revisions and
+  // its 30s poll catches up.
+  const committed = await dbWorker
+    .latest(collectorConfig.electionYear)
+    .catch(() => null);
+  publishResults(payload, committed?.revision ?? null);
 
   feedStamps = outcome.stamps;
   lastPublishedSignature = outcome.signature;
@@ -353,7 +360,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
     if (votesCounted === 0) {
       // The zero ballot is durable latest state, not count history: a restart
       // with the feed down must still know the parties, lists and seats.
-      await dbWorker.writeLatest({
+      const zeroRevision = await dbWorker.writeLatest({
         results: payload.electorateResults,
         partyVote: payload.partyVote,
         partyLists: payload.partyLists,
@@ -374,7 +381,7 @@ async function runOnce(current: ElectionSource): Promise<void> {
       cacheResults(payload.electorateResults);
       health.cacheYear = cacheCycle();
       resultsService.setLiveResults(payload);
-      publishResults(payload);
+      publishResults(payload, zeroRevision);
       feedStamps = outcome.stamps;
       lastPublishedSignature = outcome.signature;
       health.lastCycleFinishedAt = Date.now();

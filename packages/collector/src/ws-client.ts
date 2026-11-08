@@ -1,23 +1,71 @@
 import { io, Socket } from 'socket.io-client';
-import type { MetricEvent, ResultsPayload } from '@election-night/core/types';
+import type {
+  MetricEvent,
+  ResultsEnvelope,
+  ResultsPayload,
+} from '@election-night/core/types';
 import { log } from './logger.js';
 import { collectorConfig } from './config.js';
 import { emitCollectorSocketConnected } from './metrics.js';
 import { health } from './health.js';
 
 let socket: Socket | null = null;
-const pendingResults: ResultsPayload[] = [];
-const MAX_PENDING_RESULTS = 10;
-let droppedResults = 0;
+/**
+ * The latest committed envelope, not a queue of payloads. A disconnected
+ * interval of ten updates leaves one fact to send, not ten obsolete ones.
+ */
+let latestEnvelope: ResultsEnvelope | null = null;
+let sending = false;
+let attempts = 0;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-function flushPending() {
-  if (!socket?.connected) return;
-  while (pendingResults.length > 0) {
-    const payload = pendingResults.shift();
-    if (payload) {
-      socket.emit('results_update', payload);
-    }
-  }
+const SEND_TIMEOUT_MS = 5_000;
+const MAX_SEND_ATTEMPTS = 3;
+
+type PublishAck = {
+  ok?: boolean;
+  duplicate?: boolean;
+  revision?: number | null;
+  error?: string;
+};
+
+function sendLatest() {
+  if (!socket?.connected || !latestEnvelope || sending) return;
+  const envelope = latestEnvelope;
+  sending = true;
+  const sentAttempt = attempts;
+  socket
+    .timeout(SEND_TIMEOUT_MS)
+    .emit('results_update', envelope, (err: Error | null, ack?: PublishAck) => {
+      sending = false;
+      if (!err && ack?.ok) {
+        attempts = 0;
+        health.lastPublishAt = Date.now();
+        log.info(
+          ack.duplicate
+            ? `Published results revision ${envelope.revision ?? 'legacy'} (already accepted)`
+            : `Published results revision ${envelope.revision ?? 'legacy'} via socket.io`
+        );
+        // A newer publication may have arrived while this ack was in flight.
+        if (latestEnvelope !== envelope) sendLatest();
+        return;
+      }
+
+      attempts += 1;
+      const detail = err?.message ?? ack?.error ?? 'no acknowledgement';
+      if (attempts >= MAX_SEND_ATTEMPTS) {
+        log.warn(
+          `Results revision ${envelope.revision ?? 'legacy'} was not acknowledged after ${attempts} attempts (${detail}); keeping the latest state for the next reconnect`
+        );
+        return;
+      }
+      log.warn(
+        `Results revision ${envelope.revision ?? 'legacy'} not acknowledged (${detail}); retrying`
+      );
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = setTimeout(sendLatest, 1_000 * 2 ** sentAttempt);
+      retryTimer.unref?.();
+    });
 }
 
 export function publishMetrics(events: MetricEvent | MetricEvent[]) {
@@ -41,7 +89,10 @@ export function connectWs(url: string) {
     health.socketConnected = true;
     health.socketUrl = url;
     publishMetrics(emitCollectorSocketConnected(true));
-    flushPending();
+    // Reconcile on every connect, even when no new facts arrived: a
+    // dashboard-only restart may have missed the last publish.
+    attempts = 0;
+    sendLatest();
   });
 
   socket.on('connect_error', (err) => {
@@ -56,23 +107,23 @@ export function connectWs(url: string) {
   });
 }
 
-export function publishResults(payload: ResultsPayload) {
+export function publishResults(
+  payload: ResultsPayload,
+  revision: number | null = null
+) {
+  latestEnvelope = {
+    payload,
+    electionYear: collectorConfig.electionYear,
+    revision,
+  };
   if (!socket?.connected) {
-    if (pendingResults.length >= MAX_PENDING_RESULTS) {
-      pendingResults.shift();
-      droppedResults += 1;
-      log.warn(
-        `Socket.io not connected; pending results queue full. Dropped ${droppedResults} result payload(s) so far.`
-      );
-    }
-    pendingResults.push(payload);
-    log.debug('Socket.io not connected, queueing results for retry');
+    log.debug(
+      'Socket.io not connected, holding the latest results for reconnect'
+    );
     return;
   }
-
-  socket.emit('results_update', payload);
-  health.lastPublishAt = Date.now();
-  log.info('Published results via socket.io');
+  attempts = 0;
+  sendLatest();
 }
 
 export function disconnectWs() {

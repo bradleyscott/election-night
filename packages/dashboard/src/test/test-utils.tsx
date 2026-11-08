@@ -22,6 +22,7 @@ export function MockSocketProvider({
         connected,
         results,
         resultsUpdatedAt: results ? new Date(0) : null,
+        resultsRevision: null,
         feedEvents,
       }}
     >
