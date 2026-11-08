@@ -75,21 +75,14 @@ export const CYCLE_CONSTANTS: Record<number, CycleConstants> = {
   // 2023: 2,244,380 on the night of 2,867,478 final; specials 603,257 (21.0%);
   // turnout 77.7% of 3,688,292 enrolled.
   2023: { year: 2023, turnout: 0.777, nightShare: 0.783, specialShare: 0.21 },
-  // 2026: no published result yet, and this row is an estimate rather than a
-  // carry-over. The advance vote is the evidence: 455,522 ballots were banked
-  // by the end of the fourth of twelve advance days, 12.0% of the roll against
-  // 9.2% at the same point in 2023, and no cycle has run ahead of 2023 without
-  // turnout rising (2020: 68% advance, 82.2% turnout). Inheriting 2023's 77.7%
-  // would put the night's total *below* the votes the advance count already
-  // implies, and an understated total overstates `progress` — the direction
-  // that manufactures confidence. The bracket the advance pace supports is
-  // 76–82%, so 79.5% is the middle of it.
-  //
-  // The special share stays at 2023's because the feed cannot say how much of
-  // the surge is ordinary advance (counted on the night) and how much is a vote
-  // cast at a hub outside the voter's electorate (counted after it). That is the
-  // one unknown left, and it is why the night share is not rounded up.
-  2026: { year: 2026, turnout: 0.795, nightShare: 0.78, specialShare: 0.21 },
+  // 2026: preliminary result, 7 November. 2,432,403 ordinary votes counted on
+  // the night, ~399,365 special votes, 2,831,768 estimated total, and 3,796,891
+  // enrolled (74.6% turnout). Specials are therefore 14.1% of the estimate and
+  // the night 85.9%: the advance surge (67.3% of ordinary votes, against 61.4%
+  // in 2023) raised the night's share rather than final turnout, which fell
+  // from 78.2%. The Commission's figures are preliminary and will be revised at
+  // the official count on 27 November; this row is updated then.
+  2026: { year: 2026, turnout: 0.746, nightShare: 0.859, specialShare: 0.141 },
 };
 
 /** The newest cycle in the table — the default for one it knows nothing about. */
@@ -253,6 +246,19 @@ const COMPLETE_THRESHOLD = 0.99;
  * instead of declaring the count stopped.
  */
 const PLACES_COMPLETE_THRESHOLD = 1;
+
+/**
+ * Whether the Commission's own place count says this seat's count is finished.
+ *
+ * One function so every surface answers the question the same way: the seat
+ * panel calls a complete count complete, and the whole-night figure on the
+ * Seats page must not still be estimating a remainder for the same seat.
+ */
+export function isCountComplete(placesCounted?: number | null): boolean {
+  return (
+    placesCounted != null && clamp01(placesCounted) >= PLACES_COMPLETE_THRESHOLD
+  );
+}
 
 export type SeatPrior = {
   /** Prior party-vote share per party, as fractions summing to ~1. */
@@ -603,6 +609,8 @@ export type NightRemaining = {
   progress: number;
   /** The seat reported a usable voting-place share. */
   placesKnown: boolean;
+  /** Every place has reported, so the count itself is finished. */
+  complete: boolean;
 };
 
 /**
@@ -615,6 +623,11 @@ export type NightRemaining = {
  * not votes — but they fail in opposite directions, so the larger of the two is
  * the honest floor: a vote cannot be counted twice, and a place that has not
  * reported still holds votes.
+ *
+ * That ranking stops at the end: when every place has reported, the place count
+ * is a fact about a closed set and the turnout estimate is only a forecast, so
+ * the seat is complete with nothing remaining, even if the forecast expected
+ * more votes than were cast.
  *
  * Exported because the whole-night strip (`countProgress`) sums the same
  * quantity per seat. Two surfaces cannot quote different progress for one seat,
@@ -633,24 +646,35 @@ export function nightRemaining(input: {
 
   const places = clamp01(input.placesCounted ?? 0);
   const placesKnown = places > 0;
-  // Votes per place so far, applied to the places that have not reported. A
-  // seat is a closed set of places, so this is a count with no denominator to
-  // guess — which is exactly what the turnout estimate is short of.
-  const placeFloor =
-    placesKnown && places < 1
-      ? ((1 - places) / places) * input.votesCounted
-      : 0;
-
-  const remainingVotes = Math.max(turnoutRemaining, placeFloor);
-  const total = input.votesCounted + remainingVotes;
+  // The place count is a fact about a closed set. Once every place has
+  // reported there is nothing left for a turnout estimate to find, and a
+  // forecast that runs high must not leave phantom votes outstanding after the
+  // count has stopped. This is also what makes a finished seat's progress 1,
+  // so the page and the seat card reach 100% together.
+  const placesComplete = placesKnown && isCountComplete(places);
+  const placeFloor = placesKnown
+    ? ((1 - places) / places) * input.votesCounted
+    : 0;
+  const estimateRemaining = Math.max(turnoutRemaining, placeFloor);
+  const estimateTotal = input.votesCounted + estimateRemaining;
+  const estimateProgress =
+    estimateTotal > 0 ? clamp01(input.votesCounted / estimateTotal) : 0;
+  // The same rule the seat card uses when the feed publishes no place count:
+  // a preliminary count within a point of its own estimate is finished.
+  const complete = placesKnown
+    ? placesComplete
+    : estimateProgress >= COMPLETE_THRESHOLD;
+  const remainingVotes = complete ? 0 : estimateRemaining;
   return {
     expectedNightVotes,
     remainingVotes,
     // Counted over counted-plus-remaining, so the two signals agree: where the
     // place floor binds this is the place percentage, and where the turnout
-    // estimate binds it is exactly the old ratio.
-    progress: total > 0 ? clamp01(input.votesCounted / total) : 0,
+    // estimate binds it is exactly the old ratio. A complete count is 1 by
+    // definition rather than by estimate.
+    progress: complete ? 1 : estimateProgress,
     placesKnown,
+    complete,
   };
 }
 
@@ -727,19 +751,17 @@ export function computeSeatChance(input: SeatChanceInput): SeatChance {
   // Worth saying out loud only when the lead is materially exposed.
   const insideSpecials = specialsProbability < SPECIALS_NOTICE_THRESHOLD;
 
-  const { remainingVotes, progress, placesKnown } = nightRemaining({
+  const {
+    remainingVotes,
+    progress,
+    complete: countComplete,
+  } = nightRemaining({
     votesCounted: input.votesCounted,
     enrolment,
     cycle,
     placesCounted: input.placesCounted,
   });
 
-  // Where the feed tells us how many places have reported, that decides whether
-  // the count is finished, because it is a fact rather than an estimate. Where
-  // it does not, fall back to the turnout-scaled threshold.
-  const countComplete = placesKnown
-    ? clamp01(input.placesCounted ?? 0) >= PLACES_COMPLETE_THRESHOLD
-    : progress >= COMPLETE_THRESHOLD;
   if (countComplete) {
     return {
       state: 'complete',

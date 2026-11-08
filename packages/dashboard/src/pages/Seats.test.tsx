@@ -74,12 +74,12 @@ describe('Seats page', () => {
 
     // 25,000 votes at 55% turnout implies 45,455 enrolled — there is no served
     // cycle here, so no baseline roll to prefer — and the newest cycle's figures
-    // apply: 45,455 × 0.795 turnout × 0.78 night share is 28,187, so 88.7% of
+    // apply: 45,455 × 0.746 turnout × 0.859 night share is 29,128, so 85.8% of
     // tonight's vote is in. The 95% the feed reports is the share of *voting
     // places* reported, which is a different question — and the whole point of
     // this column.
     expect(screen.getByText('25,000')).toBeInTheDocument();
-    expect(screen.getByText('88.7%')).toBeInTheDocument();
+    expect(screen.getByText('85.8%')).toBeInTheDocument();
     expect(screen.queryByText('95.0%')).not.toBeInTheDocument();
   });
 

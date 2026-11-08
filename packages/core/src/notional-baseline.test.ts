@@ -109,8 +109,8 @@ describe('special-vote ratios', () => {
       electorateName: name,
       partyVotes: [],
       candidateVotes: [
-        { candidate: 'A', party: 'National Party', votes: 17_000 },
-        { candidate: 'B', party: 'Labour Party', votes: 13_000 },
+        { candidate: 'A', party: 'National Party', votes: 15_750 },
+        { candidate: 'B', party: 'Labour Party', votes: 14_250 },
       ],
       votesCounted: 30_000,
       votePercentageCounted: 0.6,
@@ -120,8 +120,8 @@ describe('special-vote ratios', () => {
         leadingCandidateParty: 'National Party',
         secondCandidate: 'B',
         secondCandidateParty: 'Labour Party',
-        margin: 4_000,
-        marginPercent: 0.13,
+        margin: 1_500,
+        marginPercent: 0.05,
       },
     });
 

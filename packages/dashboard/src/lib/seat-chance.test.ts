@@ -101,9 +101,13 @@ describe('seatChanceFor', () => {
     if (chance.state !== 'counting') throw new Error('expected counting');
     // The baseline's roll for the seat, not the one tonight's turnout implies.
     expect(chance.enrolment).toBe(45789);
-    // 45,789 × 0.795 × 0.78 is tonight's expected total, so a 25,000-vote count
-    // leaves about 3,400 to come.
-    expect(chance.remainingVotes).toBeLessThan(5000);
+    // 45,789 × the 2026 row's turnout and night share is tonight's expected
+    // total, so a 24,000-vote count leaves the rest to come.
+    const cycle = CYCLE_CONSTANTS[2026];
+    expect(chance.remainingVotes).toBeCloseTo(
+      45789 * cycle.turnout * cycle.nightShare - 24_000,
+      0
+    );
   });
 
   it('reports 100% when the distribution says so, with no cap in the way', () => {
@@ -204,8 +208,9 @@ describe('countProgress', () => {
       '2026'
     );
     expect(progress.votesCounted).toBe(12_000);
-    // The 2026 cycle's own figures — 79.5% turnout of a 78% night share — not
-    // 2023's, which is what this assertion used to borrow while asking for 2026.
+    // The 2026 cycle's own figures — the 7 November preliminary result's 74.6%
+    // turnout and 85.9% night share — not 2023's, which is what this assertion
+    // used to borrow while asking for 2026.
     const cycle = CYCLE_CONSTANTS[2026];
     expect(progress.expected).toBeCloseTo(
       enrolmentForSeat(baseline2026, 'Auckland Central')! *
@@ -213,7 +218,54 @@ describe('countProgress', () => {
         cycle.nightShare,
       0
     );
-    expect(progress.fraction).toBeCloseTo(0.42, 2);
+    expect(progress.fraction).toBeCloseTo(0.41, 2);
+  });
+
+  it('reaches 100% when every voting place has reported', () => {
+    // The live 2026 count finished with 2,433,679 votes and 100% of places in
+    // all 71 seats, while the turnout estimate still found a remainder in the
+    // low-turnout seats. The old number stalled at 97.2%, which read as 2.8% of
+    // the vote still out when the Commission was reporting the count complete.
+    // Completion is a fact about a closed set, so it overrides the estimate.
+    const progress = countProgress(
+      [
+        {
+          electorateName: 'Auckland Central',
+          votesCounted: 30_110,
+          percentVotesCast: 0.584,
+          votePercentageCounted: 1,
+        },
+      ],
+      '2026'
+    );
+    expect(progress.votesCounted).toBe(30_110);
+    expect(progress.expected).toBe(30_110);
+    expect(progress.fraction).toBe(1);
+  });
+
+  it('leaves a counting seat’s estimate alone beside a finished one', () => {
+    const progress = countProgress(
+      [
+        {
+          electorateName: 'Auckland Central',
+          votesCounted: 30_110,
+          percentVotesCast: 0.584,
+          votePercentageCounted: 1,
+        },
+        {
+          electorateName: 'Ōtāhuhu',
+          votesCounted: 20_907,
+          percentVotesCast: 0.427,
+          votePercentageCounted: 0.5,
+        },
+      ],
+      '2026'
+    );
+    // The finished seat contributes its own votes; the live seat still carries
+    // a remainder, so the page does not call the night over.
+    expect(progress.expected).toBeGreaterThan(progress.votesCounted);
+    expect(progress.fraction).toBeLessThan(1);
+    expect(progress.fraction).toBeGreaterThan(0.5);
   });
 
   it('backs enrolment out of the live turnout when the seat has no record', () => {

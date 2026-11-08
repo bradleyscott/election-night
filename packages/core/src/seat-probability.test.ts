@@ -7,6 +7,7 @@ import {
   CYCLE_CONSTANTS,
   DEFAULT_TAU,
   LATEST_CYCLE,
+  nightRemaining,
   type SeatChanceInput,
   type SeatPrior,
 } from './seat-probability.js';
@@ -413,6 +414,51 @@ describe('the voting place count', () => {
   });
 });
 
+describe('night remaining once every place has reported', () => {
+  it('has nothing outstanding even when the turnout estimate expected more', () => {
+    // The live 2026 count finished with seats whose turnout ran below the
+    // cycle's estimate. The place count is the fact; the turnout estimate is a
+    // forecast, so a finished seat must not carry phantom votes into the
+    // whole-night percentage.
+    const remaining = nightRemaining({
+      votesCounted: 12_000,
+      enrolment: 60_000,
+      cycle: CYCLE_CONSTANTS[2026],
+      placesCounted: 1,
+    });
+    expect(remaining.complete).toBe(true);
+    expect(remaining.remainingVotes).toBe(0);
+    expect(remaining.progress).toBe(1);
+  });
+
+  it('still estimates while even one place is outstanding', () => {
+    const remaining = nightRemaining({
+      votesCounted: 12_000,
+      enrolment: 60_000,
+      cycle: CYCLE_CONSTANTS[2026],
+      placesCounted: 0.999,
+    });
+    expect(remaining.complete).toBe(false);
+    expect(remaining.remainingVotes).toBeGreaterThan(0);
+    expect(remaining.progress).toBeLessThan(1);
+  });
+
+  it('uses the estimate’s own finish line when the feed has no place count', () => {
+    // Sources without per-place data have nothing better than the estimate, so
+    // the seat card calls a count within a point of it finished. The whole-night
+    // figure must make the same call.
+    const remaining = nightRemaining({
+      votesCounted: 14_000,
+      enrolment: 21_254,
+      cycle: CYCLE_CONSTANTS[2026],
+      placesCounted: undefined,
+    });
+    expect(remaining.complete).toBe(true);
+    expect(remaining.remainingVotes).toBe(0);
+    expect(remaining.progress).toBe(1);
+  });
+});
+
 describe('the seat’s own special-vote share', () => {
   // 10,000 enrolled at 2023's turnout, so 7,770 votes, of which 21% (1,632)
   // arrive as specials when nothing is known about the seat.
@@ -575,15 +621,17 @@ describe('cycle constants', () => {
     expect(cycleConstantsFor(2020).assumed).toBeUndefined();
   });
 
-  it('states 2026 on the advance vote rather than inheriting 2023', () => {
-    // 455,522 advance votes by the end of the fourth of twelve advance days was
-    // 12.0% of the roll against 9.2% in 2023, and no cycle has run that far
-    // ahead of 2023 without turnout rising. Carrying 77.7% forward would put
-    // the night's total below what the advance count already implies.
+  it('uses the 2026 preliminary result rather than inheriting 2023', () => {
+    // The Commission's 7 November release: 2,432,403 ordinary votes on the
+    // night, ~399,365 specials, 2,831,768 estimated total, 3,796,891 enrolled.
+    // The advance surge lifted the night's share to 85.9% and final turnout fell
+    // to 74.6%, which is the opposite of what the pre-election estimate assumed.
     const cycle = cycleConstantsFor(2026);
     expect(cycle.assumed).toBeUndefined();
-    expect(cycle.turnout).toBeGreaterThan(CYCLE_CONSTANTS[2023].turnout);
-    expect(cycle.turnout).toBeLessThan(0.85);
+    expect(cycle.turnout).toBeCloseTo(0.746, 3);
+    expect(cycle.nightShare).toBeCloseTo(0.859, 3);
+    expect(cycle.specialShare).toBeCloseTo(0.141, 3);
+    expect(cycle.nightShare + cycle.specialShare).toBeCloseTo(1, 3);
   });
 
   it('carries the newest cycle forward for an election it has no figures for', () => {
@@ -597,8 +645,8 @@ describe('cycle constants', () => {
   it('closes late rather than early when the cycle is assumed', () => {
     const known = computeSeatChance({
       ...input(),
-      electionYear: 2023,
-      cycle: CYCLE_CONSTANTS[2023],
+      electionYear: 2026,
+      cycle: CYCLE_CONSTANTS[2026],
     });
     const assumed = computeSeatChance({
       ...input(),
@@ -609,7 +657,8 @@ describe('cycle constants', () => {
       throw new Error('expected counting states');
     }
     // The same count, read against a cycle with no published figures, can never
-    // look more decided than it does against the cycle whose figures we know.
+    // look more decided than it does against the newest cycle whose figures we
+    // know: the assumed row adds 1.6× the size uncertainty.
     expect(assumed.probability).toBeLessThanOrEqual(known.probability + 1e-9);
     expect(assumed.assumedCycle).toBe(true);
     expect(known.assumedCycle).toBe(false);

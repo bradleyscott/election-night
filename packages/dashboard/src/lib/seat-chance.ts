@@ -1,5 +1,6 @@
 import {
   cycleConstantsFor,
+  isCountComplete,
   nightRemaining,
   type SeatChance,
 } from '@election-night/core/seat-probability';
@@ -57,6 +58,12 @@ export function baselineFor(
  * page and the strip under a seat cannot disagree. That call takes the larger
  * of the turnout estimate and a place-count floor, so a seat whose roll is
  * understated cannot report itself as nearly finished.
+ *
+ * The estimate only governs a seat that is still counting. Once every voting
+ * place has reported, the Commission's place count is a fact and the seat is
+ * complete: no money is left on the turnout estimate, so a finished night
+ * reaches exactly 100% instead of stalling on a forecast that ran high. The
+ * threshold is core's `isCountComplete`, the same one the seat card uses.
  */
 export function countProgress(
   results: Array<{
@@ -73,6 +80,13 @@ export function countProgress(
   let expected = 0;
   for (const result of results) {
     if (!(result.votesCounted > 0)) continue;
+    // A complete seat needs no denominator: its counted votes are its total.
+    // This also keeps a complete seat whose roll is unknown in the sum.
+    if (isCountComplete(result.votePercentageCounted)) {
+      votesCounted += result.votesCounted;
+      expected += result.votesCounted;
+      continue;
+    }
     const enrolment = resolveEnrolment({
       recorded: enrolmentForSeat(baseline, result.electorateName),
       votesCounted: result.votesCounted,
