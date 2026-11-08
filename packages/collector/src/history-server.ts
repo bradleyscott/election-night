@@ -22,10 +22,11 @@ import { log } from './logger.js';
  * from here — co-located processes over loopback, split deployments over
  * TLS via a reverse proxy.
  *
- * Two routes are not DB queries: `/history/results/:year` and
- * `/history/prior-winners` are answered from the in-memory
+ * Most routes are DB queries through the SQLite worker. `/history/results/:year`
+ * and `/history/prior-winners` are answered from the in-memory
  * `ElectionResultsService` (the live cycle's latest scrape plus archived
- * cycles fetched lazily from the configured connector).
+ * cycles fetched lazily from the configured connector); `/history/voting-places`
+ * fetches the feed on demand, not the DB.
  *
  * The data is public election results, so the endpoints are unauthenticated.
  * Rate limiting is deliberately not implemented here — it belongs at the

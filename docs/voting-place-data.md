@@ -185,3 +185,29 @@ Its deliberate limits, in order of how much they matter:
   a published figure.
 
 Public pages never show the baseline. It is an input to a number, not a claim.
+
+## The demand path and its two sets
+
+The dashboard does not poll every seat's places. It asks for the open seat, the
+collector caches that answer for 30s, and a burst on the same seat shares one
+in-flight request. A service-wide budget (12 active place-file fetches, 64
+queued, a 10s slot deadline) stops ten different seats from each running their
+own six-wide pool. If the budget cannot admit the work the seat is reported
+`available: false, reason: "busy"`; it is never reported as a seat where every
+place is merely outstanding.
+
+Two different sets are easy to conflate:
+
+- **Contributing places** are every result filed under the seat, including
+  advance hubs standing in another electorate. This is the set the count's
+  `Voting places reported` cell describes, and the one the collectorship uses
+  for the ordinary count's place floor.
+- **In-seat booths** are the places whose `group` is `seat` — the ones drawn on
+  the map and counted by `VotingPlaceLedger`, labelled `booths in this
+electorate`. Mt Albert can be 24 of 24 booths while only 90 of 102
+  contributing places have reported.
+
+The map must never use the booth count to declare the whole electorate
+complete, and the count band must never use the booth count as the
+contributing-place measure. The shared `CountSummary` keeps both fields
+separate for exactly this reason.

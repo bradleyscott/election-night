@@ -156,6 +156,14 @@ overflow-y-clip`): an `auto` vertical axis would make the scroller the sticky
   inside a seat is not 90 of 102 contributing places. A missing forecast prints
   `Estimate unavailable`, never zero and never `No votes counted yet` when votes
   are known. No page derives its own version of these numbers.
+- **A history warning is a hairline status line, not a modal.** When history is
+  stale, unavailable or failed, `HistoryStatus` prints one sentence in muted
+  ink on a bordered row beside the chart, with a `Retry` chip. The rows stay on
+  screen; the note says they are not current, and it never replaces the count
+  panel or opens a dialog. `unavailable` means no usable answer; `stale` means
+  the last verified answer is being shown. The same component is used by Trends
+  and the electorate panel, so the wording cannot fork.
+
 - **Popups, maps, tooltips, and the bottom sheet stay** — they carry the
   information. They are restyled (square, hairline, serif), never removed.
 - No functionality is traded away for the look.

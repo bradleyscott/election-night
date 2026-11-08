@@ -152,11 +152,22 @@ is the only caller and exposes async methods.
 directly on purpose: they are standalone tools that run while the collector is
 stopped, not part of the serving path.
 
-## What is deliberately not here
+## What this document does not cover
 
-- No durable revision cursor; that is Task 07.
-- No worker thread; that is Task 02b, and the read shape above is what keeps
-  its messages and work bounded.
-- No frontend change. The dashboard's Task 01 client is unchanged: it keeps
-  receiving the array body for the default window, and Task 03 will migrate it
-  to follow `X-History-*` paging metadata.
+- The worker ownership described above is Task 02b; this document records the
+  read-shape benchmark that justified the grouped queries before it.
+- Durable revisions/latest state (Task 07) and the browser query client/paging
+  consumer (Task 03) landed after these measurements. The numbers here are read
+  latency and statement counts, not end-to-end socket or browser timings.
+- No frontend change was required for the benchmark; the dashboard client now
+  follows `X-History-*` paging and treats revision-behind responses as stale.
+
+## Related storage changes
+
+Task 07 adds a single `latest_state` row per cycle (full payload plus its
+revision) and a nullable revision/model version on snapshots; Task 09 adds
+`webhook_outbox` with a `(status, next_attempt_at)` due index. None of these
+change the read benchmarks above: latest state is one row, and the outbox is
+written in the same transaction but read only by the delivery loop. History rows
+from before migration 0004 have `revision`/`modelVersion` null and are treated
+as legacy rather than reinterpreted.

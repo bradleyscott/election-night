@@ -59,6 +59,12 @@ Design notes, and why:
 exists but is unavailable), rather than an empty `200` that would look like "no
 results".
 
+The current cycle's authoritative full payload is a separate route,
+`GET /history/latest` (revisioned, persisted in `latest_state`), which the
+dashboard also uses to bootstrap after a restart. The two results-service routes
+above are not part of the count-history window/paging; they are derived from the
+in-memory service and the archive connector.
+
 ## Comparability: which seats may be compared at all
 
 Electorate boundaries are redrawn each cycle and names change with them. A

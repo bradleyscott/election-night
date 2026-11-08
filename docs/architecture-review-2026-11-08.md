@@ -1,5 +1,11 @@
 # Architecture and approach review
 
+> **Status (2026-11-08): findings addressed.** This review describes the system
+> before the reliability work. The implementation, acceptance evidence and
+> commit ledger are in `docs/implementation-plan-2026-11-08.md`; the current
+> architecture is described by `AGENTS.md` and `README.md`. The findings here
+> remain the rationale, not a description of the running code.
+
 **Date:** 8 November 2026  
 **Baseline:** review began at `d29ab09`; reconciled with `989c40b` and remaining working-tree changes as the checkout advanced during review.  
 **Purpose:** prioritised implementation hand-off, not a redesign or an incident postmortem.

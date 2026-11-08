@@ -33,11 +33,14 @@ Two registries, so no series has two sources.
 | `election_collector_health_probe_failures_total`                 | Counter   | —                                |
 | `election_collector_health_probe_last_success_timestamp_seconds` | Gauge     | —                                |
 | `election_socket_messages_total`                                 | Counter   | `direction`, `event`             |
+| `election_results_updates_rejected_total`                        | Counter   | `reason`                         |
 | `election_http_requests_total`                                   | Counter   | `method`, `route`, `status_code` |
 | `election_http_request_duration_seconds`                         | Histogram | `method`, `route`                |
 | `election_history_upstream_requests_total`                       | Counter   | `route`, `outcome`               |
 | `election_history_upstream_request_duration_seconds`             | Histogram | `route`                          |
 | `election_history_cache_events_total`                            | Counter   | `result`                         |
+| `election_history_verification_failures_total`                   | Counter   | `route`, `reason`                |
+| `election_history_stale_serve_age_seconds`                       | Histogram | `route`                          |
 | `election_build_info`                                            | Gauge     | `version`, `revision`            |
 
 **Collector** — `packages/collector/src/metrics.ts`, served on `:3459` and
@@ -64,7 +67,22 @@ merged into the server's `/metrics` (see below):
 
 `election_scrape_duration_seconds` carries `mode` = `reading` (at least one
 seat returned a body), `quiet` (every seat answered 304) or `degraded` (nothing
-transferred and the cycle did not succeed cleanly). `election_scrape_electorates_total`
+transferred and the cycle did not succeed cleanly). `election_webhook_publishes_total`
+and `election_webhook_publish_duration_seconds` now measure outbox **delivery**
+attempts (success/error), not enqueue: announcements are committed with the
+snapshot and delivered by the independent loop, so a burst here is a receiver
+problem, not a count problem.
+
+History reads have their own freshness and revision signal:
+`election_history_upstream_requests_total{outcome="stale_served"}` is a cached
+answer after a failed refresh, `election_history_verification_failures_total`
+breaks that down by bounded `reason`, and
+`election_history_stale_serve_age_seconds` is how old the served value was. The
+outbound history response also carries `X-Election-History-State`,
+`X-Election-History-Verified-At`, `X-Election-History-Reason`,
+`X-History-Total/Limit/Offset/Window-Hours/Revision` and `X-Election-Revision`;
+the browser marks a response older than the revision it has already accepted as
+stale and lets its 30s poll recover. `election_scrape_electorates_total`
 and `election_electorate_fetch_duration_seconds` both carry `unchanged` for a
 304, kept apart from `success` so a revalidation does not sit in the same
 aggregate as a download.
@@ -75,13 +93,16 @@ Bounded label values:
   `error` for electorates; `success` | `unchanged` | `error` for fetch duration.
 - `mode` (cycles): `reading` | `quiet` | `degraded`.
 - `status` (cycles, webhooks, DB): `success` | `partial` | `error` as applicable.
-- `reason` (fetch errors): `timeout` | `http` | `parse` | `network`.
+- `reason` (feed fetch errors): `timeout` | `http` | `parse` | `network`.
+- `reason` (history verification): `upstream-unreachable` | `upstream-unavailable` |
+  `upstream-error` | `invalid-response` | `stale-too-old`.
 - `route` is always a route template (`/api/history/electorate/:name`), never a
   raw path — see `packages/dashboard/server/routes.ts`.
 - `direction`/`event` (socket messages): `in|out` and a small fixed event set.
+- `reason` (rejected results): `remote-publisher` | `wrong-cycle` | `older-revision`.
 
-Histogram buckets are `0.05…120s` for cycles and `0.005…5s` for fetches,
-webhooks and DB writes.
+Histogram buckets are `0.05…120s` for cycles, `0.005…5s` for fetches,
+webhooks and DB writes, and `5s…1h` for the age of a stale history value.
 
 **How the two processes connect.** Fly scrapes exactly one metrics endpoint per
 process — multiple `[[metrics]]` sections in `fly.toml` only apply across Fly
@@ -91,10 +112,10 @@ So `GET /metrics` on the server pulls the collector's exposition over loopback
 (`COLLECTOR_METRICS_URL`, default `<HISTORY_UPSTREAM>/metrics`,
 `packages/dashboard/server/collector-metrics.ts`) and appends it, dropping the
 collector's duplicate `election_build_info` family so the body has one HELP/TYPE
-line per family. The merge gets 10s, not a latency budget but a liveness one: the collector
-serves `/metrics` from the same event loop it writes SQLite on, so a snapshot
-write, a retention sweep (`incremental_vacuum`) or parsing every changed seat can
-delay it by seconds. When a fetch still fails, the server serves the last
+line per family. The merge gets 10s, not a latency budget but a liveness one: the collector's
+event loop still parses changed seats and serves the listener, while SQLite
+writes/reads/pruning live in its worker. A wedged or blocked collector can still
+delay or fail the exposition, so the server keeps the last successful body. When a fetch still fails, the server serves the last
 exposition the collector answered with (and its own series on the first ever
 failure) instead of dropping every collector-owned series from the scrape.
 
@@ -114,8 +135,10 @@ keep scraping, writing snapshots and publishing over Socket.io while `/health`,
 `/metrics` and `/history/*` stop answering — the listener stays bound and
 `server.on('error')` never fires. The dashboard therefore probes the
 collector's `/health` every 10s (`packages/dashboard/server/collector-watchdog.ts`).
-`/health` is deliberate: it is synchronous and never touches SQLite. After six
-consecutive failures (following a two-minute startup grace) the dashboard exits;
+`/health` is deliberate: it is synchronous and never touches SQLite. The same
+bounded `probeCollectorHealth` backs `/ready`, so readiness cannot pass on a
+cached history value. After six consecutive failures (following a two-minute
+startup grace) the dashboard exits;
 `docker/entrypoint.sh` treats either process dying as fatal, so the machine
 restarts. `COLLECTOR_WATCHDOG=off` disables the probe; it otherwise runs only
 when `NODE_ENV=production` and `COLLECTOR_ENABLED=true` (the combined
@@ -198,12 +221,12 @@ probe's own signals, kept separate from the scrape-driven metrics above.
 | P0       | Collector metrics were pushed and lossy; it had no `/metrics` | The collector owns a registry and serves `/metrics` on `:3459`. Fly scrapes only one endpoint per process, so the server's `/metrics` merges it over loopback (`election_collector_metrics_reachable` tracks that hop). The Socket.io push is now a heartbeat mirror only.                                                                                                                                                                               |
 | P0       | No progress/datasource gauges                                 | `election_votes_counted`, `election_electorates_reporting`, `election_electorates_total` are emitted every cycle.                                                                                                                                                                                                                                                                                                                                        |
 | P0       | Disk exhaustion was invisible until it was unrecoverable      | `election_disk_size_bytes` / `election_disk_available_bytes` sample the DB filesystem every cycle, so the ratio warns before SQLite starts failing. The write counter's `status="error"` was already emitted but had no alert; it now has one. Growth is bounded by `RETENTION_HOURS` (see §4). When the volume did fill, every write failed with `SQLITE_FULL` and the only user-visible symptom was empty pages — the collector kept fetching happily. |
-| P1       | No history-upstream or cache metrics                          | `election_history_upstream_requests_total{route,outcome}`, `..._duration_seconds{route}` and `election_history_cache_events_total{result}`; `outcome="stale_served"` is the app-tier signal that the collector became unreachable.                                                                                                                                                                                                                       |
+| P1       | No history-upstream or cache metrics                          | `election_history_upstream_requests_total{route,outcome}`, `..._duration_seconds{route}` and `election_history_cache_events_total{result}`; `outcome="stale_served"` is the app-tier signal that the collector became unreachable. Added `election_history_verification_failures_total{route,reason}` and `election_history_stale_serve_age_seconds{route}` so staleness has an age, not just a count.                                                   |
 | P1       | No per-route HTTP metrics                                     | `election_http_requests_total` and `election_http_request_duration_seconds`, labelled with route templates via `routes.ts`.                                                                                                                                                                                                                                                                                                                              |
 | P1       | Staleness was inferred by a hard-coded 60s hack               | Replaced by `election_collector_metrics_last_received_timestamp_seconds`, updated on every collector heartbeat; alert on its age.                                                                                                                                                                                                                                                                                                                        |
 | P1       | The `status` label meant two different things                 | Electorate fetches now use `outcome` (`success`/`cached`/`error`); only cycle/webhook/DB metrics use `status`.                                                                                                                                                                                                                                                                                                                                           |
 | P1       | No per-electorate fetch latency or error reason               | `election_electorate_fetch_duration_seconds{outcome}` and `election_electorate_fetch_errors_total{reason}`, plus `election_scrape_retried_electorates`.                                                                                                                                                                                                                                                                                                  |
-| P2       | Histogram buckets had nothing below 500ms                     | Cycle buckets now `0.05…120s`; fetch/webhook/DB buckets `0.005…5s`.                                                                                                                                                                                                                                                                                                                                                                                      |
+| P2       | Histogram buckets had nothing below 500ms                     | Cycle buckets now `0.05…120s`; fetch/webhook/DB buckets `0.005…5s`; stale history age `5s…1h`.                                                                                                                                                                                                                                                                                                                                                           |
 | P2       | No build/version metric                                       | `election_build_info{version,revision}` on both processes, fed by `APP_VERSION` / `GIT_SHA` at build time.                                                                                                                                                                                                                                                                                                                                               |
 | P2       | Feed retention was unobservable                               | `election_feed_events_stored`, to compare against `MAX_FEED_EVENTS`.                                                                                                                                                                                                                                                                                                                                                                                     |
 | P2       | No committed dashboards                                       | `ops/grafana/` holds three generator-built dashboards plus provisioning.                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -216,6 +239,15 @@ probe's own signals, kept separate from the scrape-driven metrics above.
 - **Per-electorate metric series are deliberately not labelled by electorate.**
   Cardinality is bounded (~71) but the labels buy little over the aggregate, and
   per-electorate detail is better served by the SQLite history API.
+- **No outbox depth or dead-letter gauge.** Webhook delivery has
+  `election_webhook_publishes_total{status}` but not the pending/dead-letter
+  count or the oldest due age. Until a grouped gauge is added from
+  `webhook_outbox`, alert on the delivery error rate; the outbox's own prune and
+  cap bound the disk, not the dashboard.
+- **No history revision-lag metric.** The browser compares the served
+  `X-Election-Revision` with the socket revision and marks a behind response
+  stale; that comparison is not exported. `election_history_stale_serve_age_seconds`
+  covers the proxy-side age.
 - **No tracing.** This is a two-process system with one HTTP hop; latency
   histograms on both sides cover it without a tracing stack.
 
@@ -345,6 +377,8 @@ count is supposed to move.
 | Data going stale (serving cache)  | `sum(rate(election_scrape_electorates_total{outcome="cached"}[10m])) > 0`                                                      | 15m | warning  |
 | Cycle duration p95 high           | `histogram_quantile(0.95, sum by (le) (rate(election_scrape_duration_seconds_bucket{mode="reading"}[15m]))) > 60`              | 15m | warning  |
 | Webhook failures                  | `sum(rate(election_webhook_publishes_total{status="error"}[10m])) / sum(rate(election_webhook_publishes_total[10m])) > 0.5`    | 10m | warning  |
+| History cannot be verified        | `sum(rate(election_history_verification_failures_total[10m])) > 0`                                                             | 10m | warning  |
+| Stale history served too long     | `histogram_quantile(0.95, sum(rate(election_history_stale_serve_age_seconds_bucket[10m])) by (le)) > 60`                       | 10m | critical |
 | History upstream failing          | `sum(rate(election_history_upstream_requests_total{outcome!="ok"}[10m])) > 0`                                                  | 5m  | warning  |
 | API 5xx ratio                     | `sum(rate(election_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(election_http_requests_total[5m])) > 0.01`         | 5m  | critical |
 | Ready failing                     | `increase(election_http_requests_total{route="/ready", status_code="503"}[5m]) > 0`                                            | 5m  | critical |

@@ -1,5 +1,10 @@
 # Simplification audit
 
+> **Status (2026-11-08): historical audit.** Some findings here have since been
+> superseded by `docs/architecture-review-2026-11-08.md` and the implementation
+> ledger. Use `AGENTS.md` for the current architecture; this file is retained as
+> the earlier audit trail.
+
 A whole-tree pass — `core`, `collector`, the dashboard server and client,
 `scripts/`, and the build config — looking for code that can be deleted,
 duplication that can be collapsed, and structure that costs more than it earns.

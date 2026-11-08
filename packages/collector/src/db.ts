@@ -433,8 +433,9 @@ const SNAPSHOT_CHILD_TABLES = [
  * whole batch, and the interesting case is a volume that is nearly full, where
  * one large `DELETE` fails with `SQLITE_FULL` and frees nothing. Batching with
  * a checkpoint between keeps the WAL bounded so pruning can always make
- * progress. There is no auto-vacuum, so freed pages go to the freelist and are
- * reused by the next scrape rather than returned to the filesystem.
+ * progress. Incremental auto-vacuum lets `compactDatabase()` return pages at the
+ * end of the file later; until that runs, freed pages sit on the freelist and
+ * are reused by the next scrape.
  */
 const PRUNE_BATCH = 100;
 

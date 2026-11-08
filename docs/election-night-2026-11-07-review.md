@@ -1,5 +1,11 @@
 # Election-night operational review: 7–8 November 2026
 
+> **Status (2026-11-08): incident findings addressed.** This review records the
+> election-night evidence as observed. The fixes and their regression tests are
+> in `docs/implementation-plan-2026-11-08.md`; read the current architecture
+> from `AGENTS.md`/`README.md`. The timeline below is historical and is not
+> rewritten.
+
 **Prepared:** 8 November 2026. All narrative times below are **NZDT (UTC+13)**.
 7pm on 7 November is **06:00 UTC on 7 November**, not 07:00 UTC.
 

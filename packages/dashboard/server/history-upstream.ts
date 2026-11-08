@@ -9,7 +9,9 @@
  * processes the default upstream `http://127.0.0.1:3459` applies.
  *
  * Responses are cached briefly (default 10s) so dashboard traffic bursts
- * (Trends page, /ready) don't hammer the collector on every request.
+ * (Trends, an open electorate) don't hammer the collector on every request.
+ * `/ready` deliberately does not read this cache: it probes the collector's
+ * `/health`, because a cached history value is not a dependency check.
  *
  * `read()` returns a `HistoryRead`: the parsed value *and* how it was obtained.
  * A cache hit is `cached`; a fresh upstream response is `verified`; a value
