@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow.js';
 import type {
   VotingResults,
   WithParty,
@@ -79,6 +81,9 @@ export function ElectorateResultsTable({
    */
   chance?: SeatChance | null;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { overflows } = useHorizontalOverflow(scrollRef, result.votesCounted);
+
   const rows = (
     showPartyVote ? [...result.partyVotes] : [...result.candidateVotes]
   ).sort((a, b) => b.votes - a.votes);
@@ -95,7 +100,7 @@ export function ElectorateResultsTable({
     : result.leaders.leadingCandidate !== null;
 
   return (
-    <div className={TABLE_SCROLL}>
+    <div ref={scrollRef} className={cn(overflows && TABLE_SCROLL)}>
       <table className={cn('w-full', TABLE_TEXT_COMPACT)}>
         <thead>
           <tr>

@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { WaitingState } from './WaitingState.js';
 import { Pagination } from './Pagination.js';
 import { normalizeElectorateName } from '../lib/electorates.js';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow.js';
 import type { ElectorateResult } from '@election-night/core/types';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { PartyDot } from './PartyDot.js';
@@ -37,6 +38,7 @@ export function ElectorateRacesView({
 }) {
   const navigate = useNavigate();
   const [page, setPage] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Closest first still, but "close" is now the chance of losing rather than
   // the distance between the top two. A seat with a 12% lead and a 99% chance
@@ -59,6 +61,8 @@ export function ElectorateRacesView({
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageResults = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // A page turn redraws the rows, which changes the table's width.
+  const { overflows } = useHorizontalOverflow(scrollRef, page);
 
   useEffect(() => {
     if (page >= totalPages) setPage(0);
@@ -70,7 +74,7 @@ export function ElectorateRacesView({
 
   return (
     <div>
-      <div className={cn(TABLE_SCROLL, TABLE_FRAME)}>
+      <div ref={scrollRef} className={cn(overflows && TABLE_SCROLL, TABLE_FRAME)}>
         <table className={cn('w-full', TABLE_TEXT)}>
           <thead>
             <tr>

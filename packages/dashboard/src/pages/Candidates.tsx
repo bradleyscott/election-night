@@ -192,7 +192,7 @@ function AllCandidates({
    * redraws the table under the search field and the sort buttons, which
    * changes its width.
    */
-  const { moreRight, scrolled } = useHorizontalOverflow(
+  const { overflows, moreRight, scrolled } = useHorizontalOverflow(
     scrollRef,
     candidates.length
   );
@@ -253,7 +253,10 @@ function AllCandidates({
           cut column is the cue, and a caption that has to be read before the
           table is read is a worse trade than a column that looks cut off. */}
       <div className="relative">
-        <div ref={scrollRef} className={cn(TABLE_SCROLL, TABLE_FRAME)}>
+        <div
+          ref={scrollRef}
+          className={cn(overflows && TABLE_SCROLL, TABLE_FRAME)}
+        >
           <table className={cn('w-full', TABLE_TEXT)}>
             <thead>
               <tr>

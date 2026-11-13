@@ -180,7 +180,7 @@ export default function Flipped() {
   // Electorate cell stays put while the others pass under it. Both are false on
   // wider screens, where everything fits. `visible.length` redraws the table
   // under a search, which changes its width.
-  const { moreRight, scrolled } = useHorizontalOverflow(
+  const { overflows, moreRight, scrolled } = useHorizontalOverflow(
     scrollRef,
     visible.length
   );
@@ -243,7 +243,10 @@ export default function Flipped() {
             </div>
 
             <div className="relative">
-              <div ref={scrollRef} className={cn(TABLE_SCROLL, TABLE_FRAME)}>
+              <div
+              ref={scrollRef}
+              className={cn(overflows && TABLE_SCROLL, TABLE_FRAME)}
+            >
                 <table
                   className={cn(
                     // Wider than the phone below `sm`, so the Win % column is

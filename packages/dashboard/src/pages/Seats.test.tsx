@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, test } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Seats from './Seats.js';
 import { MockSocketProvider } from '../test/test-utils.js';
@@ -143,6 +143,44 @@ describe('Seats page', () => {
     expect(popover.style.transform).toBe('');
     expect(popover.style.left).not.toBe('');
     expect(popover.style.top).not.toBe('');
+  });
+
+
+  // A head cell parked at the masthead's height inside a sideways scroller is
+  // not parked at all: the scroller is its scrollport, and that box is
+  // content-sized and never scrolls, so `top` displaced the head down over the
+  // first rows (58px on a phone, 96px at `sm`) and hid a party outright. A
+  // table that fits must therefore carry no scroller at all, and one that does
+  // scroll must zero the offset instead of floating over its own rows.
+  test('leaves a party table that fits out of the sideways scroller', () => {
+    const { container } = renderSeats();
+    const frame = container.querySelector('table')?.parentElement;
+
+    expect(frame).not.toBeNull();
+    expect(frame).not.toHaveClass('overflow-x-auto');
+    expect(frame).not.toHaveClass('[--table-sticky-offset:0px]');
+    expect(frame?.querySelector('thead th')).toHaveClass('sticky');
+  });
+
+  test('puts a party table wider than its frame in the scroller, offset zeroed', () => {
+    const { container } = renderSeats();
+    const frame = container.querySelector('table')?.parentElement;
+    if (!frame) throw new Error('no party table');
+
+    Object.defineProperty(frame, 'scrollWidth', {
+      configurable: true,
+      value: 520,
+    });
+    Object.defineProperty(frame, 'clientWidth', {
+      configurable: true,
+      value: 356,
+    });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    expect(frame).toHaveClass('overflow-x-auto');
+    expect(frame).toHaveClass('[--table-sticky-offset:0px]');
   });
 
   test('renders waiting state when no results are available', () => {
