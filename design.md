@@ -106,15 +106,22 @@ Mono (data).
   (`DragGrip.tsx`) and a grab cursor: 8px wide, so the affordance never costs
   the phone a column or a name's worth of width.
 - **Table heads stick under the masthead** — every head cell is `TH_STICKY`,
-  parked at `top: var(--masthead-height)`, which `Layout` measures and publishes
-  so the head sits against the 56px phone bar and the ~93px bar above `sm`
-  rather than under either. Two pieces are load-bearing. The bottom hairline is
-  an inset shadow, not the row's `border-b`, because `border-collapse` paints a
-  collapsed rule in table coordinates and it stays behind when the head sticks.
-  And every sideways scroller is `TABLE_SCROLL` (`overflow-x-auto
-overflow-y-clip`): an `auto` vertical axis would make the scroller the sticky
-  cells' reference and the head would scroll away, while `clip` leaves the
-  vertical axis to the page. `TH_PINNED` / `TH_PINNED_MOVED` are the frozen
+  parked at `top: var(--table-sticky-offset, var(--masthead-height, 0px))`,
+  which `Layout` measures and publishes so the head sits against the 56px phone
+  bar and the ~93px bar above `sm` rather than under either. Two pieces are
+  load-bearing. The bottom hairline is an inset shadow, not the row's `border-b`,
+  because `border-collapse` paints a collapsed rule in table coordinates and it
+  stays behind when the head sticks. And the offset resolves to zero inside a
+  sideways scroller: `overflow-x: auto` makes a frame a scroll container on
+  _both_ axes — an axis left `visible` or `clip` next to a scrolling one computes
+  to `auto`/`hidden`, so `overflow-y-clip` does not leave the vertical axis to
+  the page — and the scroller is then the head's scrollport, a content-sized box
+  that never scrolls, where `top` is pure displacement down over the first rows.
+  So `TABLE_SCROLL` (scroller + `--table-sticky-offset: 0`) is applied only while
+  the table is actually wider than its frame, measured by
+  `useHorizontalOverflow`; a table that fits carries no scroller and keeps the
+  masthead offset, which is the only state in which a head can park under the
+  masthead while the page scrolls. `TH_PINNED` / `TH_PINNED_MOVED` are the frozen
   first column's head — one layer above the other heads so a header never
   slides under a header.
 - **A folded figure keeps the words that name it** — where a phone folds a

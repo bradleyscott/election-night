@@ -107,16 +107,27 @@ const PINNED_EDGE =
 export const PINNED_MOVED = `shadow-[8px_0_8px_-8px_hsl(var(--foreground)/0.35)] ${PINNED_EDGE}`;
 
 /**
- * The scroller every data table sits in.
+ * The scroller every data table sits in — applied only while the table is
+ * actually wider than its frame, because being a scroller is load-bearing.
  *
- * `overflow-x-auto` alone is what a sideways table needs, but it also computes
- * `overflow-y: auto`, which makes the box a scroll container on both axes — and
- * a sticky header inside it is then positioned against that box rather than the
- * page, so it scrolls away instead of sticking. `overflow-y: clip` leaves the
- * vertical axis to the page while the table still scrolls horizontally. Do not
- * "tidy" one of these two classes away: the head stops sticking without it.
+ * `overflow-x: auto` makes a box a scroll container on *both* axes: CSS Overflow
+ * says an axis set to `visible` or `clip` next to a scrolling axis computes to
+ * `auto` and `hidden`, so `overflow-y-clip` does not leave the vertical axis to
+ * the page — the computed value is `hidden`, and the frame is the sticky head's
+ * scrollport. That scrollport is content-sized and never scrolls, so `top` on a
+ * head cell is pure displacement: it pushed every head down by the masthead's
+ * height and painted it over the first one or two rows (58px on a phone, 96px
+ * at `sm`). Hence `--table-sticky-offset: 0` here: inside a scroller the head
+ * stays in flow instead of covering the table.
+ *
+ * A table that fits puts no scroller around itself at all (nothing to scroll
+ * with) and keeps `top: var(--masthead-height)`, which is the only state in
+ * which a sticky head can park under the masthead while the page scrolls.
+ * `useHorizontalOverflow` measures which of the two applies; never write
+ * `overflow-x-auto` on a table frame by hand.
  */
-export const TABLE_SCROLL = 'overflow-x-auto overflow-y-clip';
+export const TABLE_SCROLL =
+  'overflow-x-auto overflow-y-clip [--table-sticky-offset:0px]';
 
 /**
  * A header cell that stays under the masthead while the page scrolls.
@@ -125,21 +136,17 @@ export const TABLE_SCROLL = 'overflow-x-auto overflow-y-clip';
  * `Layout`: the bar is 56px on a phone and ~93px from `sm` up, because the
  * dateline is hidden below `sm`, so a single offset would either leave a gap or
  * tuck the head under the bar. Measuring it also survives the mobile menu and
- * the live label changing width.
+ * the live label changing width. Inside a sideways scroller the offset is zero
+ * instead (see `TABLE_SCROLL`) — a head that cannot reach the masthead must not
+ * float over the rows below it.
  *
  * The bottom hairline is an inset shadow rather than the row's `border-b`.
  * With `border-collapse` the table paints the collapsed rule in table
  * coordinates, so it stays behind when the head sticks; a shadow is drawn with
  * the cell and travels with it.
- *
- * Every table that can scroll sideways sits in `TABLE_SCROLL` for this. A
- * scroll container on the vertical axis would own the sticky cells — a sticky
- * box never escapes an ancestor whose overflow is `auto` — while `clip` still
- * scrolls the table horizontally. Change one without the other and the head
- * silently stops sticking.
  */
 export const TH_STICKY =
-  'sticky top-[var(--masthead-height,0px)] z-20 bg-background shadow-[inset_0_-1px_0_hsl(var(--border))]';
+  'sticky top-[var(--table-sticky-offset,var(--masthead-height,0px))] z-20 bg-background shadow-[inset_0_-1px_0_hsl(var(--border))]';
 
 /**
  * A sticky head cell that also freezes its column while the table scrolls

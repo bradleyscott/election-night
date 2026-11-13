@@ -4,8 +4,10 @@ import {
   PointerActivationConstraints,
   type DragEndEvent,
 } from '@dnd-kit/dom';
+import { useRef } from 'react';
 import { cn } from '../lib/utils.js';
 import { partyColor } from '../lib/constants.js';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow.js';
 import { SortableRow } from './SortableRow.js';
 import { PartyDot } from './PartyDot.js';
 import type { PartyVoteResult } from '@election-night/core/types';
@@ -50,6 +52,12 @@ export function ParliamentTable({
   onToggleShowAll: () => void;
   onDragEnd: (event: DragEndEvent) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { overflows } = useHorizontalOverflow(
+    scrollRef,
+    `${showAllParties}:${partyVote.length}`
+  );
+
   const partiesWithSeats = order
     .map((name) => partyVote.find((p) => p.candidate === name))
     .filter((p): p is PartyVoteResult => !!p && p.seats > 0);
@@ -65,7 +73,7 @@ export function ParliamentTable({
 
   return (
     <DragDropProvider onDragEnd={onDragEnd} sensors={[touchSensor]}>
-      <div className={TABLE_SCROLL}>
+      <div ref={scrollRef} className={cn(overflows && TABLE_SCROLL)}>
         <table className={cn('w-full', TABLE_TEXT_LG)}>
           <thead>
             <tr>

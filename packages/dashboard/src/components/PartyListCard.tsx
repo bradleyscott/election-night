@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import type { CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { partyColor } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow.js';
 import { PartyDot } from './PartyDot.js';
 import {
   Th,
@@ -120,6 +121,8 @@ export function PartyListCard({
   rowDelayBase?: number;
   rowDelayStep?: number;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { overflows } = useHorizontalOverflow(scrollRef, members.length);
   const electorateOf = electorateForCandidate ?? new Map<string, string>();
   const lastAboveCut = members.reduce(
     (last, member, index) =>
@@ -141,7 +144,7 @@ export function PartyListCard({
       )}
       style={wrapperStyle}
     >
-      <div className={cn(TABLE_SCROLL, TABLE_FRAME)}>
+      <div ref={scrollRef} className={cn(overflows && TABLE_SCROLL, TABLE_FRAME)}>
         <table
           className={cn('w-full', TABLE_TEXT)}
           aria-label={`${party} party list`}
