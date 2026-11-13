@@ -44,6 +44,7 @@ import { parseResultsEnvelope } from './validation.js';
 import { withMutex, Mutex } from './mutex.js';
 import { isAuthorizedPublisher, isLoopbackAddress } from './publisher.js';
 import { readTaggedCache } from '@election-night/core/tagged-cache';
+import { decideDurableBoot } from './durable-state.js';
 import { log } from './logger.js';
 
 const {
@@ -104,6 +105,50 @@ function loadCachedResults() {
     );
   }
   log.info('No cached results found, waiting for first scrape...');
+}
+
+/**
+ * The retained payload, recovered from the collector's durable latest state.
+ *
+ * `loadCachedResults` above can only restore electorates: `RESULTS_CACHE_PATH`
+ * is the collector's diff baseline, not a payload, so it carries no party vote
+ * and no party lists. That is enough to draw a map and not enough to draw
+ * seats, parties or candidates. It was also, after the preliminary count, the
+ * only payload this server would ever hold — the Commission's media feed stops
+ * answering once the count is in (2026: a 404 on every path), so the collector
+ * publishes nothing and no scrape ever replaces the preload. The site then
+ * waited for results that had been in SQLite since the count finished.
+ *
+ * `/history/latest` is the authoritative full payload that the history API
+ * promises a restart recovers parties and lists from, and it lives beside this
+ * process on the same volume. So ask it at boot, after the seat cache as the
+ * cheap fallback. `decideDurableBoot` holds the judgement about when to trust
+ * the copy; this only logs it and publishes it to connecting browsers.
+ */
+async function loadDurableResults(): Promise<boolean> {
+  const latest = await historySource.latest().catch(() => null);
+  const decision = decideDurableBoot({
+    latest,
+    configuredYear: dashboardServerConfig.electionYear,
+    currentRevision: latestRevision,
+  });
+
+  if (decision.kind === 'ignored') {
+    log.warn(
+      `Not recovering durable results from ${dashboardServerConfig.historyUpstream}/history/latest: ${decision.reason}` +
+        (latest?.reason ? ` (${latest.reason})` : '')
+    );
+    return false;
+  }
+
+  const { payload } = decision.envelope;
+  latestResults = payload;
+  latestEnvelope = decision.envelope;
+  log.info(
+    `Loaded durable results from history upstream: ${payload.electorateResults.length} electorates, ` +
+      `${payload.partyVote.length} parties, ${payload.partyLists.length} list candidates`
+  );
+  return true;
 }
 
 const historySource: HistorySource = createHistorySource({
@@ -410,6 +455,9 @@ server.listen(PORT, () => {
   log.info(`Socket.io server running on http://localhost:${PORT}`);
   loadCachedResults();
   loadFeedEvents();
+  // Then the durable full payload, which is the only copy carrying parties and
+  // lists; the seat cache above is the fallback when the collector is absent.
+  void loadDurableResults();
 
   if (watchdogEnabledFromEnv()) {
     watchdog = startCollectorWatchdog({
