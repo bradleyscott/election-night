@@ -277,7 +277,9 @@ collector (:3459)         ─┘
   count and duration, snapshot-write/db-write timing, plus a disk sample
   (`recordDiskUsage`) at the start of each cycle.
 - `packages/collector/src/db.ts` — `pruneSnapshots()`: `RETENTION_HOURS` of
-  snapshots are kept (24 by default, `0` disables), pruned in batches of 100
+  snapshots are kept (24 by default, `0` disables), counted back from the newest
+  snapshot rather than from `now()` so a quiet feed does not delete the count it
+  is meant to keep, pruned in batches of 100
   with a WAL checkpoint between them so a nearly-full volume can still make
   progress. `enableIncrementalVacuum()` puts the database in `auto_vacuum =
 INCREMENTAL` (a one-time `VACUUM` for a file created before this existed), and

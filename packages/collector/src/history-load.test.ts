@@ -245,6 +245,31 @@ describe('history load shape', () => {
     db.close();
   });
 
+  // The chart asks "what did the last day of counting look like", not "what
+  // happened in the last 24 hours of my life". Anchored to now(), a settled
+  // count reads as no data at all, which is what the Trends chart showed.
+  test('reads the window from the newest snapshot, not the wall clock', async () => {
+    const db = await seed(6);
+    const raw = new Database(db.name, { readonly: false });
+    raw
+      .prepare(
+        "UPDATE scrape_snapshots SET started_at = datetime(started_at, '-7 days')"
+      )
+      .run();
+    raw.close();
+
+    const result = queryPartyVoteHistory(db, '2026', {
+      windowHours: 24,
+      limit: 2_000,
+      offset: 0,
+    });
+
+    expect(result.total).toBe(6);
+    expect(result.rows).toHaveLength(6);
+
+    db.close();
+  });
+
   test('excludes snapshots older than the window', async () => {
     const db = await seed(6);
     const raw = new Database(db.name, { readonly: false });

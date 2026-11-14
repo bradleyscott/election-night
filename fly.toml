@@ -57,9 +57,11 @@ primary_region = "syd"
   # outranks an ad-hoc `fly machine update --env` on the next deploy. See README
   # "Machine size and poll cadence".
   POLL_INTERVAL_MS = "86400000"
-  # Keep a day of snapshots; pruning runs on startup. Without it the volume
-  # fills, SQLite starts failing every write with SQLITE_FULL, and the site
-  # serves nothing (see docs/observability.md §6 for the alerts).
+  # Keep a day *of the count*; pruning runs on startup and every sweep. The
+  # window counts back from the newest snapshot, not from the wall clock: on a
+  # quiet feed a clock-anchored day deletes the whole series (it did, for the
+  # 2026 count). Without retention the volume fills, SQLite starts failing with
+  # SQLITE_FULL, and the site serves nothing (see docs/observability.md §6).
   RETENTION_HOURS = "24"
   WS_URL = "ws://127.0.0.1:3456"
   HISTORY_UPSTREAM = "http://127.0.0.1:3459"
