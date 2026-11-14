@@ -36,6 +36,7 @@ import {
   addFeedEvents,
   buildFeedEvents,
   currentFeedEvents,
+  adoptFeedEvents,
   loadFeedEvents,
   resetFeedState,
 } from './feed.js';
@@ -44,6 +45,14 @@ import { parseResultsEnvelope } from './validation.js';
 import { withMutex, Mutex } from './mutex.js';
 import { isAuthorizedPublisher, isLoopbackAddress } from './publisher.js';
 import { readTaggedCache } from '@election-night/core/tagged-cache';
+import { decideDurableBoot } from './durable-state.js';
+import {
+  FEED_EVENTS_PATH,
+  buildFeedEventsBody,
+  decideFeedRecovery,
+  parseFeedEventsBody,
+  type FeedEventsBody,
+} from './feed-recovery.js';
 import { log } from './logger.js';
 
 const {
@@ -104,6 +113,97 @@ function loadCachedResults() {
     );
   }
   log.info('No cached results found, waiting for first scrape...');
+}
+
+/**
+ * The retained payload, recovered from the collector's durable latest state.
+ *
+ * `loadCachedResults` above can only restore electorates: `RESULTS_CACHE_PATH`
+ * is the collector's diff baseline, not a payload, so it carries no party vote
+ * and no party lists. That is enough to draw a map and not enough to draw
+ * seats, parties or candidates. It was also, after the preliminary count, the
+ * only payload this server would ever hold — the Commission's media feed stops
+ * answering once the count is in (2026: a 404 on every path), so the collector
+ * publishes nothing and no scrape ever replaces the preload. The site then
+ * waited for results that had been in SQLite since the count finished.
+ *
+ * `/history/latest` is the authoritative full payload that the history API
+ * promises a restart recovers parties and lists from, and it lives beside this
+ * process on the same volume. So ask it at boot, after the seat cache as the
+ * cheap fallback. `decideDurableBoot` holds the judgement about when to trust
+ * the copy; this only logs it and publishes it to connecting browsers.
+ */
+async function loadDurableResults(): Promise<boolean> {
+  const latest = await historySource.latest().catch(() => null);
+  const decision = decideDurableBoot({
+    latest,
+    configuredYear: dashboardServerConfig.electionYear,
+    currentRevision: latestRevision,
+  });
+
+  if (decision.kind === 'ignored') {
+    log.warn(
+      `Not recovering durable results from ${dashboardServerConfig.historyUpstream}/history/latest: ${decision.reason}` +
+        (latest?.reason ? ` (${latest.reason})` : '')
+    );
+    return false;
+  }
+
+  const { payload } = decision.envelope;
+  latestResults = payload;
+  latestEnvelope = decision.envelope;
+  log.info(
+    `Loaded durable results from history upstream: ${payload.electorateResults.length} electorates, ` +
+      `${payload.partyVote.length} parties, ${payload.partyLists.length} list candidates`
+  );
+  return true;
+}
+
+/**
+ * The retained feed events, adopted from the configured upstream when this
+ * process has none of its own.
+ *
+ * A machine with a volume reloads its feed cache at boot and this declines
+ * (`has-local`). A preview has neither a volume nor a collector, so its Live
+ * Feed panel was the one region that could never render — a page contradicting
+ * itself, which reads as a bug rather than as the artefact it is. Adopting the
+ * upstream's events makes the preview show the events production actually
+ * holds; `decideFeedRecovery` refuses an empty or foreign-cycle body rather
+ * than showing one.
+ *
+ * Clients that were already connected miss the on-connect frame, so the
+ * adopted set is broadcast once as well.
+ */
+async function loadUpstreamFeedEvents(): Promise<boolean> {
+  const base = dashboardServerConfig.historyUpstream.replace(/\/+$/, '');
+  const url = `${base}${FEED_EVENTS_PATH}`;
+
+  let body: FeedEventsBody | null = null;
+  if (currentFeedEvents().length === 0) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+      if (res.ok) body = parseFeedEventsBody(await res.json());
+    } catch {
+      // Unreachable or not JSON: `null` reaches the same 'invalid' decision.
+    }
+  }
+
+  const decision = decideFeedRecovery({
+    body,
+    configuredYear: dashboardServerConfig.electionYear,
+    localCount: currentFeedEvents().length,
+  });
+
+  if (decision.kind === 'ignored') {
+    log.info(`Not adopting feed events from ${url}: ${decision.reason}`);
+    return false;
+  }
+
+  const adopted = adoptFeedEvents(decision.events);
+  log.info(`Adopted ${adopted} feed events from ${url}`);
+  io.emit('feed_history', currentFeedEvents());
+  socketMessagesTotal.inc({ direction: 'out', event: 'feed_history' });
+  return true;
 }
 
 const historySource: HistorySource = createHistorySource({
@@ -193,6 +293,24 @@ const server = createServer(
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify(buildRuntimeConfig(dashboardServerConfig.electionYear))
+        );
+        return;
+      }
+      // The feed's durable read. Read-only and unauthenticated, like the
+      // history proxy: it is the same events this process sends a browser on
+      // connect, and it is what lets a machine without a volume show them.
+      if (url.pathname === '/api/feed-events') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        });
+        res.end(
+          JSON.stringify(
+            buildFeedEventsBody(
+              currentFeedEvents(),
+              dashboardServerConfig.electionYear
+            )
+          )
         );
         return;
       }
@@ -410,6 +528,12 @@ server.listen(PORT, () => {
   log.info(`Socket.io server running on http://localhost:${PORT}`);
   loadCachedResults();
   loadFeedEvents();
+  // Then the durable full payload, which is the only copy carrying parties and
+  // lists; the seat cache above is the fallback when the collector is absent.
+  void loadDurableResults();
+  // Then the feed, which production reloads from its volume and a preview can
+  // only read from its upstream.
+  void loadUpstreamFeedEvents();
 
   if (watchdogEnabledFromEnv()) {
     watchdog = startCollectorWatchdog({

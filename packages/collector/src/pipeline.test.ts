@@ -121,10 +121,21 @@ describe('pipeline integration', () => {
     const clientSocket = io(`ws://localhost:${dashboardPort}`, {
       transports: ['websocket', 'polling'],
     });
-    const updatePromise = waitForSocketEvent<ResultsEnvelope>(
-      clientSocket,
-      'results_update'
-    );
+    // A dashboard that recovered its durable latest state emits that retained
+    // payload on connect, so the first `results_update` here can be the boot
+    // copy rather than the one about to be published. Wait for the frame that
+    // carries what this test published.
+    const updatePromise = new Promise<ResultsEnvelope>((resolve) => {
+      clientSocket.on('results_update', (envelope: ResultsEnvelope) => {
+        if (
+          envelope?.payload?.electorateResults?.length ===
+            payload.electorateResults.length &&
+          envelope.payload.partyVote?.length === payload.partyVote.length
+        ) {
+          resolve(envelope);
+        }
+      });
+    });
 
     const collectorSocket = io(`ws://localhost:${dashboardPort}`, {
       transports: ['websocket', 'polling'],

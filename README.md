@@ -39,7 +39,7 @@ election-night/
 ├── .data/             # SQLite DB + JSON caches (auto-created at runtime)
 ```
 
-**Socket.io is the backbone for live delivery, SQLite for truth.** The collector acts as a Socket.io _client_; the dashboard package runs the Socket.io _server_. The server serves the built Vite app, exposes health/metrics endpoints and a browser-facing `/api/history/*` proxy of the collector's `/history/*` REST API, and retains the latest accepted envelope for clients that connect mid-cycle. The collector's SQLite worker owns the authoritative latest state and its revision, so a dashboard-only restart recovers electorates, parties and lists from `/api/history/latest` even while the feed is quiet or unavailable.
+**Socket.io is the backbone for live delivery, SQLite for truth.** The collector acts as a Socket.io _client_; the dashboard package runs the Socket.io _server_. The server serves the built Vite app, exposes health/metrics endpoints and a browser-facing `/api/history/*` proxy of the collector's `/history/*` REST API, and retains the latest accepted envelope for clients that connect mid-cycle. The collector's SQLite worker owns the authoritative latest state and its revision, so a dashboard-only restart recovers electorates, parties and lists from `/api/history/latest` even while the feed is quiet or unavailable — the server asks for that row at boot, before any browser connects, because the seat cache it also loads carries no party vote and no party lists.
 
 `@election-night/core` is compiled to `dist/` and consumed as built JS; root commands run `npm run build:core` before starting the collector, server, or dashboard dev mode.
 

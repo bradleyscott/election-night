@@ -4,6 +4,8 @@
 #   - no [[mounts]] (previews do not get a volume)
 #   - COLLECTOR_ENABLED = "false" (previews never poll the live feed)
 #   - smaller VM
+#   - the history upstream is production's public read-only API, so a preview
+#     renders the current results instead of the awaiting state
 #
 # State (result/feed caches) lives in the container filesystem and is thrown
 # away when the preview is destroyed, which is fine for a preview.
@@ -39,6 +41,25 @@ primary_region = "syd"
   COLLECTOR_ENABLED = "false"
   CACHE_PATH = "/data/electorate_results.json"
   FEED_CACHE_PATH = "/data/feed_events.json"
+  # A preview has no volume and no collector, so on its own it can only ever
+  # show the awaiting state — which makes every PR look broken and no
+  # data-dependent change reviewable on a URL. Read the *live* results from
+  # production's public history API instead: GET-only, unauthenticated,
+  # revisioned, and the same read the dashboard server performs on boot when it
+  # has a collector of its own. Nothing is written back, the figures are the
+  # current ones rather than a fixture, and a preview cannot publish to the
+  # production socket (remote publishers need RESULTS_TOKEN).
+  #
+  # The `/api` suffix is load-bearing: the client appends `/history/latest`, so
+  # the base must be production's proxy root rather than the bare host.
+  HISTORY_UPSTREAM = "https://election-night.fly.dev/api"
+  # No collector on this machine, so there is no registry to merge and the
+  # default (<HISTORY_UPSTREAM>/metrics) would 404 on every scrape.
+  COLLECTOR_METRICS_URL = ""
+  # Name the cycle this preview renders. It is the same cycle the results it
+  # reads belong to, and it is what lets the boot recovery refuse an upstream
+  # row or feed from a different one — an unset year skips that check.
+  ELECTION_YEAR = "2026"
 
 [[vm]]
   memory = "256mb"
