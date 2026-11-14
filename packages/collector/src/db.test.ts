@@ -328,6 +328,31 @@ describe('pruneSnapshots', () => {
     return counts;
   }
 
+  // The window counts back from the newest snapshot, not from the wall clock.
+  // Measured from `now()`, a feed that has been quiet for a week makes every
+  // snapshot "older than a day" and the first restart deletes the whole series
+  // — which is exactly what happened to the 2026 count.
+  test('keeps a day of the count even when the whole series is older than that', async () => {
+    const { pruneSnapshots } = await import('./db.js');
+    await writeSnapshots(3, 240); // ten days old, all within a second of each other
+
+    const result = pruneSnapshots(24);
+
+    expect(result).toEqual({ deletedSnapshots: 0, stoppedEarly: false });
+    expect(await snapshotIds()).toHaveLength(3);
+  });
+
+  test('still deletes a gap older than the window inside the series', async () => {
+    const { pruneSnapshots } = await import('./db.js');
+    await writeSnapshots(2, 240); // a day-of-count from ten days ago
+    await writeSnapshots(2, 1); // and a fresh pair
+
+    const result = pruneSnapshots(24);
+
+    expect(result.deletedSnapshots).toBe(2);
+    expect(await snapshotIds()).toHaveLength(2);
+  });
+
   test('deletes snapshots older than the window, oldest first', async () => {
     const { pruneSnapshots } = await import('./db.js');
     await writeSnapshots(3, 48); // old
@@ -376,7 +401,18 @@ describe('pruneSnapshots', () => {
 
   test('always keeps the newest snapshot, even when everything is stale', async () => {
     const { pruneSnapshots } = await import('./db.js');
-    await writeSnapshots(4, 72);
+    // Four snapshots thirty hours apart, all ten days old: the three older
+    // than the newest by more than the window go, the newest stays even though
+    // it is itself far outside what the wall clock calls "the last 24 hours".
+    await writeSnapshots(4, 240);
+    const Database = (await import('better-sqlite3')).default;
+    const conn = new Database(dbPath);
+    conn
+      .prepare(
+        "UPDATE scrape_snapshots SET started_at = datetime(started_at, '-' || ((4 - id) * 30) || ' hours')"
+      )
+      .run();
+    conn.close();
 
     const result = pruneSnapshots(24);
 
@@ -703,9 +739,11 @@ describe('compaction', () => {
     }
     const Database = (await import('better-sqlite3')).default;
     const conn = new Database(dbPath);
+    // Spread them over more than a day of count, so the retention window has
+    // something to cut: measured from the newest snapshot, the tail falls out.
     conn
       .prepare(
-        "UPDATE scrape_snapshots SET started_at = datetime('now', '-48 hours')"
+        "UPDATE scrape_snapshots SET started_at = datetime('now', '-240 hours', '-' || (id * 1440) || ' minutes')"
       )
       .run();
     conn.close();

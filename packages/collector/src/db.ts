@@ -446,11 +446,20 @@ export type PruneResult = {
 };
 
 /**
- * Delete snapshots (and their child rows) older than `keepHours`.
+ * Delete snapshots (and their child rows) older than `keepHours` of *count*.
  *
- * The newest snapshot is always kept, so a deployment that has lain idle for
- * longer than the window still has something to serve. `keepHours <= 0`
- * disables pruning entirely.
+ * The window counts back from the newest snapshot, not from the wall clock.
+ * That distinction is the difference between keeping the count and deleting it:
+ * measured from `now()`, a feed that has been quiet for a week makes every
+ * snapshot older than a day disposable, so the first restart after election
+ * night silently deleted the entire series — and with the media feed retired
+ * there was nothing left to re-import it from. Measured from the newest row,
+ * "a day of snapshots" means a day of the count, which is what the retention
+ * window was always for.
+ *
+ * The newest snapshot is always kept, so a cycle that has been idle for longer
+ * than the window still has something to serve. `keepHours <= 0` disables
+ * pruning entirely.
  */
 export function pruneSnapshots(
   keepHours: number,
@@ -463,7 +472,7 @@ export function pruneSnapshots(
   const cutoff = `-${Math.floor(keepHours)} hours`;
   const selectBatch = sqliteDb.prepare(
     `select id from scrape_snapshots
-      where started_at < datetime('now', ?)
+      where started_at < (select datetime(max(started_at), ?) from scrape_snapshots)
         and id < (select max(id) from scrape_snapshots)
       order by id
       limit ?`

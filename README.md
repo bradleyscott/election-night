@@ -424,9 +424,14 @@ a time:
 
 - **Continuous retention.** `RETENTION_HOURS` (default 24) is enforced on
   startup and then swept every `RETENTION_SWEEP_MS` (default 15 minutes) for the
-  life of the process. A volume that drops below 5% free abandons the configured
-  window for one hour's worth of history: a database that cannot be written
-  serves nothing at all, so shedding old snapshots is the better failure.
+  life of the process, and the window counts back from the **newest snapshot**,
+  not from `now()`. Measured from the wall clock, a feed that has been quiet for
+  longer than a day makes every snapshot disposable: the first restart after the
+  2026 count deleted the whole series, and with the media feed retired there was
+  nothing left to re-import it from. A volume that drops below 5% free abandons
+  the configured window for one hour's worth of history: a database that cannot
+  be written serves nothing at all, so shedding old snapshots is the better
+  failure.
 - **Compaction.** The database runs with incremental auto-vacuum, so each sweep
   hands the pages it freed back to the filesystem rather than only recycling
   them. Without this the file keeps the high-water mark of its busiest period

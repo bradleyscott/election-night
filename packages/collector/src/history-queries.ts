@@ -103,12 +103,6 @@ function idsOf(rows: { snapshotId: number }[]): number[] {
   return rows.map((row) => row.snapshotId);
 }
 
-/**
- * Snapshot metadata for the trailing window, newest page last.
- *
- * `COUNT(*) OVER ()` yields the window's total in the same statement, so
- * reporting a page never costs a second query.
- */
 export function querySnapshotMetas(
   db: Database.Database,
   electionYear: string,
@@ -121,7 +115,8 @@ export function querySnapshotMetas(
               revision, model_version AS modelVersion,
               COUNT(*) OVER () AS total
        FROM scrape_snapshots
-       WHERE election_year = ? AND started_at >= datetime('now', ?)
+       WHERE election_year = ?
+         AND started_at >= (SELECT datetime(MAX(started_at), ?) FROM scrape_snapshots WHERE election_year = ?)
          ${page.sinceRevision != null ? 'AND revision > ?' : ''}
        ORDER BY started_at ASC
        LIMIT ? OFFSET ?`
@@ -129,6 +124,7 @@ export function querySnapshotMetas(
     .all(
       electionYear,
       windowModifier(page.windowHours),
+      electionYear,
       ...(page.sinceRevision != null ? [page.sinceRevision] : []),
       page.limit,
       page.offset
@@ -168,7 +164,7 @@ export function queryElectorateHistory(
        FROM scrape_snapshots ss
        JOIN electorate_summary es ON es.scrape_id = ss.id
        WHERE es.electorate = ? AND ss.election_year = ?
-         AND ss.started_at >= datetime('now', ?)
+         AND ss.started_at >= (SELECT datetime(MAX(started_at), ?) FROM scrape_snapshots WHERE election_year = ?)
          ${page.sinceRevision != null ? 'AND ss.revision > ?' : ''}
        ORDER BY ss.started_at ASC
        LIMIT ? OFFSET ?`
@@ -177,6 +173,7 @@ export function queryElectorateHistory(
       name,
       electionYear,
       windowModifier(page.windowHours),
+      electionYear,
       ...(page.sinceRevision != null ? [page.sinceRevision] : []),
       page.limit,
       page.offset
@@ -246,7 +243,8 @@ export function queryPartyVoteHistory(
               revision, model_version AS modelVersion,
               COUNT(*) OVER () AS total
        FROM scrape_snapshots
-       WHERE election_year = ? AND started_at >= datetime('now', ?)
+       WHERE election_year = ?
+         AND started_at >= (SELECT datetime(MAX(started_at), ?) FROM scrape_snapshots WHERE election_year = ?)
          ${page.sinceRevision != null ? 'AND revision > ?' : ''}
        ORDER BY started_at ASC
        LIMIT ? OFFSET ?`
@@ -254,6 +252,7 @@ export function queryPartyVoteHistory(
     .all(
       electionYear,
       windowModifier(page.windowHours),
+      electionYear,
       ...(page.sinceRevision != null ? [page.sinceRevision] : []),
       page.limit,
       page.offset
