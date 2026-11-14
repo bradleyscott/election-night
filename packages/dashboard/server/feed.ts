@@ -85,3 +85,30 @@ export function addFeedEvents(events: FeedEvent[]): FeedEvent[] {
   saveFeedEvents(feedEvents);
   return newEvents;
 }
+
+/**
+ * Take the upstream's retained events when this process holds none.
+ *
+ * For a machine with no collector and no volume — a PR preview — the feed is
+ * otherwise the one panel that can never render, because events only travel
+ * over the socket from a collector that is not there. `decideFeedRecovery`
+ * decides whether the upstream's copy may be used; this only stores it.
+ *
+ * The `feedEventsTotal` counter is deliberately *not* incremented: it counts
+ * events received from a collector, and these arrived as a read.
+ */
+export function adoptFeedEvents(events: FeedEvent[]): number {
+  if (feedEvents.length > 0) return 0;
+  const seen = new Set<string>();
+  const adopted = events
+    .filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      return true;
+    })
+    .slice(-MAX_FEED_EVENTS);
+  feedEvents = adopted;
+  feedEventsStored.set(feedEvents.length);
+  saveFeedEvents(feedEvents);
+  return adopted.length;
+}

@@ -36,6 +36,7 @@ import {
   addFeedEvents,
   buildFeedEvents,
   currentFeedEvents,
+  adoptFeedEvents,
   loadFeedEvents,
   resetFeedState,
 } from './feed.js';
@@ -45,6 +46,13 @@ import { withMutex, Mutex } from './mutex.js';
 import { isAuthorizedPublisher, isLoopbackAddress } from './publisher.js';
 import { readTaggedCache } from '@election-night/core/tagged-cache';
 import { decideDurableBoot } from './durable-state.js';
+import {
+  FEED_EVENTS_PATH,
+  buildFeedEventsBody,
+  decideFeedRecovery,
+  parseFeedEventsBody,
+  type FeedEventsBody,
+} from './feed-recovery.js';
 import { log } from './logger.js';
 
 const {
@@ -151,6 +159,53 @@ async function loadDurableResults(): Promise<boolean> {
   return true;
 }
 
+/**
+ * The retained feed events, adopted from the configured upstream when this
+ * process has none of its own.
+ *
+ * A machine with a volume reloads its feed cache at boot and this declines
+ * (`has-local`). A preview has neither a volume nor a collector, so its Live
+ * Feed panel was the one region that could never render — a page contradicting
+ * itself, which reads as a bug rather than as the artefact it is. Adopting the
+ * upstream's events makes the preview show the events production actually
+ * holds; `decideFeedRecovery` refuses an empty or foreign-cycle body rather
+ * than showing one.
+ *
+ * Clients that were already connected miss the on-connect frame, so the
+ * adopted set is broadcast once as well.
+ */
+async function loadUpstreamFeedEvents(): Promise<boolean> {
+  const base = dashboardServerConfig.historyUpstream.replace(/\/+$/, '');
+  const url = `${base}${FEED_EVENTS_PATH}`;
+
+  let body: FeedEventsBody | null = null;
+  if (currentFeedEvents().length === 0) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+      if (res.ok) body = parseFeedEventsBody(await res.json());
+    } catch {
+      // Unreachable or not JSON: `null` reaches the same 'invalid' decision.
+    }
+  }
+
+  const decision = decideFeedRecovery({
+    body,
+    configuredYear: dashboardServerConfig.electionYear,
+    localCount: currentFeedEvents().length,
+  });
+
+  if (decision.kind === 'ignored') {
+    log.info(`Not adopting feed events from ${url}: ${decision.reason}`);
+    return false;
+  }
+
+  const adopted = adoptFeedEvents(decision.events);
+  log.info(`Adopted ${adopted} feed events from ${url}`);
+  io.emit('feed_history', currentFeedEvents());
+  socketMessagesTotal.inc({ direction: 'out', event: 'feed_history' });
+  return true;
+}
+
 const historySource: HistorySource = createHistorySource({
   baseUrl: dashboardServerConfig.historyUpstream,
 });
@@ -238,6 +293,24 @@ const server = createServer(
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(
           JSON.stringify(buildRuntimeConfig(dashboardServerConfig.electionYear))
+        );
+        return;
+      }
+      // The feed's durable read. Read-only and unauthenticated, like the
+      // history proxy: it is the same events this process sends a browser on
+      // connect, and it is what lets a machine without a volume show them.
+      if (url.pathname === '/api/feed-events') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        });
+        res.end(
+          JSON.stringify(
+            buildFeedEventsBody(
+              currentFeedEvents(),
+              dashboardServerConfig.electionYear
+            )
+          )
         );
         return;
       }
@@ -458,6 +531,9 @@ server.listen(PORT, () => {
   // Then the durable full payload, which is the only copy carrying parties and
   // lists; the seat cache above is the fallback when the collector is absent.
   void loadDurableResults();
+  // Then the feed, which production reloads from its volume and a preview can
+  // only read from its upstream.
+  void loadUpstreamFeedEvents();
 
   if (watchdogEnabledFromEnv()) {
     watchdog = startCollectorWatchdog({
