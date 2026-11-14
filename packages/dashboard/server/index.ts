@@ -133,7 +133,7 @@ function loadCachedResults() {
  * cheap fallback. `decideDurableBoot` holds the judgement about when to trust
  * the copy; this only logs it and publishes it to connecting browsers.
  */
-async function loadDurableResults(): Promise<boolean> {
+async function loadDurableResults(): Promise<RecoveryOutcome> {
   const latest = await historySource.latest().catch(() => null);
   const decision = decideDurableBoot({
     latest,
@@ -142,11 +142,13 @@ async function loadDurableResults(): Promise<boolean> {
   });
 
   if (decision.kind === 'ignored') {
-    log.warn(
+    log.debug(
       `Not recovering durable results from ${dashboardServerConfig.historyUpstream}/history/latest: ${decision.reason}` +
         (latest?.reason ? ` (${latest.reason})` : '')
     );
-    return false;
+    // Only an upstream that could not be reached is worth waiting for: an
+    // empty, foreign-cycle or superseded row will still be those later.
+    return decision.reason === 'degraded' ? 'retry' : 'settled';
   }
 
   const { payload } = decision.envelope;
@@ -156,7 +158,7 @@ async function loadDurableResults(): Promise<boolean> {
     `Loaded durable results from history upstream: ${payload.electorateResults.length} electorates, ` +
       `${payload.partyVote.length} parties, ${payload.partyLists.length} list candidates`
   );
-  return true;
+  return 'recovered';
 }
 
 /**
@@ -174,18 +176,21 @@ async function loadDurableResults(): Promise<boolean> {
  * Clients that were already connected miss the on-connect frame, so the
  * adopted set is broadcast once as well.
  */
-async function loadUpstreamFeedEvents(): Promise<boolean> {
+async function loadUpstreamFeedEvents(): Promise<RecoveryOutcome> {
   const base = dashboardServerConfig.historyUpstream.replace(/\/+$/, '');
   const url = `${base}${FEED_EVENTS_PATH}`;
 
+  if (currentFeedEvents().length > 0) return 'settled';
+
   let body: FeedEventsBody | null = null;
-  if (currentFeedEvents().length === 0) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
-      if (res.ok) body = parseFeedEventsBody(await res.json());
-    } catch {
-      // Unreachable or not JSON: `null` reaches the same 'invalid' decision.
-    }
+  let reached = false;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+    reached = res.ok;
+    if (res.ok) body = parseFeedEventsBody(await res.json());
+  } catch {
+    // Unreachable: `null` reaches the same 'invalid' decision, but the
+    // upstream may simply not be listening yet.
   }
 
   const decision = decideFeedRecovery({
@@ -195,15 +200,70 @@ async function loadUpstreamFeedEvents(): Promise<boolean> {
   });
 
   if (decision.kind === 'ignored') {
-    log.info(`Not adopting feed events from ${url}: ${decision.reason}`);
-    return false;
+    log.debug(`Not adopting feed events from ${url}: ${decision.reason}`);
+    // A body we reached and refused is final; a refusal to answer is not.
+    return decision.reason === 'invalid' && !reached ? 'retry' : 'settled';
   }
 
   const adopted = adoptFeedEvents(decision.events);
   log.info(`Adopted ${adopted} feed events from ${url}`);
   io.emit('feed_history', currentFeedEvents());
   socketMessagesTotal.inc({ direction: 'out', event: 'feed_history' });
-  return true;
+  return 'recovered';
+}
+
+/**
+ * How long the boot recovery keeps asking the upstream for its durable state.
+ *
+ * The container's entrypoint starts this server *first* and the collector
+ * second, on purpose — the public health check must answer immediately — and
+ * the collector takes seconds to compile and open SQLite. A single read at
+ * boot therefore lands on a closed port, decides `degraded`, and used to keep
+ * the seats-only cache for the life of the process: production served
+ * `partyVote: []`, so Seats rendered 0 seats over a fully counted election and
+ * nothing ever replaced it, because on a quiet feed the collector publishes
+ * nothing to replace it with.
+ *
+ * So keep asking. Loopback reads are free, the retry stops the moment either
+ * read succeeds or returns something terminal, and the window is long enough
+ * to outlast a cold start but short enough to leave an honest warning when the
+ * collector really is gone.
+ */
+const RECOVERY_WINDOW_MS = 5 * 60_000;
+const RECOVERY_MAX_DELAY_MS = 15_000;
+
+type RecoveryOutcome = 'recovered' | 'retry' | 'settled';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function recoverFromUpstream(): Promise<void> {
+  const startedAt = Date.now();
+  let results: RecoveryOutcome = 'retry';
+  let feed: RecoveryOutcome = 'retry';
+
+  for (let attempt = 0; ; attempt++) {
+    if (attempt > 0) {
+      await sleep(Math.min(RECOVERY_MAX_DELAY_MS, 500 * 2 ** (attempt - 1)));
+    }
+    if (results === 'retry') results = await loadDurableResults();
+    if (feed === 'retry') feed = await loadUpstreamFeedEvents();
+
+    if (results !== 'retry' && feed !== 'retry') break;
+    if (Date.now() - startedAt >= RECOVERY_WINDOW_MS) break;
+  }
+
+  if (results === 'retry') {
+    log.warn(
+      `Gave up recovering durable results from ${dashboardServerConfig.historyUpstream} after ` +
+        `${Math.round((Date.now() - startedAt) / 1000)}s; serving the seat cache only`
+    );
+  }
+  if (feed === 'retry') {
+    log.warn(
+      `Gave up recovering feed events from ${dashboardServerConfig.historyUpstream} after ` +
+        `${Math.round((Date.now() - startedAt) / 1000)}s`
+    );
+  }
 }
 
 const historySource: HistorySource = createHistorySource({
@@ -530,10 +590,9 @@ server.listen(PORT, () => {
   loadFeedEvents();
   // Then the durable full payload, which is the only copy carrying parties and
   // lists; the seat cache above is the fallback when the collector is absent.
-  void loadDurableResults();
-  // Then the feed, which production reloads from its volume and a preview can
-  // only read from its upstream.
-  void loadUpstreamFeedEvents();
+  // Then the durable state, retried until the collector is up: the entrypoint
+  // starts this server before it.
+  void recoverFromUpstream();
 
   if (watchdogEnabledFromEnv()) {
     watchdog = startCollectorWatchdog({
