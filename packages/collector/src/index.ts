@@ -530,6 +530,26 @@ async function main(): Promise<void> {
 
   webhookOutbox?.start();
 
+  // Prior-winner matching needs this cycle's seat names, and those come from the
+  // payload — not from a successful scrape. `ensureSource()` above fails when the
+  // media feed is retired (it 404s once the count is in), so `setCurrentElectorates`
+  // never ran and every prior winner had no seat to attach to: `/api/history/prior-winners`
+  // answered 200 with empty winner lists, which left /flipped blank and the
+  // per-seat past-winners table empty on a complete count. The names are in
+  // SQLite, so seed from there.
+  const retained = await dbWorker
+    .latest(collectorConfig.electionYear)
+    .catch(() => null);
+  if (retained?.payload?.electorateResults?.length) {
+    resultsService.setCurrentElectorates(
+      retained.payload.electorateResults.map((r) => r.electorateName)
+    );
+    resultsService.setLiveResults(retained.payload);
+    log.info(
+      `Seeded ${retained.payload.electorateResults.length} electorate names from durable state (prior results can be matched without a scrape)`
+    );
+  }
+
   // Retention: keep the volume bounded before the first write of this process.
   // A full sweep, not `retentionSweep()`: the schedule is irrelevant at boot,
   // and the configured window applies even if the volume is under pressure.
