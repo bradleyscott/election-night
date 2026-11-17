@@ -6,6 +6,68 @@ drawn ahead of implementation, so review them as a proposal. The tokens,
 utilities and component classes are the real ones; the markup is not the
 component.
 
+## `a-semicircle` / `b-stadium` — the seat grid as a chamber
+
+Both files are the **running** `/seats` page, captured against the 2026 mock
+feed at 87.4% counted (123 seats, six parties), with only the seat block
+replaced: `seats-hemicycle.before.html` is that capture, and `build.py` takes
+the 123 rendered seats — party, colour and fill opacity — and re-lays them on an
+arc. The masthead, stat strip, party table, coalition footer and "Show all
+parties" chip are the captured page.
+
+The reorder is live in both files, not drawn: drag a seat onto another party's
+seat and the parties swap, the table re-sorts and the coalition footer
+recomputes from the new seating order (`verify.mjs` drives that through the DOM).
+Reset restores the captured order. The seat grid was always pointer-only
+(`draggable`, no touch sensor) and stays that way; the table rows keep dnd-kit.
+
+- **A — hemisphere.** 180°, one radius from the floor: 744 × 410 in the panel,
+  seat 17.0px.
+- **B — chamber.** Straight benches either side of the Table and a round end,
+  which is the debating chamber: dome radius 352, 148px of straight arm each
+  side, 704 × 540, seat 19.8px. The Speaker sits in the gap between the arms.
+  (A 215° horseshoe with curved arms was drawn first and dropped: its arms are
+  neither a hemisphere nor the chamber's straight benches.)
+
+The seat order now lands on the chamber's own sides. Index 0 is the bottom of
+the left arm and the last seat is the bottom of the right arm, so with the
+default order the largest party sits on the Speaker's right and the second
+largest opposite — the Government and Opposition benches, without any code
+knowing about either.
+
+The majority marker is a brand spoke at the apex rather than a line across the
+grid. It sits half a column right of centre, in the gap between the two middle
+columns: the grid's line bisects the middle column and paints over a seat. It
+runs through the three rings and 26px past the inner one — 87px in total, against
+the grid's full height, which is the open question for review.
+
+At 390px B fits the 324px panel with no horizontal scroll, 262px tall, 9.0px
+seats; A is 194px tall with 7.3px seats. The shipped grid is `min-w-[480px]` and
+scrolls sideways there.
+
+The seat mark is the open choice, drawn side by side in `seat-mark-sheet.png`:
+the square the grid uses today, rotated along the path, or the parliament-chart
+dot. The mark sheet's crops come from `b-stadium.html` and `d-stadium-dots.html`,
+which differ only in that flag.
+
+Shape is one function. The chamber is a path — left arm, semicircular end, right
+arm — and a seat is a point on it: column *c* at `c * spacing` of arc length, ring
+*r* offset `r * gap` along the inward normal. `armFrac` 0 collapses the straight
+arms into A's hemisphere; `maxR` sets how wide the dome is. Nothing outside the
+geometry changes: the same elements carry the drag, hover, select and keyboard
+handlers, and the keyboard mapping still holds because seat index is still
+`column * 3 + ring` (±1 moves a bench, ±3 moves along it).
+
+The right-hand Live Feed column is empty in these captures because the mock feed
+stayed on one stage, so nothing was diffed into feed events.
+
+```bash
+cd docs/mockups/proposals
+python3 build.py     # seats-hemicycle.before.html -> a/b/d .html
+node render.mjs      # desktop, phone (390 @2x), shape and seat-mark sheets
+node verify.mjs      # reorder, table sync, coalition maths, overflow
+```
+
 ## `win-percent-header-mobile` (`.html` / `.png`)
 
 The **Win %** header after the two-line version proved too wide on a phone: at
