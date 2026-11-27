@@ -118,6 +118,9 @@ describe('ParliamentSeatGrid', () => {
       'aria-label',
       'Seat 62, the seat required to govern'
     );
+    expect(
+      screen.getByText('The ringed seat is the 62nd seat.')
+    ).toBeInTheDocument();
   });
 
   test('vacant seats are not focusable', () => {

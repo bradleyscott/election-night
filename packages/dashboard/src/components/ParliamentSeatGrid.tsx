@@ -3,6 +3,22 @@ import { cn } from '../lib/utils.js';
 import { CHAMBER_ROWS, chamberLayout } from '../lib/chamber.js';
 import type { SeatInfo } from '../lib/parliament.js';
 
+/** 61 → 61st, 62 → 62nd, 66 → 66th. */
+function ordinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
 export function ParliamentSeatGrid({
   seats,
   majority,
@@ -279,8 +295,13 @@ export function ParliamentSeatGrid({
           top: `calc(${y(layout.marker.labelY)} - 8px)`,
         }}
       >
-        <div className="bg-brand text-background font-label text-[10px] font-bold uppercase tracking-[0.08em] px-2 py-0.5 whitespace-nowrap -translate-x-1/2 -translate-y-full">
-          {majority} seats required to govern
+        <div className="flex -translate-x-1/2 -translate-y-full flex-col items-center gap-1">
+          <div className="bg-brand text-background font-label text-[10px] font-bold uppercase tracking-[0.08em] px-2 py-0.5 whitespace-nowrap">
+            {majority} seats required to govern
+          </div>
+          <div className="font-label text-[10px] text-muted-foreground whitespace-nowrap">
+            The ringed seat is the {ordinal(majority)} seat.
+          </div>
         </div>
       </div>
     </div>

@@ -18,7 +18,7 @@ export const CHAMBER_ROWS = 3;
 /** Reference frame width, in px, before CSS scales it. */
 export const CHAMBER_WIDTH = 704;
 
-const PAD_TOP = 28; // room for the majority label above the back bench
+const PAD_TOP = 50; // room for the majority label and its caption
 const ARM_FACTOR = 0.42; // straight bench each side of the Table
 const SEAT_FACTOR = 0.66; // seat size as a share of the tightest pitch
 const SEAT_MAX = 21;
