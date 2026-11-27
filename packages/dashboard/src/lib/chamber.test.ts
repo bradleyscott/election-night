@@ -50,6 +50,8 @@ describe('chamberLayout', () => {
   });
 
   test('the majority divider falls in the gap between the two middle columns', () => {
+    // 123 seats is 41 columns, an odd count: the apex sits on a column, so the
+    // divider shifts half a column into the gap beside it.
     const midLeft = layout.seats[20 * CHAMBER_ROWS];
     const midRight = layout.seats[21 * CHAMBER_ROWS];
     expect(midLeft.x).toBeCloseTo(CHAMBER_WIDTH / 2, 6);
@@ -60,6 +62,28 @@ describe('chamberLayout', () => {
     expect(layout.marker.length).toBeGreaterThan(3 * layout.seats[0].size);
     // The label hangs just above the back bench.
     expect(layout.marker.labelY).toBeLessThan(layout.marker.y);
+  });
+
+  test('an even column count keeps the divider at the apex, not through a seat', () => {
+    // 130 seats is 44 columns: the 2026 chamber. Its geometric centre is
+    // already a gap, so the divider must not shift onto the next column. It
+    // did, which put four National-led bloc seats on the far side of the
+    // majority line and made 65 look like enough to govern.
+    const even = chamberLayout(130);
+    expect(even.marker.x).toBeCloseTo(CHAMBER_WIDTH / 2, 6);
+
+    const m = even.marker;
+    const dx = Math.sin(m.angle);
+    const dy = Math.cos(m.angle);
+    for (const seat of even.seats) {
+      const t = (seat.x - m.x) * dx + (seat.y - m.y) * dy;
+      if (t < 0 || t > m.length) continue;
+      const px = m.x + t * dx;
+      const py = m.y + t * dy;
+      expect(Math.hypot(seat.x - px, seat.y - py)).toBeGreaterThan(
+        seat.size / 2
+      );
+    }
   });
 
   test('the frame is the size the desk layout was drawn at', () => {

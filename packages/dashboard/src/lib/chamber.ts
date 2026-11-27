@@ -84,7 +84,11 @@ export function chamberLayout(seatCount: number): ChamberLayout {
 
   const at = (s: number, offset: number): Point => {
     if (s <= arm) {
-      return { x: cx - radius + offset, y: yDome + arm - s, rotate: -Math.PI / 2 };
+      return {
+        x: cx - radius + offset,
+        y: yDome + arm - s,
+        rotate: -Math.PI / 2,
+      };
     }
     if (s <= arm + domeLength) {
       const theta = Math.PI - (s - arm) / radius;
@@ -110,9 +114,14 @@ export function chamberLayout(seatCount: number): ChamberLayout {
     seats.push({ x: p.x, y: p.y, size, rotate: p.rotate });
   }
 
-  // Half a column past the apex, so the divider falls in the gap between two
-  // columns instead of through the middle of one.
-  const sMid = length / 2 + spacing / 2;
+  // The divider belongs in the gap between the two middle columns. That gap
+  // is the apex when the column count is even (the columns sit on both sides
+  // of it), but an odd count puts a column on the apex, so the divider shifts
+  // half a pitch into the neighbouring gap. Without the split, an even count
+  // (the 130-seat 2026 chamber has 44 columns) sends the line through a seat,
+  // which reads as the government bloc crossing the majority.
+  const columns = Math.max(2, Math.ceil(seatCount / CHAMBER_ROWS));
+  const sMid = columns % 2 === 0 ? length / 2 : length / 2 + spacing / 2;
   const p1 = at(sMid, -MARKER_OUT);
   const p2 = at(sMid, (CHAMBER_ROWS - 1) * gap + size * 0.8 + MARKER_TAIL);
 
