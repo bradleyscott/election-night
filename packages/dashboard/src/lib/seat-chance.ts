@@ -145,6 +145,52 @@ export function mapFillOpacity(chance: SeatChance | null | undefined): number {
   );
 }
 
+/**
+ * Which quantity the map shades by.
+ *
+ * The chance of winning answers "how decided is this seat" while a count is
+ * live. Once every seat with a leader is official, that chance is 1 for all of
+ * them, so the map would paint one colour across the country and say nothing.
+ * The lead the count left is then the same question answered by the margin:
+ * small lead pale, big lead solid.
+ *
+ * The decision is made for the whole map, not per seat, so one legend describes
+ * every fill. Seats with no leader yet are ignored — they are not a result and
+ * cannot vote for one scale over the other.
+ */
+export function mapShadingMode(
+  results: Array<{
+    official?: boolean;
+    leaders: { leadingCandidate: string | null };
+  }>
+): 'probability' | 'margin' {
+  const withLeader = results.filter(
+    (result) => result.leaders.leadingCandidate !== null
+  );
+  return withLeader.length > 0 &&
+    withLeader.every((result) => result.official === true)
+    ? 'margin'
+    : 'probability';
+}
+
+/**
+ * How solidly a seat with a known lead is painted when the map shades by the
+ * margin.
+ *
+ * The same two ends as the chance scale: a tie is as pale as a 50/50 seat and a
+ * lead of half the vote is as solid as a certainty. The square root spends the
+ * pale half of the range on the leads a reader actually compares — linear would
+ * leave a 0.2% and a 3% lead all but the same shade — and a margin past 50
+ * points is a landslide either way, so it clamps.
+ */
+export function marginFillOpacity(marginPercent: number): number {
+  const share = Math.max(0, Math.min(1, marginPercent / 0.5));
+  return (
+    MAP_FILL_RANGE.min +
+    Math.sqrt(share) * (MAP_FILL_RANGE.max - MAP_FILL_RANGE.min)
+  );
+}
+
 /** "4 min ago", "just now", "2 hours ago". */
 export function formatUpdatedAgo(
   updatedAt: Date | null,

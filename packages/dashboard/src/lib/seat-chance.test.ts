@@ -12,6 +12,8 @@ import {
   countProgress,
   MAP_FILL_RANGE,
   mapFillOpacity,
+  mapShadingMode,
+  marginFillOpacity,
   seatUpdatedAt,
 } from './seat-chance.js';
 import type { ElectorateResult } from '@election-night/core/types';
@@ -197,6 +199,54 @@ describe('mapFillOpacity', () => {
       MAP_FILL_RANGE.max,
       3
     );
+  });
+});
+
+describe('marginFillOpacity', () => {
+  it('paints a tie at the pale end and a landslide at the solid end', () => {
+    expect(marginFillOpacity(0)).toBeCloseTo(MAP_FILL_RANGE.min, 3);
+    expect(marginFillOpacity(0.5)).toBeCloseTo(MAP_FILL_RANGE.max, 3);
+    expect(marginFillOpacity(0.9)).toBeCloseTo(MAP_FILL_RANGE.max, 3);
+    expect(marginFillOpacity(-0.01)).toBeCloseTo(MAP_FILL_RANGE.min, 3);
+  });
+
+  it('spends the pale half of the range on the close seats', () => {
+    // The reader compares 0.2% with 3%, not 30% with 40%. A linear scale would
+    // leave the two close leads within 0.03 of each other.
+    const close = marginFillOpacity(0.002);
+    const narrow = marginFillOpacity(0.03);
+    const safe = marginFillOpacity(0.3);
+
+    expect(close).toBeLessThan(narrow);
+    expect(narrow).toBeLessThan(safe);
+    expect(narrow - close).toBeGreaterThan(0.05);
+  });
+});
+
+describe('mapShadingMode', () => {
+  const seat = (official?: boolean, leadingCandidate: string | null = 'A') => ({
+    official,
+    leaders: { leadingCandidate },
+  });
+
+  it('shades by the chance while a count is live', () => {
+    expect(mapShadingMode([seat(true), seat(false)])).toBe('probability');
+    expect(mapShadingMode([seat(undefined)])).toBe('probability');
+  });
+
+  it('shades by the lead once every seat with a leader is official', () => {
+    expect(mapShadingMode([seat(true), seat(true)])).toBe('margin');
+  });
+
+  it('ignores seats with no leader yet', () => {
+    // A zeroed seat is not a result; it cannot hold the whole map on a scale
+    // that no longer separates the seats which have one.
+    expect(mapShadingMode([seat(true), seat(false, null)])).toBe('margin');
+  });
+
+  it('stays on the chance scale when no seat has a leader', () => {
+    expect(mapShadingMode([seat(true, null)])).toBe('probability');
+    expect(mapShadingMode([])).toBe('probability');
   });
 });
 

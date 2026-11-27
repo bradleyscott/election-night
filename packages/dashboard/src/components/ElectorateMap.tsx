@@ -3,7 +3,12 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { partyColor } from '../lib/constants.js';
-import { mapFillOpacity, MAP_FILL_RANGE } from '../lib/seat-chance.js';
+import {
+  MAP_FILL_RANGE,
+  mapFillOpacity,
+  mapShadingMode,
+  marginFillOpacity,
+} from '../lib/seat-chance.js';
 import { cn } from '../lib/utils.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import { dashboardClientConfig } from '../config.js';
@@ -277,6 +282,10 @@ export default function ElectorateMap({
     [electorates]
   );
 
+  // Which quantity the fill encodes. Decided for the whole map so the one
+  // legend describes every seat; see `mapShadingMode`.
+  const shading = useMemo(() => mapShadingMode(electorates), [electorates]);
+
   const lookup = useMemo(() => {
     const map = new Map<
       string,
@@ -295,15 +304,20 @@ export default function ElectorateMap({
         });
       } else {
         // Shading follows the chance of winning, so the map says how decided a
-        // seat is rather than who happens to lead it right now.
+        // seat is rather than who happens to lead it right now. Once every
+        // result is official the chance is 1 across the map, and the fill
+        // follows the lead the count left instead.
         map.set(key, {
           color: partyColor(e.leaders.leadingCandidateParty, '#9ca3af'),
-          opacity: mapFillOpacity(chances?.get(key)),
+          opacity:
+            shading === 'margin'
+              ? marginFillOpacity(e.leaders.marginPercent)
+              : mapFillOpacity(chances?.get(key)),
         });
       }
     }
     return map;
-  }, [electorates, showPartyVote, chances]);
+  }, [electorates, showPartyVote, chances, shading]);
 
   useEffect(() => {
     setBoundary(null);
@@ -461,12 +475,13 @@ export default function ElectorateMap({
           count, and a second card inside a 300px map card is one row of chrome
           between a thumb and the seat. */}
       <div className="border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        {chances && !showPartyVote ? (
+        {!showPartyVote && (shading === 'margin' || chances) ? (
           <span className="flex items-center gap-2 text-[0.625rem] uppercase tracking-[0.14em] text-muted-foreground">
-            <span>50/50</span>
+            <span>{shading === 'margin' ? 'narrow' : '50/50'}</span>
             {/* A spectrum rather than two swatches: the map is a continuous
-                fill, and the key draws the same range `mapFillOpacity` uses, so
-                the depth of a seat can be read off the bar. */}
+                fill, and the key draws the same range `mapFillOpacity` and
+                `marginFillOpacity` use, so the depth of a seat can be read off
+                the bar. */}
             <span
               aria-hidden="true"
               className="h-2.5 w-16 border border-border sm:w-24"
@@ -474,7 +489,7 @@ export default function ElectorateMap({
                 background: `linear-gradient(to right, rgb(156 163 175 / ${MAP_FILL_RANGE.min}), rgb(156 163 175 / ${MAP_FILL_RANGE.max}))`,
               }}
             />
-            <span>decided</span>
+            <span>{shading === 'margin' ? 'wide' : 'decided'}</span>
           </span>
         ) : null}
         {places ? <VotingPlaceLegend /> : null}
