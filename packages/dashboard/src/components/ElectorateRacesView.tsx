@@ -43,6 +43,15 @@ export function ElectorateRacesView({
   // Closest first still, but "close" is now the chance of losing rather than
   // the distance between the top two. A seat with a 12% lead and a 99% chance
   // is not a close call; a seat 300 votes apart at 39% counted is.
+  //
+  // Once the results are official every seat's chance is exactly 1, so the
+  // probability stops separating anything and the payload order shows through.
+  // The lead the count left is then the only remaining measure of closeness:
+  // smallest lead first. It is a tie-break rather than the primary key so a
+  // live count keeps ranking by uncertainty, where a narrow lead on a partial
+  // count is not the same thing as a narrow lead at the end.
+  const leadPercent = (er: ElectorateResult) =>
+    er.leaders.leadingCandidate ? er.leaders.marginPercent : Infinity;
   const sorted = useMemo(() => {
     const rank = (er: ElectorateResult) => {
       const chance = chances?.get(normalizeElectorateName(er.electorateName));
@@ -56,7 +65,10 @@ export function ElectorateRacesView({
       // An uncounted seat is not a close call.
       return 1.5;
     };
-    return [...electorates].sort((a, b) => rank(a) - rank(b));
+    return [...electorates].sort((a, b) => {
+      const byChance = rank(a) - rank(b);
+      return byChance !== 0 ? byChance : leadPercent(a) - leadPercent(b);
+    });
   }, [electorates, chances]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -74,7 +86,10 @@ export function ElectorateRacesView({
 
   return (
     <div>
-      <div ref={scrollRef} className={cn(overflows && TABLE_SCROLL, TABLE_FRAME)}>
+      <div
+        ref={scrollRef}
+        className={cn(overflows && TABLE_SCROLL, TABLE_FRAME)}
+      >
         <table className={cn('w-full', TABLE_TEXT)}>
           <thead>
             <tr>

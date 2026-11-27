@@ -152,6 +152,62 @@ describe('ElectorateRacesView', () => {
     expect(screen.queryByText('100%')).not.toBeInTheDocument();
   });
 
+  test('orders official seats by lead, smallest first, when every chance is 1', () => {
+    // Once the results are official the Win % column reads 100% on every row,
+    // so it cannot order the table. The lead is what still separates the seats,
+    // and the closest call is the smallest one.
+    const official: SeatChance = {
+      state: 'complete',
+      margin: 1000,
+      leader: { name: 'SMITH, John', party: 'National Party', votes: 6400 },
+      runnerUp: { name: 'JONES, Mary', party: 'Labour Party', votes: 5400 },
+      specialsOutstanding: 0,
+      specialsRequiredSwing: Infinity,
+      probability: 1,
+      specialsProbability: 1,
+      insideSpecials: false,
+    };
+    const seat = (
+      electorateName: string,
+      marginPercent: number
+    ): ElectorateResults & WithLeaders =>
+      ({
+        ...baseElectorate,
+        electorateName,
+        leaders: {
+          ...baseElectorate.leaders,
+          leadingCandidate: `${electorateName.toUpperCase()}, Candidate`,
+          marginPercent,
+        },
+      }) as ElectorateResults & WithLeaders;
+
+    const seats = [
+      seat('Wide', 0.12),
+      seat('Narrow', 0.001),
+      seat('Middle', 0.03),
+    ];
+    const chances = new Map(
+      seats.map((s) => [normalizeElectorateName(s.electorateName), official])
+    );
+
+    render(
+      <BrowserRouter>
+        <WinPercentProvider>
+          <ElectorateRacesView electorates={seats} chances={chances} />
+        </WinPercentProvider>
+      </BrowserRouter>
+    );
+
+    const order = screen
+      .getAllByRole('button', { name: /View details for/i })
+      .map((el) => el.getAttribute('aria-label'));
+    expect(order).toEqual([
+      'View details for Narrow',
+      'View details for Middle',
+      'View details for Wide',
+    ]);
+  });
+
   test('shows a chance of winning instead of a margin of error', () => {
     render(
       <BrowserRouter>
