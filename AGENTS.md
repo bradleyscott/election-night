@@ -66,7 +66,7 @@ Point the collector at the mock with `XML_FEED_BASE_URL=http://localhost:3457/ P
 - `components/ElectorateDetail.tsx` + `ElectorateCountBand.tsx` + `ElectorateResultsTable.tsx` — the seat panel; the band shows count state, never a probability, and turns into a certificate (counted, margin, finalised date) when the result is official.
 - `components/ParliamentSeats.tsx` — chamber in conventional coalition order; draggable order, computed `winningCoalition`.
 - `components/WinPercentDrawer.tsx` + `WinPercentContent.tsx` + `WinPercentFigures.tsx` — one Win % explainer drawer, opened from Seats, Close Calls, Flipped and seat panels. Content is a fixed worked example tagged `Example`, never live data.
-- `components/MapControls.tsx` + `ElectorateMap.tsx` + `VotingPlaces*` — map, search, General/Māori switch and the in-seat voting-place layer.
+- `components/MapControls.tsx` + `ElectorateMap.tsx` + `VotingPlaces*` — map, search, General/Māori switch and the in-seat voting-place layer. The candidate-vote fill shades by the chance of winning while a count is live and by the lead once every seat with a leader is official (`mapShadingMode`); both scales share the 0.2–0.8 range and the legend switches from "50/50 → decided" to "narrow → wide".
 - `hooks/useSeatChances.ts` — the single place pages obtain a seat's chance. `lib/seat-chance.ts` injects the generated baseline; `lib/history-api.ts` owns browser history queries; `lib/query-client.ts` owns the one QueryClient.
 - `lib/constants.ts` — party renames, colours and fixed order all resolve through `canonicalPartyName` / `partyColor` / `splitParties`.
 - `lib/electorates.ts` — boundary year selection and name matching for `public/boundaries/<year>/`.
