@@ -9,7 +9,12 @@ import {
 } from '@floating-ui/react';
 import { useMediaQuery } from '../lib/useMediaQuery.js';
 import { usePartyOrder } from '../hooks/usePartyOrder.js';
-import { buildSeats, winningCoalition } from '../lib/parliament.js';
+import {
+  buildSeats,
+  coalitionSide,
+  requiredSeatIndex,
+  winningCoalition,
+} from '../lib/parliament.js';
 import { WaitingState } from './WaitingState.js';
 import BottomSheet from './BottomSheet.js';
 import { ParliamentSeatGrid } from './ParliamentSeatGrid.js';
@@ -137,6 +142,19 @@ export default function ParliamentSeats({
     [order, partyVote, majority]
   );
 
+  // The seat that crosses the threshold, counted from the side the winning
+  // coalition governs from. Rings read as "this one seat is the majority";
+  // a line could not sit on the boundary without cutting a column of three.
+  const requiredSeat = useMemo(
+    () =>
+      requiredSeatIndex(
+        totalSeats,
+        majority,
+        coalitionSide(order, coalitionInfo)
+      ),
+    [totalSeats, majority, order, coalitionInfo]
+  );
+
   const handleReorder = (dragged: string, target: string) => {
     if (dragged === target) return;
     setOrder((prev) => {
@@ -200,6 +218,7 @@ export default function ParliamentSeats({
         <ParliamentSeatGrid
           seats={seats}
           majority={majority}
+          requiredSeat={requiredSeat}
           draggingParty={draggingParty}
           dropTargetParty={dropTargetParty}
           hoveredParty={hoveredParty}

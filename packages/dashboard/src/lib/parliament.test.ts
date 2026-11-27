@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { buildSeats, defaultOrder, winningCoalition } from './parliament.js';
+import {
+  buildSeats,
+  coalitionSide,
+  defaultOrder,
+  requiredSeatIndex,
+  winningCoalition,
+} from './parliament.js';
 import { normalizeElectorateName } from './electorates.js';
 import type { SeatChance } from '@election-night/core/seat-probability';
 import type {
@@ -252,5 +258,41 @@ describe('coalition footer', () => {
       'ACT New Zealand',
       'New Zealand First Party',
     ]);
+  });
+});
+
+describe('the seat that reaches the majority', () => {
+  test('counts the majority-th seat from the governing side', () => {
+    // 2026: 130 seats, 66 to govern. From the right, seat 64 is the 66th
+    // counted inward: Opportunity's last seat beside New Zealand First.
+    expect(requiredSeatIndex(130, 66, 'right')).toBe(64);
+    expect(requiredSeatIndex(130, 66, 'left')).toBe(65);
+    // 2023: 120 seats, 61 to govern.
+    expect(requiredSeatIndex(120, 61, 'right')).toBe(59);
+  });
+
+  test('finds the side from the coalition weight, not its party count', () => {
+    const order = defaultOrder(chamber2023);
+    const coalition = winningCoalition(order, chamber2023, 62);
+
+    // National holds 48 of the coalition's 67, so the run governs from the
+    // right even though it also contains the centre's NZ First.
+    expect(coalitionSide(order, coalition)).toBe('right');
+  });
+
+  test('puts a Labour-led run on the left', () => {
+    const vote = [
+      party('Labour Party', 50),
+      party('Green Party', 15),
+      party('National Party', 45),
+      party('ACT New Zealand', 10),
+    ];
+    const order = defaultOrder(vote);
+    const coalition = winningCoalition(order, vote, 61);
+
+    expect(coalitionSide(order, coalition)).toBe('left');
+    expect(requiredSeatIndex(120, 61, coalitionSide(order, coalition))).toBe(
+      60
+    );
   });
 });

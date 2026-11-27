@@ -137,6 +137,47 @@ export function winningCoalition(
   };
 }
 
+/**
+ * The seat that takes the governing side across the majority: the
+ * `majority`-th seat counted from that side of the chamber.
+ *
+ * A line drawn on the arc could only ever fall between columns, and a column is
+ * three seats deep, so it could not land on the 65/66 boundary when the two
+ * halves are 65 and 65. A seat index can: in the 2026 chamber (130 seats, 66 to
+ * govern) counted from the right it is seat 64 — Opportunity's last seat beside
+ * New Zealand First.
+ */
+export function requiredSeatIndex(
+  totalSeats: number,
+  majority: number,
+  side: 'left' | 'right'
+): number {
+  return side === 'right' ? totalSeats - majority : majority - 1;
+}
+
+/**
+ * Which side of the chamber the winning coalition sits on.
+ *
+ * Weighted by seats, not by party count: a 40-seat partner decides the side, a
+ * one-seat neighbour does not. The coalition is a contiguous run in the
+ * chamber's order, so its weighted position is the side it governs from.
+ */
+export function coalitionSide(
+  order: string[],
+  coalition: Coalition
+): 'left' | 'right' {
+  let weighted = 0;
+  let seats = 0;
+  for (const party of coalition.parties) {
+    const index = order.indexOf(party.candidate);
+    if (index === -1) continue;
+    weighted += index * party.seats;
+    seats += party.seats;
+  }
+  if (seats === 0) return 'right';
+  return weighted / seats >= (order.length - 1) / 2 ? 'right' : 'left';
+}
+
 function getListOpacity(distanceFromCut: number): number {
   if (distanceFromCut >= 10) return 0.8;
   if (distanceFromCut <= 0) return 0.2;

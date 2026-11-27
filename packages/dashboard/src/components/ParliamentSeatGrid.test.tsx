@@ -87,8 +87,37 @@ describe('ParliamentSeatGrid', () => {
     expect(nationalSeat.style.top).toMatch(/%$/);
     expect(nationalSeat).toHaveClass('absolute', 'rounded-full');
 
-    // The majority divider is drawn on the same frame, with the label above it.
+    // The majority requirement is labelled above the chamber, and the seat
+    // that crosses it is ringed rather than cut by a line.
     expect(screen.getByText('62 seats required to govern')).toBeInTheDocument();
+  });
+
+  test('double-rings the seat that reaches the majority', () => {
+    const { container } = render(
+      <ParliamentSeatGrid
+        seats={seats}
+        majority={62}
+        requiredSeat={0}
+        draggingParty={null}
+        dropTargetParty={null}
+        hoveredParty={null}
+        selectedSeat={null}
+        onDragStart={noop}
+        onDragEnter={noop}
+        onDragEnd={noop}
+        onDrop={noop}
+        onHover={noop}
+        onSelect={noop}
+      />
+    );
+
+    const ring = container.querySelector('[data-required-seat="0"]');
+    expect(ring).not.toBeNull();
+    expect(ring).toHaveAttribute('role', 'img');
+    expect(ring).toHaveAttribute(
+      'aria-label',
+      'Seat 62, the seat required to govern'
+    );
   });
 
   test('vacant seats are not focusable', () => {

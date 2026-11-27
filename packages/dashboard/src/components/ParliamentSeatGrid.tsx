@@ -6,6 +6,7 @@ import type { SeatInfo } from '../lib/parliament.js';
 export function ParliamentSeatGrid({
   seats,
   majority,
+  requiredSeat,
   draggingParty,
   dropTargetParty,
   hoveredParty,
@@ -19,6 +20,8 @@ export function ParliamentSeatGrid({
 }: {
   seats: SeatInfo[];
   majority: number;
+  /** Index of the seat that crosses the majority, in chamber order. */
+  requiredSeat?: number;
   draggingParty: string | null;
   dropTargetParty: string | null;
   hoveredParty: string | null;
@@ -101,6 +104,10 @@ export function ParliamentSeatGrid({
   const layout = chamberLayout(seats.length);
   const x = (v: number) => `${(v / layout.width) * 100}%`;
   const y = (v: number) => `${(v / layout.height) * 100}%`;
+  const ringedSeat =
+    requiredSeat !== undefined ? seats[requiredSeat] : undefined;
+  const ringedPosition =
+    requiredSeat !== undefined ? layout.seats[requiredSeat] : undefined;
 
   return (
     <div
@@ -234,22 +241,36 @@ export function ParliamentSeatGrid({
         );
       })}
 
-      {/* The majority divider: a radial line at the apex, sitting in the gap
-          between the two middle columns rather than through a seat. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute z-10"
-        style={{
-          left: x(layout.marker.x),
-          top: y(layout.marker.y),
-          width: 1,
-          height: y(layout.marker.length),
-          transformOrigin: '50% 0%',
-          transform: `rotate(${layout.marker.angle}rad)`,
-        }}
-      >
-        <div className="absolute inset-0 bg-brand" />
-      </div>
+      {/* The majority requirement, and the one seat that crosses it. A line on
+          the arc could only fall between columns, so it could not sit on the
+          65/66 boundary when both halves hold 65; the double ring can. */}
+      {ringedSeat && ringedPosition && ringedSeat.party !== 'Vacant' && (
+        <div
+          role="img"
+          aria-label={`Seat ${majority}, the seat required to govern`}
+          data-required-seat={requiredSeat}
+          className="pointer-events-none absolute z-10 rounded-full"
+          style={{
+            left: x(ringedPosition.x),
+            top: y(ringedPosition.y),
+            width: x(ringedPosition.size + 12),
+            aspectRatio: '1 / 1',
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <div className="absolute inset-0 rounded-full bg-background" />
+          <div
+            className="absolute rounded-full"
+            style={{
+              inset: '20%',
+              backgroundColor: ringedSeat.color,
+              opacity: ringedSeat.opacity,
+            }}
+          />
+          <div className="absolute inset-0 rounded-full border-[1.5px] border-brand" />
+          <div className="absolute inset-[10%] rounded-full border-[1.5px] border-brand" />
+        </div>
+      )}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute z-10"
