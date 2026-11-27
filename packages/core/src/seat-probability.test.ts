@@ -74,6 +74,21 @@ describe('computeSeatChance', () => {
     );
   });
 
+  it('returns a decided seat when the result is official', () => {
+    // The official count already includes the specials, so nothing is left to
+    // price: the leader holds the seat with certainty and no specials remain.
+    const chance = computeSeatChance(
+      input({ votesCounted: 3000, percentVotesCast: 0.62, official: true })
+    );
+    expect(chance.state).toBe('complete');
+    if (chance.state !== 'complete') return;
+    expect(chance.margin).toBe(200);
+    expect(chance.probability).toBe(1);
+    expect(chance.specialsProbability).toBe(1);
+    expect(chance.specialsOutstanding).toBe(0);
+    expect(chance.insideSpecials).toBe(false);
+  });
+
   it('recovers the outstanding vote from turnout and the prior night share', () => {
     const chance = computeSeatChance(input());
     expect(chance.state).toBe('counting');

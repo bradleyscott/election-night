@@ -57,6 +57,19 @@ const complete: SeatChance = {
   insideSpecials: true,
 };
 
+/** The same seat once the official count has folded the specials in. */
+const official: SeatChance = {
+  state: 'complete',
+  leader: { name: 'WEENINK, Vanessa', party: 'National', votes: 17860 },
+  runnerUp: { name: 'McLELLAN, Tracey', party: 'Labour', votes: 17464 },
+  margin: 396,
+  specialsOutstanding: 0,
+  specialsRequiredSwing: Infinity,
+  probability: 1,
+  specialsProbability: 1,
+  insideSpecials: false,
+};
+
 const renderBand = (chance: SeatChance | null, extra = {}) =>
   render(<ElectorateCountBand result={result()} chance={chance} {...extra} />);
 
@@ -209,6 +222,35 @@ describe('ElectorateCountBand', () => {
     expect(
       screen.queryByText(/chance of holding the seat/i)
     ).not.toBeInTheDocument();
+  });
+
+  it('turns the band into a certificate once the result is official', () => {
+    renderBand(official, {
+      result: result({
+        votesCounted: 35324,
+        official: true,
+        feedUpdated: '2026-11-27T00:00:00',
+      }),
+    });
+
+    expect(screen.getByText('Official result')).toBeInTheDocument();
+    expect(screen.getByText('Final')).toBeInTheDocument();
+    expect(screen.getByText('35,324')).toBeInTheDocument();
+    expect(screen.getByText('votes')).toBeInTheDocument();
+    expect(screen.getByText('396')).toBeInTheDocument();
+    expect(screen.getByText(/\(1\.1%\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Finalised 27 Nov 2026/)).toBeInTheDocument();
+
+    // The three things that stop meaning anything are gone, not zeroed: places
+    // reported, ordinary progress and the specials still to come.
+    expect(
+      screen.queryByText('Voting places reported')
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Ordinary count')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Estimated specials to be counted later')
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Updated/)).not.toBeInTheDocument();
   });
 
   it('rounds both estimates to two significant figures', () => {

@@ -261,6 +261,7 @@ export function seatChanceFor(
     tau: tauFor(baseline),
     specialRatio:
       specialRatioForSeat(baseline, result.electorateName) ?? undefined,
+    official: result.official === true,
   });
 }
 

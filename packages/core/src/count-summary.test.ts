@@ -186,21 +186,30 @@ describe('summarizeCount', () => {
     expect(higher.ordinary.progress!).toBeGreaterThan(lower.ordinary.progress!);
   });
 
-  it('ignores the feed final flag until its semantics are validated', () => {
-    const unvalidated = summarizeCount({
-      result: { votesCounted: 10_000, votePercentageCounted: 1, final: true },
+  it('ignores the feed final flag; only the derived official flag settles it', () => {
+    // `final="true"` on election night means every place has reported, not that
+    // the result is official, so it must not move the phase on its own.
+    const finalOnly = summarizeCount({
+      result: {
+        votesCounted: 10_000,
+        votePercentageCounted: 1,
+        official: false,
+      },
       enrolment: 20_000,
       electionYear: 2023,
     });
-    expect(unvalidated.phase).toBe('preliminary-complete');
+    expect(finalOnly.phase).toBe('preliminary-complete');
 
-    const validated = summarizeCount({
-      result: { votesCounted: 10_000, votePercentageCounted: 1, final: true },
+    const official = summarizeCount({
+      result: {
+        votesCounted: 10_000,
+        votePercentageCounted: 1,
+        official: true,
+      },
       enrolment: 20_000,
       electionYear: 2023,
-      finalSemantics: 'validated',
     });
-    expect(validated.phase).toBe('official');
+    expect(official.phase).toBe('official');
   });
 
   it('does not invent outstanding specials on an official result', () => {
@@ -208,13 +217,12 @@ describe('summarizeCount', () => {
       result: {
         votesCounted: 30_000,
         votePercentageCounted: 1,
-        final: true,
+        official: true,
         candidateVotes: [{ votes: 30_000 }],
         partyVotes: [{ votes: 30_000 }],
       },
       enrolment: 40_000,
       electionYear: 2023,
-      finalSemantics: 'validated',
       chance: countingChance,
     });
 

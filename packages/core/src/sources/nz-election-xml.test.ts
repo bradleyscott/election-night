@@ -162,6 +162,28 @@ describe('NzElectionXmlSource', () => {
       { candidate: 'ALICE, Alison', votes: 7000, party: 'Red Party' },
       { candidate: 'BOB, Robert', votes: 3000, party: 'Blue Party' },
     ]);
+    // The Commission's own stamps: `final` says every place has reported (not
+    // that the result is official), and `updated` is the settled band's date.
+    expect(raw.final).toBe(false);
+    expect(raw.feedUpdated).toBe('2026-11-08T02:00:00');
+  });
+
+  test('parses final="true" without treating it as an official result', async () => {
+    const source = new NzElectionXmlSource({
+      baseUrl: BASE_URL,
+      fetch: (url) =>
+        fixtureFetch(url).then((body) =>
+          url.endsWith('e01/e01.xml')
+            ? body.replace('final="false"', 'final="true"')
+            : body
+        ),
+    });
+    const configs = await source.loadElectorates();
+    const raw = await source.fetchResults(configs[0]);
+
+    expect(raw.final).toBe(true);
+    // Officiality is derived from the national count, never set by the file.
+    expect(raw.official).toBeUndefined();
   });
 
   test('handles electorates with a single candidate', async () => {

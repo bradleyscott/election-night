@@ -48,6 +48,82 @@ function waitingNote(phase: PollsClosePhase | undefined): string {
 }
 
 /**
+ * The date the Commission stamped its official seat file, e.g. `27 Nov 2026`.
+ *
+ * The file's own `updated` attribute wins over `updatedAt`: the official batch
+ * is stamped at midnight (`2026-11-27T00:00:00`) while `Last-Modified` records
+ * when the publisher's server wrote the bytes, which can sit a day earlier in
+ * local time. Either is a date for the settled band, not a countdown.
+ */
+function formatFinalised(result: ElectorateResult): string | null {
+  const raw = result.feedUpdated ?? result.updatedAt;
+  if (!raw) return null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-NZ', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+/**
+ * The band once the result is official: a certificate, not a progress report.
+ *
+ * An official count has every place in, the specials inside the total and
+ * nothing left to estimate, so the places figure, the ordinary-progress bar and
+ * the specials estimate all stop meaning anything. What survives is what a
+ * settled count is: the votes counted, the gap between the top two, and the
+ * date the Commission stamped. The 2px rule replaces the hairline above the
+ * table: the count is closed, and the table below is the result itself.
+ */
+function OfficialBand({
+  counted,
+  margin,
+  marginShare,
+  finalised,
+}: {
+  counted: number;
+  margin: number;
+  marginShare: number | null;
+  finalised: string | null;
+}) {
+  return (
+    <div className="border-b-2 border-foreground">
+      <div className="flex items-center justify-between gap-3 px-3 pt-2.5 sm:px-4">
+        <div className="kicker font-bold text-foreground">Official result</div>
+        <span className="chip-print chip-print--ink">Final</span>
+      </div>
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-3 pb-3 pt-1 sm:px-4">
+        <div>
+          <div className="kicker">Counted</div>
+          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-sm font-bold text-foreground">
+              {formatVotes(counted)}
+            </span>{' '}
+            votes
+          </div>
+        </div>
+        <div>
+          <div className="kicker">Margin</div>
+          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-sm font-bold text-foreground">
+              {formatVotes(margin)}
+            </span>
+            {marginShare != null && ` (${(marginShare * 100).toFixed(1)}%)`}
+          </div>
+        </div>
+        {finalised && (
+          <div className="ml-auto font-label text-[11px] text-muted-foreground">
+            Finalised {finalised}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * One bar, two states: the solid share has been counted, the hatched share has
  * not. Both bands draw it the same way, because "counted / still to come" is
  * the same shape whether the missing votes are tonight's or the specials'.
@@ -147,7 +223,6 @@ export function ElectorateCountBand({
   });
 
   const counted = summary.ordinary.counted;
-  const complete = summary.ordinary.state === 'complete';
   const hasVotes = counted > 0;
 
   if (!hasVotes && (!chance || chance.state === 'waiting')) {
@@ -174,6 +249,23 @@ export function ElectorateCountBand({
       : (result.candidateVotes[0]?.votes ?? 0) -
         (result.candidateVotes[1]?.votes ?? 0);
   const marginShare = counted > 0 ? margin / counted : null;
+
+  // An official result has nothing left to progress: the places, the ordinary
+  // bar and the specials estimate are all superseded, so the band becomes a
+  // certificate. A tie (margin 0) should never be official; if it is, the
+  // ordinary band is the honest fallback rather than naming a winner.
+  if (result.official && margin > 0) {
+    return (
+      <OfficialBand
+        counted={counted}
+        margin={margin}
+        marginShare={marginShare}
+        finalised={formatFinalised(result)}
+      />
+    );
+  }
+
+  const complete = summary.ordinary.state === 'complete';
   const updated = formatUpdatedAgo(updatedAt ?? null);
 
   const places = summary.places;

@@ -178,6 +178,57 @@ describe('buildResultsPayload with an uncounted seat alongside a counted one', (
   });
 });
 
+describe('buildResultsPayload official flag', () => {
+  const status = {
+    parties: [],
+    totalVotesCast: 4000,
+    percentVotesCast: 0.5,
+    totalElectoratesFinal: 1,
+    percentElectoratesFinal: 100,
+    totalMinimalVotes: 0,
+    totalSpecialVotes: 0,
+    updated: null,
+  };
+
+  const officialOf = (
+    seat: ElectorateResults,
+    national: Partial<typeof status> = {}
+  ): boolean | undefined =>
+    buildResultsPayload([seat], [], { ...status, ...national })
+      .electorateResults[0].official;
+
+  test('marks a final, counted seat official once the national count has settled', () => {
+    // The feed has no official flag: `final` alone is set on election night for
+    // every seat whose places have reported, so the special-vote field and the
+    // national coverage are what separate a finished night from the official
+    // count.
+    const seat = makeElectorate({ final: true, votesCounted: 9000 });
+
+    expect(officialOf(seat)).toBe(true);
+    expect(officialOf(seat, { totalSpecialVotes: 291_373 })).toBe(false);
+    // A seat can finish early in the night; until the country's count is in,
+    // that seat is not official.
+    expect(officialOf(seat, { percentElectoratesFinal: 29.57 })).toBe(false);
+  });
+
+  test('does not mark a seat official while its own file is not final', () => {
+    const seat = makeElectorate({ final: false, votesCounted: 9000 });
+    expect(officialOf(seat)).toBe(false);
+  });
+
+  test('does not mark a zero-vote placeholder official', () => {
+    // Before the count the feed publishes zeroed seat files, and the national
+    // special-vote field is also 0; neither is a result.
+    const seat = makeElectorate({
+      final: true,
+      votesCounted: 0,
+      partyVotes: [],
+      candidateVotes: [],
+    });
+    expect(officialOf(seat)).toBe(false);
+  });
+});
+
 describe('calculatePartyVoteWithPercentages', () => {
   test('returns zero percentages when no votes are counted', () => {
     const r = makeElectorate({ votesCounted: 0, votePercentageCounted: 0 });

@@ -403,6 +403,8 @@ export class NzElectionXmlSource implements ElectionSource {
   ): RawElectorateResults {
     const parsed = xmlParser.parse(xml) as {
       electorate?: {
+        final?: string;
+        updated?: string;
         statistics?: {
           total_votes_cast?: string;
           percent_voting_places_counted?: string;
@@ -438,6 +440,14 @@ export class NzElectionXmlSource implements ElectionSource {
       votesCounted,
       votePercentageCounted,
       percentVotesCast,
+      // The Commission's own flags: `final` marks every place reported (not an
+      // official result), and `updated` is the stamp the settled band prints.
+      final:
+        root.final === 'true' ? true : root.final === 'false' ? false : null,
+      feedUpdated:
+        typeof root.updated === 'string' && root.updated.trim()
+          ? root.updated.trim()
+          : null,
     };
   }
 

@@ -15,8 +15,9 @@
  *   in-seat booth set (which the map draws);
  * - an estimate is not a counted fact, and no estimate is authoritative
  *   completion;
- * - the feed's `final` flag is ignored unless a caller says its semantics have
- *   been validated for this cycle, so `unknown` stays an honest phase.
+ * - the feed's `final` flag only means every place has reported, so the phase
+ *   turns `official` on the `official` flag the payload derives (final, votes
+ *   counted, no specials outstanding), not on `final` itself.
  */
 
 import {
@@ -108,8 +109,12 @@ export type CountSummaryInput = {
     votePercentageCounted?: number | null;
     /** Turnout so far, as a fraction. */
     percentVotesCast?: number | null;
-    /** The seat file's `final` attribute, when a source exposes it. */
-    final?: boolean | null;
+    /**
+     * The payload's derived official flag (final, votes counted, no specials
+     * outstanding). Only this turns the phase official: the feed's own `final`
+     * attribute merely means every place has reported.
+     */
+    official?: boolean;
   };
   /** The seat's model result, when one was computed. */
   chance?: SeatChance | null;
@@ -125,12 +130,6 @@ export type CountSummaryInput = {
   contributingPlaces?: { counted: number; total: number } | null;
   /** Booths standing inside this electorate, as the map draws them. */
   inSeatBooths?: { counted: number; total: number } | null;
-  /**
-   * Only `'validated'` lets `result.final` assign an official phase. Today no
-   * caller can honestly claim that, so the default leaves the phase unknown
-   * or preliminary-complete.
-   */
-  finalSemantics?: 'validated' | 'unknown';
 };
 
 function sum(votes: { votes: number }[] | undefined): number {
@@ -287,8 +286,7 @@ export function summarizeCount(input: CountSummaryInput): CountSummary {
           },
   };
 
-  const validated = input.finalSemantics === 'validated';
-  const official = validated && result.final === true;
+  const official = result.official === true;
   if (official) {
     // An official result is not a forecast: nothing is outstanding, specials
     // included, and the estimate slots must not invent them.
@@ -307,14 +305,8 @@ export function summarizeCount(input: CountSummaryInput): CountSummary {
     specials.remaining = null;
   }
 
-  const phase: CountPhase = validated
-    ? result.final === true
-      ? 'official'
-      : ordinary.state === 'complete'
-        ? 'preliminary-complete'
-        : counted > 0
-          ? 'counting'
-          : 'unknown'
+  const phase: CountPhase = official
+    ? 'official'
     : ordinary.state === 'complete'
       ? 'preliminary-complete'
       : counted > 0

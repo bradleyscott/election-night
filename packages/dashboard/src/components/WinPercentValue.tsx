@@ -26,11 +26,17 @@ export function chancePercent(chance?: SeatChance | null): number | null {
 const COMPLETE_TITLE =
   'The ordinary count is complete; this is the chance of holding the seat once the special votes are added';
 
+const OFFICIAL_TITLE =
+  'The official result: every vote is counted and nothing remains outstanding';
+
 /** The tooltip a chance carries, including the finished-count distinction. */
 export function winPercentTitle(
   chance?: SeatChance | null
 ): string | undefined {
-  return chance?.state === 'complete' ? COMPLETE_TITLE : undefined;
+  if (chance?.state !== 'complete') return undefined;
+  // An official result is complete with nothing left to price; the finished
+  // count's tooltip would promise special votes that are already in the total.
+  return chance.specialsOutstanding === 0 ? OFFICIAL_TITLE : COMPLETE_TITLE;
 }
 
 export function WinPercentValue({

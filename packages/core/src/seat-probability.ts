@@ -337,6 +337,12 @@ export type SeatChanceInput = {
    * harness uses to compare the two.
    */
   composition?: number;
+  /**
+   * The payload says this is the official result: final, counted, and no
+   * specials outstanding. Nothing is left to forecast, so the leader is
+   * returned as a `complete` seat with probability 1 and no specials.
+   */
+  official?: boolean;
 };
 
 export type SeatChance =
@@ -679,7 +685,8 @@ export function nightRemaining(input: {
  * Returns `waiting` before any votes are counted and `complete` once nothing
  * is estimated to be outstanding. A complete seat still carries a probability:
  * the ordinary count is settled, but the specials can still change the seat, so
- * `probability` equals `specialsProbability`.
+ * `probability` equals `specialsProbability`. An official result is also
+ * `complete`, but with no specials left to price, so its probability is 1.
  */
 export function computeSeatChance(input: SeatChanceInput): SeatChance {
   const candidates = [...input.candidates].sort((a, b) => b.votes - a.votes);
@@ -690,6 +697,24 @@ export function computeSeatChance(input: SeatChanceInput): SeatChance {
   const leader = candidates[0];
   const runnerUp = candidates[1];
   const margin = leader.votes - runnerUp.votes;
+
+  // An official result is not a forecast. The specials are already inside
+  // `votesCounted`, so nothing is outstanding and the leader has won: the same
+  // `complete` shape, with the special vote priced at zero instead of waiting
+  // on the cycle constants.
+  if (input.official && margin > 0) {
+    return {
+      state: 'complete',
+      margin,
+      leader,
+      runnerUp,
+      specialsOutstanding: 0,
+      probability: 1,
+      specialsRequiredSwing: Infinity,
+      specialsProbability: 1,
+      insideSpecials: false,
+    };
+  }
 
   const turnout = clamp01(input.percentVotesCast ?? 0);
   // Enrolment is the denominator everything else divides by. Prefer the figure

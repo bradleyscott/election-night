@@ -176,8 +176,23 @@ function buildResultsPayload(
   partyListRecords: PartyList[],
   nationalStatus: NationalStatus
 ): ResultsPayload {
+  // The feed has no official-result flag: `final` is set on election night for
+  // each seat whose places have all reported, and the elements are identical
+  // before and after the official count. Two national facts separate them: the
+  // live feed carries special votes while they are outstanding and leaves the
+  // field at 0 once they are inside the official count, and every seat's count
+  // is in. So a seat is official when its own file is final, it has votes, and
+  // the nation's count has settled — derived here, the one place that holds the
+  // national status alongside every seat.
+  const countSettled =
+    nationalStatus.totalSpecialVotes === 0 &&
+    nationalStatus.percentElectoratesFinal >= 100;
   const withPredictions = results.map((x) =>
-    calculateLead({ ...x, candidateVotes: [...x.candidateVotes] })
+    calculateLead({
+      ...x,
+      candidateVotes: [...x.candidateVotes],
+      official: x.final === true && countSettled && (x.votesCounted ?? 0) > 0,
+    })
   );
 
   const partyVote = buildPartyVoteWithSeats(

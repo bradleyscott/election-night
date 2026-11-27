@@ -15,16 +15,47 @@ export type ElectorateResults = {
   percentVotesCast?: number;
   /**
    * When the Commission last republished *this seat's* file, as an ISO instant
-   * taken from the HTTP `Last-Modified` (which equals the file's own `updated`
-   * attribute). Absent when the source cannot say — a custom adapter, or an
-   * archived cycle fetched through `fetchResults`, where the stamp would be the
-   * archive's rebuild time rather than anything about the count.
+   * taken from the HTTP `Last-Modified`. Absent when the source cannot say — a
+   * custom adapter, or an archived cycle fetched through `fetchResults`, where
+   * the stamp would be the archive's rebuild time rather than anything about
+   * the count.
    *
    * The electorate panel prints this rather than when the browser last received
    * a payload: a quiet feed publishes nothing, so the payload can be an hour old
    * while this seat's count is current.
+   *
+   * Distinct from `feedUpdated`: the two usually agree by a few hours, but the
+   * `Last-Modified` is the transport's statement and the attribute is the
+   * Commission's own.
    */
   updatedAt?: string | null;
+  /**
+   * The seat file's own `updated` attribute, exactly as the Commission writes
+   * it (no timezone), e.g. `2026-11-27T00:00:00`. The official batch is
+   * stamped at midnight, which is why the settled band prefers this stamp for
+   * its "finalised" date.
+   */
+  feedUpdated?: string | null;
+  /**
+   * The feed's `final` attribute: every voting place in this seat has reported.
+   *
+   * This is **not** an official result. The Commission sets it on election
+   * night, seat by seat, as each seat's places come in: on 8 November 2026 at
+   * 00:01, 21 of 71 seat files were already `final="true"` while the national
+   * count was at 96.1% of places and 291,373 special votes were still
+   * outstanding. See `official` for the trusted flag.
+   */
+  final?: boolean | null;
+  /**
+   * The seat's result is the official one: its file is final, it has votes, and
+   * the national count has settled (no special votes outstanding, every
+   * electorate final).
+   *
+   * Set by `buildResultsPayload`, not by the source, because the feed carries
+   * no official flag of its own — the elements are identical before and after
+   * the official count. This is the substitution the panel reads.
+   */
+  official?: boolean;
 };
 
 export type VotingResults = {
